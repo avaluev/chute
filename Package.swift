@@ -1,7 +1,9 @@
 // swift-tools-version:5.10
 import PackageDescription
 
-// ponytail: zero external dependencies on purpose — `swift build` stays offline and instant.
+// ponytail: zero external dependencies — `swift build` stays offline and instant.
+// XCTest is unavailable on a Command-Line-Tools-only toolchain, so the suite is a plain
+// executable (`swift run chutetests`) with an assert harness instead of a .testTarget.
 let package = Package(
     name: "Chute",
     platforms: [.macOS(.v13)],
@@ -12,6 +14,6 @@ let package = Package(
     targets: [
         .target(name: "ChuteCore"),
         .executableTarget(name: "chute", dependencies: ["ChuteCore"]),
-        .testTarget(name: "ChuteCoreTests", dependencies: ["ChuteCore"]),
+        .executableTarget(name: "chutetests", dependencies: ["ChuteCore"]),
     ]
 )
