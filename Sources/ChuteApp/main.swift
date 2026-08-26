@@ -192,8 +192,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     func updateBadgeFromHooks() {
-        let records = HookState.readAll().values
-        let n = records.filter { $0.state == .blocked || $0.state == .waiting }.count
+        let n = HookState.attention(HookState.readAll(),
+                                    live: HookState.liveTTYs(),
+                                    now: Date()).count
         statusItem.button?.title = n == 0 ? "⤓" : "⤓ \(n)"
     }
 
