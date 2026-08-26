@@ -29,6 +29,11 @@ GIT SAFETY
   checkpoint [dir]      Snapshot before an agent runs     (never touches your worktree)
   diff [dir]            What the agent changed            --copy
 
+AGENT SESSIONS
+  sessions              Every terminal session, grouped by state     --json
+  focus <key|project|N> Bring that session to the front
+  hooks install|uninstall|status                                     --settings PATH
+
 SHARING
   redact [files…]       Mask API keys and tokens
   gist <files…>         Secret gist → URL on clipboard
@@ -70,6 +75,9 @@ case "redact":     cmdRedact(args)
 case "gist":       cmdGist(args)
 case "dataurl":    cmdDataURL(args)
 case "env":        cmdEnv(args)
+case "sessions":   cmdSessions(args)
+case "focus":      cmdFocus(args)
+case "hooks":      cmdHooks(args)
 case "doctor":     cmdDoctor(args)
 case "help", "-h", "--help", "version", "--version":
     if command.contains("version") { print("chute 0.1.0") } else { print(helpText) }
