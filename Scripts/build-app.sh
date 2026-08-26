@@ -12,6 +12,9 @@ mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 # NOTE: APFS is case-insensitive — the app executable must not be a case variant of "chute".
 cp "$ROOT/.build/release/ChuteApp" "$APP/Contents/MacOS/ChuteApp"
 cp "$ROOT/.build/release/chute"    "$APP/Contents/MacOS/chute"
+# The icon the menu bar, Notification Center and Finder all show. Generated once by
+# Scripts/make-icon.swift and committed — a build never renders it.
+cp "$ROOT/Resources/Chute.icns" "$APP/Contents/Resources/Chute.icns"
 
 # ---- Finder extension -------------------------------------------------------
 # swiftc, not SwiftPM: an appex's Mach-O entry point must be _NSExtensionMain, and SwiftPM cannot
@@ -69,6 +72,7 @@ cat > "$APP/Contents/Info.plist" <<PLIST
   <key>CFBundleVersion</key><string>$VERSION</string>
   <key>LSMinimumSystemVersion</key><string>13.0</string>
   <key>LSUIElement</key><true/>
+  <key>CFBundleIconFile</key><string>Chute</string>
   <key>NSHumanReadableCopyright</key><string>Chute — drop context into your agent.</string>
   <key>NSAppleEventsUsageDescription</key><string>Chute reads your Finder selection so it can turn it into agent context.</string>
   <!-- How the sandboxed Finder extension reaches this app. The extension cannot run git, launch
@@ -85,8 +89,15 @@ PLIST
 plutil -lint "$APP/Contents/Info.plist" >/dev/null
 # Inner to outer. Signing the app first and then touching the appex invalidates the app's
 # signature, and the extension then refuses to load with no message anywhere.
-codesign --force --sign - --entitlements "$ROOT/Resources/ChuteFinder.entitlements" "$APPEX" \
-    2>/dev/null || echo "note: appex ad-hoc signing unavailable"
-codesign --force --sign - "$APP"   2>/dev/null || echo "note: ad-hoc signing unavailable; app still runs locally"
+# A stable identity if one exists (see Scripts/sign-identity.sh), otherwise ad-hoc. Ad-hoc has no
+# identity at all, which is why macOS re-asks "differs from previously opened versions" after every
+# single rebuild — the same app arrives looking like a different one.
+IDENTITY="Chute Local Dev"
+security find-identity -v -p codesigning 2>/dev/null | grep -q "$IDENTITY" || IDENTITY="-"
+[ "$IDENTITY" = "-" ] && echo "note: signing ad-hoc — run ./Scripts/sign-identity.sh once to stop the repeat macOS prompts"
+
+codesign --force --sign "$IDENTITY" --entitlements "$ROOT/Resources/ChuteFinder.entitlements" "$APPEX" \
+    2>/dev/null || echo "note: appex signing unavailable"
+codesign --force --sign "$IDENTITY" "$APP" 2>/dev/null || echo "note: app signing unavailable; it still runs locally"
 echo "built $APP"
 du -sh "$APP" | awk '{print "size: " $1}'

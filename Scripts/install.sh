@@ -11,6 +11,11 @@ rm -rf "$HOME/Applications/Chute.app"
 cp -R "$APP" "$HOME/Applications/Chute.app"
 ln -sf "$HOME/Applications/Chute.app/Contents/MacOS/chute" "$HOME/.local/bin/chute"
 
+# You built this app; it was never downloaded. Clearing these stops macOS treating each rebuild as
+# a suspicious new arrival.
+xattr -dr com.apple.quarantine "$HOME/Applications/Chute.app" 2>/dev/null || true
+xattr -dr com.apple.provenance "$HOME/Applications/Chute.app" 2>/dev/null || true
+
 /System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister \
   -f "$HOME/Applications/Chute.app"
 /System/Library/CoreServices/pbs -flush 2>/dev/null || true
