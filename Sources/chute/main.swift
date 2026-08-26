@@ -35,6 +35,9 @@ SHARING
   dataurl <image>       Base64 data URL                   --markdown
   env inject [dir]      Keychain → .env                   --keys A,B
 
+SETUP
+  doctor                Check every prerequisite and say how to fix it   --fix --json
+
 Global: --no-copy  suppress clipboard write.  Everything is offline; nothing is ever uploaded.
 """
 
@@ -67,6 +70,7 @@ case "redact":     cmdRedact(args)
 case "gist":       cmdGist(args)
 case "dataurl":    cmdDataURL(args)
 case "env":        cmdEnv(args)
+case "doctor":     cmdDoctor(args)
 case "help", "-h", "--help", "version", "--version":
     if command.contains("version") { print("chute 0.1.0") } else { print(helpText) }
 default:
