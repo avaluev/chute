@@ -1,8 +1,9 @@
-# HANDOFF — Chute: session switcher + onboarding — 2026-08-26
+# HANDOFF — Chute: switcher shipped, Finder menu live — 2026-08-26
 
-STATE: `feat/session-switcher` @ `1d4cbcf` · pushed (local == origin) · build green
-       (`swift build -c release` → `Build complete!`) · unit 205/205 (`swift run chutetests`)
-       · e2e 39/39 (`./Scripts/smoke.sh`) · `main` still at `e02b78c`, NOT merged
+STATE: `main` @ `826220a` · pushed (`git ls-remote --heads origin main` == local) · build green
+       (`./Scripts/build-app.sh` → `Build complete!`, 1.1M) · unit 214/214 (`swift run chutetests`)
+       · e2e 53/53 (`./Scripts/smoke.sh`) · app running · hooks INSTALLED · Finder extension
+       registered and enabled (`+ dev.valuev.chute.finder`)
 
 ## ONE-LINE GOAL
 A macOS utility that turns a Finder selection into agent-ready context and tells you which of your
@@ -10,135 +11,101 @@ running AI agents is waiting for you.
 
 ---
 
-## MODEL ROUTING — binding for this project
-
-| Role | Model | Scope |
-|---|---|---|
-| **Design, audit, code review, SDLC correction** | **Opus** | Every spec and plan. Every task review and re-review. Every ruling on a conflict. Anything touching `~/.claude/settings.json`, entitlements, or signing. |
-| **Build from a written spec** | **Sonnet** | Implementation where the plan carries the code and the task needs judgment: parsers, state logic, AppKit, anything with error paths. |
-| **Mechanical transcription** | **Haiku** | Single-file, fully-specified work with no design decisions: a pure function with given constants, script edits, doc updates. |
-
-Rules that made this work, and must not be dropped:
-1. **One agent per file.** Never two agents in one file. Parallel only on provably disjoint files.
-2. **Every implementer gets a perturbation step**: break your new guard, prove the suite goes RED,
-   restore it. A green suite nobody saw fail is not evidence.
-3. **Every task gets an independent review; every fix round gets a scoped re-review.**
-   Two of this session's defects were introduced BY fixes to earlier defects.
-4. **Reviews get an adversarial question, not "review this."** Ask what specifically could be
-   wrong — clock skew, sandbox, threading, a failure atlas. Generic reviews found generic things.
-5. **The controller never fixes findings itself.** It rules, ledgers the ruling, and re-dispatches.
-
-### Security standard for any task touching the user's config
-`~/.claude/settings.json` holds 12 configured hook events driving the founder's whole workflow.
-Any code touching it: **back up first · parse never template · append only · idempotent ·
-validate before replacing · fully reversible · never run install/uninstall during verification
-(temp fixtures only).** Enforced in `/Users/sxope/Documents/2026/Development/37.chute/Sources/ChuteCore/HookInstaller.swift`.
-
----
-
 ## DONE (verified — each proved by a command that was RUN)
 
-- **Engine, 6 tasks** — proved by `swift run chutetests` → `✅ 205 assertions passed`
-- **End-to-end** — proved by `./Scripts/smoke.sh` → `smoke: 39 passed, 0 failed`
-- **All 12 tasks merged** (6 engine + O1–O3 onboarding + Tasks 7–8) — `git log --oneline | wc -l` → 60
-- **`chute sessions` lists real windows** — proved by `./.build/release/chute sessions` →
-  `→ 9 session(s), 0 need you` with 7 agents and 2 shells across 4 projects
-- **`chute focus 1` works** — proved by the frontmost process flipping Docker Desktop → Terminal
-- **`chute doctor` diagnoses honestly** — proved by `chute doctor` → `→ 4 of 8 checks failed`
-  ending `— end-to-end test skipped: fix the above first`, exit 1
-- **Menu-bar switcher installed and running** — `pgrep -x ChuteApp` returns a pid; 996K bundle
-- **A sandboxed FinderSync appex works ad-hoc signed, no Xcode, no $99** — proved by a throwaway
-  spike: registered under `com.apple.FinderSync` and enabled via `pluginkit -e use`. Probe deleted.
+- **All 12 engine/onboarding tasks merged to `main`** — `git ls-remote --heads origin main` → `826220a`
+- **Phantom badge FIXED** — `HookState.attention()` intersects hook records with the live tty set
+  and applies the 6-hour staleness window. Perturbation: deleting the `live.contains` guard →
+  `❌ 2 failed, 208 passed`; restored → `✅ 214 assertions passed`.
+- **Hooks installed in `~/.claude/settings.json`** — `chute hooks status` → `✓` on all four events.
+  Backup: `/Users/sxope/.claude/settings.json.chute-backup-20260826-170136`. All 12 pre-existing
+  hook events and all 15 top-level keys survived (checked by parsing the file afterwards).
+- **The badge now has something to say** — `chute sessions` → `→ 8 session(s), 1 need you`,
+  from a real `waiting` hook record written by a live session on `ttys001`.
+- **`hooks uninstall` is a true reversal** — an event left empty is deleted, not left as `[]`.
+  Perturbed → `❌ 1 failed`; restored → green.
+- **Finder context menu WORKS** — `Chute ▸` submenu via a sandboxed `FIFinderSync` appex,
+  ad-hoc signed, no Xcode. `pluginkit -m -p com.apple.FinderSync` → `+ dev.valuev.chute.finder(0.1.0)`.
+- **Uninstall/install cycle is clean** — `./Scripts/uninstall.sh` → `0` chute plugins;
+  `./Scripts/install.sh` → `1`, already flagged `+`. No System Settings visit needed.
+- **Smoke covers the switcher** — section 14: `sessions --json` shape, `focus` exit code,
+  `doctor --json` shape, and hooks install/status/uninstall against a temp fixture.
 
 ## IN FLIGHT
-- Nothing. All 12 tasks are merged and the branch is green.
+- Nothing. Tree clean, `main` pushed.
 
 ## NEXT
-1. `git merge worktree-agent-ae0cb4e0a35cb7b80 --no-edit`
-   — after Task 7's review is clean. expect: `Sources/chute/Commands/SessionCommands.swift` created
-2. `cd /Users/sxope/Documents/2026/Development/37.chute && swift run chutetests && ./Scripts/smoke.sh`
-   expect: `✅ 205 assertions passed` and `smoke: 39 passed, 0 failed`
-3. **Fix the phantom badge** (see TRAPS) — `updateBadgeFromHooks()` at
-   `/Users/sxope/Documents/2026/Development/37.chute/Sources/ChuteApp/main.swift:194` counts hook
-   files without intersecting live ttys. Sonnet. This is the headline feature; a badge the user
-   learns to distrust is worse than no badge.
-2. **Task 9** — smoke coverage for `sessions`/`doctor`/`hooks`, install wiring, README. Haiku.
-3. **Offer `chute hooks install`** — run it against a COPY first, diff it, show the founder, then ask.
-   Until then every session reads `working` and the badge stays dark.
-4. **FinderSync** — `/Users/sxope/Documents/2026/Development/37.chute/docs/superpowers/plans/2026-08-26-findersync-context-menu.md`.
-   Task 2 carries a hard STOP: prove a sandboxed appex can reach the app BEFORE writing menu code.
-5. `git checkout main && git merge feat/session-switcher` once 1–2 are done.
+1. **Right-click any file in Finder → `Chute ▸`.** The only step no command can verify. If the
+   submenu is missing: `killall Finder`, then `pluginkit -m -p com.apple.FinderSync`.
+2. **Price: $9 or $19.** The only open decision. `docs/09-GTM-DECISIONS.md` #8 argues $9.
+3. **$99 Apple Developer ID** — needed before anyone ELSE can install without a Gatekeeper
+   warning (`spctl` rejects the ad-hoc signature, as expected). Not needed locally.
+4. **Delete the stale spike container** — `rm -rf ~/Library/Containers/dev.valuev.chuteprobe.finder`
+   (left by the throwaway FinderSync probe; harmless, just untidy).
 
 ---
 
 ## DECISIONS (do not re-litigate)
 
 - **FinderSync extension, not Services or Automator Quick Actions.** Both were built, both
-  registered with macOS, neither ever appeared. `pbs` registers app `NSServices` into a submenu
-  Finder buries; `FinderActive` never lists synthesised `.workflow` bundles. Evidence and the
-  rejected-mechanisms table: `/Users/sxope/Documents/2026/Development/37.chute/docs/08-MACOS-COMPATIBILITY.md`.
-- **No Xcode, no $99 yet.** Proved sufficient for local development by spike. The Developer ID is
-  needed before anyone ELSE can install, not before the menu works here.
-- **No XCTest.** It ships with Xcode. The suite is an executable with an assert harness:
-  `swift run chutetests`. `swift test` does not work on this machine and never will without Xcode.
+  registered, neither ever appeared. The Quick Actions generator is now DELETED.
+  Evidence: `/Users/sxope/Documents/2026/Development/37.chute/docs/08-MACOS-COMPATIBILITY.md`.
+- **No Xcode, no $99 yet.** Proved sufficient: the extension registers, loads and runs ad-hoc signed.
+- **No XCTest.** `swift run chutetests`, an executable with an assert harness. `swift test` needs Xcode.
 - **Zero third-party dependencies.** Never add `.package(` to Package.swift.
-- **Zero telemetry.** It is a positioning asset with this audience, not just an ethical stance.
-  See `/Users/sxope/Documents/2026/Development/37.chute/docs/09-GTM-DECISIONS.md` #8.
-- **Beachhead is multi-agent solo devs on macOS**, not "AI builders". Riskiest assumption is A1:
-  *a stranger can install this and see the menu* — the only one with evidence AGAINST it.
-- **Onboarding detects and verifies; it never instructs.** On macOS 15.0–15.1 Apple REMOVED the
-  Extensions settings pane, so "tick the box in System Settings" pointed at a screen that did not
-  exist for two OS releases.
-- **`.sortedKeys` in HookInstaller is deliberate.** Removing it does NOT preserve the user's key
-  order — Swift dictionaries are unordered and hash seeds are randomised, so output order changes
-  every run. The real choice is stable vs random. Verified over 5 runs: 5/5 red without it.
+- **Zero telemetry.** Positioning asset with this audience. `docs/09-GTM-DECISIONS.md` #8.
+- **`.sortedKeys` in HookInstaller is deliberate.** Without it the file reshuffles every run —
+  Swift dictionaries are unordered and hash seeds randomised. Verified 5/5 red without it.
+- **The appex spawns `chute` directly.** The feared appex → IPC → host-app redesign is NOT needed:
+  measured inside the loaded extension, the spawn is permitted, its writes reach the real
+  filesystem, and it writes the real pasteboard.
+- **Onboarding detects and verifies; it never instructs.** macOS 15.0–15.1 removed the Extensions
+  pane, so "tick the box in System Settings" pointed at a screen that did not exist.
 
 ---
 
-## TRAPS (each cost real time today)
+## TRAPS (each cost real time)
 
-- **`pgrep -x Terminal` NEVER matches Terminal.app.** macOS reports a bundled app's `comm` as its
-  full executable path. → Use `ps -Ao comm` and a path-fragment match. `isAppRunning` at
-  `/Users/sxope/Documents/2026/Development/37.chute/Sources/ChuteCore/TerminalAppAdapter.swift:63`.
-- **An appex registers when its HOST APP IS LAUNCHED**, not on `pluginkit -a`. Measured:
-  `pluginkit -a` → not registered; `lsregister -f` → not registered; `open <app>` → registered.
-- **`NSExtensionMain()` is not callable from Swift.** Build the appex with
-  `-Xlinker -e -Xlinker _NSExtensionMain` and NO `main.swift`.
-- **App extensions are SANDBOXED.** The "appex spawns `chute`" design is UNPROVEN — a child
-  inherits the sandbox. Google Drive's extension signals its host app instead. Gated at Task 2.
-- **APFS is case-INSENSITIVE.** `Contents/MacOS/Chute` and `.../chute` are the same file; the CLI
-  silently overwrote the app binary. The app executable is named `ChuteApp` for this reason.
-- **`git stash create` EXCLUDES untracked files** — exactly what an agent creates. `checkpoint`
-  uses a private `GIT_INDEX_FILE` + `add -A` + `write-tree` + `commit-tree` instead.
-- **`ps -o tty=` prints `??`, not empty**, when there is no controlling terminal. A guard on
-  emptiness never fires. Whitelist `[a-zA-Z0-9]` instead.
-- **Worktrees branch from the REPO BASE, not the working branch.** Every parallel dispatch must
-  start with `git merge feat/session-switcher --no-edit` or the agent builds against stale code.
-- **Worktrees contain only TRACKED files.** `.superpowers/` scratch does not exist inside them —
-  point agents at the COMMITTED plan file and a task heading, never at a generated brief.
-- **`git log origin/<branch>..HEAD` returns 0 when the branch was never pushed.** The error is
+- **A FinderSync appex needs THREE Info.plist keys the obvious ones don't include**: `LSUIElement`,
+  `NSPrincipalClass` = `NSApplication`, and an empty `NSExtensionAttributes`. Without them
+  `pluginkit` silently never lists it — no error, anywhere. Found by reading Google Drive's plist.
+- **The appex must be signed WITH sandbox entitlements**, from
+  `/Users/sxope/Documents/2026/Development/37.chute/Resources/ChuteFinder.entitlements`, and signed
+  BEFORE the outer app. Signing the app first and then touching the appex invalidates the app.
+- **`NSHomeDirectory()` inside the appex is the CONTAINER**, not `/Users/<you>`. Every path handed
+  to `chute` must be absolute and come from Finder. A `~`-relative write lands in the container and
+  the command still exits 0 — a silent wrong-place success, the worst failure shape there is.
+- **An appex registers when its HOST APP IS LAUNCHED**, not on `pluginkit -a` or `lsregister -f`.
+- **`NSExtensionMain()` is not callable from Swift.** Build with `-Xlinker -e -Xlinker
+  _NSExtensionMain` and NO `main.swift`.
+- **`pgrep -x Terminal` NEVER matches Terminal.app.** Use `ps -Ao comm` + path fragment.
+  `isAppRunning` at `/Users/sxope/Documents/2026/Development/37.chute/Sources/ChuteCore/TerminalAppAdapter.swift:103`.
+- **`ps -o tty=` prints `??`, not empty**, when there is no controlling terminal. Whitelist
+  `[a-zA-Z0-9]` instead — `HookState.liveTTYs()` at
+  `/Users/sxope/Documents/2026/Development/37.chute/Sources/ChuteCore/HookState.swift:72`.
+- **APFS is case-INSENSITIVE.** `Contents/MacOS/Chute` and `.../chute` are the same file. The app
+  executable is named `ChuteApp` for this reason.
+- **`git stash create` EXCLUDES untracked files.** `checkpoint` uses a private `GIT_INDEX_FILE`.
+- **`git log origin/<branch>..HEAD` returns 0 when the branch was never pushed** — the error is
   suppressed and silence reads as success. Verify with `git ls-remote --heads origin <branch>`.
 - **The installed CLI is a COPY inside the app bundle.** After any Swift change run
   `./Scripts/build-app.sh && ./Scripts/install.sh`, or `~/.local/bin/chute` stays stale.
-- **PHANTOM BADGE (open bug).** `updateBadgeFromHooks()` counts hook files without intersecting
-  live ttys, so a closed window's `waiting` record inflates the badge for up to 6 hours.
+- **`./Scripts/uninstall.sh` deletes `~/.chute`** — hook state included. Harmless (hooks recreate
+  it), but a `sessions` run straight afterwards reports everything as `working`.
+- **`log show --predicate '…'` breaks under zsh** in this harness. Put it in a `.sh` file and
+  `bash` it.
 
 ---
 
 ## OPEN QUESTIONS FOR THE HUMAN
-1. **Install the Claude Code hooks?** Until then every session reads `working` and the badge stays
-   dark. It appends to `~/.claude/settings.json`, backs up first, and reverses with one command —
-   but it is your config. Recommend: run against a copy, diff it, then decide.
-2. **Buy the $99 Apple Developer ID?** Not needed for local use. Needed before anyone else can
-   install without a Gatekeeper warning, and before Product Hunt is worth doing.
-3. **Price: $9 or $19?** `docs/09-GTM-DECISIONS.md` argues $9 for volume; $19 is defensible on a
-   90-min/day saving once signed and auto-updating.
-4. **Merge to `main` now or after the FinderSync menu works?** `main` is still at `e02b78c`.
+1. **Price: $9 or $19?** The only decision still blocking the GTM doc.
+2. **Buy the $99 Developer ID?** Only gates other people installing without a Gatekeeper warning.
 
 ---
 
-## SCOREBOARD (why the process is shaped this way)
-**19 defects caught. 17 originated in the plan or the controller's instructions. 0 were agent
-implementation errors.** Two were introduced BY fixes to earlier defects. Two of the plan's tests
-were placebos — present, passing, asserting nothing. The unit tests found none of the important
-bugs; independent adversarial review and agents refusing to fake a red run found all of them.
+## SCOREBOARD
+21 defects caught across the session; 19 originated in the plan or the controller's instructions,
+0 were agent implementation errors, 2 were introduced BY fixes to earlier defects, 2 planned tests
+were placebos. What found them: adversarial review questions, agents refusing to fake a red run,
+reading a working competitor off disk, and RUNNING commands instead of reasoning about them.
+The three Finder-extension blockers were all found by the last of those.
