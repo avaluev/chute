@@ -19,8 +19,12 @@ cp "$ROOT/.build/release/chute"    "$APP/Contents/MacOS/chute"
 # from Swift.
 APPEX="$APP/Contents/PlugIns/ChuteFinder.appex"
 mkdir -p "$APPEX/Contents/MacOS"
+# Links ChuteCore's objects so the appex draws its menu from the SAME action table the CLI and
+# the tests use. -I .build/release finds the module; the .o files supply the code (SwiftPM does not
+# emit a static archive for a plain target).
 swiftc -O -o "$APPEX/Contents/MacOS/ChuteFinder" \
     "$ROOT/Sources/ChuteFinder/ChuteFinderSync.swift" \
+    -I "$ROOT/.build/release" "$ROOT"/.build/release/ChuteCore.build/*.o \
     -Xlinker -e -Xlinker _NSExtensionMain
 
 cat > "$APPEX/Contents/Info.plist" <<APPEXPLIST
@@ -67,6 +71,13 @@ cat > "$APP/Contents/Info.plist" <<PLIST
   <key>LSUIElement</key><true/>
   <key>NSHumanReadableCopyright</key><string>Chute — drop context into your agent.</string>
   <key>NSAppleEventsUsageDescription</key><string>Chute reads your Finder selection so it can turn it into agent context.</string>
+  <!-- How the sandboxed Finder extension reaches this app. The extension cannot run git, launch
+       Terminal or drive AppleScript itself — measured — so it hands the job over through here. -->
+  <key>CFBundleURLTypes</key>
+  <array><dict>
+    <key>CFBundleURLName</key><string>dev.valuev.chute</string>
+    <key>CFBundleURLSchemes</key><array><string>chute</string></array>
+  </dict></array>
 </dict>
 </plist>
 PLIST

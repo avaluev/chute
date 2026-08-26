@@ -25,50 +25,31 @@ func notify(_ title: String, _ body: String) {
         "display notification \"\(body.replacingOccurrences(of: "\"", with: "'"))\" with title \"\(title)\""])
 }
 
-let actions_list: [Action] = [
-    Action(title: "Copy Paths for Prompt", key: "1") {
-        let sel = FinderBridge.selection()
-        guard !sel.isEmpty else { return notify("Chute", "Nothing selected in Finder") }
-        chute(["paths"] + sel)
-        notify("Chute", "\(sel.count) path(s) copied")
-    },
-    Action(title: "Bundle Context (XML)", key: "2") {
-        let sel = FinderBridge.selection()
-        guard !sel.isEmpty else { return notify("Chute", "Nothing selected in Finder") }
-        let r = chute(["bundle"] + sel)
-        notify("Chute", r.err.trimmingCharacters(in: .whitespacesAndNewlines))
-    },
-    Action(title: "New File from Clipboard", key: "3") {
-        let r = chute(["new", "--dir", FinderBridge.currentFolder(), "--reveal"])
-        notify("Chute", r.ok ? "Created \((r.out.trimmingCharacters(in: .whitespacesAndNewlines) as NSString).lastPathComponent)"
-                             : r.err.trimmingCharacters(in: .whitespacesAndNewlines))
-    },
-    Action(title: "Unpack Markdown Here (preview)", key: "4") {
-        let r = chute(["unpack", "--dir", FinderBridge.currentFolder()])
-        notify("Chute", r.err.trimmingCharacters(in: .whitespacesAndNewlines))
-    },
-    Action(title: "Sandbox + Agent (yolo)", key: "5") {
-        chute(["sandbox", "--dir", FinderBridge.currentFolder(), "--yolo"])
-    },
-    Action(title: "Checkpoint Before Agent", key: "6") {
-        let r = chute(["checkpoint", FinderBridge.currentFolder()])
-        notify("Chute", r.ok ? "Snapshot: \(r.out.trimmingCharacters(in: .whitespacesAndNewlines))"
-                             : r.err.trimmingCharacters(in: .whitespacesAndNewlines))
-    },
-    Action(title: "Open Terminal Here", key: "7") {
-        chute(["open", FinderBridge.currentFolder()])
-    },
-    Action(title: "Copy Redacted", key: "8") {
-        let r = chute(["redact"])
-        notify("Chute", r.err.trimmingCharacters(in: .whitespacesAndNewlines))
-    },
-]
+/// The menu-bar action list is the SAME table the Finder menu draws from — see
+/// `ChuteActions.all`. It used to be a second hand-written copy, which is how the two surfaces
+/// ended up offering differently-named actions, one of which could not work.
+let actions_list: [Action] = ChuteActions.all.map { action in
+    // plainTitle, not title(count:): the HUD menu is drawn before we know the selection, and
+    // asking Finder for it on the launch path is what the AppleScript rule forbids.
+    Action(title: action.plainTitle, key: "") {
+        let files = action.scope == .selection ? FinderBridge.selection() : []
+        if action.scope == .selection, files.isEmpty {
+            return notify("Chute", "Nothing is selected in Finder.")
+        }
+        let folder = FinderBridge.currentFolder()
+        let r = chute(ChuteActions.argv(action, dir: folder, files: files))
+        notify("Chute", ChuteActions.message(stderr: r.err, exitCode: r.code,
+                                             fallback: action.doneMessage))
+    }
+}
+
 
 final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     var statusItem: NSStatusItem!
     var hotKeyRef: EventHotKeyRef?
     var lastSessions: [Session] = []
     var watcher: DispatchSourceFileSystemObject?
+    var requestWatcher: DispatchSourceFileSystemObject?
 
     func applicationDidFinishLaunching(_ n: Notification) {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
@@ -82,6 +63,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         registerHotKey()
         FirstRunWindow.showIfNeeded()
         startWatching()
+        startWatchingRequests()
         updateBadgeFromHooks()
     }
 
@@ -189,6 +171,37 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         src.setCancelHandler { close(fd) }
         src.resume()
         watcher = src
+    }
+
+    /// The Finder extension is sandboxed and cannot run git, launch Terminal or drive AppleScript.
+    /// It writes a request instead; this is the end that carries it out. See `ActionRequest`.
+    func startWatchingRequests() {
+        let dir = ActionInbox.directory()
+        try? FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
+        let fd = open(dir, O_EVTONLY)
+        guard fd >= 0 else { return }
+        let src = DispatchSource.makeFileSystemObjectSource(
+            fileDescriptor: fd, eventMask: [.write, .extend], queue: .main)
+        src.setEventHandler { [weak self] in self?.runPendingRequests() }
+        src.setCancelHandler { close(fd) }
+        src.resume()
+        requestWatcher = src
+        runPendingRequests()   // anything queued while the app was not running
+    }
+
+    func runPendingRequests() {
+        for (request, path) in ActionInbox.drain() {
+            // Delete FIRST: a request that crashes the run must not be retried on every write
+            // event for the next minute.
+            try? FileManager.default.removeItem(atPath: path)
+            guard let action = ChuteActions.find(request.id) else { continue }
+            DispatchQueue.global(qos: .userInitiated).async {
+                let r = chute(ChuteActions.argv(action, dir: request.dir, files: request.files))
+                notify("Chute — " + action.plainTitle,
+                       ChuteActions.message(stderr: r.err, exitCode: r.code,
+                                            fallback: action.doneMessage))
+            }
+        }
     }
 
     func updateBadgeFromHooks() {
