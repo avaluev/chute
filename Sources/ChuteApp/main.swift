@@ -76,6 +76,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.servicesProvider = ServicesProvider()
         NSUpdateDynamicServices()
         registerHotKey()
+        FirstRunWindow.showIfNeeded()
     }
 
     func buildMenu() -> NSMenu {
@@ -89,9 +90,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         menu.addItem(.separator())
         menu.addItem(NSMenuItem(title: "Hotkey: ⌥⌘N", action: nil, keyEquivalent: ""))
+        let setupItem = NSMenuItem(title: "Setup Check…", action: #selector(openSetup), keyEquivalent: "")
+        setupItem.target = self
+        menu.addItem(setupItem)
         menu.addItem(NSMenuItem(title: "Quit Chute", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
         return menu
     }
+
+    @objc func openSetup() { FirstRunWindow.show() }
 
     @objc func fire(_ sender: NSMenuItem) {
         let action = actions[sender.tag]
