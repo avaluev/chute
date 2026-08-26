@@ -56,8 +56,14 @@ T.suite("ContextBundle") {
     T.ok(xml.contains("<file path=\"a.ts\">"), "xml wraps each file")
     T.ok(xml.contains("let a = 1"), "xml keeps content")
     let esc = ContextBundle.xml([BundleFile(path: "/p/x.html", content: "<a href=\"y\">&</a>")], root: "/p")
-    T.ok(esc.contains("&lt;a href=&quot;y&quot;&gt;&amp;&lt;/a&gt;"), "xml escapes markup")
-    T.no(esc.contains("<a href"), "raw markup gone")
+    T.ok(esc.contains("<a href=\"y\">&</a>"), "code content stays raw — no entity soup")
+    T.no(esc.contains("&lt;"), "no escaping inside the body")
+    let gen = ContextBundle.xml([BundleFile(path: "/p/g.swift", content: "let x: Set<String> = []")], root: "/p")
+    T.ok(gen.contains("Set<String>"), "generics survive intact")
+    let tricky = ContextBundle.xml([BundleFile(path: "/p/t.md", content: "text </file> more")], root: "/p")
+    T.eq(tricky.components(separatedBy: "</file>").count - 1, 1, "a literal closing tag in the body cannot break the wrapper")
+    let quoted = ContextBundle.xml([BundleFile(path: "/p/say \"hi\".txt", content: "x")], root: "/p")
+    T.ok(quoted.contains("&quot;"), "path attribute is still escaped")
     T.ok(ContextBundle.markdown(bundle, root: "/p").contains("```ts a.ts"), "md fence carries language + path")
 }
 

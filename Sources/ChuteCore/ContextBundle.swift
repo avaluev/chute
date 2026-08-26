@@ -11,9 +11,13 @@ public struct BundleFile: Sendable, Equatable {
 
 /// FR-02 — the wedge: many files into one paste-ready blob.
 public enum ContextBundle {
+    /// Content is deliberately NOT XML-escaped. Escaping turns `Set<String>` into
+    /// `Set&lt;String&gt;`, which is harder for a model to read and costs more tokens. Only the
+    /// path attribute is escaped, plus any literal closing tag inside the body.
     public static func xml(_ files: [BundleFile], root: String?) -> String {
         files.map { f in
-            "<file path=\"\(escape(rel(f.path, root)))\">\n\(escape(f.content))\n</file>"
+            let body = f.content.replacingOccurrences(of: "</file>", with: "<\\/file>")
+            return "<file path=\"\(escapeAttribute(rel(f.path, root)))\">\n\(body)\n</file>"
         }.joined(separator: "\n\n")
     }
 
@@ -25,11 +29,10 @@ public enum ContextBundle {
         }.joined(separator: "\n\n")
     }
 
-    static func escape(_ s: String) -> String {
+    static func escapeAttribute(_ s: String) -> String {
         s.replacingOccurrences(of: "&", with: "&amp;")
-         .replacingOccurrences(of: "<", with: "&lt;")
-         .replacingOccurrences(of: ">", with: "&gt;")
          .replacingOccurrences(of: "\"", with: "&quot;")
+         .replacingOccurrences(of: "<", with: "&lt;")
     }
 
     static func rel(_ p: String, _ root: String?) -> String {
