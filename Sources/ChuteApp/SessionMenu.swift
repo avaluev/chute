@@ -30,10 +30,23 @@ enum SessionMenu {
         return m < 60 ? "\(m)m" : "\(m / 60)h"
     }
 
+    /// Populates the menu AppKit is about to display. Do not build a new NSMenu and assign it to
+    /// statusItem.menu from inside menuWillOpen: the object already being tracked is the one passed
+    /// in here, so a swap lands on the NEXT open and the user sees the previous state.
     /// Groups by state, assigns ⌥1…⌥8 top-down so the most urgent session is always ⌥1.
-    static func build(sessions: [Session], target: AnyObject, action: Selector) -> NSMenu {
-        let menu = NSMenu()
+    static func populate(_ menu: NSMenu, sessions: [Session], problem: String?,
+                         target: AnyObject, action: Selector, openSettings: Selector) {
+        menu.removeAllItems()
         var hotkey = 1
+
+        if let problem {
+            let item = NSMenuItem(title: "Cannot read Terminal — click to fix",
+                                  action: openSettings, keyEquivalent: "")
+            item.target = target
+            item.toolTip = problem
+            menu.addItem(item)
+            menu.addItem(.separator())
+        }
 
         let groups: [(String, [Session])] = [
             ("NEEDS YOU", sessions.filter { $0.state == .blocked || $0.state == .waiting }),
@@ -63,13 +76,12 @@ enum SessionMenu {
             menu.addItem(.separator())
         }
 
-        if sessions.isEmpty {
+        if sessions.isEmpty && problem == nil {
             let empty = NSMenuItem(title: "No terminal sessions", action: nil, keyEquivalent: "")
             empty.isEnabled = false
             menu.addItem(empty)
             menu.addItem(.separator())
         }
-        return menu
     }
 }
 
