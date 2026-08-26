@@ -52,11 +52,12 @@ public enum HookInstaller {
             + "printf '{}\\n'; exit 0"
     }
 
-    /// Our command always OPENS with the marker comment line. Matching the prefix rather than a
-    /// loose `contains` means a user command that merely mentions the marker is never mistaken
-    /// for ours — in either direction.
+    /// Our command always OPENS with the marker comment line. Matching the prefix (including its
+    /// trailing newline, exactly what `command(for:)` emits) rather than a loose `contains` means
+    /// a user command that merely mentions the marker — or one that shares our prefix but diverges,
+    /// like `# chute-session-state-mine` — is never mistaken for ours, in either direction.
     public static func isChuteCommand(_ command: String) -> Bool {
-        command.hasPrefix("# \(marker)")
+        command.hasPrefix("# \(marker)\n")
     }
 
     static func loadObject(_ path: String) throws -> [String: Any] {
@@ -90,7 +91,6 @@ public enum HookInstaller {
         let path = URL(fileURLWithPath: settingsPath).resolvingSymlinksInPath().path
         let original = try loadObject(path)
         let originalKeys = Set(original.keys)
-        let backup = try makeBackup(path, now: now)
 
         var root = original
         // Never write a key whose original value we could not decode. An unexpected shape means
@@ -127,6 +127,9 @@ public enum HookInstaller {
         }
         root["hooks"] = hooks
 
+        // Backup only after every shape guard above has passed — a refused file is left byte-
+        // identical (proven by the "byte-identical afterwards" tests), and now leaves no trace.
+        let backup = try makeBackup(path, now: now)
         try validateAndWrite(root, original: original, originalKeys: originalKeys,
                              path: path)
         return HookReport(changed: changed, skipped: skipped, backupPath: backup)
@@ -138,7 +141,6 @@ public enum HookInstaller {
         let path = URL(fileURLWithPath: settingsPath).resolvingSymlinksInPath().path
         let original = try loadObject(path)
         let originalKeys = Set(original.keys)
-        let backup = try makeBackup(path, now: now)
 
         var root = original
         var hooks: [String: Any] = [:]
@@ -171,6 +173,8 @@ public enum HookInstaller {
         }
         root["hooks"] = hooks
 
+        // Backup only after every shape guard above has passed — a refusal leaves no trace at all.
+        let backup = try makeBackup(path, now: now)
         try validateAndWrite(root, original: original, originalKeys: originalKeys,
                              path: path, allowShrink: true)
         return HookReport(changed: changed, skipped: [], backupPath: backup)
@@ -203,8 +207,13 @@ public enum HookInstaller {
         guard JSONSerialization.isValidJSONObject(root) else {
             throw HookInstallError.validationFailed("result is not a serialisable object")
         }
+        // .sortedKeys is deliberate. Swift dictionaries are unordered and hash seeds are
+        // randomised per process, so WITHOUT this the same input serialises in a different order
+        // every run — reshuffling the user's entire 33 KB file on every install. Sorted normalises
+        // once, on first install, then stays byte-identical forever. Preserving the user's original
+        // order is not achievable here without text splicing, which guarantee 2 forbids.
         let data = try JSONSerialization.data(withJSONObject: root,
-                                              options: [.prettyPrinted])
+                                              options: [.prettyPrinted, .sortedKeys])
         guard let reparsed = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] else {
             throw HookInstallError.validationFailed("result does not re-parse")
         }
@@ -224,11 +233,12 @@ public enum HookInstaller {
                 // Content, not just count. Appending must leave every original block byte-identical;
                 // a dropped `matcher` keeps the count at 1 and would otherwise sail through.
                 for (i, originalBlock) in b.enumerated() {
-                    let lhs = NSDictionary(dictionary: (originalBlock as? [String: Any]) ?? [:])
-                    let rhs = (a[i] as? [String: Any]) ?? [:]
-                    guard lhs.isEqual(to: rhs) else {
+                    guard let lhs = originalBlock as? [String: Any],
+                          i < a.count,
+                          let rhs = a[i] as? [String: Any],
+                          NSDictionary(dictionary: lhs).isEqual(to: rhs) else {
                         throw HookInstallError.validationFailed(
-                            "hooks.\(event)[\(i)] was modified — refusing to write")
+                            "hooks.\(event)[\(i)] was modified or is an unexpected shape — refusing to write")
                     }
                 }
             }
