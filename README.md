@@ -87,8 +87,43 @@ chute diff . --copy                  # what did the agent actually change?
 | `chute buf add\|list\|flush` | Gather context across many copies, paste once |
 | `chute prompt decompose\|ponytail` | Prompt templates: split work into 15-min tasks; cut over-engineering |
 | `chute env inject [dir]` | Keychain → `.env`. Refuses unless `.env` is gitignored |
+| `chute sessions` | Every terminal session, grouped by state. `--json` |
+| `chute focus <key\|project\|N>` | Bring that session to the front. Asks when a name matches several |
+| `chute hooks install\|uninstall\|status` | Wire Claude Code hooks so the badge knows BLOCKED/WAITING |
+| `chute doctor` | Check every prerequisite and say how to fix it. `--fix --json` |
 
 Add `--no-copy` to any command to keep the clipboard untouched.
+
+---
+
+## Which agent is waiting for you
+
+```bash
+chute sessions          # → 9 session(s), 2 need you
+chute focus studylock   # by project name — asks if several match, never guesses
+chute focus 3           # or by the number sessions printed
+chute doctor            # what is not wired up yet, and the exact fix
+```
+
+The menu bar `⤓` carries the count of sessions that want you. Click it for the list, colour-coded
+per project, with `⌥1`–`⌥8` on the first eight.
+
+**The badge needs hooks to be interesting.** Without them Chute can only read the terminal title
+glyph and the busy flag, so every session reads `working` and the badge stays dark. With them,
+Claude Code reports `blocked` (a permission prompt) and `waiting` (your turn) as they happen:
+
+```bash
+chute hooks status            # what is wired now
+chute hooks install           # append to ~/.claude/settings.json — backs up first
+chute hooks uninstall         # remove exactly what was added, nothing else
+```
+
+`hooks install` parses your settings, never templates them; appends only; is idempotent; validates
+the result re-parses and kept every key before replacing the file; and writes a timestamped backup
+next to it first. `--settings PATH` points it at a copy if you want to diff before committing.
+
+Only live terminals count toward the badge: a hook record from a window you have since closed is
+ignored, so the number never inflates behind your back.
 
 ---
 
@@ -112,8 +147,8 @@ Chute is built to be trusted with a repo an agent is about to rampage through.
 
 ```bash
 cd /Users/sxope/Documents/2026/Development/37.chute && swift build -c release   # build
-cd /Users/sxope/Documents/2026/Development/37.chute && swift run chutetests      # 52 unit assertions
-cd /Users/sxope/Documents/2026/Development/37.chute && ./Scripts/smoke.sh        # 39 end-to-end checks
+cd /Users/sxope/Documents/2026/Development/37.chute && swift run chutetests      # 214 unit assertions
+cd /Users/sxope/Documents/2026/Development/37.chute && ./Scripts/smoke.sh        # 53 end-to-end checks
 cd /Users/sxope/Documents/2026/Development/37.chute && ./Scripts/build-app.sh    # assemble Chute.app
 ```
 

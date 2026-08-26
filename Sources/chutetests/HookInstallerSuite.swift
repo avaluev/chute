@@ -77,6 +77,18 @@ func hookInstallerSuite() {
         T.eq((permAfter.first?["matcher"] as? String) ?? "", "Bash",
              "the matcher key survives uninstall untouched")
 
+        // An event that held ONLY our block is removed entirely: an empty array is a husk we left
+        // behind, so a file with no hooks of its own must come back with no hook events at all.
+        let virgin = (dir as NSString).appendingPathComponent("virgin.json")
+        try? #"{"model":"opus"}"#.write(toFile: virgin, atomically: true, encoding: .utf8)
+        T.noThrow("install into a file with no hooks") { _ = try HookInstaller.install(settingsPath: virgin) }
+        T.noThrow("uninstall from it again") { _ = try HookInstaller.uninstall(settingsPath: virgin) }
+        let after = (try? JSONSerialization.jsonObject(
+            with: Data(contentsOf: URL(fileURLWithPath: virgin)))) as? [String: Any] ?? [:]
+        T.eq((after["hooks"] as? [String: Any])?.count, 0,
+             "events we emptied are dropped, not left as [] husks")
+        T.eq(after["model"] as? String, "opus", "and the user's own keys survive the round trip")
+
         // Malformed input changes nothing.
         let broken = (dir as NSString).appendingPathComponent("broken.json")
         try? "{ this is not json".write(toFile: broken, atomically: true, encoding: .utf8)
