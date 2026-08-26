@@ -11,5 +11,6 @@ terminalParseSuite()
 diagnosticsSuite()
 finderActionsSuite()
 actionRequestSuite()
+localServersSuite()
 
 T.report()

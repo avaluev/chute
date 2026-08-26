@@ -111,27 +111,24 @@ func cmdSandbox(_ a: Args) {
 // MARK: - FR-15 zombie ports
 
 func cmdPorts(_ a: Args) {
-    if let port = a.optional("kill") {
-        let pids = Shell.run("lsof", ["-ti", "tcp:\(port)"]).out
-            .split(separator: "\n").map(String.init)
+    if let port = a.optional("kill").flatMap({ Int($0) }) {
+        let pids = LocalServers.kill(port: port)
         guard !pids.isEmpty else { Out.info("nothing is listening on \(port)"); return }
-        for pid in pids { _ = Shell.run("kill", ["-9", pid]) }
         Out.info("→ killed \(pids.count) process(es) on port \(port)")
         return
     }
-    let r = Shell.run("lsof", ["-nP", "-iTCP", "-sTCP:LISTEN"])
-    let lines = r.out.split(separator: "\n").dropFirst()
-    guard !lines.isEmpty else { Out.info("no listening ports"); return }
+    let servers = LocalServers.discover()
+    guard !servers.isEmpty else { Out.info("nothing is listening"); return }
+
     func pad(_ s: String, _ n: Int) -> String {
         s.count >= n ? s : s + String(repeating: " ", count: n - s.count)
     }
-    Out.line(pad("COMMAND", 18) + pad("PID", 9) + "PORT")
-    for l in lines {
-        let cols = l.split(separator: " ", omittingEmptySubsequences: true).map(String.init)
-        guard cols.count > 8, let addr = cols.last,
-              let port = addr.split(separator: ":").last else { continue }
-        Out.line(pad(cols[0], 18) + pad(cols[1], 9) + String(port))
+    Out.line(pad("PORT", 8) + pad("WHAT", 12) + pad("PROJECT", 22) + pad("PID", 8) + "REACHABLE FROM")
+    for s in servers {
+        Out.line(pad(String(s.port), 8) + pad(s.kind, 12) + pad(s.project ?? "—", 22)
+                 + pad(String(s.pid), 8) + (s.loopbackOnly ? "this Mac only" : "your network"))
     }
+    Out.info("→ \(servers.count) listening · open one with http://localhost:<port> · free one with `chute ports --kill <port>`")
 }
 
 // MARK: - FR-24 .env injection (Keychain only)

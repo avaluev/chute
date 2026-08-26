@@ -82,7 +82,7 @@ chute diff . --copy                  # what did the agent actually change?
 | `chute clean [dir]` | List agent scratch files. **Lists by default**, Trashes with `--force` |
 | `chute sandbox [name]` | Folder + git + rules + terminal + agent. `--agent claude\|codex\|gemini --yolo --each` |
 | `chute open [dir]` | Terminal or editor here. `--with terminal\|editor` |
-| `chute ports` | What is listening. `--kill 3000` |
+| `chute ports` | Every local server: port, what it is, which project, reachable from where. `--kill 3000` |
 | `chute checkpoint [dir]` | Snapshot before the agent runs — never touches your worktree |
 | `chute diff [dir]` | What changed. `--copy` puts the patch on the clipboard |
 | `chute redact` | Mask API keys and tokens before sharing |
@@ -128,6 +128,26 @@ next to it first. `--settings PATH` points it at a copy if you want to diff befo
 
 Only live terminals count toward the badge: a hook record from a window you have since closed is
 ignored, so the number never inflates behind your back.
+
+---
+
+## What is running locally
+
+The menu bar lists every local server, so you never again hunt for which of six terminals holds
+port 3000:
+
+```
+Local servers (8)
+  :3000 · next · studylock       ▸ Open in Browser · Copy the URL · Stop It (kill 55868)
+  :5432 · postgres
+```
+
+Each row names the port, what the process actually is, and the project folder it is running in.
+`chute ports` prints the same list, and says whether each one is reachable from your whole network
+or only from this Mac. `chute ports --kill 3000` frees a port.
+
+macOS's own background listeners (AirPlay on 7000, `rapportd` on a random high port) are left out —
+they are never what the question "what is running?" means.
 
 ---
 
