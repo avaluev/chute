@@ -1,9 +1,14 @@
 # Backlog — post v0.1
 
-## v0.2 — distribution (blocked on money/tooling, not on code)
+## v0.2 — designed, ready to build
+| Item | Spec |
+|---|---|
+| Finder context menu via FinderSync extension | `docs/superpowers/specs/2026-08-26-findersync-context-menu-design.md` |
+| Agent session switcher in the menu bar | `docs/superpowers/specs/2026-08-26-session-switcher-design.md` |
+
+## v0.3 — distribution (blocked on money/tooling, not on code)
 | Item | Blocker | Effort |
 |---|---|---|
-| True `FIFinderSync` extension — top-level Finder menu, no "Quick Actions" nesting | Xcode not installed (~10 GB) | 1 day |
 | Developer ID signing + notarization | Apple Developer Program, $99/yr | 2 h once the cert exists |
 | Sparkle auto-update | Needs a signed build first | 3 h |
 | Licensing / paywall (LemonSqueezy keys) | Monetization decision deferred | 4 h |
