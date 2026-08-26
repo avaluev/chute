@@ -46,9 +46,13 @@ func terminalParseSuite() {
                                       hooks: [:], now: now).count, 0,
              "a record with a valid window id but too few fields is skipped, not indexed into")
 
-        // Proves the helper actually consults its argument. Before the fix this returned true for
-        // ANY name whenever Terminal.app happened to be running.
-        T.no(isProcessRunning("no-such-process-9f3a2b7c"), "an absent process is reported absent")
+        // Proves the helper consults its argument AND that the ps-based match actually works.
+        // `launchd` is running on every macOS machine including CI, so this is deterministic —
+        // unlike asserting on Terminal.app, which is not running on a CI runner.
+        T.ok(isAppRunning(bundleExecutable: "launchd"),
+             "a process that is always running is detected")
+        T.no(isAppRunning(bundleExecutable: "NoSuchApp.app/Contents/MacOS/NoSuchApp"),
+             "an app that is not running is reported absent")
 
         // Project extraction edge cases.
         T.eq(TerminalAppAdapter.project(fromWindowName: "36.macai — ◑ Chut — x"), "36.macai", "first segment")
