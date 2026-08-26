@@ -6,3 +6,6 @@ dist/
 .env
 .env.*
 !.env.example
+
+# agent worktrees — live git repos, never part of this one
+.claude/worktrees/
