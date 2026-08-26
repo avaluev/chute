@@ -40,6 +40,12 @@ func terminalParseSuite() {
         T.eq(TerminalAppAdapter.parse(rec(["notanumber", "p — t", "1", "ttys1", "false", "true", "zsh", "t"]),
                                       hooks: [:], now: now).count, 0, "non-numeric window id is skipped")
 
+        // A VALID window id with a truncated record: this exercises the f.count >= 8 half of the
+        // guard, which the "garbage" fixture cannot reach because it fails the Int(f[0]) half first.
+        T.eq(TerminalAppAdapter.parse(rec(["207250", "proj — title", "1", "/dev/ttys000", "true"]),
+                                      hooks: [:], now: now).count, 0,
+             "a record with a valid window id but too few fields is skipped, not indexed into")
+
         // Project extraction edge cases.
         T.eq(TerminalAppAdapter.project(fromWindowName: "36.macai — ◑ Chut — x"), "36.macai", "first segment")
         T.eq(TerminalAppAdapter.project(fromWindowName: "solo"), "solo", "no separator")
