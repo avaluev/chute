@@ -1,6 +1,7 @@
 import AppKit
 import Carbon.HIToolbox
 import ChuteCore
+import UserNotifications
 
 /// Every action is the CLI. The app is a surface, never a second implementation.
 struct Action {
@@ -20,9 +21,54 @@ func chute(_ args: [String], cwd: String? = nil) -> ShellResult {
     Shell.run(chuteBinary, args, cwd: cwd)
 }
 
+/// Native notifications, posted by this app under its own name and icon.
+///
+/// The previous implementation shelled out to `osascript`, so every banner arrived attributed to
+/// **Script Editor** — wrong name, wrong icon, and a "Show" button that opened Script Editor.
+/// `UNUserNotificationCenter` posts as Chute. If the user has denied notifications, or the API is
+/// unavailable, it falls back to the old path rather than going silent.
+enum Notify {
+    static func requestAuthorization() {
+        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { _, error in
+            if let error { NSLog("ChuteApp: notification authorization failed: %@", error.localizedDescription) }
+        }
+    }
+
+    /// Authorization is read fresh every time, never cached: the user may grant it in System
+    /// Settings long after launch, and a cached "denied" would pin every banner to the ugly
+    /// osascript fallback for the rest of the session.
+    static func post(title: String, subtitle: String?, body: String) {
+        UNUserNotificationCenter.current().getNotificationSettings { settings in
+            guard settings.authorizationStatus == .authorized ||
+                  settings.authorizationStatus == .provisional else {
+                return fallback(title: title, body: body)
+            }
+            deliver(title: title, subtitle: subtitle, body: body)
+        }
+    }
+
+    private static func deliver(title: String, subtitle: String?, body: String) {
+        let content = UNMutableNotificationContent()
+        content.title = title
+        if let subtitle { content.subtitle = subtitle }
+        content.body = body
+        let request = UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil)
+        UNUserNotificationCenter.current().add(request) { error in
+            if let error {
+                NSLog("ChuteApp: native notification refused: %@", error.localizedDescription)
+                fallback(title: title, body: body)
+            }
+        }
+    }
+
+    private static func fallback(title: String, body: String) {
+        Shell.launch("osascript", ["-e",
+            "display notification \"\(body.replacingOccurrences(of: "\"", with: "'"))\" with title \"\(title)\""])
+    }
+}
+
 func notify(_ title: String, _ body: String) {
-    Shell.launch("osascript", ["-e",
-        "display notification \"\(body.replacingOccurrences(of: "\"", with: "'"))\" with title \"\(title)\""])
+    Notify.post(title: "Chute", subtitle: title == "Chute" ? nil : title, body: body)
 }
 
 /// The menu-bar action list is the SAME table the Finder menu draws from — see
@@ -58,6 +104,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let menu = NSMenu()
         menu.delegate = self
         statusItem.menu = menu
+        Notify.requestAuthorization()
         NSApp.servicesProvider = ServicesProvider()
         NSUpdateDynamicServices()
         registerHotKey()
@@ -197,7 +244,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             guard let action = ChuteActions.find(request.id) else { continue }
             DispatchQueue.global(qos: .userInitiated).async {
                 let r = chute(ChuteActions.argv(action, dir: request.dir, files: request.files))
-                notify("Chute — " + action.plainTitle,
+                notify(action.plainTitle,
                        ChuteActions.message(stderr: r.err, exitCode: r.code,
                                             fallback: action.doneMessage))
             }
