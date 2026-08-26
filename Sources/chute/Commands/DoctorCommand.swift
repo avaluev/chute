@@ -50,16 +50,20 @@ func cmdDoctor(_ a: Args) {
             }
         }
 
-        let failed = prerequisites.filter { !$0.passed }.count
-        let runCount = blocked ? prerequisites.count : outcomes.count
-        Out.info(failed == 0
-            ? "→ all \(runCount) checks passed"
-            : "→ \(failed) of \(runCount) checks failed")
+        // A skipped check is neither a pass nor a failure, so it must not be counted. But a check that
+        // RAN and failed must reach BOTH the summary and the exit code — a script reading only the
+        // exit code must never be told the product is healthy while the output says otherwise.
+        let ran: [CheckOutcome] = blocked ? prerequisites : outcomes
+        let failures = ran.filter { !$0.passed }
+        Out.info(failures.isEmpty
+            ? "→ all \(ran.count) checks passed"
+            : "→ \(failures.count) of \(ran.count) checks failed")
     }
 
-    let failed = prerequisites.filter { !$0.passed }
-    if failed.isEmpty && !blocked { exit(0) }
-    exit(failed.contains { $0.check.id == "os" } ? 2 : 1)
+    let ran: [CheckOutcome] = blocked ? prerequisites : outcomes
+    let failures = ran.filter { !$0.passed }
+    if failures.isEmpty && !blocked { exit(0) }
+    exit(failures.contains { $0.check.id == "os" } ? 2 : 1)
 }
 
 private func applyFixes(_ outcomes: [CheckOutcome]) {
