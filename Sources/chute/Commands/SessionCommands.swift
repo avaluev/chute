@@ -61,9 +61,12 @@ func cmdFocus(_ a: Args) {
     // studylock windows is worse than refusing: they cannot tell that it happened.
     let byProject = sessions.enumerated().filter { $0.element.project == target }
     if byProject.count > 1 {
+        // All three parts go to stderr: this is an error path, and splitting it across streams
+        // makes the instruction print BEFORE the options it refers to (stderr is unbuffered,
+        // stdout is line-buffered).
         Out.info("\(byProject.count) sessions match '\(target)' — focus one by number:")
         for (index, session) in byProject {
-            Out.line("  \(index + 1). \(session.title)  (\(session.tty))")
+            Out.info("  \(index + 1). \(session.title)  (\(session.tty))")
         }
         Out.fail("ambiguous — re-run with a number, e.g. `chute focus \(byProject[0].offset + 1)`")
     }
