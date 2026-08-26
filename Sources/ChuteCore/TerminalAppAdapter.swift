@@ -29,7 +29,7 @@ public struct TerminalAppAdapter: TerminalAdapter {
     """
 
     public func discover(hooks: [String: HookRecord], now: Date) throws -> [Session] {
-        guard isProcessRunning("Terminal") else {
+        guard isAppRunning(bundleExecutable: "Terminal.app/Contents/MacOS/Terminal") else {
             throw TerminalError.notRunning("Terminal")
         }
         let result = Shell.run("osascript", ["-e", Self.discoveryScript])
@@ -91,10 +91,14 @@ public struct TerminalAppAdapter: TerminalAdapter {
     }
 }
 
-/// Whether a process with this exact name is running. Deliberately takes the name it checks:
-/// TerminalAdapter is a protocol so iTerm2/Ghostty/Warp adapters can follow, and each must be
-/// able to ask about ITS OWN process rather than silently receiving Terminal.app's answer.
-public func isProcessRunning(_ processName: String) -> Bool {
-    !Shell.run("pgrep", ["-x", processName]).out
-        .trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+/// Whether the app owning this bundle executable path is running.
+///
+/// Deliberately `ps -Ao comm` and a substring match, NOT pgrep: macOS reports a bundled app's
+/// `comm` as its FULL executable path, so `pgrep -x Terminal` never matches Terminal.app and
+/// discovery would throw .notRunning forever. Verified on macOS 14.6: pgrep finds nothing,
+/// `ps -Ao comm` lists /System/Applications/Utilities/Terminal.app/Contents/MacOS/Terminal.
+/// Takes the path fragment it checks so later adapters (iTerm2, Ghostty, Warp) ask about
+/// their own app rather than silently receiving Terminal's answer.
+public func isAppRunning(bundleExecutable fragment: String) -> Bool {
+    Shell.run("ps", ["-Ao", "comm"]).out.contains(fragment)
 }
