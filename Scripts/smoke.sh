@@ -112,6 +112,41 @@ echo "12. env inject refuses an untracked-secret setup"
 OUT="$("$CHUTE" env inject . 2>&1)"
 has "refuses ungitignored .env" "$OUT" "not gitignored"
 
+echo "14. sessions, doctor, hooks"
+# sessions talks to Terminal via AppleScript. On a machine without permission it must still
+# emit valid JSON and say why, never crash — that is the contract being checked here.
+OUT="$("$CHUTE" sessions --json 2>/dev/null)"
+if printf '%s' "$OUT" | python3 -c 'import json,sys; sys.exit(0 if isinstance(json.load(sys.stdin), list) else 1)' 2>/dev/null
+then ok "sessions --json is a JSON array"; else bad "sessions --json is a JSON array" "not parseable: $OUT"; fi
+has "sessions prints a tally" "$("$CHUTE" sessions 2>&1)" "session(s)"
+"$CHUTE" focus nosuchprojectanywhere >/dev/null 2>&1 && bad "focus on no match exits non-zero" "exit 0" || ok "focus on no match exits non-zero"
+
+OUT="$("$CHUTE" doctor --json 2>/dev/null)"
+if printf '%s' "$OUT" | python3 -c 'import json,sys; d=json.load(sys.stdin); sys.exit(0 if all("id" in c and "passed" in c for c in d) else 1)' 2>/dev/null
+then ok "doctor --json reports id+passed per check"; else bad "doctor --json reports id+passed per check" "bad shape"; fi
+has "doctor names a fix" "$("$CHUTE" doctor 2>&1)" "checks"
+
+# NEVER against ~/.claude/settings.json — a temp fixture only.
+S="$T/settings.json"; printf '{"hooks":{},"model":"opus"}' > "$S"
+has   "hooks status lists events"  "$("$CHUTE" hooks status --settings "$S" 2>&1)" "SessionStart"
+OUT="$("$CHUTE" hooks install --settings "$S" 2>&1)"
+has   "install reports a backup"   "$OUT" "backup:"
+has   "install wires the events"   "$OUT" "SessionStart"
+has   "status now shows wired"     "$("$CHUTE" hooks status --settings "$S" 2>&1)" "✓ SessionStart"
+has   "unrelated keys survive"     "$(cat "$S")" '"model"'
+BEFORE="$(cat "$S")"
+"$CHUTE" hooks install --settings "$S" >/dev/null 2>&1
+check "install is idempotent"      "$(cat "$S")" "$BEFORE"
+"$CHUTE" hooks uninstall --settings "$S" >/dev/null 2>&1
+hasnt "uninstall removes chute"    "$(cat "$S")" "chute"
+has   "uninstall keeps your keys"  "$(cat "$S")" '"model"'
+check "uninstall leaves no husk"   "$(cat "$S")" '{
+  "hooks" : {
+
+  },
+  "model" : "opus"
+}'
+
 echo "13. help and unknown command"
 has "help lists bundle" "$("$CHUTE" help)" "bundle"
 "$CHUTE" definitelynotacommand >/dev/null 2>&1 && bad "unknown exits non-zero" "exit 0" || ok "unknown exits non-zero"

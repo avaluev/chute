@@ -18,7 +18,9 @@ ln -sf "$HOME/Applications/Chute.app/Contents/MacOS/chute" "$HOME/.local/bin/chu
 "$ROOT/Scripts/install-quickactions.sh"
 
 pkill -x ChuteApp 2>/dev/null || true
-open "$HOME/Applications/Chute.app"
+# LaunchServices returns -600 if the old process has not finished dying yet. One retry covers it.
+sleep 1
+open "$HOME/Applications/Chute.app" 2>/dev/null || { sleep 2; open "$HOME/Applications/Chute.app"; }
 
 cat <<EOF
 
@@ -30,6 +32,14 @@ Chute installed.
 Finder right-click → Quick Actions ▸ Chute – …
 If the entries do not appear, toggle them on in:
   System Settings → Keyboard → Keyboard Shortcuts → Services → Files and Folders
+
+  check $HOME/.local/bin/chute doctor    (what is not wired up yet, and how to fix it)
+  agents $HOME/.local/bin/chute sessions  (every terminal session, grouped by state)
+
+The menu bar badge only counts BLOCKED and WAITING sessions once Claude Code hooks are wired:
+
+  $HOME/.local/bin/chute hooks status     (what is wired now)
+  $HOME/.local/bin/chute hooks install    (appends to ~/.claude/settings.json, backs it up first)
 
 First use of the hotkey or a Finder action will ask for Automation permission. That prompt is
 macOS asking whether Chute may read your Finder selection. Nothing leaves your machine.

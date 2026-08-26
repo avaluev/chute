@@ -169,7 +169,12 @@ public enum HookInstaller {
                       inner.count == 1 else { return false }
                 return isChuteCommand((inner[0]["command"] as? String) ?? "")
             }
-            if blocks.count != before { changed.append(event); hooks[event] = blocks }
+            if blocks.count != before {
+                changed.append(event)
+                // Removing our block can empty the event entirely. An empty array is a husk we
+                // left behind, not config the user wrote — drop the key so uninstall reverses.
+                if blocks.isEmpty { hooks.removeValue(forKey: event) } else { hooks[event] = blocks }
+            }
         }
         root["hooks"] = hooks
 
