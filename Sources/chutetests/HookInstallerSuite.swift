@@ -111,9 +111,37 @@ func hookInstallerSuite() {
         T.ok(HookInstaller.isChuteCommand(HookInstaller.command(for: .waiting)),
              "our own command is recognised as ours")
 
-        // Important 6: key order inside a pre-existing entry is not rewritten.
-        T.no(((try? String(contentsOfFile: path, encoding: .utf8)) ?? "").isEmpty,
-             "settings file still present after install")
+        // Important 6 / Fix 6b: two installs from identical input must produce byte-identical
+        // output. Without .sortedKeys this fails intermittently across processes, because Swift
+        // dictionaries are unordered and hash seeds are randomised per process.
+        let detA = (dir as NSString).appendingPathComponent("det-a.json")
+        let detB = (dir as NSString).appendingPathComponent("det-b.json")
+        try? original.write(toFile: detA, atomically: true, encoding: .utf8)
+        try? original.write(toFile: detB, atomically: true, encoding: .utf8)
+        T.noThrow("install A") { _ = try HookInstaller.install(settingsPath: detA) }
+        T.noThrow("install B") { _ = try HookInstaller.install(settingsPath: detB) }
+        T.eq((try? String(contentsOfFile: detA, encoding: .utf8)) ?? "x",
+             (try? String(contentsOfFile: detB, encoding: .utf8)) ?? "y",
+             "identical input produces byte-identical output")
+
+        // Hardening 3: a marker-prefixed but different command must not be treated as ours.
+        T.no(HookInstaller.isChuteCommand("# chute-session-state-mine\necho hi"),
+             "a marker-prefixed but different command is not ours")
+
+        // Hardening 4: pin the shape of the generated command so the next edit has a guard.
+        let cmd = HookInstaller.command(for: .blocked)
+        T.ok(cmd.hasPrefix("# chute-session-state\n"), "command opens with the marker line")
+        T.ok(cmd.contains("case \"$T\" in"), "command carries the tty whitelist")
+        T.ok(cmd.contains("exit 0"), "command always exits 0 so it cannot break the user's agent")
+        T.ok(cmd.contains("printf '{}"), "command emits {} on stdout")
+
+        // Hardening 1: backup must not be written when install refuses a malformed shape.
+        let noBackup = (dir as NSString).appendingPathComponent("no-backup.json")
+        try? #"{"hooks":"not-an-object"}"#.write(toFile: noBackup, atomically: true, encoding: .utf8)
+        T.throwsError("refuses odd shape (no-backup fixture)") { _ = try HookInstaller.install(settingsPath: noBackup) }
+        let noBackupTrace = ((try? FileManager.default.contentsOfDirectory(atPath: dir)) ?? [])
+            .filter { $0.hasPrefix("no-backup.json.chute-backup-") }
+        T.ok(noBackupTrace.isEmpty, "a refused install leaves no backup file behind")
     }
 }
 
