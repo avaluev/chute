@@ -152,3 +152,60 @@ Candidate IPC mechanisms, in order of preference, **all to be tested before one 
 Three integration attempts failed on guesses. One teardown of a shipping product settled the
 format, the entitlements, and a fatal architectural assumption. **When a working example exists on
 disk, read it before writing anything.**
+
+---
+
+# Spike result — a working sandboxed FinderSync extension, ad-hoc signed, no Xcode
+
+Throwaway probe built and destroyed 2026-08-26. Every line below was executed on this machine.
+The probe was fully removed afterwards; `pluginkit -mA -p com.apple.FinderSync` returns only
+Google Drive again.
+
+## Result: it works. Xcode is not required, and neither is the $99 membership — yet.
+
+| Step | Result |
+|---|---|
+| Compile an appex executable with Command Line Tools | ✅ |
+| Ad-hoc sign it **with sandbox entitlements** | ✅ `valid on disk`, `satisfies its Designated Requirement` |
+| Register under `com.apple.FinderSync` | ✅ — **but only after the host app is LAUNCHED** |
+| Enable it programmatically | ✅ `pluginkit -e use -i <id>` flips it to `+` |
+| Gatekeeper assessment (`spctl`) | ❌ `rejected` — as expected; that gates DISTRIBUTION, not local loading |
+
+## The four corrections to the FinderSync plan
+
+**1. `NSExtensionMain()` cannot be called from Swift.** The plan's `main.swift` does exactly that
+and does not compile: `error: cannot find 'NSExtensionMain' in scope`. A shipping appex instead
+imports it as an undefined symbol and sets it as the LC_MAIN entry point — confirmed with
+`nm -u` and `otool -l` against Google Drive's binary. The correct build has **no `main.swift`**:
+
+```bash
+swiftc -O -o ChuteFinder ChuteFinderSync.swift -Xlinker -e -Xlinker _NSExtensionMain
+```
+
+**2. Registration requires LAUNCHING the host app.** This is the step every earlier attempt
+missed. Measured, in order:
+
+```
+pluginkit -a <appex>          → not registered   (0)
+lsregister -f <host app>      → not registered   (0)
+open <host app>               → REGISTERED       (1)   ← the trigger
+```
+
+**3. The extension can be enabled without the user visiting System Settings.**
+`pluginkit -e use -i dev.valuev.chute.finder` flips the flag from `-` to `+`. This matters far
+beyond the plan: onboarding check `ext-enabled` has a **real automatic fix**, so the frictionless
+install is achievable rather than aspirational — and it sidesteps the macOS 15.0–15.1 releases
+where the Extensions UI did not exist at all.
+
+**4. Ad-hoc + sandbox entitlements is sufficient for local development.** The $99 Developer ID
+stays where it was: required before anyone ELSE can install, not before the menu works here.
+The earlier worry that sandboxing would pull it forward is **disproved**.
+
+## Still open — the one question the probe did not answer
+
+**Can the sandboxed appex spawn the `chute` binary?** Answering it requires the extension to be
+loaded by Finder and to attempt a spawn. Until it is answered, treat the "appex shells out to
+`chute`" design as unproven; the reference implementation signals its already-running host app
+instead, and that remains the safer architecture.
+
+This is the FIRST thing Task 1 of the FinderSync plan must settle — before any menu code is written.
