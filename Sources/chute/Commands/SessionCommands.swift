@@ -4,23 +4,30 @@ import ChuteCore
 /// `.notRunning` means "nothing to show" — Terminal simply isn't open, not an error.
 /// Any other failure (almost always Automation permission denied) is actionable, so it
 /// gets a message naming the fix rather than a silent empty list that reads as broken.
-func discoverSessions() -> [Session] {
+/// `hadError` lets callers suppress "no terminal sessions" when the empty list is really an
+/// unreported problem the caller already printed — otherwise the two messages contradict
+/// each other (permission denied, immediately followed by "nothing to see here").
+func discoverSessions() -> (sessions: [Session], hadError: Bool) {
     let hooks = HookState.readAll()
     do {
-        return try TerminalAppAdapter().discover(hooks: hooks, now: Date())
+        let sessions = try TerminalAppAdapter().discover(hooks: hooks, now: Date())
             .sorted { ($0.state, $0.project) < ($1.state, $1.project) }
+        return (sessions, false)
     } catch TerminalError.notRunning {
-        return []
+        return ([], false)
     } catch {
         Out.info("chute: \(error) — grant Terminal access under System Settings → "
             + "Privacy & Security → Automation, then run `chute sessions` again")
-        return []
+        return ([], true)
     }
 }
 
 func cmdSessions(_ a: Args) {
-    let sessions = discoverSessions()
-    guard !sessions.isEmpty else { Out.info("no terminal sessions"); return }
+    let (sessions, hadError) = discoverSessions()
+    guard !sessions.isEmpty else {
+        if !hadError { Out.info("no terminal sessions") }
+        return
+    }
 
     if a.has("json") {
         let rows = sessions.map { s -> [String: Any] in
@@ -48,7 +55,19 @@ func cmdFocus(_ a: Args) {
     guard let target = a.positional.first else {
         Out.fail("usage: chute focus <key|project>   (see `chute sessions`)")
     }
-    let sessions = discoverSessions()
+    let (sessions, _) = discoverSessions()
+
+    // An ambiguous project name must ASK, not guess. Sending the user to an arbitrary one of four
+    // studylock windows is worse than refusing: they cannot tell that it happened.
+    let byProject = sessions.enumerated().filter { $0.element.project == target }
+    if byProject.count > 1 {
+        Out.info("\(byProject.count) sessions match '\(target)' — focus one by number:")
+        for (index, session) in byProject {
+            Out.line("  \(index + 1). \(session.title)  (\(session.tty))")
+        }
+        Out.fail("ambiguous — re-run with a number, e.g. `chute focus \(byProject[0].offset + 1)`")
+    }
+
     guard let hit = sessions.first(where: { $0.key == target })
             ?? sessions.first(where: { $0.project == target })
             ?? Int(target).flatMap({ n in n >= 1 && n <= sessions.count ? sessions[n - 1] : nil })
