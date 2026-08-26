@@ -60,17 +60,26 @@ In `Package.swift`, add to `targets:` after the `ChuteApp` line:
 
 `ChuteFinder` has no dependency on `ChuteCore`: an appex should load as little as possible, and it only needs to spawn a process.
 
-- [ ] **Step 2: Write the extension entry point**
+- [ ] **Step 2: There is NO main.swift — set the linker entry point instead**
 
-`Sources/ChuteFinder/main.swift`:
+**Do not create `Sources/ChuteFinder/main.swift`.** An earlier draft of this plan told you to
+write one calling `NSExtensionMain()`. That does not compile:
+`error: cannot find 'NSExtensionMain' in scope` — it is a C entry point, not a Swift-callable
+function. Verified by attempting it.
 
-```swift
-import Foundation
+A shipping appex imports `_NSExtensionMain` as an undefined symbol and makes it the Mach-O entry
+point. Confirmed against Google Drive's binary with `nm -u` (lists `_NSExtensionMain`) and
+`otool -l` (LC_MAIN). The target therefore contains ONLY `ChuteFinderSync.swift`, and the link
+step sets the entry point:
 
-// An app extension's executable hands control to the extension host, which instantiates
-// NSExtensionPrincipalClass from Info.plist. There is no app run loop here.
-NSExtensionMain()
+```bash
+swiftc -O -o ChuteFinder Sources/ChuteFinder/ChuteFinderSync.swift \
+    -Xlinker -e -Xlinker _NSExtensionMain
 ```
+
+Because SwiftPM cannot express that entry-point flag for an executable target, build the appex
+binary directly in `Scripts/build-app.sh` with `swiftc` rather than adding a SwiftPM target.
+Remove the `.executableTarget(name: "ChuteFinder")` line from Step 1 — it is not needed.
 
 - [ ] **Step 3: Write the minimal principal class**
 
@@ -155,12 +164,33 @@ Expected: `built …/dist/Chute.app`, and `ls dist/Chute.app/Contents/PlugIns/` 
 ```bash
 cd /Users/sxope/Documents/2026/Development/37.chute
 ./Scripts/install.sh
-pluginkit -a "$HOME/Applications/Chute.app/Contents/PlugIns/ChuteFinder.appex" 2>&1
-pluginkit -m -p com.apple.FinderSync
+pluginkit -a "$HOME/Applications/Chute.app/Contents/PlugIns/ChuteFinder.appex"
+pluginkit -mA -p com.apple.FinderSync          # expect: NOT listed yet — this is normal
+open "$HOME/Applications/Chute.app"            # ← THE TRIGGER. Registration happens on LAUNCH.
+sleep 3
+pluginkit -mA -p com.apple.FinderSync          # expect: dev.valuev.chute.finder now listed
+pluginkit -e use -i dev.valuev.chute.finder    # flips the flag column from blank to "+"
+pluginkit -mA -p com.apple.FinderSync
 codesign -vvv "$HOME/Applications/Chute.app/Contents/PlugIns/ChuteFinder.appex" 2>&1 | tail -3
 ```
 
-Expected: `pluginkit -m -p com.apple.FinderSync` lists `dev.valuev.chute.finder` alongside Google Drive's entry.
+**Launching the host app is what registers the extension** — this was measured, and it is the step
+every earlier integration attempt missed:
+
+```
+pluginkit -a <appex>        → not registered
+lsregister -f <host app>    → not registered
+open <host app>             → REGISTERED
+```
+
+The flag column has THREE states, not two: `+` explicitly enabled, `-` explicitly disabled, and
+BLANK for freshly registered. `pluginkit -e use -i <id>` moves blank to `+` **without the user
+opening System Settings at all** — which also sidesteps macOS 15.0–15.1, where that settings pane
+did not exist.
+
+Expected: `dev.valuev.chute.finder` listed with a `+`, and `codesign` reporting the ad-hoc
+signature satisfies its Designated Requirement. A spike proved all of this works ad-hoc signed
+WITH sandbox entitlements and no Xcode — see `docs/08-MACOS-COMPATIBILITY.md`.
 
 **If it does not appear:** STOP. Do not continue to Task 2. Report the exact `pluginkit` and `codesign` output and recommend installing Xcode. This is the planned failure path, not a defeat.
 
@@ -187,6 +217,20 @@ git commit -m "feat: FinderSync extension skeleton, registering with an ad-hoc s
 ---
 
 ### Task 2: The real menu  ·  **Model: Sonnet**  ·  Wave A
+
+> **STOP — unresolved architectural question, settle it before writing menu code.**
+> A teardown of Google Drive's shipping extension shows app extensions are **sandboxed**
+> (`com.apple.security.app-sandbox = 1`, plus a temporary exception just to touch files outside
+> the container). A child process inherits its parent's sandbox, so the design below — the appex
+> spawning `chute` via `Process` — may be unable to write to `~/Desktop`, create a folder, or
+> launch Terminal. **Every menu item would fail after the menu finally appeared.**
+>
+> Google Drive's extension does no file work at all; it signals its already-running host app.
+>
+> **First step of this task: add a menu item that spawns `/bin/echo` and NSLogs the result, load
+> it in Finder, and read `log stream --predicate 'process == "ChuteFinder"'`.** If the spawn is
+> denied, discard the design below and replace it with appex → IPC → ChuteApp → chute. Candidate
+> IPC mechanisms are listed in `docs/08-MACOS-COMPATIBILITY.md`; test one, do not assume it.
 
 **Files:**
 - Modify: `/Users/sxope/Documents/2026/Development/37.chute/Sources/ChuteFinder/ChuteFinderSync.swift`
