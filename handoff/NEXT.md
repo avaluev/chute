@@ -1,7 +1,7 @@
 # HANDOFF — Chute v0.1 — 2026-08-26
 
 STATE: main / v0.1.0 / pushed · build green (`swift build -c release`, 0 warnings)
-       unit 52/52 (`swift run chutetests`) · smoke 39/39 (`./Scripts/smoke.sh`)
+       unit 55/55 (`swift run chutetests`) · smoke 39/39 (`./Scripts/smoke.sh`)
 
 ## ONE-LINE GOAL
 A macOS utility that turns a Finder selection into agent-ready context and agent output back
@@ -9,8 +9,8 @@ into files — sellable, offline, zero telemetry.
 
 ## WHERE THE WORK LIVES
 `/Users/sxope/Documents/2026/Development/37.chute` → `github.com/avaluev/chute` (private).
-**NOT** `/Users/sxope/Documents/2026/Development/36.macai` — a parallel session owns that
-directory (see TRAPS).
+`36.macai` and the empty `avaluev/36.macai` repo were deleted on instruction after the
+Antigravity session that owned them was stopped.
 
 ## DONE (verified)
 - 24/24 JTBDs implemented as `chute` subcommands — proved by `./Scripts/smoke.sh` → `smoke: 39 passed, 0 failed`
@@ -19,7 +19,8 @@ directory (see TRAPS).
   `/Users/sxope/Documents/2026/Development/37.chute/Sources/ChuteCore/MarkdownUnpack.swift:60`
   produced `❌ 1 failed, 51 passed`, then restored
 - `Chute.app` built without Xcode (576 KB) and running — `pgrep -x ChuteApp` returns a pid
-- Six Finder services registered — `pbs -dump_pboard` lists `Chute \U2013 Copy Paths for Prompt` et al.
+- Eight Finder **Quick Actions** in `~/Library/Services/` — one executed end to end via
+  `automator -i … "Chute – Copy Paths for Prompt.workflow"`, which put a real path on the clipboard
 - Docs: BR, FR-01…FR-24, NFR, JTBD ledger with time-saved math, CJM, DoD, backlog in `docs/`
 - Marketing: positioning, landing copy, launch posts, pricing in `marketing/`
 
@@ -30,9 +31,9 @@ the click itself is not. Run the **MANUAL GATE** below before telling anyone it 
 ## MANUAL GATE
 1. `cd /Users/sxope/Documents/2026/Development/37.chute && ./Scripts/install.sh`
 2. Copy any markdown to the clipboard. Open Finder at `~/Desktop`.
-3. Right-click a **folder** → *Services ▸ Chute – New File from Clipboard*.
+3. Right-click a **folder** → *Quick Actions ▸ Chute – New File from Clipboard*.
    Expect: a correctly named `.md` file appears and is revealed.
-4. Select 3 files → right-click → *Services ▸ Chute – Copy Paths for Prompt*, then paste.
+4. Select 3 files → right-click → *Quick Actions ▸ Chute – Copy Paths for Prompt*, then paste.
    Expect: 3 clean absolute paths.
 5. Press `⌥⌘N`. Expect: the action menu at the pointer.
    First run prompts for Automation permission — that is macOS asking if Chute may read the
@@ -56,6 +57,19 @@ the click itself is not. Run the **MANUAL GATE** below before telling anyone it 
 - Price direction $9 one-time via LemonSqueezy. No licensing code in v0.1 — deferred by you.
 
 ## TRAPS
+- **Quick Actions, not app Services.** App-declared `NSServices` register correctly but land in
+  Finder's *Services* submenu, which is buried — a right-click showed nothing. The submenu Finder
+  actually displays is *Quick Actions*, which needs Automator `.workflow` bundles;
+  `Scripts/install-quickactions.sh` generates them from the system Run Shell Script action.
+- **`automator -i a -i b` passes only ONE input**, so the CLI cannot prove multi-select works.
+  The generated scripts therefore ask Finder for the live selection whenever they receive a single
+  argument — correct under either behaviour. Do not "simplify" that away.
+- **Never XML-escape file content in a bundle.** It turns `Set<String>` into `Set&lt;String&gt;`:
+  harder for a model to read, more tokens for the same code. Only the path attribute is escaped.
+- **The installed CLI is a copy inside the app bundle.** After any Swift change run
+  `./Scripts/build-app.sh && ./Scripts/install.sh`, or `~/.local/bin/chute` stays stale — this
+  already caused one "the fix didn't work" false alarm.
+- **Check a directory is free immediately before the first write, not at session start.**
 - **A parallel session owns `/Users/sxope/Documents/2026/Development/36.macai`** (targets
   `MacAICore` / `MacAICLI`). This session overwrote its `Package.swift` at 17:28 and restored it;
   `swift build` there returned `Build complete!` with zero recompilation, proving the restore
