@@ -36,16 +36,27 @@ public enum HookInstaller {
 
     /// A single line. Writes one small file and always exits 0 — a Chute failure must never
     /// break the user's agent session. $PPID is the claude process, whose tty is the tab's tty.
+    /// `ps -o tty=` prints `??` (not empty) when there is no controlling terminal, so we whitelist
+    /// alphanumeric tty names rather than just checking for non-empty. The cwd is escaped for JSON
+    /// before being embedded, so a directory name containing `"` or `\` cannot break the printf.
     public static func command(for state: SessionState) -> String {
         let name = HookState.stateName(state)
         return "# \(marker)\n"
             + "S=\"$HOME/.chute/sessions\"; mkdir -p \"$S\" 2>/dev/null; "
             + "T=$(ps -o tty= -p $PPID 2>/dev/null | tr -d ' '); "
-            + "if [ -n \"$T\" ]; then "
+            + "case \"$T\" in \"\"|*[!a-zA-Z0-9]*) printf '{}\\n'; exit 0;; esac; "
+            + "CWD=$(printf '%s' \"$PWD\" | sed 's/\\\\/\\\\\\\\/g; s/\"/\\\\\"/g'); "
             + "printf '{\"tty\":\"%s\",\"state\":\"%s\",\"cwd\":\"%s\",\"ts\":%s}' "
-            + "\"$T\" \"\(name)\" \"$PWD\" \"$(date +%s)\" > \"$S/$T.json.tmp\" 2>/dev/null "
-            + "&& mv \"$S/$T.json.tmp\" \"$S/$T.json\" 2>/dev/null; fi; "
+            + "\"$T\" \"\(name)\" \"$CWD\" \"$(date +%s)\" > \"$S/$T.json.tmp\" 2>/dev/null "
+            + "&& mv \"$S/$T.json.tmp\" \"$S/$T.json\" 2>/dev/null; "
             + "printf '{}\\n'; exit 0"
+    }
+
+    /// Our command always OPENS with the marker comment line. Matching the prefix rather than a
+    /// loose `contains` means a user command that merely mentions the marker is never mistaken
+    /// for ours — in either direction.
+    public static func isChuteCommand(_ command: String) -> Bool {
+        command.hasPrefix("# \(marker)")
     }
 
     static func loadObject(_ path: String) throws -> [String: Any] {
@@ -67,7 +78,7 @@ public enum HookInstaller {
             let blocks = (hooks[event] as? [[String: Any]]) ?? []
             out[event] = blocks.contains { block in
                 ((block["hooks"] as? [[String: Any]]) ?? []).contains {
-                    (($0["command"] as? String) ?? "").contains(marker)
+                    isChuteCommand(($0["command"] as? String) ?? "")
                 }
             }
         }
@@ -76,19 +87,37 @@ public enum HookInstaller {
     @discardableResult
     public static func install(settingsPath: String,
                                now: Date = Date()) throws -> HookReport {
-        let original = try loadObject(settingsPath)
+        let path = URL(fileURLWithPath: settingsPath).resolvingSymlinksInPath().path
+        let original = try loadObject(path)
         let originalKeys = Set(original.keys)
-        let backup = try makeBackup(settingsPath, now: now)
+        let backup = try makeBackup(path, now: now)
 
         var root = original
-        var hooks = (root["hooks"] as? [String: Any]) ?? [:]
+        // Never write a key whose original value we could not decode. An unexpected shape means
+        // a plugin or a hand edit put something here we do not understand — overwriting it would
+        // destroy it silently, and a count-based check cannot notice.
+        var hooks: [String: Any] = [:]
+        if let existing = root["hooks"] {
+            guard let obj = existing as? [String: Any] else {
+                throw HookInstallError.validationFailed(
+                    "`hooks` is not an object — refusing to modify this file")
+            }
+            hooks = obj
+        }
         var changed: [String] = [], skipped: [String] = []
 
         for (event, state) in events.sorted(by: { $0.key < $1.key }) {
-            var blocks = (hooks[event] as? [[String: Any]]) ?? []
+            var blocks: [[String: Any]] = []
+            if let existing = hooks[event] {
+                guard let arr = existing as? [[String: Any]] else {
+                    throw HookInstallError.validationFailed(
+                        "hooks.\(event) is not an array of objects — refusing to modify this file")
+                }
+                blocks = arr
+            }
             let already = blocks.contains { block in
                 ((block["hooks"] as? [[String: Any]]) ?? []).contains {
-                    (($0["command"] as? String) ?? "").contains(marker)
+                    isChuteCommand(($0["command"] as? String) ?? "")
                 }
             }
             if already { skipped.append(event); continue }
@@ -99,41 +128,59 @@ public enum HookInstaller {
         root["hooks"] = hooks
 
         try validateAndWrite(root, original: original, originalKeys: originalKeys,
-                             path: settingsPath)
+                             path: path)
         return HookReport(changed: changed, skipped: skipped, backupPath: backup)
     }
 
     @discardableResult
     public static func uninstall(settingsPath: String,
                                  now: Date = Date()) throws -> HookReport {
-        let original = try loadObject(settingsPath)
+        let path = URL(fileURLWithPath: settingsPath).resolvingSymlinksInPath().path
+        let original = try loadObject(path)
         let originalKeys = Set(original.keys)
-        let backup = try makeBackup(settingsPath, now: now)
+        let backup = try makeBackup(path, now: now)
 
         var root = original
-        var hooks = (root["hooks"] as? [String: Any]) ?? [:]
+        var hooks: [String: Any] = [:]
+        if let existing = root["hooks"] {
+            guard let obj = existing as? [String: Any] else {
+                throw HookInstallError.validationFailed(
+                    "`hooks` is not an object — refusing to modify this file")
+            }
+            hooks = obj
+        }
         var changed: [String] = []
 
         for event in events.keys.sorted() {
-            guard var blocks = hooks[event] as? [[String: Any]] else { continue }
+            guard let existing = hooks[event] else { continue }
+            guard var blocks = existing as? [[String: Any]] else {
+                throw HookInstallError.validationFailed(
+                    "hooks.\(event) is not an array of objects — refusing to modify this file")
+            }
             let before = blocks.count
             blocks.removeAll { block in
-                ((block["hooks"] as? [[String: Any]]) ?? []).contains {
-                    (($0["command"] as? String) ?? "").contains(marker)
-                }
+                // Only remove a block that is exactly the one we wrote. If someone merged our
+                // hook into a block with theirs, leave it alone rather than taking their hook
+                // with it.
+                guard block["matcher"] == nil,
+                      let inner = block["hooks"] as? [[String: Any]],
+                      inner.count == 1 else { return false }
+                return isChuteCommand((inner[0]["command"] as? String) ?? "")
             }
             if blocks.count != before { changed.append(event); hooks[event] = blocks }
         }
         root["hooks"] = hooks
 
         try validateAndWrite(root, original: original, originalKeys: originalKeys,
-                             path: settingsPath, allowShrink: true)
+                             path: path, allowShrink: true)
         return HookReport(changed: changed, skipped: [], backupPath: backup)
     }
 
     static func makeBackup(_ path: String, now: Date) throws -> String {
         let f = DateFormatter()
         f.dateFormat = "yyyyMMdd-HHmmss"
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.timeZone = TimeZone(identifier: "UTC")
         let dest = path + ".chute-backup-" + f.string(from: now)
         do {
             if FileManager.default.fileExists(atPath: dest) {
@@ -157,7 +204,7 @@ public enum HookInstaller {
             throw HookInstallError.validationFailed("result is not a serialisable object")
         }
         let data = try JSONSerialization.data(withJSONObject: root,
-                                              options: [.prettyPrinted, .sortedKeys])
+                                              options: [.prettyPrinted])
         guard let reparsed = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] else {
             throw HookInstallError.validationFailed("result does not re-parse")
         }
@@ -169,10 +216,20 @@ public enum HookInstaller {
             let before = (original["hooks"] as? [String: Any]) ?? [:]
             let after = (reparsed["hooks"] as? [String: Any]) ?? [:]
             for (event, value) in before {
-                let b = (value as? [Any])?.count ?? 0
-                let a = (after[event] as? [Any])?.count ?? 0
-                guard a >= b else {
-                    throw HookInstallError.validationFailed("would shrink hooks.\(event) from \(b) to \(a)")
+                guard let b = value as? [Any] else { continue }
+                guard let a = after[event] as? [Any], a.count >= b.count else {
+                    throw HookInstallError.validationFailed(
+                        "would shrink hooks.\(event) from \(b.count) to \((after[event] as? [Any])?.count ?? 0)")
+                }
+                // Content, not just count. Appending must leave every original block byte-identical;
+                // a dropped `matcher` keeps the count at 1 and would otherwise sail through.
+                for (i, originalBlock) in b.enumerated() {
+                    let lhs = NSDictionary(dictionary: (originalBlock as? [String: Any]) ?? [:])
+                    let rhs = (a[i] as? [String: Any]) ?? [:]
+                    guard lhs.isEqual(to: rhs) else {
+                        throw HookInstallError.validationFailed(
+                            "hooks.\(event)[\(i)] was modified — refusing to write")
+                    }
                 }
             }
         }
