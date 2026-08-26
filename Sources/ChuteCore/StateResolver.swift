@@ -30,8 +30,12 @@ public enum StateResolver {
                                isAgent: Bool,
                                now: Date,
                                staleAfter: TimeInterval = staleAfterDefault) -> SessionState {
-        if let hook, now.timeIntervalSince(hook.timestamp) < staleAfter {
-            return hook.state
+        if let hook {
+            // now - timestamp goes NEGATIVE under clock skew, and a negative age would pass any
+            // `age < staleAfter` test forever — pinning a dead session's state permanently.
+            // A hook from the future is not fresh, it is untrustworthy: ignore it.
+            let age = now.timeIntervalSince(hook.timestamp)
+            if age >= 0, age < staleAfter { return hook.state }
         }
         if let glyphState = GlyphTable.state(fromTitle: title) {
             return glyphState

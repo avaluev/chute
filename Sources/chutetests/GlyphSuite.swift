@@ -13,6 +13,11 @@ func glyphSuite() {
         T.eq(StateResolver.resolve(hook: stale, title: "plain", busy: true, isAgent: true, now: now),
              .working, "a hook older than six hours is ignored")
 
+        let future = HookRecord(tty: "ttys004", state: .blocked,
+                                timestamp: now.addingTimeInterval(3600))
+        T.eq(StateResolver.resolve(hook: future, title: "plain", busy: true, isAgent: true, now: now),
+             .working, "a future-dated hook (clock skew) is ignored, never trusted forever")
+
         T.eq(StateResolver.resolve(hook: nil, title: "✳ refactoring", busy: true, isAgent: true, now: now),
              .working, "known glyph resolves without a hook")
 
