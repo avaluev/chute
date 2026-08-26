@@ -36,6 +36,8 @@ Legend: **T1** = tier 1 (ship first) · **T2** = tier 2 · dry-run = destructive
 ## Frontends
 | ID | Requirement |
 |---|---|
-| FE-01 | `Scripts/install-quickactions.sh` installs `~/Library/Services/Chute – *.workflow`, one per headline action. |
-| FE-02 | `Chute.app` — `LSUIElement` menu-bar app, global hotkey `⌥⌘N`, HUD listing commands, acts on the current Finder selection. |
-| FE-03 | `Scripts/uninstall.sh` removes every installed Quick Action and the app. |
+| FE-01 | Finder context menu via a `FIFinderSync` extension embedded in `Chute.app` — top level, works on empty background. Supersedes the withdrawn Automator Quick Actions and app `NSServices` attempts (see `docs/superpowers/specs/2026-08-26-findersync-context-menu-design.md`). |
+| FE-02 | `Chute.app` — `LSUIElement` menu-bar app, global hotkey `⌥⌘N`. |
+| FE-03 | `Scripts/uninstall.sh` removes the app, the extension, `~/.chute`, and any stale `.workflow` bundles from earlier installs. |
+| FE-04 | Menu bar shows the **agent session switcher**: every terminal window/tab, grouped by state, coloured per project, with a badge counting sessions that need you and `⌥1…⌥8` to focus (see `docs/superpowers/specs/2026-08-26-session-switcher-design.md`). |
+| FE-05 | `chute hooks install\|uninstall\|status` wires Claude Code hooks that report session state. Append-only, backed up, idempotent, reversible. |
