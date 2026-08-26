@@ -25,5 +25,13 @@ func sessionColorSuite() {
                         "/Users/sxope/Documents/2026/Development/BigDeal"]
         let distinct = Set(projects.map { SessionColor.index(forProject: $0) })
         T.ok(distinct.count >= 4, "at most one collision across five real projects")
+
+        // Pin the algorithm itself. FNV-1a is load-bearing: if the hash changes, every user's
+        // project colours repaint on upgrade. These two values were computed from the reference
+        // implementation; changing them must be a deliberate act, not an accident.
+        T.eq(SessionColor.index(forProject: "/Users/sxope/Documents/2026/Development/37.chute"), 8,
+             "FNV-1a index is pinned for a known path")
+        T.eq(SessionColor.index(forProject: "/Users/sxope/Documents/2026/Development/31.Chrome/studylock"), 6,
+             "FNV-1a index is pinned for a second known path")
     }
 }
