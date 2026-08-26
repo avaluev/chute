@@ -46,6 +46,10 @@ func terminalParseSuite() {
                                       hooks: [:], now: now).count, 0,
              "a record with a valid window id but too few fields is skipped, not indexed into")
 
+        // Proves the helper actually consults its argument. Before the fix this returned true for
+        // ANY name whenever Terminal.app happened to be running.
+        T.no(isProcessRunning("no-such-process-9f3a2b7c"), "an absent process is reported absent")
+
         // Project extraction edge cases.
         T.eq(TerminalAppAdapter.project(fromWindowName: "36.macai — ◑ Chut — x"), "36.macai", "first segment")
         T.eq(TerminalAppAdapter.project(fromWindowName: "solo"), "solo", "no separator")

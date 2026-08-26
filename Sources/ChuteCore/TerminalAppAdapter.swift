@@ -29,7 +29,7 @@ public struct TerminalAppAdapter: TerminalAdapter {
     """
 
     public func discover(hooks: [String: HookRecord], now: Date) throws -> [Session] {
-        guard NSWorkspaceIsRunning("com.apple.Terminal") else {
+        guard isProcessRunning("Terminal") else {
             throw TerminalError.notRunning("Terminal")
         }
         let result = Shell.run("osascript", ["-e", Self.discoveryScript])
@@ -91,8 +91,10 @@ public struct TerminalAppAdapter: TerminalAdapter {
     }
 }
 
-/// Avoids importing AppKit into ChuteCore just for a running-app check.
-func NSWorkspaceIsRunning(_ bundleID: String) -> Bool {
-    !Shell.run("pgrep", ["-x", "Terminal"]).out
+/// Whether a process with this exact name is running. Deliberately takes the name it checks:
+/// TerminalAdapter is a protocol so iTerm2/Ghostty/Warp adapters can follow, and each must be
+/// able to ask about ITS OWN process rather than silently receiving Terminal.app's answer.
+public func isProcessRunning(_ processName: String) -> Bool {
+    !Shell.run("pgrep", ["-x", processName]).out
         .trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
 }
