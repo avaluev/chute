@@ -50,9 +50,19 @@ validate before replacing · fully reversible · never run install/uninstall dur
   spike: registered under `com.apple.FinderSync` and enabled via `pluginkit -e use`. Probe deleted.
 
 ## IN FLIGHT
-- **Task 7 review** (`chute sessions|focus|hooks`) — dispatched, not returned. Code is committed on
-  `worktree-agent-ae0cb4e0a35cb7b80` @ `200fd11`, **NOT merged**. Merge only after the review is clean.
-  What breaks if ignored: `chute sessions` is absent from the merged branch despite working.
+- **Task 7** (`chute sessions|focus|hooks`) — reviewed: **no Criticals**. Config safety verified —
+  no path mutates `settings.json` without an explicit `install`/`uninstall`; a typo falls through to
+  read-only `status`; the backup path is surfaced on every mutation.
+  **1 Important open, fix dispatched:** `chute focus <project>` silently picks the first of several
+  matches. There are FOUR `studylock` sessions on this machine, so `chute focus studylock` sends the
+  user to an arbitrary one with no signal a choice was made for them. Fix: refuse and list the
+  matches with the global indices from `chute sessions`.
+  **1 Minor:** after an Automation-permission error, `cmdSessions` also prints "no terminal
+  sessions", contradicting the line above it.
+  Code is on `worktree-agent-ae0cb4e0a35cb7b80` @ `200fd11`, **NOT merged**. Merge after the fix and
+  its scoped re-review are clean.
+  What breaks if ignored: `chute sessions` is absent from the merged branch despite working, and
+  `focus <project>` gives silent wrong answers.
 
 ## NEXT
 1. `git merge worktree-agent-ae0cb4e0a35cb7b80 --no-edit`
