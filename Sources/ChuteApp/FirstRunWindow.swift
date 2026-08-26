@@ -13,10 +13,17 @@ enum FirstRunWindow {
         show()
     }
 
-    static func markSeen() {
+    @discardableResult
+    static func markSeen() -> Bool {
         let dir = (statePath as NSString).deletingLastPathComponent
-        try? FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
-        try? #"{"firstRunSeen":true}"#.write(toFile: statePath, atomically: true, encoding: .utf8)
+        do {
+            try FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
+            try #"{"firstRunSeen":true}"#.write(toFile: statePath, atomically: true, encoding: .utf8)
+            return true
+        } catch {
+            NSLog("Chute: could not record first-run state at \(statePath): \(error.localizedDescription)")
+            return false
+        }
     }
 
     nonisolated(unsafe) static var window: NSWindow?
@@ -26,15 +33,27 @@ enum FirstRunWindow {
                          styleMask: [.titled, .closable], backing: .buffered, defer: false)
         w.title = "Chute"
         w.center()
-        w.contentView = makeBody()
+        w.contentView = makeBody(outcomes: nil)   // draws immediately: "Checking…"
         w.isReleasedWhenClosed = false
         window = w
         NSApp.activate(ignoringOtherApps: true)
         w.makeKeyAndOrderFront(nil)
         markSeen()
+        refresh()
     }
 
-    static func makeBody() -> NSView {
+    /// The probe shells out to osascript/pluginkit/ps and blocks. It must never run on the
+    /// main thread: this is a menu-bar app with no Dock icon, and a frozen launch reads as a crash.
+    static func refresh() {
+        DispatchQueue.global(qos: .userInitiated).async {
+            let outcomes = Diagnostics.run(Diagnostics.liveEnv())
+            DispatchQueue.main.async {
+                window?.contentView = makeBody(outcomes: outcomes)
+            }
+        }
+    }
+
+    static func makeBody(outcomes: [CheckOutcome]?) -> NSView {
         let root = NSStackView()
         root.orientation = .vertical
         root.alignment = .leading
@@ -45,7 +64,12 @@ enum FirstRunWindow {
         heading.font = .systemFont(ofSize: 18, weight: .semibold)
         root.addArrangedSubview(heading)
 
-        for outcome in Diagnostics.run(Diagnostics.liveEnv()) {
+        guard let outcomes else {
+            root.addArrangedSubview(NSTextField(labelWithString: "Checking your setup…"))
+            return root
+        }
+
+        for outcome in outcomes {
             root.addArrangedSubview(row(outcome))
         }
 
@@ -63,24 +87,34 @@ enum FirstRunWindow {
     }
 
     static func row(_ o: CheckOutcome) -> NSView {
-        let stack = NSStackView()
-        stack.orientation = .horizontal
-        stack.spacing = 8
+        let column = NSStackView()
+        column.orientation = .vertical
+        column.alignment = .leading
+        column.spacing = 2
+
+        let top = NSStackView()
+        top.orientation = .horizontal
+        top.spacing = 8
         let mark = NSTextField(labelWithString: o.passed ? "✓" : "⏳")
         mark.textColor = o.passed ? .systemGreen : .systemOrange
-        stack.addArrangedSubview(mark)
-        let label = NSTextField(labelWithString: o.check.title)
-        stack.addArrangedSubview(label)
+        top.addArrangedSubview(mark)
+        top.addArrangedSubview(NSTextField(labelWithString: o.check.title))
+        column.addArrangedSubview(top)
+
         if !o.passed {
-            // No dead ends: a failing row always carries its reason, visible without a click.
+            // Visible, not a tooltip: a user who cannot SEE what to do closes the window.
             let why = NSTextField(labelWithString: o.check.why)
             why.font = .systemFont(ofSize: 11)
             why.textColor = .secondaryLabelColor
-            why.lineBreakMode = .byTruncatingTail
-            why.toolTip = o.check.fix
-            stack.addArrangedSubview(why)
+            column.addArrangedSubview(why)
+
+            let fix = NSTextField(labelWithString: "→ \(o.check.fix)")
+            fix.font = .systemFont(ofSize: 11, weight: .medium)
+            fix.textColor = .labelColor
+            fix.isSelectable = true      // so a command can be copied
+            column.addArrangedSubview(fix)
         }
-        return stack
+        return column
     }
 
     final class Handler: NSObject {
@@ -91,9 +125,9 @@ enum FirstRunWindow {
             DispatchQueue.global(qos: .userInitiated).async {
                 _ = Shell.run(binary, ["doctor", "--fix"])
                 DispatchQueue.main.async {
-                    // Re-render from a FRESH environment; never repaint a row green without
-                    // re-running the check behind it.
-                    FirstRunWindow.window?.contentView = FirstRunWindow.makeBody()
+                    // Re-verify from a FRESH environment; never repaint a row green without
+                    // re-running the check behind it. refresh() is already off-main-safe.
+                    FirstRunWindow.refresh()
                 }
             }
         }
