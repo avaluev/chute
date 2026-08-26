@@ -85,15 +85,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         updateBadgeFromHooks()
     }
 
-    func buildMenu() -> NSMenu {
-        let sessions = (try? TerminalAppAdapter().discover(hooks: HookState.readAll(), now: Date()))?
-            .sorted { ($0.state, $0.project) < ($1.state, $1.project) } ?? []
-        statusItem.button?.title = SessionMenu.badge(for: sessions)
-        lastSessions = sessions
+    /// Catches discover() failures instead of collapsing them into an unexplained empty menu:
+    /// Terminal simply not running is not a problem, but a denied Automation permission is a
+    /// fixable one, and the menu should say so.
+    func discoverSessionsForMenu() -> (sessions: [Session], problem: String?) {
+        do {
+            let sessions = try TerminalAppAdapter().discover(hooks: HookState.readAll(), now: Date())
+                .sorted { ($0.state, $0.project) < ($1.state, $1.project) }
+            return (sessions, nil)
+        } catch let e as TerminalError {
+            switch e {
+            case .notRunning:  return ([], nil)              // not a problem; nothing to show
+            default:           return ([], "\(e)")           // a real failure, say so
+            }
+        } catch {
+            return ([], "\(error)")
+        }
+    }
 
-        let menu = SessionMenu.build(sessions: sessions, target: self, action: #selector(focusSession(_:)))
-        menu.delegate = self   // keep menuWillOpen wired for every subsequent open
-
+    func appendStandardItems(to menu: NSMenu) {
         let actionsMenu = NSMenu()
         for (i, a) in actions_list.enumerated() {
             let item = NSMenuItem(title: a.title, action: #selector(fire(_:)), keyEquivalent: "")
@@ -112,10 +122,29 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         menu.addItem(NSMenuItem(title: "Refresh", action: #selector(refresh), keyEquivalent: "r"))
         menu.addItem(NSMenuItem(title: "Quit Chute",
                                 action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
+    }
+
+    /// Only for contexts where menuWillOpen does not apply — refresh() and the ⌥⌘N HUD popup —
+    /// because there is no live NSMenu already being tracked by AppKit to populate in place.
+    func buildMenu() -> NSMenu {
+        let menu = NSMenu()
+        menu.delegate = self
+        let (sessions, problem) = discoverSessionsForMenu()
+        statusItem.button?.title = SessionMenu.badge(for: sessions)
+        lastSessions = sessions
+        SessionMenu.populate(menu, sessions: sessions, problem: problem,
+                             target: self, action: #selector(focusSession(_:)),
+                             openSettings: #selector(openAutomationSettings))
+        appendStandardItems(to: menu)
         return menu
     }
 
     @objc func openSetup() { FirstRunWindow.show() }
+
+    @objc func openAutomationSettings() {
+        NSWorkspace.shared.open(URL(string:
+            "x-apple.systempreferences:com.apple.preference.security?Privacy_Automation")!)
+    }
 
     @objc func fire(_ sender: NSMenuItem) {
         let action = actions_list[sender.tag]
@@ -134,7 +163,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     // AppleScript runs ONLY when the menu opens (menuWillOpen) — the user has just clicked,
     // so the cost is hidden by the click. Never called from the launch path.
-    func menuWillOpen(_ menu: NSMenu) { statusItem.menu = buildMenu() }
+    //
+    // Populates the `menu` AppKit handed us IN PLACE. Do not build a new NSMenu and assign it to
+    // statusItem.menu here: the object already being tracked for display is this one, so a swap
+    // takes effect on the NEXT open, and the user sees the previous (stale) session list.
+    func menuWillOpen(_ menu: NSMenu) {
+        let (sessions, problem) = discoverSessionsForMenu()
+        statusItem.button?.title = SessionMenu.badge(for: sessions)
+        lastSessions = sessions
+        SessionMenu.populate(menu, sessions: sessions, problem: problem,
+                             target: self, action: #selector(focusSession(_:)),
+                             openSettings: #selector(openAutomationSettings))
+        appendStandardItems(to: menu)
+    }
 
     /// Badge updates are event-driven off the hook directory — no polling, no AppleScript.
     func startWatching() {
