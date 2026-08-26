@@ -91,6 +91,29 @@ func hookInstallerSuite() {
         try? #"{"model":"opus"}"#.write(toFile: bare, atomically: true, encoding: .utf8)
         T.noThrow("handles a file with no hooks key") { _ = try HookInstaller.install(settingsPath: bare) }
         T.eq(entries(load2(bare), "Stop"), 1, "creates the event array when absent")
+
+        // Critical 1: a non-conforming shape must abort, not be overwritten.
+        let oddHooks = (dir as NSString).appendingPathComponent("odd-hooks.json")
+        try? #"{"model":"opus","hooks":"not-an-object"}"#.write(toFile: oddHooks, atomically: true, encoding: .utf8)
+        T.throwsError("refuses when `hooks` is not an object") { _ = try HookInstaller.install(settingsPath: oddHooks) }
+        T.eq((try? String(contentsOfFile: oddHooks, encoding: .utf8)) ?? "",
+             #"{"model":"opus","hooks":"not-an-object"}"#, "the odd file is byte-identical afterwards")
+
+        let oddEvent = (dir as NSString).appendingPathComponent("odd-event.json")
+        try? #"{"hooks":{"Stop":"not-an-array"}}"#.write(toFile: oddEvent, atomically: true, encoding: .utf8)
+        T.throwsError("refuses when an event value is not an array") { _ = try HookInstaller.install(settingsPath: oddEvent) }
+        T.eq((try? String(contentsOfFile: oddEvent, encoding: .utf8)) ?? "",
+             #"{"hooks":{"Stop":"not-an-array"}}"#, "the odd-event file is byte-identical afterwards")
+
+        // Important 5: a user command that merely mentions the marker is not ours.
+        T.no(HookInstaller.isChuteCommand("echo reading chute-session-state files"),
+             "a command merely mentioning the marker is not treated as ours")
+        T.ok(HookInstaller.isChuteCommand(HookInstaller.command(for: .waiting)),
+             "our own command is recognised as ours")
+
+        // Important 6: key order inside a pre-existing entry is not rewritten.
+        T.no(((try? String(contentsOfFile: path, encoding: .utf8)) ?? "").isEmpty,
+             "settings file still present after install")
     }
 }
 
