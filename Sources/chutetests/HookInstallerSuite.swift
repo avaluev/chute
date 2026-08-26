@@ -12,7 +12,7 @@ func hookInstallerSuite() {
         {"permissions":{"allow":["Bash"]},"model":"opus","statusLine":{"type":"command"},
          "hooks":{
            "Stop":[{"hooks":[{"type":"command","command":"existing-plugin-command --flag"}]}],
-           "PermissionRequest":[{"hooks":[{"type":"command","command":"another-one"}]}],
+           "PermissionRequest":[{"matcher":"Bash","hooks":[{"type":"command","command":"another-one"}]}],
            "UserPromptSubmit":[{"hooks":[{"type":"command","command":"third"}]}],
            "SessionStart":[{"hooks":[{"type":"command","command":"fourth"}]}],
            "PreCompact":[{"hooks":[{"type":"command","command":"untouched"}]}]}}
@@ -37,6 +37,14 @@ func hookInstallerSuite() {
         T.eq(entries(d, "PreCompact"), 1, "an unrelated event is untouched")
         T.ok(d["permissions"] != nil && d["model"] != nil && d["statusLine"] != nil,
              "every unrelated top-level key survives")
+
+        // The real settings.json carries `matcher` keys on some blocks. Appending must leave them
+        // byte-identical — dropping a matcher would silently change when the user's hook fires.
+        let permBlocks = ((d["hooks"] as? [String: Any])?["PermissionRequest"] as? [[String: Any]]) ?? []
+        T.eq(permBlocks.count, 2, "matcher-bearing event still gained exactly one entry")
+        T.eq((permBlocks.first?["matcher"] as? String) ?? "", "Bash",
+             "the pre-existing block's matcher key survives install untouched")
+        T.ok(permBlocks.first?["hooks"] != nil, "the pre-existing block keeps its hooks array")
 
         let text = (try? String(contentsOfFile: path, encoding: .utf8)) ?? ""
         T.ok(text.contains("existing-plugin-command --flag"), "the pre-existing command is intact")
@@ -64,6 +72,10 @@ func hookInstallerSuite() {
                 .contains("existing-plugin-command --flag"), "theirs still there after uninstall")
         T.eq(HookInstaller.status(settingsPath: path).values.filter { $0 }.count, 0,
              "status reports nothing wired")
+
+        let permAfter = ((d["hooks"] as? [String: Any])?["PermissionRequest"] as? [[String: Any]]) ?? []
+        T.eq((permAfter.first?["matcher"] as? String) ?? "", "Bash",
+             "the matcher key survives uninstall untouched")
 
         // Malformed input changes nothing.
         let broken = (dir as NSString).appendingPathComponent("broken.json")
