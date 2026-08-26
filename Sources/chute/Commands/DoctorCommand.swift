@@ -12,15 +12,23 @@ func cmdDoctor(_ a: Args) {
         outcomes = Diagnostics.run(Diagnostics.liveEnv())
     }
 
+    let prerequisites = outcomes.filter { $0.check.id != "end-to-end" }
+    let endToEnd = outcomes.first { $0.check.id == "end-to-end" }
+    let blocked = prerequisites.contains { !$0.passed }
+
     if a.has("json") {
         let rows = outcomes.map { o -> [String: Any] in
-            ["id": o.check.id, "title": o.check.title, "passed": o.passed,
-             "detail": o.detail, "why": o.check.why, "fix": o.check.fix]
+            let skipped = (o.check.id == "end-to-end" && blocked)
+            return ["id": o.check.id, "title": o.check.title,
+                    "passed": skipped ? false : o.passed,
+                    "skipped": skipped,
+                    "detail": skipped ? "skipped — earlier checks failed" : o.detail,
+                    "why": o.check.why, "fix": o.check.fix]
         }
         let data = try? JSONSerialization.data(withJSONObject: rows, options: [.prettyPrinted])
         Out.line(String(decoding: data ?? Data("[]".utf8), as: UTF8.self))
     } else {
-        for o in outcomes {
+        for o in prerequisites {
             let mark = o.passed ? "✓" : "✗"
             let title = o.check.title.padding(toLength: 34, withPad: " ", startingAt: 0)
             Out.line("\(mark) \(title)\(o.detail)")
@@ -29,14 +37,28 @@ func cmdDoctor(_ a: Args) {
                 Out.line("    Fix: \(o.check.fix)")
             }
         }
-        let failed = outcomes.filter { !$0.passed }.count
+
+        if blocked {
+            Out.line("— end-to-end test skipped: fix the above first")
+        } else if let e = endToEnd {
+            let mark = e.passed ? "✓" : "✗"
+            let title = e.check.title.padding(toLength: 34, withPad: " ", startingAt: 0)
+            Out.line("\(mark) \(title)\(e.detail)")
+            if !e.passed {
+                Out.line("    Why: \(e.check.why)")
+                Out.line("    Fix: \(e.check.fix)")
+            }
+        }
+
+        let failed = prerequisites.filter { !$0.passed }.count
+        let runCount = blocked ? prerequisites.count : outcomes.count
         Out.info(failed == 0
-            ? "→ all \(outcomes.count) checks passed"
-            : "→ \(failed) of \(outcomes.count) checks failed")
+            ? "→ all \(runCount) checks passed"
+            : "→ \(failed) of \(runCount) checks failed")
     }
 
-    let failed = outcomes.filter { !$0.passed }
-    if failed.isEmpty { exit(0) }
+    let failed = prerequisites.filter { !$0.passed }
+    if failed.isEmpty && !blocked { exit(0) }
     exit(failed.contains { $0.check.id == "os" } ? 2 : 1)
 }
 
