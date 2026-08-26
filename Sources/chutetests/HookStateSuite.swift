@@ -41,5 +41,30 @@ func hookStateSuite() {
         let joined = HookState.readAll(root: root)
         T.ok(joined["ttys077"] != nil, "write normalises the tty so the key joins on read")
         T.eq(joined["ttys077"]?.state, .blocked, "the normalised record round-trips intact")
+
+        // PHANTOM BADGE — a hook record from a window that has since been closed must not count.
+        let now = Date(timeIntervalSince1970: 1_756_219_200)
+        func make(_ tty: String, _ state: SessionState, ageHours: Double) -> HookRecord {
+            HookRecord(tty: tty, state: state, timestamp: now.addingTimeInterval(-ageHours * 3600))
+        }
+        let records: [String: HookRecord] = [
+            "ttys001": make("ttys001", .waiting, ageHours: 0.1),   // live, fresh   → counts
+            "ttys002": make("ttys002", .blocked, ageHours: 0.1),   // dead tty      → phantom
+            "ttys003": make("ttys003", .waiting, ageHours: 7),     // live, stale   → dropped
+            "ttys004": make("ttys004", .working, ageHours: 0.1),   // live, working → not attention
+            "ttys005": make("ttys005", .waiting, ageHours: -2),    // clock skew    → untrusted
+        ]
+        let live: Set<String> = ["ttys001", "ttys003", "ttys004", "ttys005"]
+        let hot = HookState.attention(records, live: live, now: now)
+        T.eq(hot.count, 1, "only the live, fresh, attention-seeking record badges")
+        T.eq(hot.first?.tty, "ttys001", "and it is the live one")
+        T.eq(HookState.attention(records, live: [], now: now).count, 0,
+             "no live ttys means no badge, however many hook files linger")
+
+        // liveTTYs reads the real process table: this test process has one, and "??" never leaks.
+        let realLive = HookState.liveTTYs()
+        T.ok(!realLive.contains("??"), "a process with no controlling terminal is not a tty")
+        T.ok(realLive.allSatisfy { !$0.isEmpty && $0.allSatisfy { c in c.isLetter || c.isNumber } },
+             "every live tty is a bare alphanumeric name")
     }
 }
