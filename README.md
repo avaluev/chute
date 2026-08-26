@@ -39,8 +39,12 @@ Remove it completely at any time:
 cd /Users/sxope/Documents/2026/Development/37.chute && ./Scripts/uninstall.sh
 ```
 
-**Three ways to use it:** right-click in Finder → *Services ▸ Chute – …*, the `⌥⌘N` hotkey
-anywhere, or the `chute` CLI.
+**Three ways to use it:** right-click in Finder → **Chute ▸**, the `⌥⌘N` hotkey anywhere, or the
+`chute` CLI.
+
+The Finder menu is a sandboxed `FIFinderSync` extension inside the app. `install.sh` registers and
+enables it for you; if it ever goes missing, tick it in System Settings → Privacy & Security →
+Extensions → Finder → ☑ Chute, or run `pluginkit -e use -i dev.valuev.chute.finder`.
 
 ---
 
