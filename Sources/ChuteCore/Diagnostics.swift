@@ -36,14 +36,18 @@ public struct DiagnosticsEnv: Sendable {
     public var processList: String
     public var hooksWired: Int
     public var endToEndPassed: Bool
+    /// Whether the extension's sandbox container still accepts the installed build's code
+    /// identity. nil when there is no container yet, which is a healthy first install.
+    public var containerAccepts: Bool?
 
     public init(osMajor: Int, appPath: String, cliPath: String?, pluginkitList: String,
                 extensionID: String, automationOK: Bool, processList: String,
-                hooksWired: Int, endToEndPassed: Bool) {
+                hooksWired: Int, endToEndPassed: Bool, containerAccepts: Bool? = nil) {
         self.osMajor = osMajor; self.appPath = appPath; self.cliPath = cliPath
         self.pluginkitList = pluginkitList; self.extensionID = extensionID
         self.automationOK = automationOK; self.processList = processList
         self.hooksWired = hooksWired; self.endToEndPassed = endToEndPassed
+        self.containerAccepts = containerAccepts
     }
 }
 
@@ -66,6 +70,9 @@ public enum Diagnostics {
         Check(id: "ext-enabled", title: "Finder extension enabled",
               why: "The extension is installed but switched off, so the right-click menu stays hidden. This is the single most common reason Chute appears to do nothing.",
               fix: "chute doctor --fix   (or System Settings → Privacy & Security → Extensions → Finder)"),
+        Check(id: "ext-started", title: "Finder extension actually starts",
+              why: "Registered and enabled is not the same as running. A sandboxed extension's container remembers the exact build that created it, so after a rebuild macOS silently refuses to start the new one and the Chute menu simply stops appearing.",
+              fix: "sudo rm -rf ~/Library/Containers/dev.valuev.chute.finder && ~/Documents/2026/Development/37.chute/Scripts/install.sh   ·   to stop it recurring: Scripts/sign-identity.sh"),
         Check(id: "automation", title: "Automation permission",
               why: "Chute asks Finder and Terminal what you have selected. Without this the session list is empty.",
               fix: "chute doctor --fix triggers the prompt. If you denied it: System Settings → Privacy & Security → Automation."),
@@ -118,6 +125,12 @@ public enum Diagnostics {
         else { enabledDetail = "registered, not yet enabled" }
         add("ext-enabled", flag.hasPrefix("+"), enabledDetail)
 
+        // nil means the extension is not installed — ext-registered already reports that.
+        add("ext-started", env.containerAccepts ?? true,
+            env.containerAccepts == false
+                ? "this build has never run — a stale sandbox container is blocking it"
+                : (env.containerAccepts == nil ? "not installed" : "has run since the last install"))
+
         add("automation", env.automationOK, env.automationOK ? "Finder responds" : "denied or not yet granted")
         add("terminal",
             env.processList.contains("Terminal.app/Contents/MacOS/Terminal"),
@@ -147,7 +160,39 @@ public enum Diagnostics {
             hooksWired: HookInstaller.status(settingsPath:
                 (NSHomeDirectory() as NSString).appendingPathComponent(".claude/settings.json"))
                 .values.filter { $0 }.count,
-            endToEndPassed: endToEndProbe())
+            endToEndPassed: endToEndProbe(),
+            containerAccepts: extensionHasStarted(extensionID: extensionID, appPath: appPath))
+    }
+
+    /// Has the INSTALLED extension actually started? Proved by the extension itself: it writes
+    /// `~/.chute/extension-loaded.txt` on load, so a marker older than the installed binary means
+    /// the current build has never run.
+    ///
+    /// This is the check that turns "the Chute menu just disappeared" into one sentence with a
+    /// command under it. The failure is invisible everywhere else — pluginkit still reports the
+    /// extension registered and enabled, the process still launches — and the only trace is a
+    /// system log line: "code identity <cdhash …> not in ACL for container". It happens because a
+    /// sandboxed extension's container pins the exact code identity that created it, and an
+    /// ad-hoc rebuild is a new identity every time.
+    ///
+    /// nil when the extension is not installed at all; that is a different check's job.
+    public static func extensionHasStarted(extensionID: String, appPath: String,
+                                           markerPath: String? = nil) -> Bool? {
+        let bundle = appPath.hasSuffix(".app")
+            ? appPath
+            : (NSHomeDirectory() as NSString).appendingPathComponent("Applications/Chute.app")
+        let appex = (bundle as NSString)
+            .appendingPathComponent("Contents/PlugIns/ChuteFinder.appex/Contents/MacOS/ChuteFinder")
+        let marker = markerPath
+            ?? (NSHomeDirectory() as NSString).appendingPathComponent(".chute/extension-loaded.txt")
+
+        let fm = FileManager.default
+        guard let appexDate = (try? fm.attributesOfItem(atPath: appex))?[.modificationDate] as? Date
+        else { return nil }
+        guard let markerDate = (try? fm.attributesOfItem(atPath: marker))?[.modificationDate] as? Date
+        else { return false }
+        // A second of slack: the installer copies the bundle and restarts Finder back to back.
+        return markerDate.addingTimeInterval(1) >= appexDate
     }
 
     /// Runs the product, not its parts: writes a temp file, asks chute for its path, reads the

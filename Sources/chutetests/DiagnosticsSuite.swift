@@ -10,7 +10,7 @@ func diagnosticsSuite() {
             T.no(check.title.isEmpty, "check '\(check.id)' has a title")
         }
         T.eq(Set(Diagnostics.all.map(\.id)).count, Diagnostics.all.count, "check ids are unique")
-        T.eq(Diagnostics.all.count, 9, "nine checks")
+        T.eq(Diagnostics.all.count, 10, "ten checks")
 
         let good = DiagnosticsEnv(
             osMajor: 14, appPath: "/Users/x/Applications/Chute.app",
@@ -21,7 +21,7 @@ func diagnosticsSuite() {
             processList: "/System/Applications/Utilities/Terminal.app/Contents/MacOS/Terminal",
             hooksWired: 4, endToEndPassed: true)
 
-        T.eq(Diagnostics.run(good).filter { !$0.passed }.count, 0, "a healthy environment passes all nine")
+        T.eq(Diagnostics.run(good).filter { !$0.passed }.count, 0, "a healthy environment passes them all")
 
         // Each failure must be isolated: break one thing, exactly one check fails, and it names it.
         var old = good; old.osMajor = 12
@@ -51,7 +51,8 @@ func diagnosticsSuite() {
         T.eq(Diagnostics.run(broken).first(where: { !$0.passed })?.check.id ?? "", "end-to-end",
              "a failing end-to-end proof is named even when every component passes")
 
-        T.eq(Diagnostics.run(good).count, 9, "run reports an outcome per check, passed or not")
+        T.eq(Diagnostics.run(good).count, Diagnostics.all.count,
+             "run reports an outcome per check, passed or not")
 
         // The blank flag column is the state a user is in immediately after install.
         var blank = good
@@ -83,5 +84,41 @@ func diagnosticsSuite() {
                      "a failing check (\(o.check.id)) does not report a success word as its detail")
             }
         }
+
+        // "Registered and enabled" is not "running". The extension writes a marker when it loads;
+        // a marker older than the installed binary means this build has never started — which is
+        // exactly what a stale sandbox container does after a rebuild.
+        let box = NSTemporaryDirectory() + "chute-started-\(UInt32.random(in: 0...99999))"
+        let appexDir = box + "/Chute.app/Contents/PlugIns/ChuteFinder.appex/Contents/MacOS"
+        try? FileManager.default.createDirectory(atPath: appexDir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(atPath: box) }
+        let appex = appexDir + "/ChuteFinder"
+        let marker = box + "/extension-loaded.txt"
+        let app = box + "/Chute.app"
+
+        T.ok(Diagnostics.extensionHasStarted(extensionID: "x", appPath: app, markerPath: marker) == nil,
+             "no installed binary is not a failure, it is a different check's job")
+
+        try? "binary".write(toFile: appex, atomically: true, encoding: .utf8)
+        T.eq(Diagnostics.extensionHasStarted(extensionID: "x", appPath: app, markerPath: marker), false,
+             "installed but never loaded reads as not started")
+
+        try? "loaded".write(toFile: marker, atomically: true, encoding: .utf8)
+        T.eq(Diagnostics.extensionHasStarted(extensionID: "x", appPath: app, markerPath: marker), true,
+             "a marker written after the install proves it started")
+
+        // A rebuild moves the binary forward; the old marker must stop counting.
+        try? FileManager.default.setAttributes([.modificationDate: Date().addingTimeInterval(600)],
+                                               ofItemAtPath: appex)
+        T.eq(Diagnostics.extensionHasStarted(extensionID: "x", appPath: app, markerPath: marker), false,
+             "a marker from the PREVIOUS build does not vouch for this one")
+
+        // And the check reports it in words the reader can act on.
+        var stale = good
+        stale.containerAccepts = false
+        let started = Diagnostics.run(stale).first { $0.check.id == "ext-started" }
+        T.eq(started?.passed, false, "the outcome fails")
+        T.ok(started?.detail.contains("stale sandbox container") == true,
+             "and names the cause rather than saying 'failed'")
     }
 }

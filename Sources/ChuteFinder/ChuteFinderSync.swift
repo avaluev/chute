@@ -23,6 +23,15 @@ class ChuteFinderSync: FIFinderSync {
         super.init()
         // An extension observing nothing shows no menu, and says nothing about why.
         FIFinderSyncController.default().directoryURLs = [URL(fileURLWithPath: "/")]
+        // Kept deliberately: when the menu does not appear, the first question is always whether
+        // the extension loaded at all, and `log show --predicate 'processImagePath CONTAINS
+        // "ChuteFinder"'` answers it in one command.
+        NSLog("Chute: extension loaded, %d actions available", ChuteActions.all.count)
+        // A file, not just a log line: `log show` is unreliable for an appex, and "did the
+        // extension load?" is the first question every Finder-menu problem asks.
+        try? "loaded \(Date()) · \(ChuteActions.all.count) actions\n"
+            .write(toFile: "/Users/" + NSUserName() + "/.chute/extension-loaded.txt",
+                   atomically: true, encoding: .utf8)
     }
 
     /// An appex does not reliably inherit PATH, so resolve the binary from our own bundle:
@@ -76,6 +85,11 @@ class ChuteFinderSync: FIFinderSync {
 
         root.addItem(parent)
         root.setSubmenu(sub, for: parent)
+        NSLog("Chute: menu built — kind %d, %d selected, %d items", menuKind.rawValue,
+              selection.count, sub.numberOfItems)
+        try? "menu \(Date()) · kind \(menuKind.rawValue) · \(selection.count) selected · \(sub.numberOfItems) items\n"
+            .write(toFile: "/Users/" + NSUserName() + "/.chute/extension-menu.txt",
+                   atomically: true, encoding: .utf8)
         return root
     }
 

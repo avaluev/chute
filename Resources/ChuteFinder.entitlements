@@ -3,16 +3,14 @@
 <plist version="1.0">
 <dict>
   <!-- An appex is sandboxed whether or not you ask; declaring it is what makes the ad-hoc
-       signature acceptable to pluginkit. Measured: without these, registration silently fails. -->
+       signature acceptable to pluginkit. Measured: without this, registration silently fails. -->
   <key>com.apple.security.app-sandbox</key><true/>
-  <!-- Same shape as Google Drive's shipping extension: talk to Finder, read the paths it hands us. -->
-  <!-- Finder for the selection; Terminal and iTerm because "Open Terminal Here" and
-       "New Agent Workspace Here" drive them with AppleScript. Without these the action runs,
-       exits 0, and nothing appears. -->
-  <key>com.apple.security.automation.apple-events</key>
-  <array><string>com.apple.finder</string><string>com.apple.Terminal</string><string>com.googlecode.iterm2</string></array>
-  <key>com.apple.security.temporary-exception.apple-events</key>
-  <array><string>com.apple.finder</string><string>com.apple.Terminal</string><string>com.googlecode.iterm2</string></array>
+  <!-- Finder only. The extension no longer drives Terminal or runs git — it writes a request and
+       ChuteApp does the work — so asking for those entitlements bought nothing and is one more
+       thing macOS can refuse. -->
+  <key>com.apple.security.automation.apple-events</key><array><string>com.apple.finder</string></array>
+  <key>com.apple.security.temporary-exception.apple-events</key><array><string>com.apple.finder</string></array>
+  <!-- Writing the request file into ~/.chute/requests, which is outside the container. -->
   <key>com.apple.security.temporary-exception.files.absolute-path.read-write</key><array><string>/</string></array>
 </dict>
 </plist>
