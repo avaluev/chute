@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <!-- An appex is sandboxed whether or not you ask; declaring it is what makes the ad-hoc
+       signature acceptable to pluginkit. Measured: without these, registration silently fails. -->
+  <key>com.apple.security.app-sandbox</key><true/>
+  <!-- Same shape as Google Drive's shipping extension: talk to Finder, read the paths it hands us. -->
+  <key>com.apple.security.automation.apple-events</key><array><string>com.apple.finder</string></array>
+  <key>com.apple.security.temporary-exception.apple-events</key><array><string>com.apple.finder</string></array>
+  <key>com.apple.security.temporary-exception.files.absolute-path.read-write</key><array><string>/</string></array>
+</dict>
+</plist>
