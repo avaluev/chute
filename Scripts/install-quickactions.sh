@@ -24,8 +24,12 @@ make_action() {
   <key>NSServices</key>
   <array>
     <dict>
+      <key>NSBackgroundColorName</key><string>background</string>
+      <key>NSIconName</key><string>NSActionTemplate</string>
       <key>NSMenuItem</key><dict><key>default</key><string>$title</string></dict>
       <key>NSMessage</key><string>runWorkflowAsService</string>
+      <key>NSRequiredContext</key>
+      <dict><key>NSApplicationIdentifier</key><string>com.apple.finder</string></dict>
       <key>NSSendFileTypes</key><array><string>$uti</string></array>
     </dict>
   </array>
