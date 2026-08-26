@@ -91,8 +91,11 @@ public enum Diagnostics {
         }
 
         add("os", env.osMajor >= minimumOSMajor, "macOS \(env.osMajor)")
+        // The app must sit DIRECTLY in an Applications folder; a nested path will not load.
+        // `contains` would pass /Users/x/Applications/Sub/Chute.app, which does not work.
+        let appParent = (env.appPath as NSString).deletingLastPathComponent
         add("app-location",
-            env.appPath.contains("/Applications/"),
+            (appParent as NSString).lastPathComponent == "Applications",
             env.appPath)
         add("cli", env.cliPath != nil, env.cliPath ?? "not found")
 
@@ -104,9 +107,16 @@ public enum Diagnostics {
         add("ext-registered", line != nil, line == nil ? "not registered" : env.extensionID)
         // Registered-but-disabled is a DIFFERENT failure with a different fix, so it is its own
         // check. Collapsing the two is what makes "it's installed but nothing happens" unfixable.
-        add("ext-enabled",
-            (line?.trimmingCharacters(in: .whitespaces).hasPrefix("+")) ?? false,
-            line == nil ? "n/a" : (line!.hasPrefix("-") ? "disabled by macOS" : "enabled"))
+        // The flag column has THREE states: "+" enabled, "-" explicitly disabled, and BLANK for
+        // freshly registered. Blank is the state a user is in right after install, so it must read
+        // as its own thing — reporting "enabled" on a failing check is worse than saying nothing.
+        let flag = line?.trimmingCharacters(in: .whitespaces) ?? ""
+        let enabledDetail: String
+        if line == nil { enabledDetail = "not registered" }
+        else if flag.hasPrefix("+") { enabledDetail = "enabled" }
+        else if flag.hasPrefix("-") { enabledDetail = "disabled by macOS" }
+        else { enabledDetail = "registered, not yet enabled" }
+        add("ext-enabled", flag.hasPrefix("+"), enabledDetail)
 
         add("automation", env.automationOK, env.automationOK ? "Finder responds" : "denied or not yet granted")
         add("terminal",

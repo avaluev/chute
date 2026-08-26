@@ -52,5 +52,36 @@ func diagnosticsSuite() {
              "a failing end-to-end proof is named even when every component passes")
 
         T.eq(Diagnostics.run(good).count, 9, "run reports an outcome per check, passed or not")
+
+        // The blank flag column is the state a user is in immediately after install.
+        var blank = good
+        blank.pluginkitList = "     dev.valuev.chute.finder(0.1.0)\t8B1E-UUID\t/path"
+        blank.extensionID = "dev.valuev.chute.finder"
+        let blankOut = Diagnostics.run(blank).first { $0.check.id == "ext-enabled" }
+        T.no(blankOut?.passed ?? true, "a blank flag column is NOT enabled")
+        T.eq(blankOut?.detail ?? "", "registered, not yet enabled",
+             "and its detail says so rather than claiming 'enabled'")
+
+        var disabledDetail = good
+        disabledDetail.pluginkitList = "-    dev.valuev.chute.finder(0.1.0)"
+        disabledDetail.extensionID = "dev.valuev.chute.finder"
+        T.eq(Diagnostics.run(disabledDetail).first { $0.check.id == "ext-enabled" }?.detail ?? "",
+             "disabled by macOS", "an explicit minus reads as disabled")
+
+        var nested = good; nested.appPath = "/Users/x/Applications/Sub/Chute.app"
+        T.eq(Diagnostics.run(nested).first(where: { !$0.passed })?.check.id ?? "", "app-location",
+             "an app nested below Applications is rejected")
+
+        var lookalike = good; lookalike.appPath = "/Users/x/NotApplications/Chute.app"
+        T.eq(Diagnostics.run(lookalike).first(where: { !$0.passed })?.check.id ?? "", "app-location",
+             "a lookalike directory is rejected")
+
+        // A failing check must never describe itself in terms that read like success.
+        for env in [blank, disabledDetail, nested, lookalike] {
+            for o in Diagnostics.run(env) where !o.passed {
+                T.no(o.detail == "enabled" || o.detail == "verified" || o.detail == "ok",
+                     "a failing check (\(o.check.id)) does not report a success word as its detail")
+            }
+        }
     }
 }
