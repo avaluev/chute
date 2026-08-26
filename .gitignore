@@ -9,3 +9,6 @@ dist/
 
 # agent worktrees — live git repos, never part of this one
 .claude/worktrees/
+
+# SDD scratch — ledger, briefs, review packages. Never part of the repo.
+.superpowers/
