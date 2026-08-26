@@ -14,7 +14,7 @@ Not because the others are weak — because Chute has a riskiest assumption we a
 | **A1** | **A stranger can install Chute and see the menu** | **Fatal — nothing else matters** | **Negative.** The founder, holding the source, a compiler and an agent, could not make the context menu appear across three attempts and several hours | The onboarding module. Test on a second Mac, cold. |
 | A2 | The pain is worth paying to remove | Product is a free toy | Strong-ish: 90–120 min/day measured, but measured on one person | 20 ECP users, ask for money |
 | A3 | Bundling is the wedge, not paths | Wrong headline, wrong demo | None | Instrument which command gets used |
-| A4 | $9 is the right number | Leaves money or volume | None | Price test at $9 vs $19 |
+| A4 | $9 is the right number | Leaves money or volume | Decided 2026-08-26: $9, see §5 | Re-test $19 at v1.0, once signed |
 | A5 | They can be reached cheaply | No distribution | None | Bullseye ring 1 |
 
 **A1 is not a UX nicety. It is the business.** A product whose core feature is invisible on
@@ -84,9 +84,18 @@ Nobody prices in isolation — they rank you against what they already know.
 | iBoysoft MagicMenu | $30/yr | The subscription Chute defines itself against |
 | Raycast Pro | $8/mo | Different category, similar buyer |
 
-**$9 one-time.** Below PopClip so the comparison flatters, decisively not a subscription, and
-framed against the only number that matters: **less than one hour of the 90–120 minutes a day it
-returns.** Revisit at v1.0 when signed and auto-updating — that is when $19 becomes defensible.
+**DECIDED 2026-08-26: $9 one-time.** Below PopClip so the comparison flatters, decisively not a
+subscription, and framed against the only number that matters: **less than one hour of the 90–120
+minutes a day it returns.**
+
+The case for $19 was heard and rejected for now: it is defensible only once the app is signed and
+auto-updating, and neither is true yet — the ad-hoc signature makes a stranger's install worse,
+not better, than the free alternative. Price is the cheapest thing to raise and the most expensive
+to lower, so it starts low deliberately.
+
+**Revisit at v1.0**, when the Developer ID is bought and updates ship themselves. The trigger to
+raise is evidence, not a feeling: if 20 ECP users buy at $9 without a single price objection, the
+number was too low and $19 becomes the test.
 
 ## 6️⃣ Positioning and Messaging
 
