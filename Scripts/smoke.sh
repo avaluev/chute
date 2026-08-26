@@ -242,6 +242,20 @@ else
   check "a stale click is never carried out later" "$(pbpaste)" "REFUSE-SENTINEL"
 fi
 
+echo "17. local servers"
+OUT="$("$CHUTE" ports 2>&1)"
+has "ports names the columns"     "$OUT" "PORT"
+has "ports says where it is reachable from" "$OUT" "REACHABLE FROM"
+# There is at least one listener on any working Mac (this test suite's own machine included);
+# if there genuinely is none, the honest empty line must appear instead of a blank table.
+if printf '%s' "$OUT" | grep -q "nothing is listening"; then ok "empty case says so plainly"
+else
+  if printf '%s' "$OUT" | grep -qE '^[0-9]+ +[a-z]'; then ok "ports lists at least one real listener"
+  else bad "ports lists at least one real listener" "$OUT"; fi
+fi
+"$CHUTE" ports --kill 65533 2>&1 | grep -q "nothing is listening on 65533" \
+  && ok "killing a free port says nothing was there" || bad "killing a free port says nothing was there" "unexpected output"
+
 echo "13. help and unknown command"
 has "help lists bundle" "$("$CHUTE" help)" "bundle"
 "$CHUTE" definitelynotacommand >/dev/null 2>&1 && bad "unknown exits non-zero" "exit 0" || ok "unknown exits non-zero"
