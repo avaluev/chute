@@ -31,17 +31,22 @@ public enum HookState {
     public static func write(_ record: HookRecord, root: String? = nil) throws {
         let dir = directory(root: root)
         try FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
+        // Normalise here, not in the caller. A raw "/dev/ttys004" would otherwise become part of
+        // the FILENAME and the on-disk key would never match readAll's normalised keys — the join
+        // would fail silently and the menu would simply never update.
+        let tty = Session.normalise(tty: record.tty)
         var obj: [String: Any] = [
-            "tty": record.tty,
-            "state": String(describing: stateName(record.state)),
+            "tty": tty,
+            "state": stateName(record.state),
             "ts": record.timestamp.timeIntervalSince1970,
         ]
         if let cwd = record.cwd { obj["cwd"] = cwd }
         if let sid = record.sessionID { obj["session_id"] = sid }
 
         let data = try JSONSerialization.data(withJSONObject: obj)
-        let final = (dir as NSString).appendingPathComponent("\(record.tty).json")
+        let final = (dir as NSString).appendingPathComponent("\(tty).json")
         let temp = final + ".tmp"
+        defer { try? FileManager.default.removeItem(atPath: temp) }
         try data.write(to: URL(fileURLWithPath: temp))
         _ = try FileManager.default.replaceItemAt(URL(fileURLWithPath: final),
                                                   withItemAt: URL(fileURLWithPath: temp))

@@ -33,5 +33,13 @@ func hookStateSuite() {
 
         T.eq(HookState.readAll(root: root + "-does-not-exist").count, 0,
              "a missing directory is empty, not an error")
+
+        // A caller handing write() an AppleScript-style tty must still produce a joinable key.
+        let rawTTY = HookRecord(tty: "/dev/ttys077", state: .blocked,
+                                timestamp: Date(timeIntervalSince1970: 1_756_219_200))
+        T.noThrow("writes a record carrying a /dev-prefixed tty") { try HookState.write(rawTTY, root: root) }
+        let joined = HookState.readAll(root: root)
+        T.ok(joined["ttys077"] != nil, "write normalises the tty so the key joins on read")
+        T.eq(joined["ttys077"]?.state, .blocked, "the normalised record round-trips intact")
     }
 }
