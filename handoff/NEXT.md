@@ -40,6 +40,7 @@ validate before replacing · fully reversible · never run install/uninstall dur
 
 - **Engine, 6 tasks** — proved by `swift run chutetests` → `✅ 205 assertions passed`
 - **End-to-end** — proved by `./Scripts/smoke.sh` → `smoke: 39 passed, 0 failed`
+- **All 12 tasks merged** (6 engine + O1–O3 onboarding + Tasks 7–8) — `git log --oneline | wc -l` → 60
 - **`chute sessions` lists real windows** — proved by `./.build/release/chute sessions` →
   `→ 9 session(s), 0 need you` with 7 agents and 2 shells across 4 projects
 - **`chute focus 1` works** — proved by the frontmost process flipping Docker Desktop → Terminal
@@ -50,19 +51,7 @@ validate before replacing · fully reversible · never run install/uninstall dur
   spike: registered under `com.apple.FinderSync` and enabled via `pluginkit -e use`. Probe deleted.
 
 ## IN FLIGHT
-- **Task 7** (`chute sessions|focus|hooks`) — reviewed: **no Criticals**. Config safety verified —
-  no path mutates `settings.json` without an explicit `install`/`uninstall`; a typo falls through to
-  read-only `status`; the backup path is surfaced on every mutation.
-  **1 Important open, fix dispatched:** `chute focus <project>` silently picks the first of several
-  matches. There are FOUR `studylock` sessions on this machine, so `chute focus studylock` sends the
-  user to an arbitrary one with no signal a choice was made for them. Fix: refuse and list the
-  matches with the global indices from `chute sessions`.
-  **1 Minor:** after an Automation-permission error, `cmdSessions` also prints "no terminal
-  sessions", contradicting the line above it.
-  Code is on `worktree-agent-ae0cb4e0a35cb7b80` @ `200fd11`, **NOT merged**. Merge after the fix and
-  its scoped re-review are clean.
-  What breaks if ignored: `chute sessions` is absent from the merged branch despite working, and
-  `focus <project>` gives silent wrong answers.
+- Nothing. All 12 tasks are merged and the branch is green.
 
 ## NEXT
 1. `git merge worktree-agent-ae0cb4e0a35cb7b80 --no-edit`
@@ -73,12 +62,12 @@ validate before replacing · fully reversible · never run install/uninstall dur
    `/Users/sxope/Documents/2026/Development/37.chute/Sources/ChuteApp/main.swift:194` counts hook
    files without intersecting live ttys. Sonnet. This is the headline feature; a badge the user
    learns to distrust is worse than no badge.
-4. **Task 9** — smoke coverage for `sessions`/`doctor`/`hooks`, install wiring, README. Haiku.
-5. **Offer `chute hooks install`** — run it against a COPY first, diff it, show the founder, then ask.
+2. **Task 9** — smoke coverage for `sessions`/`doctor`/`hooks`, install wiring, README. Haiku.
+3. **Offer `chute hooks install`** — run it against a COPY first, diff it, show the founder, then ask.
    Until then every session reads `working` and the badge stays dark.
-6. **FinderSync** — `/Users/sxope/Documents/2026/Development/37.chute/docs/superpowers/plans/2026-08-26-findersync-context-menu.md`.
+4. **FinderSync** — `/Users/sxope/Documents/2026/Development/37.chute/docs/superpowers/plans/2026-08-26-findersync-context-menu.md`.
    Task 2 carries a hard STOP: prove a sandboxed appex can reach the app BEFORE writing menu code.
-7. `git checkout main && git merge feat/session-switcher` once 3–4 are done.
+5. `git checkout main && git merge feat/session-switcher` once 1–2 are done.
 
 ---
 
