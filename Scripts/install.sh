@@ -29,6 +29,27 @@ open "$HOME/Applications/Chute.app" 2>/dev/null || { sleep 2; open "$HOME/Applic
 # Registration happens when the host app is LAUNCHED (measured: pluginkit -a and lsregister do
 # not do it), so this runs after `open`. The flag has three states; blank is registered-but-off.
 pluginkit -e use -i dev.valuev.chute.finder 2>/dev/null || true
+
+# THE FINDER MENU'S ONE FAILURE MODE, made loud.
+# A sandboxed extension's container ACL pins the exact code identity that created it. An ad-hoc
+# signature is a new identity on every build, so after a rebuild macOS refuses to start the
+# extension — "code identity <cdhash …> not in ACL for container" — and the Chute menu simply
+# stops appearing, with nothing in the UI to say why.
+CONTAINER="$HOME/Library/Containers/dev.valuev.chute.finder"
+CDHASH="$(codesign -dvvv "$HOME/Applications/Chute.app/Contents/PlugIns/ChuteFinder.appex" 2>&1 \
+          | awk -F= '/^CDHash=/{print $2}')"
+if [ -d "$CONTAINER" ] && ! grep -qa "$CDHASH" "$CONTAINER/.com.apple.containermanagerd.metadata.plist" 2>/dev/null; then
+  rm -rf "$CONTAINER" 2>/dev/null || true
+  if [ -d "$CONTAINER" ]; then
+    echo
+    echo "⚠️  The Finder menu will NOT appear until this stale sandbox container is removed:"
+    echo "      sudo rm -rf $CONTAINER"
+    echo "    Then run this installer again. To stop it happening on every rebuild:"
+    echo "      $ROOT/Scripts/sign-identity.sh"
+    echo
+  fi
+fi
+
 killall Finder 2>/dev/null || true
 
 cat <<EOF

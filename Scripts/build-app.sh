@@ -25,6 +25,9 @@ mkdir -p "$APPEX/Contents/MacOS"
 # Links ChuteCore's objects so the appex draws its menu from the SAME action table the CLI and
 # the tests use. -I .build/release finds the module; the .o files supply the code (SwiftPM does not
 # emit a static archive for a plain target).
+# Links ChuteCore's objects so the appex draws its menu from the SAME action table the CLI and the
+# tests use. -I .build/release finds the module; the .o files supply the code (SwiftPM does not emit
+# a static archive for a plain target).
 swiftc -O -o "$APPEX/Contents/MacOS/ChuteFinder" \
     "$ROOT/Sources/ChuteFinder/ChuteFinderSync.swift" \
     -I "$ROOT/.build/release" "$ROOT"/.build/release/ChuteCore.build/*.o \
@@ -96,6 +99,14 @@ IDENTITY="Chute Local Dev"
 security find-identity -v -p codesigning 2>/dev/null | grep -q "$IDENTITY" || IDENTITY="-"
 [ "$IDENTITY" = "-" ] && echo "note: signing ad-hoc — run ./Scripts/sign-identity.sh once to stop the repeat macOS prompts"
 
+# The sandbox entitlement is REQUIRED: without it Finder registers the extension and then never
+# loads it. Measured — an unsigned-for-sandbox appex produced no menu and no container at all.
+#
+# The cost of that requirement is the container ACL: it pins the exact cdhash that created the
+# container, and an ad-hoc rebuild always has a new cdhash, so the next launch dies with
+#   (AppSandbox) code identity <cdhash …> not in ACL for container …/Data
+# and the menu silently disappears. `Scripts/sign-identity.sh` is the cure — a stable identity
+# keeps the ACL valid across rebuilds. `Scripts/install.sh` checks for the mismatch either way.
 codesign --force --sign "$IDENTITY" --entitlements "$ROOT/Resources/ChuteFinder.entitlements" "$APPEX" \
     2>/dev/null || echo "note: appex signing unavailable"
 codesign --force --sign "$IDENTITY" "$APP" 2>/dev/null || echo "note: app signing unavailable; it still runs locally"
