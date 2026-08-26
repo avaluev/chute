@@ -9,5 +9,7 @@ hookStateSuite()
 hookInstallerSuite()
 terminalParseSuite()
 diagnosticsSuite()
+finderActionsSuite()
+actionRequestSuite()
 
 T.report()

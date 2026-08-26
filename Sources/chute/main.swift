@@ -79,6 +79,7 @@ case "sessions":   cmdSessions(args)
 case "focus":      cmdFocus(args)
 case "hooks":      cmdHooks(args)
 case "doctor":     cmdDoctor(args)
+case "finder-actions": cmdFinderActions(args)
 case "help", "-h", "--help", "version", "--version":
     if command.contains("version") { print("chute 0.1.0") } else { print(helpText) }
 default:
