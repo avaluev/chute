@@ -40,8 +40,9 @@ running AI agents is waiting for you.
 2. **Price: $9 or $19.** The only open decision. `docs/09-GTM-DECISIONS.md` #8 argues $9.
 3. **$99 Apple Developer ID** — needed before anyone ELSE can install without a Gatekeeper
    warning (`spctl` rejects the ad-hoc signature, as expected). Not needed locally.
-4. **Delete the stale spike container** — `rm -rf ~/Library/Containers/dev.valuev.chuteprobe.finder`
-   (left by the throwaway FinderSync probe; harmless, just untidy).
+4. **Stale spike container, leave it.** `~/Library/Containers/dev.valuev.chuteprobe.finder` is
+   left over from the throwaway FinderSync probe. `rm -rf` on it returns `Operation not permitted`
+   — containermanagerd owns it. Harmless, empty, and it costs nothing to ignore.
 
 ---
 
