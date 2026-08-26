@@ -8,5 +8,6 @@ glyphSuite()
 hookStateSuite()
 hookInstallerSuite()
 terminalParseSuite()
+diagnosticsSuite()
 
 T.report()
