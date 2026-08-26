@@ -37,10 +37,9 @@ running AI agents is waiting for you.
 ## NEXT
 1. **Right-click any file in Finder → `Chute ▸`.** The only step no command can verify. If the
    submenu is missing: `killall Finder`, then `pluginkit -m -p com.apple.FinderSync`.
-2. **Price: $9 or $19.** The only open decision. `docs/09-GTM-DECISIONS.md` #8 argues $9.
-3. **$99 Apple Developer ID** — needed before anyone ELSE can install without a Gatekeeper
+2. **$99 Apple Developer ID** — needed before anyone ELSE can install without a Gatekeeper
    warning (`spctl` rejects the ad-hoc signature, as expected). Not needed locally.
-4. **Stale spike container, leave it.** `~/Library/Containers/dev.valuev.chuteprobe.finder` is
+3. **Stale spike container, leave it.** `~/Library/Containers/dev.valuev.chuteprobe.finder` is
    left over from the throwaway FinderSync probe. `rm -rf` on it returns `Operation not permitted`
    — containermanagerd owns it. Harmless, empty, and it costs nothing to ignore.
 
@@ -60,6 +59,9 @@ running AI agents is waiting for you.
 - **The appex spawns `chute` directly.** The feared appex → IPC → host-app redesign is NOT needed:
   measured inside the loaded extension, the spawn is permitted, its writes reach the real
   filesystem, and it writes the real pasteboard.
+- **Price is $9 one-time, decided 2026-08-26.** Below PopClip, not a subscription, less than one
+  hour of the time it returns. $19 was rejected until the app is signed and auto-updating; the
+  trigger to raise it is 20 sales with no price objection. `docs/09-GTM-DECISIONS.md` §5.
 - **Onboarding detects and verifies; it never instructs.** macOS 15.0–15.1 removed the Extensions
   pane, so "tick the box in System Settings" pointed at a screen that did not exist.
 
@@ -99,8 +101,8 @@ running AI agents is waiting for you.
 ---
 
 ## OPEN QUESTIONS FOR THE HUMAN
-1. **Price: $9 or $19?** The only decision still blocking the GTM doc.
-2. **Buy the $99 Developer ID?** Only gates other people installing without a Gatekeeper warning.
+1. **Buy the $99 Developer ID?** Only gates other people installing without a Gatekeeper warning.
+   Nothing in the code waits on it.
 
 ---
 
