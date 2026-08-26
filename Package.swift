@@ -14,6 +14,7 @@ let package = Package(
     targets: [
         .target(name: "ChuteCore"),
         .executableTarget(name: "chute", dependencies: ["ChuteCore"]),
+        .executableTarget(name: "ChuteApp", dependencies: ["ChuteCore"]),
         .executableTarget(name: "chutetests", dependencies: ["ChuteCore"]),
     ]
 )
