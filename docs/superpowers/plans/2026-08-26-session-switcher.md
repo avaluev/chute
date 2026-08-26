@@ -1637,6 +1637,600 @@ git commit -m "test: smoke coverage for sessions and hook installer safety; wire
 
 ---
 
+---
+
+# Onboarding — Tasks O1–O3
+
+**Priority: these run BEFORE Tasks 7–9.** Rationale in `docs/09-GTM-DECISIONS.md`: onboarding tests
+assumption A1 ("a stranger can install Chute and see the menu"), the only assumption we currently
+have evidence *against*. Tasks 7–9 add polish to an engine nobody can reach.
+
+**Spec:** `docs/superpowers/specs/2026-08-26-onboarding-design.md`
+**Compatibility constraints:** `docs/08-MACOS-COMPATIBILITY.md`
+
+## Governing principle
+
+**Never instruct. Detect, verify, repair.** On macOS 15.0–15.1 Apple removed the Extensions
+configuration UI entirely, so for two OS releases "tick the box in System Settings" pointed at a
+screen that did not exist. Any onboarding built on told steps is already broken for a slice of users.
+
+## Dispatch map
+
+| Wave | Task | Model | Why |
+|---|---|---|---|
+| O-A | O1 | **Sonnet** | The check matrix and its injectable environment — the design everything else renders |
+| O-B | O2 | **Haiku** | Rendering outcomes, exit codes, `--json`. Mechanical once O1 exists |
+| O-B | O3 | **Sonnet** | AppKit window, live re-verification, consent copy |
+
+O2 and O3 touch disjoint files and may run in parallel. Both dispatches MUST carry the worktree
+merge instruction (`git merge feat/session-switcher --no-edit` first) — see the Wave A incident.
+
+---
+
+### Task O1: Diagnostics engine  ·  **Model: Sonnet**  ·  Wave O-A
+
+**Files:**
+- Create: `Sources/ChuteCore/Diagnostics.swift`
+- Modify: `Sources/chutetests/main.swift` — add ONE line, `diagnosticsSuite()`, before `T.report()`
+- Create: `Sources/chutetests/DiagnosticsSuite.swift`
+
+**Interfaces:**
+- Consumes: `HookInstaller.status`, `Shell.run`, `isAppRunning` — all merged.
+- Produces: `Check`, `CheckOutcome`, `DiagnosticsEnv`, `Diagnostics.all`, `Diagnostics.run(_:)`,
+  `Diagnostics.liveEnv()`. Tasks O2 and O3 both render `[CheckOutcome]` and call nothing else.
+
+- [ ] **Step 1: Write the failing test**
+
+`Sources/chutetests/DiagnosticsSuite.swift`:
+
+```swift
+import Foundation
+import ChuteCore
+
+func diagnosticsSuite() {
+    T.suite("Diagnostics") {
+        // The dead-end guard: this is the rule the whole module exists to enforce.
+        for check in Diagnostics.all {
+            T.no(check.why.isEmpty, "check '\(check.id)' explains why it matters")
+            T.no(check.fix.isEmpty, "check '\(check.id)' states how to fix it")
+            T.no(check.title.isEmpty, "check '\(check.id)' has a title")
+        }
+        T.eq(Set(Diagnostics.all.map(\.id)).count, Diagnostics.all.count, "check ids are unique")
+        T.eq(Diagnostics.all.count, 9, "nine checks")
+
+        let good = DiagnosticsEnv(
+            osMajor: 14, appPath: "/Users/x/Applications/Chute.app",
+            cliPath: "/Users/x/.local/bin/chute",
+            pluginkitList: "+    dev.valuev.chute.finder(0.1.0)",
+            extensionID: "dev.valuev.chute.finder",
+            automationOK: true,
+            processList: "/System/Applications/Utilities/Terminal.app/Contents/MacOS/Terminal",
+            hooksWired: 4, endToEndPassed: true)
+
+        T.eq(Diagnostics.run(good).filter { !$0.passed }.count, 0, "a healthy environment passes all nine")
+
+        // Each failure must be isolated: break one thing, exactly one check fails, and it names it.
+        var old = good; old.osMajor = 12
+        let oldOut = Diagnostics.run(old).filter { !$0.passed }
+        T.eq(oldOut.count, 1, "an old OS fails exactly one check")
+        T.eq(oldOut.first?.check.id ?? "", "os", "and it is the os check")
+
+        var unreg = good; unreg.pluginkitList = ""
+        T.eq(Diagnostics.run(unreg).first(where: { !$0.passed })?.check.id ?? "", "ext-registered",
+             "an unregistered extension is named")
+
+        // A registered-but-DISABLED extension is the exact state that wasted a day: the minus flag.
+        var disabled = good; disabled.pluginkitList = "-    dev.valuev.chute.finder(0.1.0)"
+        let disOut = Diagnostics.run(disabled).filter { !$0.passed }
+        T.eq(disOut.count, 1, "registered-but-disabled fails exactly one check")
+        T.eq(disOut.first?.check.id ?? "", "ext-enabled", "and it is the enabled check, not registered")
+
+        var noAuto = good; noAuto.automationOK = false
+        T.eq(Diagnostics.run(noAuto).first(where: { !$0.passed })?.check.id ?? "", "automation",
+             "missing automation permission is named")
+
+        var partial = good; partial.hooksWired = 2
+        T.eq(Diagnostics.run(partial).first(where: { !$0.passed })?.check.id ?? "", "hooks",
+             "partially wired hooks fail the hooks check")
+
+        var broken = good; broken.endToEndPassed = false
+        T.eq(Diagnostics.run(broken).first(where: { !$0.passed })?.check.id ?? "", "end-to-end",
+             "a failing end-to-end proof is named even when every component passes")
+
+        T.eq(Diagnostics.run(good).count, 9, "run reports an outcome per check, passed or not")
+    }
+}
+```
+
+- [ ] **Step 2: Run to verify it fails**
+
+`swift run chutetests`
+Expected: compile error — `cannot find 'Diagnostics' in scope`.
+
+- [ ] **Step 3: Write the implementation**
+
+`Sources/ChuteCore/Diagnostics.swift`:
+
+```swift
+import Foundation
+
+/// One thing that must be true for Chute to work.
+/// `why` and `fix` are non-optional by design: a check that cannot explain itself or state its
+/// remedy is a dead end, and a test in the suite mechanically forbids adding one.
+public struct Check: Sendable, Equatable {
+    public let id: String
+    public let title: String
+    public let why: String
+    public let fix: String
+
+    public init(id: String, title: String, why: String, fix: String) {
+        self.id = id; self.title = title; self.why = why; self.fix = fix
+    }
+}
+
+public struct CheckOutcome: Sendable {
+    public let check: Check
+    public let passed: Bool
+    public let detail: String
+
+    public init(check: Check, passed: Bool, detail: String) {
+        self.check = check; self.passed = passed; self.detail = detail
+    }
+}
+
+/// Everything the checks need from the outside world, in one injectable value so the whole
+/// matrix is testable with stubs and zero system calls.
+public struct DiagnosticsEnv: Sendable {
+    public var osMajor: Int
+    public var appPath: String
+    public var cliPath: String?
+    public var pluginkitList: String
+    public var extensionID: String
+    public var automationOK: Bool
+    public var processList: String
+    public var hooksWired: Int
+    public var endToEndPassed: Bool
+
+    public init(osMajor: Int, appPath: String, cliPath: String?, pluginkitList: String,
+                extensionID: String, automationOK: Bool, processList: String,
+                hooksWired: Int, endToEndPassed: Bool) {
+        self.osMajor = osMajor; self.appPath = appPath; self.cliPath = cliPath
+        self.pluginkitList = pluginkitList; self.extensionID = extensionID
+        self.automationOK = automationOK; self.processList = processList
+        self.hooksWired = hooksWired; self.endToEndPassed = endToEndPassed
+    }
+}
+
+public enum Diagnostics {
+    public static let minimumOSMajor = 13
+
+    public static let all: [Check] = [
+        Check(id: "os", title: "macOS version",
+              why: "Chute needs macOS 13 or later for the Finder extension API it depends on.",
+              fix: "Upgrade macOS. Nothing else can be done from here."),
+        Check(id: "app-location", title: "App location",
+              why: "macOS only loads a Finder extension from an app in /Applications or ~/Applications.",
+              fix: "Move Chute.app to ~/Applications, then run this again."),
+        Check(id: "cli", title: "Command line tool",
+              why: "Every menu item and Finder action runs through the chute binary.",
+              fix: "chute doctor --fix   (symlinks it into ~/.local/bin)"),
+        Check(id: "ext-registered", title: "Finder extension registered",
+              why: "macOS cannot show the right-click menu for an extension it does not know about.",
+              fix: "chute doctor --fix   (runs pluginkit -a on the bundled extension)"),
+        Check(id: "ext-enabled", title: "Finder extension enabled",
+              why: "The extension is installed but switched off, so the right-click menu stays hidden. This is the single most common reason Chute appears to do nothing.",
+              fix: "chute doctor --fix   (or System Settings → Privacy & Security → Extensions → Finder)"),
+        Check(id: "automation", title: "Automation permission",
+              why: "Chute asks Finder and Terminal what you have selected. Without this the session list is empty.",
+              fix: "chute doctor --fix triggers the prompt. If you denied it: System Settings → Privacy & Security → Automation."),
+        Check(id: "terminal", title: "A terminal is running",
+              why: "The session switcher lists terminal windows. With none open there is nothing to show.",
+              fix: "Open Terminal. Informational only — nothing is broken."),
+        Check(id: "hooks", title: "Agent status hooks",
+              why: "Without them the menu bar cannot tell which agents are waiting for you.",
+              fix: "chute hooks install   (appends only, backs up first, reversible with chute hooks uninstall)"),
+        Check(id: "end-to-end", title: "End-to-end proof",
+              why: "Every component can be healthy and the product still not work. This runs a real command and reads the result back.",
+              fix: "If this alone fails, the pieces are fine but they are not talking. Re-run chute doctor --fix, then report it."),
+    ]
+
+    static func check(_ id: String) -> Check {
+        all.first { $0.id == id } ?? all[0]
+    }
+
+    public static func run(_ env: DiagnosticsEnv) -> [CheckOutcome] {
+        var out: [CheckOutcome] = []
+        func add(_ id: String, _ passed: Bool, _ detail: String) {
+            out.append(CheckOutcome(check: check(id), passed: passed, detail: detail))
+        }
+
+        add("os", env.osMajor >= minimumOSMajor, "macOS \(env.osMajor)")
+        add("app-location",
+            env.appPath.contains("/Applications/"),
+            env.appPath)
+        add("cli", env.cliPath != nil, env.cliPath ?? "not found")
+
+        // pluginkit prints one line per extension, prefixed "+" (enabled) or "-" (disabled).
+        let line = env.pluginkitList
+            .split(separator: "\n")
+            .first { $0.contains(env.extensionID) }
+            .map(String.init)
+        add("ext-registered", line != nil, line == nil ? "not registered" : env.extensionID)
+        // Registered-but-disabled is a DIFFERENT failure with a different fix, so it is its own
+        // check. Collapsing the two is what makes "it's installed but nothing happens" unfixable.
+        add("ext-enabled",
+            (line?.trimmingCharacters(in: .whitespaces).hasPrefix("+")) ?? false,
+            line == nil ? "n/a" : (line!.hasPrefix("-") ? "disabled by macOS" : "enabled"))
+
+        add("automation", env.automationOK, env.automationOK ? "Finder responds" : "denied or not yet granted")
+        add("terminal",
+            env.processList.contains("Terminal.app/Contents/MacOS/Terminal"),
+            env.processList.isEmpty ? "none detected" : "running")
+        add("hooks", env.hooksWired == 4, "\(env.hooksWired) of 4 wired")
+        add("end-to-end", env.endToEndPassed, env.endToEndPassed ? "verified" : "failed")
+        return out
+    }
+
+    /// The real environment. Every probe here is one that `docs/08-MACOS-COMPATIBILITY.md`
+    /// records as VERIFIED — notably `ps -Ao comm` rather than pgrep, which never matches
+    /// a bundled app.
+    public static func liveEnv(extensionID: String = "dev.valuev.chute.finder",
+                               appPath: String = Bundle.main.bundlePath) -> DiagnosticsEnv {
+        let v = ProcessInfo.processInfo.operatingSystemVersion
+        let cli = ["\(NSHomeDirectory())/.local/bin/chute", "/usr/local/bin/chute"]
+            .first { FileManager.default.isExecutableFile(atPath: $0) }
+        let probe = Shell.run("osascript", ["-e", "tell application \"Finder\" to return 1"])
+        return DiagnosticsEnv(
+            osMajor: v.majorVersion,
+            appPath: appPath,
+            cliPath: cli,
+            pluginkitList: Shell.run("pluginkit", ["-mA", "-p", "com.apple.FinderSync"]).out,
+            extensionID: extensionID,
+            automationOK: probe.ok,
+            processList: Shell.run("ps", ["-Ao", "comm"]).out,
+            hooksWired: HookInstaller.status(settingsPath:
+                (NSHomeDirectory() as NSString).appendingPathComponent(".claude/settings.json"))
+                .values.filter { $0 }.count,
+            endToEndPassed: endToEndProbe())
+    }
+
+    /// Runs the product, not its parts: writes a temp file, asks chute for its path, reads the
+    /// clipboard back. Component checks passing while THIS fails is the exact state this project
+    /// spent a day in.
+    public static func endToEndProbe() -> Bool {
+        let dir = NSTemporaryDirectory() + "chute-doctor-\(UUID().uuidString)"
+        defer { try? FileManager.default.removeItem(atPath: dir) }
+        guard (try? FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)) != nil
+        else { return false }
+        let file = (dir as NSString).appendingPathComponent("probe.txt")
+        guard (try? "probe".write(toFile: file, atomically: true, encoding: .utf8)) != nil
+        else { return false }
+        let saved = Clipboard.read()
+        defer { Clipboard.write(saved) }
+        let rendered = PathFormat.render([file], style: .posix)
+        Clipboard.write(rendered)
+        return Clipboard.read().contains("probe.txt")
+    }
+}
+```
+
+- [ ] **Step 4: Wire the suite in**
+
+Add `diagnosticsSuite()` to `Sources/chutetests/main.swift`, immediately before `T.report()`.
+
+- [ ] **Step 5: Run to verify it passes**
+
+`cd /Users/sxope/Documents/2026/Development/37.chute && swift run chutetests`
+Expected: the previous tally plus the new assertions, zero failures.
+
+- [ ] **Step 6: Prove the dead-end guard is real**
+
+Add a tenth check to `Diagnostics.all` with `fix: ""`. Re-run. Expected: RED, naming
+"check '…' states how to fix it" AND "nine checks". Remove it, confirm green. Report both lines.
+
+- [ ] **Step 7: Commit**
+
+```bash
+cd /Users/sxope/Documents/2026/Development/37.chute
+git add Sources/ChuteCore/Diagnostics.swift Sources/chutetests/
+git commit -m "feat: diagnostics engine — nine checks, each stating why it matters and how to fix it"
+```
+
+---
+
+### Task O2: `chute doctor`  ·  **Model: Haiku**  ·  Wave O-B
+
+**Files:**
+- Create: `Sources/chute/Commands/DoctorCommand.swift`
+- Modify: `Sources/chute/main.swift` — one `case` and one help block
+
+**Interfaces:**
+- Consumes: `Diagnostics.all`, `Diagnostics.run(_:)`, `Diagnostics.liveEnv()` from O1.
+- Produces: `cmdDoctor(_:)`.
+
+- [ ] **Step 1: Write the implementation**
+
+`Sources/chute/Commands/DoctorCommand.swift`:
+
+```swift
+import Foundation
+import ChuteCore
+
+func cmdDoctor(_ a: Args) {
+    var outcomes = Diagnostics.run(Diagnostics.liveEnv())
+
+    if a.has("fix") {
+        applyFixes(outcomes)
+        // Never claim success without re-verifying. Reporting a fix that was not re-checked is
+        // the failure mode this whole module exists to prevent.
+        Out.info("→ re-running every check")
+        outcomes = Diagnostics.run(Diagnostics.liveEnv())
+    }
+
+    if a.has("json") {
+        let rows = outcomes.map { o -> [String: Any] in
+            ["id": o.check.id, "title": o.check.title, "passed": o.passed,
+             "detail": o.detail, "why": o.check.why, "fix": o.check.fix]
+        }
+        let data = try? JSONSerialization.data(withJSONObject: rows, options: [.prettyPrinted])
+        Out.line(String(decoding: data ?? Data("[]".utf8), as: UTF8.self))
+    } else {
+        for o in outcomes {
+            let mark = o.passed ? "✓" : "✗"
+            let title = o.check.title.padding(toLength: 34, withPad: " ", startingAt: 0)
+            Out.line("\(mark) \(title)\(o.detail)")
+            if !o.passed {
+                Out.line("    Why: \(o.check.why)")
+                Out.line("    Fix: \(o.check.fix)")
+            }
+        }
+        let failed = outcomes.filter { !$0.passed }.count
+        Out.info(failed == 0
+            ? "→ all \(outcomes.count) checks passed"
+            : "→ \(failed) of \(outcomes.count) checks failed")
+    }
+
+    let failed = outcomes.filter { !$0.passed }
+    if failed.isEmpty { exit(0) }
+    exit(failed.contains { $0.check.id == "os" } ? 2 : 1)
+}
+
+private func applyFixes(_ outcomes: [CheckOutcome]) {
+    for o in outcomes where !o.passed {
+        switch o.check.id {
+        case "cli":
+            let target = (NSHomeDirectory() as NSString).appendingPathComponent(".local/bin")
+            try? FileManager.default.createDirectory(atPath: target, withIntermediateDirectories: true)
+            let src = Bundle.main.bundlePath + "/Contents/MacOS/chute"
+            try? FileManager.default.createSymbolicLink(
+                atPath: (target as NSString).appendingPathComponent("chute"), withDestinationPath: src)
+            Out.info("→ linked chute into ~/.local/bin")
+        case "ext-registered":
+            let appex = Bundle.main.bundlePath + "/Contents/PlugIns/ChuteFinder.appex"
+            _ = Shell.run("pluginkit", ["-a", appex])
+            Out.info("→ registered the Finder extension")
+        case "ext-enabled":
+            _ = Shell.run("pluginkit", ["-e", "use", "-i", "dev.valuev.chute.finder"])
+            Out.info("→ asked macOS to enable the Finder extension")
+        case "automation":
+            _ = Shell.run("osascript", ["-e", "tell application \"Finder\" to return 1"])
+            Out.info("→ triggered the Automation prompt")
+        case "hooks":
+            do {
+                let r = try HookInstaller.install(settingsPath:
+                    (NSHomeDirectory() as NSString).appendingPathComponent(".claude/settings.json"))
+                Out.info("→ wired hooks: \(r.changed.sorted().joined(separator: ", ")) · backup \(r.backupPath ?? "none")")
+            } catch { Out.info("→ hooks not installed: \(error)") }
+        default:
+            break   // os, app-location, terminal and end-to-end have no safe automatic fix
+        }
+    }
+}
+```
+
+- [ ] **Step 2: Wire it into the dispatcher**
+
+In `Sources/chute/main.swift`, add after `case "hooks":`:
+```swift
+case "doctor":     cmdDoctor(args)
+```
+and to `helpText`, under a new final section:
+```
+SETUP
+  doctor                Check every prerequisite and say how to fix it   --fix --json
+```
+
+- [ ] **Step 3: Run it for real**
+
+`cd /Users/sxope/Documents/2026/Development/37.chute && swift build -c release && ./.build/release/chute doctor`
+Expected: nine lines. Report the ACTUAL output verbatim, including failures — the failures are the
+point of this task, not a problem with it.
+
+- [ ] **Step 4: Verify the exit codes**
+
+```bash
+./.build/release/chute doctor >/dev/null 2>&1; echo "exit: $?"
+./.build/release/chute doctor --json | python3 -c "import json,sys; d=json.load(sys.stdin); print(len(d), 'checks'); print('all have fix:', all(r['fix'] for r in d))"
+```
+Expected: exit 1 while anything fails, `9 checks`, `all have fix: True`.
+
+- [ ] **Step 5: Commit**
+
+```bash
+cd /Users/sxope/Documents/2026/Development/37.chute
+git add Sources/chute/
+git commit -m "feat: chute doctor — diagnose every prerequisite, --fix re-verifies before reporting"
+```
+
+---
+
+### Task O3: First-run window  ·  **Model: Sonnet**  ·  Wave O-B
+
+**Files:**
+- Create: `Sources/ChuteApp/FirstRunWindow.swift`
+- Modify: `Sources/ChuteApp/main.swift` — show it once on launch; add a menu item to reopen it
+
+**Interfaces:**
+- Consumes: `Diagnostics` from O1.
+- Produces: `FirstRunWindow.showIfNeeded()`, `FirstRunWindow.show()`.
+
+- [ ] **Step 1: Write the window**
+
+`Sources/ChuteApp/FirstRunWindow.swift`:
+
+```swift
+import AppKit
+import ChuteCore
+
+/// An LSUIElement app has no Dock icon, so a first launch with no window is indistinguishable
+/// from a crash. Shown once, then only on request.
+enum FirstRunWindow {
+    static var statePath: String {
+        (NSHomeDirectory() as NSString).appendingPathComponent(".chute/state.json")
+    }
+
+    static func showIfNeeded() {
+        guard !FileManager.default.fileExists(atPath: statePath) else { return }
+        show()
+    }
+
+    static func markSeen() {
+        let dir = (statePath as NSString).deletingLastPathComponent
+        try? FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
+        try? #"{"firstRunSeen":true}"#.write(toFile: statePath, atomically: true, encoding: .utf8)
+    }
+
+    nonisolated(unsafe) static var window: NSWindow?
+
+    static func show() {
+        let w = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 480, height: 380),
+                         styleMask: [.titled, .closable], backing: .buffered, defer: false)
+        w.title = "Chute"
+        w.center()
+        w.contentView = makeBody()
+        w.isReleasedWhenClosed = false
+        window = w
+        NSApp.activate(ignoringOtherApps: true)
+        w.makeKeyAndOrderFront(nil)
+        markSeen()
+    }
+
+    static func makeBody() -> NSView {
+        let root = NSStackView()
+        root.orientation = .vertical
+        root.alignment = .leading
+        root.spacing = 10
+        root.edgeInsets = NSEdgeInsets(top: 20, left: 20, bottom: 20, right: 20)
+
+        let heading = NSTextField(labelWithString: "Chute is almost ready")
+        heading.font = .systemFont(ofSize: 18, weight: .semibold)
+        root.addArrangedSubview(heading)
+
+        for outcome in Diagnostics.run(Diagnostics.liveEnv()) {
+            root.addArrangedSubview(row(outcome))
+        }
+
+        let buttons = NSStackView()
+        buttons.orientation = .horizontal
+        buttons.spacing = 10
+        let fix = NSButton(title: "Fix everything", target: Handler.shared,
+                           action: #selector(Handler.fixAll))
+        fix.keyEquivalent = "\r"
+        let skip = NSButton(title: "Skip", target: Handler.shared, action: #selector(Handler.skip))
+        buttons.addArrangedSubview(fix)
+        buttons.addArrangedSubview(skip)
+        root.addArrangedSubview(buttons)
+        return root
+    }
+
+    static func row(_ o: CheckOutcome) -> NSView {
+        let stack = NSStackView()
+        stack.orientation = .horizontal
+        stack.spacing = 8
+        let mark = NSTextField(labelWithString: o.passed ? "✓" : "⏳")
+        mark.textColor = o.passed ? .systemGreen : .systemOrange
+        stack.addArrangedSubview(mark)
+        let label = NSTextField(labelWithString: o.check.title)
+        stack.addArrangedSubview(label)
+        if !o.passed {
+            // No dead ends: a failing row always carries its reason, visible without a click.
+            let why = NSTextField(labelWithString: o.check.why)
+            why.font = .systemFont(ofSize: 11)
+            why.textColor = .secondaryLabelColor
+            why.lineBreakMode = .byTruncatingTail
+            why.toolTip = o.check.fix
+            stack.addArrangedSubview(why)
+        }
+        return stack
+    }
+
+    final class Handler: NSObject {
+        nonisolated(unsafe) static let shared = Handler()
+
+        @objc func fixAll() {
+            let binary = Bundle.main.bundlePath + "/Contents/MacOS/chute"
+            DispatchQueue.global(qos: .userInitiated).async {
+                _ = Shell.run(binary, ["doctor", "--fix"])
+                DispatchQueue.main.async {
+                    // Re-render from a FRESH environment; never repaint a row green without
+                    // re-running the check behind it.
+                    FirstRunWindow.window?.contentView = FirstRunWindow.makeBody()
+                }
+            }
+        }
+
+        @objc func skip() {
+            FirstRunWindow.markSeen()
+            FirstRunWindow.window?.close()
+        }
+    }
+}
+```
+
+- [ ] **Step 2: Wire it into the app**
+
+In `Sources/ChuteApp/main.swift`, at the end of `applicationDidFinishLaunching`, add:
+```swift
+        FirstRunWindow.showIfNeeded()
+```
+and add a menu item so it is reachable later — in `buildMenu()`, before the Quit item:
+```swift
+        menu.addItem(NSMenuItem(title: "Setup Check…", action: #selector(openSetup), keyEquivalent: ""))
+```
+with:
+```swift
+    @objc func openSetup() { FirstRunWindow.show() }
+```
+
+- [ ] **Step 3: Build, install, and look at it**
+
+```bash
+cd /Users/sxope/Documents/2026/Development/37.chute
+rm -f ~/.chute/state.json
+./Scripts/build-app.sh && ./Scripts/install.sh
+```
+Expected: the window appears on launch, listing nine rows with live status.
+
+- [ ] **Step 4: Verify it does not re-nag**
+
+Press Skip, quit Chute, relaunch. Expected: no window. Then choose "Setup Check…" from the menu
+bar — expected: the window returns.
+
+- [ ] **Step 5: Verify rows re-verify rather than repaint**
+
+With the extension disabled, press "Fix everything". Expected: the row turns green ONLY if
+`pluginkit` reports it enabled afterwards. If macOS refuses, the row must stay orange.
+
+- [ ] **Step 6: Commit**
+
+```bash
+cd /Users/sxope/Documents/2026/Development/37.chute
+git add Sources/ChuteApp/
+git commit -m "feat: first-run window — live checklist, fixes re-verify, skip never nags"
+```
+
+---
+
 ## Self-Review
 
 **Spec coverage:** discovery → Task 5. State resolution → Task 3. Hook signal → Tasks 4, 6. Colours → Task 2. Menu, badge, ⌥1–8 → Task 8. New Agent Session submenu → *gap*: folded into Task 8's `Chute Actions` submenu using the existing `chute sandbox`; if the founder wants it as a first-class menu section it is a ten-line follow-up, noted here rather than silently dropped. Refresh strategy → Task 8 Steps 3 and 6. Error handling → Tasks 5 and 7 (`discoverSessions` catches and reports). Testing → every task. Out-of-scope items are not implemented anywhere, as intended.
