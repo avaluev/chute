@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
-pkill -x Chute 2>/dev/null || true
+pkill -x ChuteApp 2>/dev/null || true
 rm -rf "$HOME/Applications/Chute.app"
 rm -f "$HOME/.local/bin/chute"
 rm -rf "$HOME/.chute"
