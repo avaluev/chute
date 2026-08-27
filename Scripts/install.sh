@@ -51,8 +51,21 @@ extension_started() { [ -f "$MARKER" ] && [ "$MARKER" -nt "$APPEX_BIN" ]; }
 wait_for_extension() { for _ in 1 2 3 4 5 6 7 8 9 10; do extension_started && return 0; sleep 1; done; return 1; }
 
 if ! wait_for_extension; then
-  echo "the Finder extension did not start — clearing its stale sandbox container"
+  echo "the Finder extension did not start — repairing"
+  # The exact sequence that was measured to work, in this order:
+  #   1. drop the stale container (its ACL names the previous build's code identity)
+  #   2. DEREGISTER the extension — after a container change macOS will not re-create one for a
+  #      registration it already holds, so the menu stays dead until the plug-in is re-added
+  #   3. re-register by launching the host app, which is what actually registers an appex
+  #   4. restart Finder so it picks the new one up
   osascript -e "tell application \"Finder\" to delete POSIX file \"$CONTAINER\"" >/dev/null 2>&1 || true
+  pluginkit -r "$HOME/Applications/Chute.app/Contents/PlugIns/ChuteFinder.appex" 2>/dev/null || true
+  pkill -x ChuteApp 2>/dev/null || true
+  sleep 1
+  open "$HOME/Applications/Chute.app"
+  sleep 2
+  pluginkit -a "$HOME/Applications/Chute.app/Contents/PlugIns/ChuteFinder.appex" 2>/dev/null || true
+  pluginkit -e use -i dev.valuev.chute.finder 2>/dev/null || true
   killall Finder 2>/dev/null || true
   if wait_for_extension; then
     echo "fixed — the Chute menu is back"
