@@ -109,31 +109,63 @@ Expect an address, then `HTTP/2 200`.
 
 ## Step 3 — Record the eight demos (40 min, with me) ⛔ BLOCKS THE WHOLE LAUNCH
 
-**This is the highest-value hour of your week.** There are 13 terminal GIFs and **zero recordings
-of the Finder menu or the menu bar** — which is to say, zero recordings of the thing you are
-charging for.
+**This is the highest-value hour of your week.** There are 17 terminal tapes and **zero
+recordings of the Finder menu or the menu bar** — which is to say, zero recordings of the thing
+you are actually selling. All eight hero tapes are written and dry-run clean; they need a screen
+and about forty minutes.
 
-First, grant permission once, or the recorder produces a black video:
+`demo/gui/record.sh` is **gone**. It clicked hardcoded pixel offsets after blind sleeps, three of
+its four shots asked a human to click something, and nothing checked its output — a black take
+and a good take looked identical in a directory listing. Two of its guards were broken outright:
+it captioned with an ffmpeg filter this machine does not have, and its blank-frame check read an
+empty measurement and would have deleted every recording the moment it was made.
 
-- System Settings → Privacy & Security → **Screen & System Audio Recording** → enable your terminal
-- **Quit and reopen the terminal.** macOS only re-reads that permission at launch.
-- Same pane → **Accessibility** → enable your terminal (the recorder moves the mouse)
-
-Then see what it will do, without recording anything:
-
-```bash
-cd /Users/sxope/Documents/2026/Development/37.chute && ./demo/gui/record.sh list && ./demo/gui/record.sh bundle --dry-run
-```
-
-When that looks right, record for real — **it will take over your mouse, so do not touch anything
-while it runs**:
+**First, prove the pipeline without touching the screen** (safe, 30 seconds):
 
 ```bash
-cd /Users/sxope/Documents/2026/Development/37.chute && ./demo/gui/record.sh bundle
+make -C demo/gui check
 ```
 
-Watch the result back before recording the rest. Then tell me and I will drive the remaining
-seven and cut them.
+Expect `12 passed, 0 failed`, `every tape speaks only in verbs`, and all eight tapes resolving
+with their fixture files present. **Any failure: stop and paste it to me.**
+
+**Then grant permission once**, or the recorder produces nothing:
+
+- System Settings → Privacy & Security → **Screen & System Audio Recording** → enable your
+  terminal, then **quit and reopen it**. macOS only re-reads that permission on launch.
+- Same pane → **Accessibility** → enable your terminal. The recorder moves the mouse.
+
+Chute.app must also be running — the Finder menu writes a request and the app carries it out, so
+without it every action is a no-op that looks like a hang.
+
+**Record the wedge first.** It is the one that races the manual ritual against the right-click,
+and it is the only tape that measures both sides:
+
+```bash
+cd /Users/sxope/Documents/2026/Development/37.chute && ./demo/gui/tapes/paste-a-whole-folder.sh
+```
+
+It takes over your mouse for about two minutes — **do not touch anything until it prints `done:`**.
+It produces three things: the solo take for case pages and phones, a wide race for the landing
+hero, and a `.json` of what the stopwatch actually read, which the deploy gate compares against
+what the page claims.
+
+Watch it back before recording the rest. Then:
+
+```bash
+cd /Users/sxope/Documents/2026/Development/37.chute && make -C demo/gui all
+```
+
+Two tapes need a word of warning, both stated in their own headers:
+- `a-clean-room-for-a-risky-agent` leaves a terminal running an agent. Close it before the next take.
+- `which-agent-is-waiting-for-you` needs hooks wired and a session actually waiting, or the badge
+  is dark and the demo shows nothing. `chute hooks snippet` prints the JSON to paste.
+
+Finally, publish only the GIFs a case actually refers to, and see what is still missing:
+
+```bash
+cd /Users/sxope/Documents/2026/Development/37.chute && make -C demo publish
+```
 
 ---
 

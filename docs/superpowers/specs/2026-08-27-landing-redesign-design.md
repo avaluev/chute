@@ -183,7 +183,9 @@ on their own demo, already in pain, with the fix on screen.
 
 ## PART F — Demo production
 
-`demo/gui/record.sh` exists and handles Finder and menu-bar recording. `demo/verify.sh` proves a
+`demo/gui/` handles Finder and menu-bar recording — a verb library, one tape per hero, and a
+selftest that proves the compose/export half without a screen. (It replaced `record.sh` on
+2026-08-28; see that commit for the three broken guards that motivated it.) `demo/verify.sh` proves a
 command works **before** it is filmed. `demo/reframe.sh` turns one master into every aspect ratio.
 
 **Extend `demo/verify.sh` to all 24 cases before recording anything.** It covers 13 today. A case
@@ -263,7 +265,7 @@ figure. The page is more credible with one honest gap than with 24 identical-loo
 | 2 | **Part C** — four new Finder actions | `swift run chutetests && ./Scripts/smoke.sh`, then a hand-driven right-click of each |
 | 3 | `site/src/lib/cases.ts` — all 24, from the ledger | a script asserts every `savedMinutes` matches `docs/03-JTBD-LEDGER.md` |
 | 4 | Install ui-skills + the component libraries | agent builds to the skills, not to habit |
-| 5 | Record 8 hero demos (`demo/gui/record.sh`) | verify.sh green first; watch each one back |
+| 5 | Record 8 hero demos (`make -C demo/gui all`) | `make -C demo/gui check` green first; watch each one back |
 | 6 | Record 16 shorts (`make -C demo demos`) | `make check` |
 | 7 | Rebuild `/` from `cases.ts` | Lighthouse ≥ 95; read at 375 px wide |
 | 8 | Build `/cases` + 24 case pages | every route 200; every demo and poster resolves |

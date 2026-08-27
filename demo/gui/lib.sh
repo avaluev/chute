@@ -2,10 +2,10 @@
 # The verbs a GUI demo is written in.
 #
 # VHS owns the terminal demos and they are demos-as-code: a tape file, a deterministic fixture,
-# and `make` to regenerate all thirteen. The GUI half had none of that — record.sh performs three
-# of its four shots by asking a human to click something, and clicks the fourth at a hardcoded
-# pixel offset after a blind `sleep 0.8`. If Finder is 200 ms slow that click lands on empty
-# space and you get nine seconds of a static window. Nothing notices.
+# and `make` to regenerate all of them. The GUI half had none of that: the recorder this replaces
+# performed three of its four shots by asking a human to click something, and clicked the fourth
+# at a hardcoded pixel offset after a blind `sleep 0.8`. If Finder was 200 ms slow that click
+# landed on empty space and you got nine seconds of a static window. Nothing noticed.
 #
 # THE RULE THIS FILE IS BUILT ON: the recorder cannot trust the UI, only the EFFECT.
 # macOS context-menu automation is genuinely unreliable — Accessibility traversal, menu
