@@ -71,7 +71,7 @@ enum SessionMenu {
                 item.image = dot(SessionColor.hex(forProject: s.project))
                 item.representedObject = s.key
                 item.target = target
-                item.toolTip = "\(s.title)\n\(load.isEmpty ? "Using almost nothing" : load)"
+                item.toolTip = "\(s.title)\n\(load.isEmpty ? "Using almost no CPU or memory" : load)"
                              + " · terminal \(s.tty) · click to bring it forward"
                 menu.addItem(item)
                 hotkey += 1
