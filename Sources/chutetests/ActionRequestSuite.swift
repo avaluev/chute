@@ -8,15 +8,15 @@ func actionRequestSuite() {
         let now = Date(timeIntervalSince1970: 1_756_219_200)
 
         // Round trip.
-        let req = ActionRequest(id: "copy-paths", dir: "/tmp/p", files: ["/a.ts", "/b.ts"], createdAt: now)
+        let req = ActionRequest(id: "copy-paths", dir: "/tmp", files: ["/a.ts", "/b.ts"], createdAt: now)
         T.noThrow("writes a request") { _ = try ActionInbox.write(req, root: root) }
         let pending = ActionInbox.drain(root: root, now: now.addingTimeInterval(1))
         T.eq(pending.count, 1, "one request is pending")
         T.eq(pending.first?.request, req, "it round-trips unchanged, selection included")
 
         // Two clicks in the same millisecond must not overwrite each other.
-        _ = try? ActionInbox.write(ActionRequest(id: "copy-paths", dir: "/tmp/p", files: [], createdAt: now), root: root)
-        _ = try? ActionInbox.write(ActionRequest(id: "copy-paths", dir: "/tmp/p", files: [], createdAt: now), root: root)
+        _ = try? ActionInbox.write(ActionRequest(id: "copy-paths", dir: "/tmp", files: [], createdAt: now), root: root)
+        _ = try? ActionInbox.write(ActionRequest(id: "copy-paths", dir: "/tmp", files: [], createdAt: now), root: root)
         T.eq(ActionInbox.drain(root: root, now: now.addingTimeInterval(1)).count, 3,
              "requests never collide — every click is its own file")
 
@@ -25,7 +25,7 @@ func actionRequestSuite() {
              "an hour-old click is not carried out on the next right-click")
         T.eq(ActionInbox.drain(root: root, now: now).count, 0, "and the stale files are cleaned up")
 
-        _ = try? ActionInbox.write(ActionRequest(id: "copy-paths", dir: "/tmp/p", files: [], createdAt: now), root: root)
+        _ = try? ActionInbox.write(ActionRequest(id: "copy-paths", dir: "/tmp", files: [], createdAt: now), root: root)
         T.eq(ActionInbox.drain(root: root, now: now.addingTimeInterval(-3600)).count, 0,
              "a request from the future is a clock skew, not a fresh click")
 
@@ -48,5 +48,48 @@ func actionRequestSuite() {
         // is the container, and a request written there is one nobody ever reads.
         T.ok(ActionInbox.directory().hasPrefix("/Users/"), "the inbox path is anchored to the real home")
         T.ok(!ActionInbox.directory().contains("Containers"), "never the sandbox container")
+
+        // SECURITY. The inbox is a privilege boundary: an unsandboxed app executes whatever lands
+        // here, on behalf of a SANDBOXED extension. Everything below is about not executing
+        // something the user did not ask for.
+        let secure = NSTemporaryDirectory() + "chute-inbox-sec-\(UInt32.random(in: 0...99999))"
+        defer { try? FileManager.default.removeItem(atPath: secure) }
+        _ = try? ActionInbox.write(ActionRequest(id: "copy-paths", dir: "/tmp", files: [], createdAt: now),
+                                   root: secure)
+        let mode = (try? FileManager.default.attributesOfItem(atPath: secure))?[.posixPermissions] as? NSNumber
+        T.eq(mode?.int16Value, 0o700, "the inbox is owner-only — nobody else can queue work")
+
+        // A world-writable request is one anybody could have replaced between write and read.
+        let planted = (secure as NSString).appendingPathComponent("planted.json")
+        try? #"{"id":"terminal","dir":"/tmp","ts":\#(now.timeIntervalSince1970)}"#
+            .write(toFile: planted, atomically: true, encoding: .utf8)
+        try? FileManager.default.setAttributes([.posixPermissions: NSNumber(value: 0o666)],
+                                               ofItemAtPath: planted)
+        T.ok(!ActionInbox.isTrustworthy(planted), "a group/other-writable request is not trusted")
+        T.eq(ActionInbox.drain(root: secure, now: now.addingTimeInterval(1))
+                .filter { $0.request.id == "terminal" }.count, 0,
+             "and it is never carried out")
+        T.ok(!FileManager.default.fileExists(atPath: planted), "it is removed rather than left to retry")
+
+        // A directory, or a file owned by someone else, is not a request either.
+        let asDir = (secure as NSString).appendingPathComponent("notafile.json")
+        try? FileManager.default.createDirectory(atPath: asDir, withIntermediateDirectories: true)
+        T.ok(!ActionInbox.isTrustworthy(asDir), "a directory is not a request")
+        T.ok(!ActionInbox.isTrustworthy((secure as NSString).appendingPathComponent("ghost.json")),
+             "and neither is a path that does not exist")
+        T.ok(!ActionInbox.isTrustworthy("/tmp/x", attributes: [
+                .type: FileAttributeType.typeRegular,
+                .ownerAccountID: NSNumber(value: getuid() &+ 1),
+                .posixPermissions: NSNumber(value: 0o600)]),
+             "a request owned by another account is refused")
+
+        // The command runs against `dir`. Relative paths would resolve against wherever the app
+        // happens to be, and a path that is not a directory is a malformed request.
+        T.ok(ActionInbox.parse(Data(#"{"id":"copy-paths","dir":"relative/path","ts":1}"#.utf8)) == nil,
+             "a relative dir is refused")
+        T.ok(ActionInbox.parse(Data(#"{"id":"copy-paths","dir":"/no/such/place","ts":1}"#.utf8)) == nil,
+             "a dir that is not a directory is refused")
+        let mixed = ActionInbox.parse(Data(#"{"id":"copy-paths","dir":"/tmp","files":["/tmp/a","relative"],"ts":1}"#.utf8))
+        T.eq(mixed?.files, ["/tmp/a"], "relative file paths are dropped, not resolved against a guess")
     }
 }

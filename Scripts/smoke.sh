@@ -71,6 +71,14 @@ OUT="$("$CHUTE" unpack --dir . --force 2>&1)"
 has "refuses traversal" "$OUT" "refusing to write outside"
 if [ -f ../../etc/pwned.txt ]; then bad "no escape" "wrote outside"; else ok "no escape"; fi
 
+echo "7b. unpack refuses to follow a symlink out of the target folder"
+mkdir -p esc/safe esc/outside && ln -sfn "$T/proj/esc/outside" esc/safe/link
+printf '### link/pwned.txt\n```\nx\n```\n' | pbcopy
+OUT="$("$CHUTE" unpack --dir esc/safe --force 2>&1)"
+if [ -f esc/outside/pwned.txt ]; then bad "no escape through a symlink" "wrote outside the folder"
+else ok "no escape through a symlink"; fi
+has "and says why" "$OUT" "resolves elsewhere"
+
 echo "8. checkpoint never touches the worktree"
 git init -q . && git add -A && git -c user.email=t@t -c user.name=t commit -qm init
 echo "uncommitted work" > src/wip.ts

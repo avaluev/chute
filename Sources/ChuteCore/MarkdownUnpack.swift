@@ -56,6 +56,20 @@ public enum MarkdownUnpack {
         return files
     }
 
+    /// The final guard, applied where the write happens. `validate` rejects `..` and absolute
+    /// paths in the TEXT, but a path can still escape through a symlink that already exists in the
+    /// target folder: with `src -> /etc`, the innocent-looking `src/passwd` writes to /etc/passwd.
+    /// Resolving both sides and comparing is the only check that survives that.
+    public static func staysInside(dir: String, path: String) -> Bool {
+        let root = URL(fileURLWithPath: dir).resolvingSymlinksInPath().standardizedFileURL
+        let full = URL(fileURLWithPath: (dir as NSString).appendingPathComponent(path))
+        // Resolve the PARENT: the file itself does not exist yet, and a non-existent leaf resolves
+        // to itself, which would hide an escaping parent.
+        let parent = full.deletingLastPathComponent().resolvingSymlinksInPath().standardizedFileURL
+        let rootPath = root.path.hasSuffix("/") ? root.path : root.path + "/"
+        return parent.path == root.path || parent.path.hasPrefix(rootPath)
+    }
+
     static func looksLikePath(_ s: String) -> Bool {
         guard !s.isEmpty, !s.contains(" "), s.count <= 200 else { return false }
         if s.contains("/") { return true }

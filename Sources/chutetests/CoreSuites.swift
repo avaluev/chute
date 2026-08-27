@@ -96,5 +96,38 @@ func coreSuites() {
         T.ok(env.contains("OPENAI_API_KEY="), "env key name kept")
         T.no(env.contains("super-secret-value-here"), "env value gone")
         T.eq(Redact.apply("just some normal prose about keys and tokens"), "just some normal prose about keys and tokens", "innocent text untouched")
+
+        // SECURITY — the two leaks the pattern list did not catch.
+        T.ok(Redact.apply("db=postgres://admin:hunter2@localhost/app").contains("[REDACTED]@"),
+             "credentials inside a URL are masked — no key-shaped pattern would catch them")
+        T.ok(!Redact.apply("db=postgres://admin:hunter2@localhost/app").contains("hunter2"),
+             "and the password itself is gone")
+        T.ok(Redact.apply("mysql://root@localhost/db").contains("root@localhost"),
+             "a URL with no password is left alone")
+        let key = "-----BEGIN RSA PRIVATE KEY-----\nMIIabc\nMORE\n-----END RSA PRIVATE KEY-----"
+        T.eq(Redact.apply(key), "[REDACTED]", "a private key block is removed whole, not line by line")
+        T.ok(!Redact.apply("before\n" + key + "\nafter").contains("MIIabc"),
+             "including when it is embedded in other text")
+        T.ok(Redact.apply("before\n" + key + "\nafter").contains("before"),
+             "and the surrounding text survives")
+
+        // SECURITY — a path that escapes through a symlink already sitting in the target folder.
+        let box = NSTemporaryDirectory() + "chute-escape-\(UInt32.random(in: 0...99999))"
+        let inside = (box as NSString).appendingPathComponent("safe")
+        let outside = (box as NSString).appendingPathComponent("outside")
+        try? FileManager.default.createDirectory(atPath: inside, withIntermediateDirectories: true)
+        try? FileManager.default.createDirectory(atPath: outside, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(atPath: box) }
+        try? FileManager.default.createSymbolicLink(
+            atPath: (inside as NSString).appendingPathComponent("link"), withDestinationPath: outside)
+
+        T.ok(MarkdownUnpack.staysInside(dir: inside, path: "src/app.ts"),
+             "an ordinary nested path is inside")
+        T.ok(MarkdownUnpack.staysInside(dir: inside, path: "app.ts"),
+             "and so is a file at the top")
+        T.ok(!MarkdownUnpack.staysInside(dir: inside, path: "link/pwned.txt"),
+             "a path through a symlink that leaves the folder is refused")
+        T.ok(!MarkdownUnpack.staysInside(dir: inside, path: "../pwned.txt"),
+             "and so is a plain climb, belt and braces with validate()")
     }
 }
