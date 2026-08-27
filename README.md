@@ -110,7 +110,8 @@ chute doctor            # what is not wired up yet, and the exact fix
 ```
 
 The menu bar `⤓` carries the count of sessions that want you. Click it for the list, colour-coded
-per project, with `⌥1`–`⌥8` on the first eight.
+per project. Click a row to bring that terminal forward, or use `chute focus <name|N>` from
+anywhere.
 
 **The badge needs hooks to be interesting, and wiring them is your call, made by your hand.**
 Without them Chute can only read the terminal title glyph and the busy flag, so every session

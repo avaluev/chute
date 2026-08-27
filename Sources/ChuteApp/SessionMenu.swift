@@ -41,12 +41,17 @@ enum SessionMenu {
     /// Populates the menu AppKit is about to display. Do not build a new NSMenu and assign it to
     /// statusItem.menu from inside menuWillOpen: the object already being tracked is the one passed
     /// in here, so a swap lands on the NEXT open and the user sees the previous state.
-    /// Groups by state, assigns ⌥1…⌥8 top-down so the most urgent session is always ⌥1.
+    /// Groups by state, most urgent first.
+    ///
+    /// NO KEY EQUIVALENTS ON THE SESSION ROWS. They used to carry ⌥1…⌥8, which could never fire:
+    /// AppKit matches a key equivalent against the character the keystroke PRODUCES, and ⌥1
+    /// produces "¡", not "1". The rows advertised a shortcut that did nothing on every keyboard
+    /// layout. A menu that promises a shortcut it does not honour is worse than one that promises
+    /// nothing, so the promise is gone. `chute focus <n>` still does this from the terminal.
     @discardableResult
     static func populate(_ menu: NSMenu, sessions: [Session], problem: String?,
                          target: AnyObject, action: Selector, openSettings: Selector) -> LiveVitals {
         menu.removeAllItems()
-        var hotkey = 1
         var liveRows: [(item: NSMenuItem, tty: String, prefix: String)] = []
         // One `ps` for the whole menu. Sampling per row would be thirteen process listings for a
         // menu the user is already waiting on.
@@ -90,16 +95,14 @@ enum SessionMenu {
                 let prefix = "\(s.project)   \(detail)"
                 let item = NSMenuItem(title: "\(prefix)\(load.isEmpty ? "" : "   \(load)")",
                                       action: action,
-                                      keyEquivalent: hotkey <= 8 ? "\(hotkey)" : "")
+                                      keyEquivalent: "")
                 liveRows.append((item, s.tty, prefix))
-                item.keyEquivalentModifierMask = [.option]
                 item.image = dot(SessionColor.hex(forProject: s.project))
                 item.representedObject = s.key
                 item.target = target
                 item.toolTip = "\(s.title)\n\(load.isEmpty ? "Using almost no CPU or memory" : load)"
                              + " · terminal \(s.tty) · click to bring it forward"
                 menu.addItem(item)
-                hotkey += 1
             }
             menu.addItem(.separator())
         }
