@@ -109,6 +109,23 @@ else existsSync(join(out, "media", "og.png"))
   ? ok("og:image is declared and the file exists")
   : bad("og:image is declared but the file is missing", "every shared link renders a blank card");
 
+// 6c — every asset a page references must EXIST at the path it references.
+// next/image with `unoptimized` bypasses the loader that applies basePath, so image srcs
+// silently resolved to the domain root while every link and stylesheet resolved correctly.
+// A page that is right apart from having no images survives a glance; it does not survive a
+// reviewer.
+console.log("\n6c. Every referenced asset resolves");
+const refs = new Set();
+for (const body of Object.values(pages)) {
+  for (const m of body.matchAll(/(?:src|href)="(\/[^"]+\.(?:png|gif|jpg|jpeg|svg|webp|css|js|woff2?))"/g)) {
+    refs.add(m[1]);
+  }
+}
+const broken = [...refs].filter((r) => !existsSync(join(out, r.replace(BASE, "").replace(/^\//, ""))));
+broken.length
+  ? bad(`${broken.length} referenced asset(s) 404`, broken.slice(0, 5).join("\n        "))
+  : ok(`all ${refs.size} referenced assets exist on disk`);
+
 // 7 — a custom domain over HTTPS.
 console.log("\n7. Custom domain");
 const cname = join(out, "CNAME");
