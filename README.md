@@ -27,6 +27,14 @@ That is **90–120 minutes a day**. Chute removes it. See
 
 ## Install
 
+The free, MIT command-line tool:
+
+```bash
+brew install avaluev/tap/chute
+```
+
+The Chute.app (Finder menu, menu-bar switcher, hotkey):
+
 ```bash
 cd /Users/sxope/Documents/2026/Development/37.chute && ./Scripts/install.sh
 ```
@@ -178,8 +186,8 @@ Chute is built to be trusted with a repo an agent is about to rampage through.
 
 ```bash
 cd /Users/sxope/Documents/2026/Development/37.chute && swift build -c release   # build
-cd /Users/sxope/Documents/2026/Development/37.chute && swift run chutetests      # 214 unit assertions
-cd /Users/sxope/Documents/2026/Development/37.chute && ./Scripts/smoke.sh        # 53 end-to-end checks
+cd /Users/sxope/Documents/2026/Development/37.chute && swift run chutetests      # 519 assertions
+cd /Users/sxope/Documents/2026/Development/37.chute && ./Scripts/smoke.sh        # 140 passed
 cd /Users/sxope/Documents/2026/Development/37.chute && ./Scripts/build-app.sh    # assemble Chute.app
 ```
 

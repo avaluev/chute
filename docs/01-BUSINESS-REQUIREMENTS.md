@@ -41,9 +41,9 @@ designed for the pre-agent era: they create empty files from static templates. N
 | Crash-free command executions | > 99.5 % |
 
 ## Monetization
-Deferred by decision. Direction: one-time ~$9–19, direct sale (Gumroad / LemonSqueezy).
-No license-key code in v0.1. Requires an Apple Developer ID ($99/yr) before public distribution —
-tracked in `06-BACKLOG.md`.
+**$19 one-time** via Paddle Billing. Licensing via offline Ed25519 keys minted by Cloudflare Worker on Paddle webhook.
+No network verification — the app never contacts a network to check keys.
+Requires an Apple Developer ID ($99/yr) before public distribution — tracked in `06-BACKLOG.md`.
 
 ## Out of scope for v0.1
 Cloud sync, accounts, telemetry, team features, Windows/Linux, an LLM API of our own.

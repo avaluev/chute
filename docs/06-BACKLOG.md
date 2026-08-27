@@ -11,7 +11,7 @@
 |---|---|---|
 | Developer ID signing + notarization | Apple Developer Program, $99/yr | 2 h once the cert exists |
 | Sparkle auto-update | Needs a signed build first | 3 h |
-| Licensing / paywall (LemonSqueezy keys) | Monetization decision deferred | 4 h |
+| Licensing / paywall (Paddle keys via Cloudflare Worker) | Monetization decision deferred | 4 h |
 
 ## v0.3 — reach
 - Raycast extension wrapping the same CLI (~2 h — the CLI already is the API)

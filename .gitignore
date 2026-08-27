@@ -12,3 +12,4 @@ dist/
 
 # SDD scratch — ledger, briefs, review packages. Never part of the repo.
 .superpowers/
+brand/out/

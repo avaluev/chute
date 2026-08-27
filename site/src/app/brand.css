@@ -1,0 +1,64 @@
+/* GENERATED from brand/tokens.json by brand/gen-tailwind.mjs — do not edit.
+   Imported by globals.css AFTER shadcn's own variables, so these win. */
+
+/* Chute's raw palette, for the few places that want the colour itself. */
+@theme {
+  --color-ground-900: #0D0F17;
+  --color-ground-800: #171C29;
+  --color-ground-600: #333B4F;
+  --color-accent-chute: #8FDB70;
+  --color-glow: #73FA66;
+  --color-paper: #F7F7F7;
+  --color-session-1: #E06C75;
+  --color-session-2: #E5934A;
+  --color-session-3: #E5C07B;
+  --color-session-4: #98C379;
+  --color-session-5: #56B6C2;
+  --color-session-6: #61AFEF;
+  --color-session-7: #8C7AE6;
+  --color-session-8: #C678DD;
+  --color-session-9: #D19A66;
+  --color-session-10: #4DB6AC;
+  --color-session-11: #7E9CD8;
+  --color-session-12: #DE8F78;
+}
+
+/* shadcn's contract, repainted. Dark only, deliberately: the product is a dark menu-bar
+   utility, and a light landing page for a dark tool is a promise the app does not keep. */
+:root {
+  --background: #0D0F17;
+  --foreground: #F7F7F7;
+  --card: #171C29;
+  --card-foreground: #F7F7F7;
+  --popover: #171C29;
+  --popover-foreground: #F7F7F7;
+
+  /* The one accent. Dark text ON the green, never green text on dark for a button. */
+  --primary: #8FDB70;
+  --primary-foreground: #0D0F17;
+
+  --secondary: #171C29;
+  --secondary-foreground: #F7F7F7;
+  --muted: #171C29;
+  --muted-foreground: #8A93A6;
+  --accent: #333B4F;
+  --accent-foreground: #F7F7F7;
+  --destructive: #E06C75;
+  --destructive-foreground: #F7F7F7;
+
+  --border: #333B4F;
+  --input: #333B4F;
+  --ring: #73FA66;
+
+  /* Dev tools are sharp. shadcn ships 0.625rem; that roundness is half of the templated look. */
+  --radius: 4px;
+
+  --font-sans: 'Instrument Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-heading: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-geist-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+@theme inline {
+  --shadow-hero: 0 24px 64px -24px rgba(0, 0, 0, 0.7);
+}

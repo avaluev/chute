@@ -1,0 +1,59 @@
+name: Deploy site to Pages
+
+# Only the site and the brand tokens it's generated from should trigger a deploy — a push that
+# only touches Sources/ or docs/ has no reason to rebuild and republish the static export.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "site/**"
+      - "brand/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: site/package-lock.json
+
+      # Design tokens are generated from brand/tokens.json into site/src/app/brand.css. Building
+      # without this step ships whatever was last committed there, which drifts silently.
+      - name: Generate brand CSS from tokens
+        run: node brand/gen-tailwind.mjs
+
+      - name: Install site dependencies
+        run: npm ci
+        working-directory: site
+
+      - name: Build static export
+        run: npx next build
+        working-directory: site
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site/out
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
