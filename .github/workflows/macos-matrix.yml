@@ -1,0 +1,54 @@
+name: macOS matrix
+
+# Chute is built on one laptop running one macOS version. This is how the other versions get
+# tested: GitHub's runners ARE other Macs. They have no logged-in Finder session, so the suite
+# runs with CHUTE_HEADLESS=1 — everything except the checks that need a real desktop.
+#
+# What this catches: API removals, behaviour changes in lsof/ps/osascript output, Swift version
+# drift, and anything that stops compiling on a newer SDK.
+# What it CANNOT catch: the Finder extension loading, TCC prompts, notification delivery. Those
+# need a real desktop — see docs/08-MACOS-COMPATIBILITY.md for the VM route.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        # Keep this list to the versions the product claims to support. macOS 13 is the floor
+        # declared in Package.swift; adding a runner here without raising that floor is how you
+        # find out the floor was a guess.
+        os: [macos-13, macos-14, macos-15]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Versions under test
+        run: |
+          sw_vers
+          swift --version
+
+      - name: Build
+        run: swift build -c release
+
+      - name: Unit suite
+        run: swift run chutetests
+
+      - name: End-to-end suite (headless)
+        env:
+          CHUTE_HEADLESS: "1"
+        run: ./Scripts/smoke.sh
+
+      - name: Assemble the app bundle
+        run: ./Scripts/build-app.sh
+
+      - name: The extension binary must carry the right entry point
+        run: |
+          nm -u dist/Chute.app/Contents/PlugIns/ChuteFinder.appex/Contents/MacOS/ChuteFinder \
+            | grep -q _NSExtensionMain \
+            || { echo "appex entry point missing — it will never load"; exit 1; }
