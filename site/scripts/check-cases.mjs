@@ -105,6 +105,31 @@ paid > free
   ? ok(`the app carries ${paid} min/day, the free CLI ${free} — the paid surface is the larger half`)
   : bad("the paid surface is the larger half", `app ${paid} min/day vs free CLI ${free} min/day`)
 
+// ── the stopwatch beats the estimate ───────────────────────────────────────────────────────
+// Every `seconds` figure above started life as an estimate of how long the manual ritual takes.
+// demo/gui records BOTH paths and times them, writing out/gui/<slug>.json. Where a measurement
+// exists it wins: an estimate that survives next to a contradicting stopwatch is how a landing
+// page ends up overstating in good faith. The tolerance is for run-to-run jitter, not for
+// disagreement — if the ritual really is faster than the ledger says, fix the LEDGER.
+const TIMINGS = resolve(here, "../../demo/out/gui")
+let measured = 0
+for (const c of CASES) {
+  let m
+  try { m = JSON.parse(readFileSync(resolve(TIMINGS, `${c.slug}.json`), "utf8")).measured }
+  catch { continue }
+  measured++
+  const near = (got, want) => Math.abs(got - want) <= Math.max(3, want * 0.15)
+  if (!near(m.manual, c.seconds.manual)) {
+    bad(`${c.slug} manual seconds`, `the stopwatch read ${m.manual}s, the page claims ${c.seconds.manual}s — quote the recording`)
+  }
+  if (!near(m.chute, c.seconds.chute)) {
+    bad(`${c.slug} chute seconds`, `the stopwatch read ${m.chute}s, the page claims ${c.seconds.chute}s — quote the recording`)
+  }
+}
+measured
+  ? ok(`${measured} case(s) backed by a stopwatch, not an estimate`)
+  : console.log("  note no recordings timed yet — every figure is still an estimate from the ledger")
+
 // Recorded demos are optional until they are shot (see demo/verify.sh), but a case that claims
 // one must point somewhere real — check-paddle.mjs proves the file resolves in the built site.
 const undemoed = CASES.filter((c) => !c.demo)
