@@ -215,11 +215,52 @@ public enum LocalServers {
         return out.sorted()
     }
 
-    /// Kill whatever holds a port, tree and all. Returns the pids it signalled.
+    /// Parse `launchctl list` into pid → job label. The columns are
+    /// `PID\tStatus\tLabel`; a PID of `-` is a job that is loaded but not
+    /// running, which nothing here needs to stop. Pure.
+    public static func parseLaunchdJobs(_ output: String) -> [Int: String] {
+        var out: [Int: String] = [:]
+        for line in output.split(separator: "\n") {
+            let cols = line.split(separator: "\t", omittingEmptySubsequences: true)
+            guard cols.count >= 3, let pid = Int(cols[0]) else { continue }
+            out[pid] = String(cols[2])
+        }
+        return out
+    }
+
+    /// Split "what must stop" into launchd jobs and free processes. Pure.
     ///
-    /// TERM, wait for the listener to actually go, then KILL the remainder. The
-    /// return value is what was SIGNALLED — the caller reports it, so it must
-    /// not claim a kill it did not perform.
+    /// A `brew services` daemon (postgres, redis, ollama) is a launchd agent
+    /// with KeepAlive=true: signal ANY pid under it and launchd respawns it
+    /// before the port check even runs, so from the menu "Stop It" reads as
+    /// doing nothing — the exact report this fixes. The only stop launchd
+    /// respects is `launchctl bootout` addressed by label, so if any pid in a
+    /// listener's kill tree belongs to a launchd job, the whole tree becomes a
+    /// bootout and none of it is signalled.
+    public static func killPlan(listeners: [Int], jobs: [Int: String],
+                                table: [Int: (ppid: Int, command: String)])
+        -> (bootout: [(pid: Int, label: String)], signal: [Int]) {
+        var bootout: [(pid: Int, label: String)] = []
+        var signal: Set<Int> = []
+        var bootedPids: Set<Int> = []
+        for listener in listeners {
+            let tree = killSet(listener: listener, table: table)
+            if let owned = tree.first(where: { jobs[$0] != nil }), let label = jobs[owned] {
+                if bootedPids.insert(owned).inserted { bootout.append((owned, label)) }
+            } else {
+                signal.formUnion(tree)
+            }
+        }
+        return (bootout, signal.sorted())
+    }
+
+    /// Kill whatever holds a port, tree and all. Returns the pids it stopped.
+    ///
+    /// launchd-owned listeners are booted out by label (anything less is
+    /// respawned — see `killPlan`); the rest get TERM, a wait for the listener
+    /// to actually go, then KILL for the remainder. The return value is what
+    /// was acted on — the caller reports it, so it must not claim a stop it
+    /// did not perform.
     @discardableResult
     public static func kill(port: Int) -> [Int] {
         // LISTEN only. A client socket on this port belongs to somebody else.
@@ -228,9 +269,16 @@ public enum LocalServers {
         guard !listeners.isEmpty else { return [] }
 
         let table = parseProcessTable(Shell.run("ps", ["-axo", "pid=,ppid=,comm="]).out)
-        let doomed = Array(Set(listeners.flatMap { killSet(listener: $0, table: table) })).sorted()
+        let jobs = parseLaunchdJobs(Shell.run("launchctl", ["list"]).out)
+        let plan = killPlan(listeners: listeners, jobs: jobs, table: table)
 
-        for pid in doomed { _ = Shell.run("kill", ["-TERM", String(pid)]) }
+        // ponytail: bootout stops the service until next login or `brew services
+        // start` — that is what "Stop It" promises, and re-enabling is brew's job.
+        for (_, label) in plan.bootout {
+            _ = Shell.run("launchctl", ["bootout", "gui/\(getuid())/\(label)"])
+        }
+        let doomed = (plan.signal + plan.bootout.map(\.pid)).sorted()
+        for pid in plan.signal { _ = Shell.run("kill", ["-TERM", String(pid)]) }
 
         // Up to ~3s for a graceful exit, then force what is left. Polling the
         // LISTENER is the honest check: the port being free is the thing the
@@ -241,7 +289,9 @@ public enum LocalServers {
             if still.isEmpty { return doomed }
             Thread.sleep(forTimeInterval: 0.2)
         }
-        for pid in doomed { _ = Shell.run("kill", ["-9", String(pid)]) }
+        // Only the signalled pids: kill -9 on a booted-out job's pid would be a
+        // no-op at best and, if launchd already reused the pid, a wrong kill.
+        for pid in plan.signal { _ = Shell.run("kill", ["-9", String(pid)]) }
         return doomed
     }
 }
