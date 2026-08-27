@@ -15,8 +15,8 @@ func actionRequestSuite() {
         T.eq(pending.first?.request, req, "it round-trips unchanged, selection included")
 
         // Two clicks in the same millisecond must not overwrite each other.
-        try? ActionInbox.write(ActionRequest(id: "copy-paths", dir: "/tmp/p", files: [], createdAt: now), root: root)
-        try? ActionInbox.write(ActionRequest(id: "copy-paths", dir: "/tmp/p", files: [], createdAt: now), root: root)
+        _ = try? ActionInbox.write(ActionRequest(id: "copy-paths", dir: "/tmp/p", files: [], createdAt: now), root: root)
+        _ = try? ActionInbox.write(ActionRequest(id: "copy-paths", dir: "/tmp/p", files: [], createdAt: now), root: root)
         T.eq(ActionInbox.drain(root: root, now: now.addingTimeInterval(1)).count, 3,
              "requests never collide — every click is its own file")
 
@@ -25,7 +25,7 @@ func actionRequestSuite() {
              "an hour-old click is not carried out on the next right-click")
         T.eq(ActionInbox.drain(root: root, now: now).count, 0, "and the stale files are cleaned up")
 
-        try? ActionInbox.write(ActionRequest(id: "copy-paths", dir: "/tmp/p", files: [], createdAt: now), root: root)
+        _ = try? ActionInbox.write(ActionRequest(id: "copy-paths", dir: "/tmp/p", files: [], createdAt: now), root: root)
         T.eq(ActionInbox.drain(root: root, now: now.addingTimeInterval(-3600)).count, 0,
              "a request from the future is a clock skew, not a fresh click")
 
