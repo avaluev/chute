@@ -1,7 +1,7 @@
 # HANDOFF — Chute — 2026-08-27 (evening)
 
 STATE: `main` · pushed · tree clean
-       unit **460/460** (`swift run chutetests`) · e2e **133/133** (`./Scripts/smoke.sh`) ·
+       unit **466/466** (`swift run chutetests`) · e2e **133/133** (`./Scripts/smoke.sh`) ·
        headless e2e **109/109** (`CHUTE_HEADLESS=1 ./Scripts/smoke.sh`) ·
        `chute doctor` **9/9** (the hooks check is gone by design, see DECISIONS) ·
        extension `loaded · 8 actions` · notifications `on` ·
@@ -20,7 +20,7 @@ swift run chutetests && ./Scripts/smoke.sh
 cd /Users/sxope/Documents/2026/Development/37.chute && ./Scripts/build-app.sh && ./Scripts/install.sh
 cd /Users/sxope/Documents/2026/Development/37.chute && ~/.local/bin/chute doctor
 ```
-Expect: `✅ 460 assertions passed`, `smoke: 133 passed, 0 failed`, `→ all 9 checks passed`.
+Expect: `✅ 466 assertions passed`, `smoke: 133 passed, 0 failed`, `→ all 9 checks passed`.
 `build-app.sh` may ask the keychain for the signing key — click **Always Allow** once.
 
 ---
@@ -39,7 +39,7 @@ Agents Working  (3)
   37.chute   ◑ Session switcher completion   3% CPU · 774 MB memory       ⌥2
 Idle Terminals  (4)
   37.chute   no agent running
-This Mac — running cool, battery at 31 °C · 87 °F
+This Mac — using 1.9 of 16 cores · busiest: chrome-headless-shell at 126% CPU · battery at 31 °C
 Local Servers  (8)  ▸   Open in Browser · Copy the URL · Stop It (kill 55868)
 Report a Problem…
 ```
@@ -111,7 +111,11 @@ of its load-bearing facts are documented nowhere but this repo.
   badge); `chute hooks uninstall` removes them whenever wanted.
 - **Price $19**, revisit at v1.0 once signed and auto-updating.
 - **Temperature is the battery sensor, and says so.** CPU die sensors need root; `powermetrics`
-  needs sudo. `ProcessInfo.thermalState` carries the honest "is my Mac struggling" signal.
+  needs sudo. `ProcessInfo.thermalState` speaks only when ELEVATED — ".nominal" printed as
+  "running cool" beside a 171% session row on a hot chassis is how the line lost trust. The
+  This-Mac line is measurements only (`SystemVitals.machineLine`), built from the SAME ps
+  snapshot as the rows, and the open menu re-samples everything every 2 s (timer in .common
+  run-loop modes, sampling off-main).
 
 ---
 
