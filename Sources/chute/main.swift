@@ -32,7 +32,7 @@ GIT SAFETY
 AGENT SESSIONS
   sessions              Every terminal session, grouped by state     --json
   focus <key|project|N> Bring that session to the front
-  hooks install|uninstall|status                                     --settings PATH
+  hooks snippet|uninstall|status  Never edits your settings itself   --settings PATH
 
 SHARING
   redact [files…]       Mask API keys and tokens
@@ -43,7 +43,9 @@ SHARING
 SETUP
   doctor                Check every prerequisite and say how to fix it   --fix --json
 
-Global: --no-copy  suppress clipboard write.  Everything is offline; nothing is ever uploaded.
+Global: --no-copy  suppress clipboard write.
+Everything is offline and nothing is uploaded, with one explicit exception: `gist` sends the
+files you name (redacted first) to GitHub.
 """
 
 let argv = Array(CommandLine.arguments.dropFirst())

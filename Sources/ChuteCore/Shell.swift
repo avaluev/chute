@@ -29,8 +29,14 @@ public enum Shell {
         }
         if let input { i.fileHandleForWriting.write(Data(input.utf8)) }
         i.fileHandleForWriting.closeFile()
+        // stderr is drained CONCURRENTLY. A pipe holds ~64 KB: a child that fills stderr while
+        // this thread is still blocked reading stdout stops writing, never closes stdout, and
+        // both processes hang forever — in the menu bar app that is a dead menu with no error.
+        var ed = Data()
+        let errDrain = DispatchQueue(label: "chute.shell.stderr")
+        errDrain.async { ed = e.fileHandleForReading.readDataToEndOfFile() }
         let od = o.fileHandleForReading.readDataToEndOfFile()
-        let ed = e.fileHandleForReading.readDataToEndOfFile()
+        errDrain.sync {}   // join before touching ed
         p.waitUntilExit()
         return ShellResult(out: String(decoding: od, as: UTF8.self),
                            err: String(decoding: ed, as: UTF8.self),

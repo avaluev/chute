@@ -42,12 +42,7 @@ enum FirstRunWindow {
 
     nonisolated(unsafe) static var window: NSWindow?
 
-    /// What the window is currently showing. When it lists only failures, the passing checks are
-    /// deliberately absent: ten green ticks are noise around the one line that needs action.
-    nonisolated(unsafe) static var failuresOnly: [CheckOutcome]?
-
     static func show(only failures: [CheckOutcome]? = nil) {
-        failuresOnly = failures
         let w = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 480, height: 380),
                          styleMask: [.titled, .closable], backing: .buffered, defer: false)
         w.title = "Chute"

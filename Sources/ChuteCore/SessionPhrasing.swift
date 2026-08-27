@@ -20,14 +20,6 @@ public enum SessionPhrasing {
         }
     }
 
-    /// The same clock, phrased for a session that is busy rather than blocked.
-    public static func runningFor(_ since: Date?) -> String {
-        guard let since else { return "" }
-        let minutes = Int(Date().timeIntervalSince(since) / 60)
-        if minutes < 1 { return "just started" }
-        return minutes < 60 ? "running \(minutes) min" : "running \(minutes / 60)h"
-    }
-
     public static func elide(_ s: String, _ max: Int = 34) -> String {
         guard s.count > max else { return s }
         let half = (max - 1) / 2

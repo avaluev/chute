@@ -27,14 +27,10 @@ func cmdNew(_ a: Args) {
         ?? derived
         ?? NameDerive.fallbackName()
 
-    let path = NameDerive.uniquePath(dir: dir, base: base, ext: ext) {
-        FileManager.default.fileExists(atPath: $0)
-    }
-    do {
-        try content.write(toFile: path, atomically: true, encoding: .utf8)
-    } catch {
-        Out.fail("cannot write \(path): \(error.localizedDescription)")
-    }
+    let path: String
+    do { path = try NameDerive.writeUniquely(dir: dir, base: base, ext: ext,
+                                             data: Data(content.utf8)) }
+    catch { Out.fail("cannot write in \(dir): \(error.localizedDescription)") }
     Out.line(path)
     Out.info("→ created \((path as NSString).lastPathComponent)"
              + (blank ? "" : " · \(TokenEstimate.badge(TokenEstimate.tokens(in: content)))"))
@@ -75,9 +71,15 @@ func cmdUnpack(_ a: Args) {
     for f in files {
         let full = (dir as NSString).appendingPathComponent(f.path)
         let parent = (full as NSString).deletingLastPathComponent
+        // Checked BEFORE mkdir as well as after: a symlink already sitting in the target
+        // (src -> ~/Library) resolves NOW, and without this check createDirectory would happily
+        // build folders on the far side of it before the file write is refused.
+        guard MarkdownUnpack.staysInside(dir: dir, path: f.path) else {
+            Out.info("refusing to write outside \(dir): \(f.path) resolves elsewhere")
+            continue
+        }
         try? FileManager.default.createDirectory(atPath: parent, withIntermediateDirectories: true)
-        // Checked AFTER the directories exist, because that is when the symlinks they may be are
-        // resolvable — and re-checked per file, not once for the batch.
+        // And AFTER, so components that only became resolvable once created are covered too.
         guard MarkdownUnpack.staysInside(dir: dir, path: f.path) else {
             Out.info("refusing to write outside \(dir): \(f.path) resolves elsewhere")
             continue
@@ -109,7 +111,8 @@ func cmdSeed(_ a: Args) {
             Out.info("kept existing \(name)")   // NFR-08 — never overwrite
             continue
         }
-        try? body.write(toFile: path, atomically: true, encoding: .utf8)
+        do { try body.write(toFile: path, atomically: true, encoding: .utf8) }
+        catch { Out.info("failed \(name): \(error.localizedDescription)"); continue }
         Out.line("created \(path)")
         written += 1
     }
@@ -131,7 +134,10 @@ func cmdNote(_ a: Args) {
         handle.closeFile()
     } else {
         let header = Templates.body(for: "scratchpad", project: (dir as NSString).lastPathComponent) ?? ""
-        try? (header + entry).write(toFile: path, atomically: true, encoding: .utf8)
+        // A note is the thing you write BECAUSE you are about to lose state — reporting
+        // "anchored" over a failed write is the worst possible lie here.
+        do { try (header + entry).write(toFile: path, atomically: true, encoding: .utf8) }
+        catch { Out.fail("cannot write \(path): \(error.localizedDescription)") }
     }
     Out.line(path)
     Out.info("→ anchored")

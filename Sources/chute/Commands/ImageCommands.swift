@@ -16,11 +16,11 @@ func cmdPasteImage(_ a: Args) {
     }
 
     let base = a.optional("name") ?? PastedImage.defaultName(at: Date())
-    let path = NameDerive.uniquePath(dir: dir,
-                                     base: (base as NSString).deletingPathExtension,
-                                     ext: "png") { FileManager.default.fileExists(atPath: $0) }
-    do { try png.write(to: URL(fileURLWithPath: path)) }
-    catch { Out.fail("cannot write \(path): \(error.localizedDescription)") }
+    let path: String
+    do { path = try NameDerive.writeUniquely(dir: dir,
+                                             base: (base as NSString).deletingPathExtension,
+                                             ext: "png", data: png) }
+    catch { Out.fail("cannot write in \(dir): \(error.localizedDescription)") }
 
     // The path goes on the clipboard NOW, so it is pasteable even if the rename never happens.
     Clipboard.write(path)

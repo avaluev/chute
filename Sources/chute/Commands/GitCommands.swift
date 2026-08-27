@@ -86,12 +86,41 @@ func cmdGist(_ a: Args) {
     }
     let files = a.paths()
     guard !files.isEmpty else { Out.fail("usage: chute gist <files…>") }
-    let r = Shell.run("gh", ["gist", "create", "--secret"] + files)
+
+    // Redact BEFORE anything leaves this machine. A "secret" gist is unlisted, not private,
+    // and this is the one command that uploads — the help text says so and promises this step.
+    // Staged copies keep their basenames so the gist reads the same as the originals.
+    let stage = NSTemporaryDirectory() + "chute-gist-\(UUID().uuidString)"
+    do { try FileManager.default.createDirectory(atPath: stage, withIntermediateDirectories: true) }
+    catch { Out.fail("cannot stage gist: \(error.localizedDescription)") }
+    defer { try? FileManager.default.removeItem(atPath: stage) }
+    var staged: [String] = []
+    var redacted = 0
+    for (i, file) in files.enumerated() {
+        var dest = (stage as NSString).appendingPathComponent((file as NSString).lastPathComponent)
+        if FileManager.default.fileExists(atPath: dest) {   // two selections, same basename
+            dest = (stage as NSString).appendingPathComponent("\(i)-" + (file as NSString).lastPathComponent)
+        }
+        if let text = try? String(contentsOfFile: file, encoding: .utf8) {
+            let clean = Redact.apply(text)
+            if clean != text { redacted += 1 }
+            do { try clean.write(toFile: dest, atomically: true, encoding: .utf8) }
+            catch { Out.fail("cannot stage \(file): \(error.localizedDescription)") }
+        } else {
+            // Not UTF-8 text (an image, an archive) — nothing the redactor can scan; upload as-is.
+            do { try FileManager.default.copyItem(atPath: file, toPath: dest) }
+            catch { Out.fail("cannot read \(file): \(error.localizedDescription)") }
+        }
+        staged.append(dest)
+    }
+    let r = Shell.run("gh", ["gist", "create", "--secret"] + staged)
     guard r.ok else { Out.fail("gh failed: \(r.err.trimmingCharacters(in: .whitespacesAndNewlines))") }
     let url = (r.out + r.err).split(separator: "\n")
         .last(where: { $0.hasPrefix("https://") })
         .map(String.init) ?? r.out.trimmingCharacters(in: .whitespacesAndNewlines)
     Clipboard.write(url)
     Out.line(url)
-    Out.info("→ copied to clipboard")
+    Out.info(redacted > 0
+             ? "→ copied to clipboard · secrets redacted in \(redacted) file(s) before upload"
+             : "→ copied to clipboard · nothing to redact")
 }
