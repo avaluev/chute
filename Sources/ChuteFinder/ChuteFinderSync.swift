@@ -99,6 +99,7 @@ class ChuteFinderSync: FIFinderSync {
     /// system colours hold up on both light and dark menu backgrounds.
     static let tints: [String: NSColor] = [
         "list.clipboard.fill":   .systemBlue,
+        "shippingbox.fill":      .systemTeal,
         "folder.fill":           .systemCyan,
         "photo.fill":            .systemGreen,
         "square.and.pencil":     .systemOrange,

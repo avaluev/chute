@@ -31,6 +31,13 @@ func finderActionsSuite() {
         let paths = ChuteActions.find("copy-paths")!
         T.eq(ChuteActions.argv(paths, dir: "/tmp/p", files: ["/a.ts", "/b.ts"]),
              ["paths", "/a.ts", "/b.ts"], "{files} expands in place, one argument per file")
+        // THE WEDGE, guarded. It is the largest saving in the ledger and the hero of the demo,
+        // so it must stay ONE click (no submenu) and must keep passing every selected file.
+        let bundle = ChuteActions.find("bundle-xml")!
+        T.ok(bundle.parentTitle == nil, "the bundle action is one click, never behind a submenu")
+        T.eq(bundle.scope, .selection, "it acts on what you selected, not the folder in view")
+        T.eq(ChuteActions.argv(bundle, dir: "/tmp/p", files: ["/a.ts", "/b.ts"]),
+             ["bundle", "/a.ts", "/b.ts"], "every selected file reaches the bundler")
         let tree = ChuteActions.find("tree-4")!
         T.eq(ChuteActions.argv(tree, dir: "/tmp/p", files: ["/ignored"]),
              ["tree", "/tmp/p", "--depth", "4"], "a folder action ignores the selection")
