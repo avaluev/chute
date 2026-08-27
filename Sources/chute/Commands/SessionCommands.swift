@@ -61,6 +61,9 @@ func cmdSessions(_ a: Args) {
     if let c = SystemVitals.temperature() {
         summary += ", battery at \(SystemVitals.temperatureLabel(c))"
     }
+    if let hog = SystemVitals.busiest(samples), hog.cpuPercent >= 80 {
+        summary += " · busiest: \(hog.command) at \(Int(hog.cpuPercent.rounded()))% CPU"
+    }
     Out.info(summary)
 }
 
