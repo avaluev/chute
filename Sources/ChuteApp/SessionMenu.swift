@@ -17,19 +17,6 @@ enum SessionMenu {
         return image
     }
 
-    static func elide(_ s: String, _ max: Int = 34) -> String {
-        guard s.count > max else { return s }
-        let half = (max - 1) / 2
-        return String(s.prefix(half)) + "…" + String(s.suffix(half))
-    }
-
-    static func age(_ since: Date?) -> String {
-        guard let since else { return "" }
-        let m = Int(Date().timeIntervalSince(since) / 60)
-        if m < 1 { return "just now" }
-        return m < 60 ? "\(m)m" : "\(m / 60)h"
-    }
-
     /// Populates the menu AppKit is about to display. Do not build a new NSMenu and assign it to
     /// statusItem.menu from inside menuWillOpen: the object already being tracked is the one passed
     /// in here, so a swap lands on the NEXT open and the user sees the previous state.
@@ -52,9 +39,9 @@ enum SessionMenu {
         }
 
         let groups: [(String, [Session])] = [
-            ("NEEDS YOU", sessions.filter { $0.state == .blocked || $0.state == .waiting }),
-            ("WORKING",   sessions.filter { $0.state == .working }),
-            ("SHELLS",    sessions.filter { $0.state == .idle || $0.state == .unknown }),
+            ("Waiting for You",  sessions.filter { $0.state == .blocked || $0.state == .waiting }),
+            ("Agents Working",   sessions.filter { $0.state == .working }),
+            ("Idle Terminals",   sessions.filter { $0.state == .idle || $0.state == .unknown }),
         ]
 
         for (title, group) in groups where !group.isEmpty {
@@ -63,9 +50,17 @@ enum SessionMenu {
             menu.addItem(header)
 
             for s in group {
-                let detail = s.state == .blocked || s.state == .waiting
-                    ? "\(s.state.label) · \(age(s.since))"
-                    : elide(s.title)
+                let detail: String
+                switch s.state {
+                case .blocked, .waiting:
+                    detail = SessionPhrasing.waitedFor(s.since)
+                case .idle, .unknown:
+                    // "37.chute   Terminal" said nothing: every row here is a Terminal. What the
+                    // reader wants to know is that nothing is running in it.
+                    detail = "no agent running"
+                default:
+                    detail = SessionPhrasing.elide(s.title)
+                }
                 // The cost of the session, appended only when it is worth reading: an idle shell
                 // showing "0% · 4 MB" is noise in a list you scan to find the busy one.
                 let load = SystemVitals.load(forTTY: s.tty, in: samples).label
@@ -76,7 +71,8 @@ enum SessionMenu {
                 item.image = dot(SessionColor.hex(forProject: s.project))
                 item.representedObject = s.key
                 item.target = target
-                item.toolTip = load.isEmpty ? s.title : "\(s.title) — \(load) on \(s.tty)"
+                item.toolTip = "\(s.title)\n\(load.isEmpty ? "Using almost nothing" : load)"
+                             + " · terminal \(s.tty) · click to bring it forward"
                 menu.addItem(item)
                 hotkey += 1
             }
@@ -85,14 +81,15 @@ enum SessionMenu {
 
         // How the machine itself is doing. The battery sensor is what can be read without root;
         // it is labelled as the battery rather than passed off as a CPU reading.
-        var machine = "Mac · thermals \(SystemVitals.thermalPressure(ProcessInfo.processInfo.thermalState))"
+        let pressure = SystemVitals.thermalPressure(ProcessInfo.processInfo.thermalState)
+        var machine = "This Mac — \(pressure)"
         if let c = SystemVitals.temperature() {
-            machine = "Mac · battery \(SystemVitals.temperatureLabel(c)) · thermals "
-                    + SystemVitals.thermalPressure(ProcessInfo.processInfo.thermalState)
+            machine = "This Mac — \(pressure), battery at \(SystemVitals.temperatureLabel(c))"
         }
         let vitals = NSMenuItem(title: machine, action: nil, keyEquivalent: "")
         vitals.isEnabled = false
-        vitals.toolTip = "Battery sensor — the CPU die sensors need root, which Chute does not ask for."
+        vitals.toolTip = "Temperature comes from the battery sensor. The CPU sensors need "
+                       + "administrator access, which Chute does not ask for."
         menu.addItem(vitals)
         menu.addItem(.separator())
 

@@ -67,15 +67,28 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         menu.addItem(.separator())
         // No file actions here on purpose. They act on a Finder selection, so they live in the
         // Finder right-click menu where the files are; in the menu bar they had nothing to act on.
+        // If macOS is refusing our banners, say so where it will be read, with the fix one click
+        // away. Silently posting through osascript instead is what made every banner arrive as
+        // Script Editor.
+        if Notify.deniedAtLastCheck {
+            let fix = NSMenuItem(title: "Turn On Chute Notifications…",
+                                 action: #selector(openNotificationSettings), keyEquivalent: "")
+            fix.target = self
+            fix.toolTip = "Chute cannot tell you when an action finishes until notifications are on."
+            menu.addItem(fix)
+        }
+
         let reportItem = NSMenuItem(title: "Report a Problem…", action: #selector(reportProblem),
                                     keyEquivalent: "")
         reportItem.target = self
         menu.addItem(reportItem)
 
         menu.addItem(.separator())
-        menu.addItem(NSMenuItem(title: "Refresh", action: #selector(refresh), keyEquivalent: "r"))
+        // No key equivalents: in a status menu they only work while the menu is open, so showing
+        // ⌘R and ⌘Q promises a global shortcut that does not exist.
+        menu.addItem(NSMenuItem(title: "Refresh Now", action: #selector(refresh), keyEquivalent: ""))
         menu.addItem(NSMenuItem(title: "Quit Chute",
-                                action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
+                                action: #selector(NSApplication.terminate(_:)), keyEquivalent: ""))
     }
 
     /// Only for contexts where menuWillOpen does not apply — refresh() and the ⌥⌘N HUD popup —
@@ -105,6 +118,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             notify("Report a Problem",
                    "Diagnostics copied. Paste them into the issue that just opened.")
         }
+    }
+
+    @objc func openNotificationSettings() {
+        NSWorkspace.shared.open(Notify.settingsURL)
     }
 
     @objc func openAutomationSettings() {

@@ -14,7 +14,11 @@ func cmdDoctor(_ a: Args) {
             outcomes: outcomes,
             version: "0.1.0",
             osVersion: "\(v.majorVersion).\(v.minorVersion).\(v.patchVersion)",
-            extras: ["finder extension": marker ?? "never loaded"]))
+            extras: ["finder extension": marker ?? "never loaded",
+                     "notifications": (try? String(contentsOfFile:
+                        (NSHomeDirectory() as NSString).appendingPathComponent(".chute/notifications.txt"),
+                        encoding: .utf8))?.trimmingCharacters(in: .whitespacesAndNewlines)
+                        ?? "unknown"]))
         return
     }
 
