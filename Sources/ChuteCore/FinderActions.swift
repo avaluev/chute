@@ -77,6 +77,16 @@ public enum ChuteActions {
                     template: ["tree", "{dir}", "--depth", "99"],
                     doneMessage: "Folder tree copied."),
 
+        // The bug-report loop: screenshot → save here → type a better name → paste the path into
+        // the issue you are writing. Saving the image was never the hard part; getting its path
+        // out of Finder and into a prompt was.
+        ChuteAction(id: "paste-image",
+                    title: "Paste Image from Clipboard",
+                    detail: "Saves the clipboard image here as a PNG and copies its full path.",
+                    scope: .folder,
+                    template: ["paste-image", "--dir", "{dir}"],
+                    doneMessage: "Image saved, path copied."),
+
         ChuteAction(id: "new-markdown",
                     title: "New Markdown File",
                     detail: "An empty Untitled.md in this folder, with its name ready to type over.",

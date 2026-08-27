@@ -60,6 +60,10 @@ func launchTerminal(dir: String, command: String?) {
 
 func cmdOpen(_ a: Args) {
     let dir = a.paths(defaultToCWD: true)[0]
+    // A path that does not exist used to fall through to "not a directory, so use its parent" and
+    // silently open somewhere else entirely. Opening the WRONG folder without a word is worse than
+    // refusing: you act on it believing you are somewhere you are not.
+    guard FileManager.default.fileExists(atPath: dir) else { Out.fail("no such file or folder: \(dir)") }
     let target = FileScan.isDirectory(dir) ? dir : (dir as NSString).deletingLastPathComponent
     switch a.value("with", or: "terminal") {
     case "editor":

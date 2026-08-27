@@ -15,5 +15,6 @@ localServersSuite()
 nameDeriveSuite()
 finderRevealSuite()
 supportReportSuite()
+pastedImageSuite()
 
 T.report()

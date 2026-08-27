@@ -188,6 +188,11 @@ for id in $ALL_IDS; do
   printf '# Sweep Fixture\n\nbody\n' | pbcopy      # anything reading the clipboard gets something usable
   case "$id" in
     terminal) ok "terminal: argv built (execution skipped — it opens a real window)"; continue;;
+    paste-image)
+      if [ "$HEADLESS" = "1" ]; then skip "paste-image — needs an image on the pasteboard"; continue; fi
+      sips -s format png "$ROOT/Resources/Chute.icns" --out "$T/sweep.png" >/dev/null 2>&1
+      osascript -e "set the clipboard to (read (POSIX file \"$T/sweep.png\") as «class PNGf»)" >/dev/null 2>&1
+      run_action "$id" --no-rename >/dev/null 2>&1;;
     *) run_action "$id" >/dev/null 2>&1;;
   esac
   if [ $? -eq 0 ]; then ok "$id runs clean"; else bad "$id runs clean" "$(tail -1 /tmp/chute-a.err)"; fi
@@ -236,7 +241,30 @@ find "$MANY" -type f > "$T/many.txt"
 "$CHUTE" paths --files-from "$T/many.txt" --no-copy > "$T/many-out.txt" 2>/dev/null
 check "3000 selected files all come through" "$(awk 'END{print NR}' "$T/many-out.txt")" "3000"
 
-check "the menu table and this test agree" "$(printf '%s' "$ALL_IDS" | wc -w | tr -d ' ')" "7"
+# THE BUG-REPORT LOOP: screenshot → save here → path on the clipboard, ready to paste.
+sips -s format png "$ROOT/Resources/Chute.icns" --out "$T/clip.png" >/dev/null 2>&1
+if [ "$HEADLESS" = "1" ]; then
+  skip "paste-image — needs a pasteboard with an image on it"
+else
+  osascript -e "set the clipboard to (read (POSIX file \"$T/clip.png\") as «class PNGf»)" >/dev/null 2>&1
+  OUT="$("$CHUTE" paste-image --dir "$FX" --no-rename 2>&1)"
+  SAVED="$(printf '%s' "$OUT" | grep '\.png$' | head -1)"
+  if [ -f "$SAVED" ]; then ok "paste-image writes the clipboard image to disk"
+  else bad "paste-image writes the clipboard image to disk" "$OUT"; fi
+  check "and copies its full path"  "$(pbpaste)" "$SAVED"
+  has   "named like a macOS screenshot" "$(basename "$SAVED")" "Screenshot "
+  # PNG magic bytes: the file must be a real image, not a renamed TIFF.
+  check "the file really is a PNG" "$(head -c 4 "$SAVED" | xxd -p)" "89504e47"
+
+  # With no image on the clipboard it must say so, not write an empty file.
+  BEFORE_COUNT="$(ls "$FX"/Screenshot*.png 2>/dev/null | wc -l | tr -d ' ')"
+  printf 'just text' | pbcopy
+  OUT="$("$CHUTE" paste-image --dir "$FX" --no-rename 2>&1)"
+  has "no image on the clipboard is explained" "$OUT" "no image on the clipboard"
+  check "and nothing is written" "$(ls "$FX"/Screenshot*.png 2>/dev/null | wc -l | tr -d ' ')" "$BEFORE_COUNT"
+fi
+
+check "the menu table and this test agree" "$(printf '%s' "$ALL_IDS" | wc -w | tr -d ' ')" "8"
 
 echo "16. the Finder extension's request inbox (needs Chute.app running)"
 # The extension is sandboxed: it cannot run git, launch Terminal or drive AppleScript. It writes a
@@ -303,6 +331,89 @@ else
 fi
 "$CHUTE" ports --kill 65533 2>&1 | grep -q "nothing is listening on 65533" \
   && ok "killing a free port says nothing was there" || bad "killing a free port says nothing was there" "unexpected output"
+
+echo "18. tree, in depth"
+TR="$T/treetest"; mkdir -p "$TR/a/b/c/d" "$TR/node_modules/pkg" "$TR/.git/objects" "$TR/dist"
+touch "$TR/root.ts" "$TR/a/one.ts" "$TR/a/b/two.ts" "$TR/a/b/c/three.ts" "$TR/a/b/c/d/four.ts"
+touch "$TR/node_modules/pkg/index.js" "$TR/.git/objects/abc" "$TR/dist/bundle.js"
+D1="$("$CHUTE" tree "$TR" --depth 1 --no-copy)"
+D2="$("$CHUTE" tree "$TR" --depth 2 --no-copy)"
+D4="$("$CHUTE" tree "$TR" --depth 4 --no-copy)"
+DALL="$("$CHUTE" tree "$TR" --depth 99 --no-copy)"
+
+has   "depth 1 shows the top level"        "$D1" "root.ts"
+hasnt "depth 1 stops there"                "$D1" "one.ts"
+has   "depth 2 reaches one level in"       "$D2" "one.ts"
+hasnt "depth 2 stops at two"               "$D2" "two.ts"
+has   "depth 4 reaches three levels in"    "$D4" "three.ts"
+hasnt "depth 4 stops at four"              "$D4" "four.ts"
+has   "everything reaches the bottom"      "$DALL" "four.ts"
+
+hasnt "node_modules never appears"         "$DALL" "node_modules"
+hasnt "the git directory never appears"    "$DALL" ".git"
+hasnt "build output never appears"         "$DALL" "bundle.js"
+mkdir -p "$T/emptydir"
+"$CHUTE" tree "$T/emptydir" --no-copy >/dev/null 2>&1 \
+  && ok "an empty folder is not an error" || bad "an empty folder is not an error" "non-zero exit"
+"$CHUTE" tree "$TR" >/dev/null 2>&1
+has   "tree lands on the clipboard"        "$(pbpaste)" "root.ts"
+
+echo "19. the commands nothing was testing"
+# buf — gather across many copies, paste once.
+printf 'first chunk' | pbcopy; "$CHUTE" buf add >/dev/null 2>&1
+printf 'second chunk' | pbcopy; "$CHUTE" buf add >/dev/null 2>&1
+has   "buf lists what it holds"      "$("$CHUTE" buf list 2>&1)" "2"
+"$CHUTE" buf flush >/dev/null 2>&1
+OUT="$(pbpaste)"
+has   "buf flush returns the first"  "$OUT" "first chunk"
+has   "buf flush returns the second" "$OUT" "second chunk"
+"$CHUTE" buf clear >/dev/null 2>&1
+has   "buf clear empties it"         "$("$CHUTE" buf list 2>&1)" "empty"
+
+# dataurl — an image as a base64 URL for a vision prompt.
+sips -s format png "$ROOT/Resources/Chute.icns" --out "$T/du.png" >/dev/null 2>&1
+OUT="$("$CHUTE" dataurl "$T/du.png" --no-copy 2>/dev/null)"
+has   "dataurl emits a png data URL"  "$OUT" "data:image/png;base64,"
+OUT="$("$CHUTE" dataurl "$T/du.png" --markdown --no-copy 2>/dev/null)"
+has   "dataurl --markdown wraps it"   "$OUT" "!["
+"$CHUTE" dataurl "$T/nope.png" >/dev/null 2>&1 && bad "dataurl on a missing file fails" "exit 0" || ok "dataurl on a missing file fails"
+
+# diff — what the agent changed.
+DG="$T/difftest"; mkdir -p "$DG"
+( cd "$DG" && git init -q . && echo "before" > f.txt && git add -A && git -c user.email=t@t -c user.name=t commit -qm init && echo "after" > f.txt && echo "new" > untracked.txt )
+OUT="$("$CHUTE" diff "$DG" 2>&1)"
+has   "diff shows the changed file"   "$OUT" "f.txt"
+has   "diff lists untracked files"    "$OUT" "untracked.txt"
+"$CHUTE" diff "$DG" --copy >/dev/null 2>&1
+has   "diff --copy puts the patch on the clipboard" "$(pbpaste)" "+after"
+"$CHUTE" diff "$T" >/dev/null 2>&1 && bad "diff outside a repo fails" "exit 0" || ok "diff outside a repo fails"
+
+# gist — NEVER actually uploaded here. Only the refusal path is exercised.
+"$CHUTE" gist >/dev/null 2>&1 && bad "gist with no files refuses" "exit 0" || ok "gist with no files refuses"
+has   "gist explains its usage"       "$("$CHUTE" gist 2>&1)" "gist <files"
+
+# latest — the newest artifact in a folder.
+LT="$T/latesttest"; mkdir -p "$LT"; echo one > "$LT/old.md"; sleep 1; echo two > "$LT/new.md"
+has   "latest finds the newest file"  "$("$CHUTE" latest "$LT" 2>&1)" "new.md"
+
+# open — the window-opening path is skipped on purpose; the refusal path is not.
+"$CHUTE" open "$T/does-not-exist" >/dev/null 2>&1 && bad "open on a missing folder fails" "exit 0" || ok "open on a missing folder fails"
+
+# prompt — templates onto the clipboard.
+"$CHUTE" prompt decompose >/dev/null 2>&1
+has   "prompt decompose fills the clipboard" "$(pbpaste)" "15"
+"$CHUTE" prompt ponytail >/dev/null 2>&1
+hasnt "prompt ponytail is not the same text" "$(pbpaste)" "15-minute"
+"$CHUTE" prompt nosuchtemplate >/dev/null 2>&1 && bad "an unknown template fails" "exit 0" || ok "an unknown template fails"
+
+# sandbox — a fresh agent workspace, WITHOUT launching a terminal.
+SB="$T/sandboxtest"; mkdir -p "$SB"
+OUT="$("$CHUTE" sandbox spike-auth --dir "$SB" --no-launch 2>&1)"
+if [ -d "$SB/spike-auth/.git" ]; then ok "sandbox creates a git repo"; else bad "sandbox creates a git repo" "$OUT"; fi
+if [ -f "$SB/spike-auth/CLAUDE.md" ]; then ok "sandbox seeds agent rules"; else bad "sandbox seeds agent rules" "no CLAUDE.md"; fi
+if [ -f "$SB/spike-auth/README.md" ]; then ok "sandbox writes a README"; else bad "sandbox writes a README" "missing"; fi
+OUT="$("$CHUTE" sandbox spike-auth --dir "$SB" --no-launch 2>&1)"
+has   "an existing folder is reused, not clobbered" "$OUT" "folder exists"
 
 echo "13. help and unknown command"
 has "help lists bundle" "$("$CHUTE" help)" "bundle"
