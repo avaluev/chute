@@ -57,31 +57,33 @@ public enum ChuteActions {
                     title: "Copy Full Paths ({n})",
                     detail: "Every selected file and folder, as full paths, on the clipboard.",
                     scope: .selection,
-                    symbol: "doc.on.doc",
+                    symbol: "list.clipboard",
                     template: ["paths", "{files}"],
                     doneMessage: "Full paths copied."),
 
         // A folder's whole shape, for handing an agent context it can navigate. Three depths
-        // rather than a dialog: a right-click menu cannot ask a question.
+        // rather than a dialog: a right-click menu cannot ask a question. NOT foldersOnly:
+        // right-clicking a FILE offers the tree of its enclosing folder — hiding the action
+        // there read as "the tree action is gone" the first time it was tried on a file.
         ChuteAction(id: "tree-2",
                     title: "2 Levels",
-                    detail: "This folder and one level inside it.",
-                    scope: .folder, foldersOnly: true, parentTitle: "Copy Folder Tree",
-                    symbol: "list.bullet.indent",
+                    detail: "The folder here (or around your selection) and one level inside it.",
+                    scope: .folder, parentTitle: "Copy Folder Tree",
+                    symbol: "folder",
                     template: ["tree", "{dir}", "--depth", "2"],
                     doneMessage: "Folder tree copied."),
         ChuteAction(id: "tree-4",
                     title: "4 Levels",
                     detail: "Deep enough for most projects.",
-                    scope: .folder, foldersOnly: true, parentTitle: "Copy Folder Tree",
-                    symbol: "list.bullet.indent",
+                    scope: .folder, parentTitle: "Copy Folder Tree",
+                    symbol: "folder",
                     template: ["tree", "{dir}", "--depth", "4"],
                     doneMessage: "Folder tree copied."),
         ChuteAction(id: "tree-all",
                     title: "Everything",
                     detail: "The entire tree, with build and dependency folders left out.",
-                    scope: .folder, foldersOnly: true, parentTitle: "Copy Folder Tree",
-                    symbol: "list.bullet.indent",
+                    scope: .folder, parentTitle: "Copy Folder Tree",
+                    symbol: "folder",
                     template: ["tree", "{dir}", "--depth", "99"],
                     doneMessage: "Folder tree copied."),
 
@@ -92,7 +94,7 @@ public enum ChuteActions {
                     title: "Paste Image from Clipboard",
                     detail: "Saves the clipboard image here as a PNG and copies its full path.",
                     scope: .folder,
-                    symbol: "photo.on.rectangle",
+                    symbol: "photo",
                     template: ["paste-image", "--dir", "{dir}"],
                     doneMessage: "Image saved, path copied."),
 
@@ -100,7 +102,7 @@ public enum ChuteActions {
                     title: "New Markdown File",
                     detail: "An empty Untitled.md in this folder, with its name ready to type over.",
                     scope: .folder,
-                    symbol: "doc.badge.plus",
+                    symbol: "square.and.pencil",
                     template: ["new", "--blank", "--rename", "--dir", "{dir}"],
                     doneMessage: "Markdown file created."),
 

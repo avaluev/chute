@@ -39,18 +39,19 @@ func finderActionsSuite() {
         T.ok(ChuteActions.visible(hasSelection: false, targetIsFolder: true)
                 .allSatisfy { $0.scope == .folder },
              "with nothing selected, only folder actions are offered")
-        T.ok(ChuteActions.visible(hasSelection: true, targetIsFolder: false)
-                .allSatisfy { !$0.foldersOnly },
-             "a file tree is not offered for a file")
+        // The tree is offered on a FILE too — it copies the ENCLOSING folder's tree. Hiding it
+        // there read as "the tree action disappeared" the first time it was tried on a file.
+        T.ok(ChuteActions.visible(hasSelection: true, targetIsFolder: false).contains { $0.id == "tree-2" },
+             "the folder tree is offered when a file is selected")
         T.ok(ChuteActions.visible(hasSelection: true, targetIsFolder: true).contains { $0.id == "tree-2" },
-             "and it IS offered for a folder")
+             "and when a folder is")
         T.eq(ChuteActions.visible(hasSelection: true, targetIsFolder: true).map(\.id),
              ChuteActions.all.map(\.id), "order is the declared order, every time")
 
         // The tree depths live together in one submenu rather than as three loose items.
         let depths = ChuteActions.all.filter { $0.parentTitle == "Copy Folder Tree" }
         T.eq(depths.count, 3, "three depths to choose from")
-        T.ok(depths.allSatisfy { $0.foldersOnly }, "all of them folders-only")
+        T.ok(depths.allSatisfy { !$0.foldersOnly }, "none folders-only — a file click trees its folder")
 
         // The actions sit inline in Finder's own context menu; the icons ARE the branding, so a
         // missing one is a naked row in the middle of a labelled group.
