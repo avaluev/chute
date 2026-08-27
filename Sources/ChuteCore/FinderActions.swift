@@ -25,6 +25,9 @@ public struct ChuteAction: Sendable, Equatable {
     public let foldersOnly: Bool
     /// When set, the item lives inside a submenu with this title, next to its siblings.
     public let parentTitle: String?
+    /// SF Symbol drawn beside the title. With the actions inlined into Finder's own context
+    /// menu (no `Chute ▸` wrapper), the icons are what makes the group read as one product.
+    public let symbol: String
     /// Command line with `{dir}` and `{files}` placeholders.
     public let template: [String]
     /// Shown when the command says nothing on its own.
@@ -32,9 +35,10 @@ public struct ChuteAction: Sendable, Equatable {
 
     public init(id: String, title: String, detail: String, scope: Scope,
                 foldersOnly: Bool = false, parentTitle: String? = nil,
-                template: [String], doneMessage: String) {
+                symbol: String, template: [String], doneMessage: String) {
         self.id = id; self.title = title; self.detail = detail; self.scope = scope
         self.foldersOnly = foldersOnly; self.parentTitle = parentTitle
+        self.symbol = symbol
         self.template = template; self.doneMessage = doneMessage
     }
 
@@ -53,6 +57,7 @@ public enum ChuteActions {
                     title: "Copy Full Paths ({n})",
                     detail: "Every selected file and folder, as full paths, on the clipboard.",
                     scope: .selection,
+                    symbol: "doc.on.doc",
                     template: ["paths", "{files}"],
                     doneMessage: "Full paths copied."),
 
@@ -62,18 +67,21 @@ public enum ChuteActions {
                     title: "2 Levels",
                     detail: "This folder and one level inside it.",
                     scope: .folder, foldersOnly: true, parentTitle: "Copy Folder Tree",
+                    symbol: "list.bullet.indent",
                     template: ["tree", "{dir}", "--depth", "2"],
                     doneMessage: "Folder tree copied."),
         ChuteAction(id: "tree-4",
                     title: "4 Levels",
                     detail: "Deep enough for most projects.",
                     scope: .folder, foldersOnly: true, parentTitle: "Copy Folder Tree",
+                    symbol: "list.bullet.indent",
                     template: ["tree", "{dir}", "--depth", "4"],
                     doneMessage: "Folder tree copied."),
         ChuteAction(id: "tree-all",
                     title: "Everything",
                     detail: "The entire tree, with build and dependency folders left out.",
                     scope: .folder, foldersOnly: true, parentTitle: "Copy Folder Tree",
+                    symbol: "list.bullet.indent",
                     template: ["tree", "{dir}", "--depth", "99"],
                     doneMessage: "Folder tree copied."),
 
@@ -84,6 +92,7 @@ public enum ChuteActions {
                     title: "Paste Image from Clipboard",
                     detail: "Saves the clipboard image here as a PNG and copies its full path.",
                     scope: .folder,
+                    symbol: "photo.on.rectangle",
                     template: ["paste-image", "--dir", "{dir}"],
                     doneMessage: "Image saved, path copied."),
 
@@ -91,6 +100,7 @@ public enum ChuteActions {
                     title: "New Markdown File",
                     detail: "An empty Untitled.md in this folder, with its name ready to type over.",
                     scope: .folder,
+                    symbol: "doc.badge.plus",
                     template: ["new", "--blank", "--rename", "--dir", "{dir}"],
                     doneMessage: "Markdown file created."),
 
@@ -98,6 +108,7 @@ public enum ChuteActions {
                     title: "New Markdown File from Clipboard",
                     detail: "The clipboard saved here, named after its first line, ready to rename.",
                     scope: .folder,
+                    symbol: "doc.on.clipboard",
                     template: ["new", "--naming", "underscore", "--ext", "md", "--rename", "--dir", "{dir}"],
                     doneMessage: "Markdown file created."),
 
@@ -105,6 +116,7 @@ public enum ChuteActions {
                     title: "Open in Terminal",
                     detail: "A terminal window already sitting in this folder.",
                     scope: .folder,
+                    symbol: "terminal",
                     template: ["open", "{dir}"],
                     doneMessage: "Terminal opened."),
     ]

@@ -2,7 +2,7 @@ import Cocoa
 import FinderSync
 import ChuteCore
 
-/// The `Chute ▸` submenu in the Finder context menu — on files, on folders, and on the empty
+/// Chute's actions in the Finder context menu — inline, on files, on folders, and on the empty
 /// background of a window. Every item comes from `ChuteActions.all`; this file only draws them and
 /// hands the work over.
 ///
@@ -55,10 +55,14 @@ class ChuteFinderSync: FIFinderSync {
 
     // MARK: - Menu
 
+    /// The actions sit INLINE in Finder's own context menu — Finder renders every top-level
+    /// item of the returned menu directly, so there is no `Chute ▸` hop any more. One click
+    /// fewer per action, and the group is branded by its SF Symbol icons instead of a wrapper
+    /// (an icon is a plain property, so unlike `representedObject` it survives the trip to
+    /// Finder). Only the three tree depths keep a submenu: they are one action with a knob,
+    /// not three actions.
     override func menu(for menuKind: FIMenuKind) -> NSMenu {
         let root = NSMenu(title: "Chute")
-        let parent = NSMenuItem(title: "Chute", action: nil, keyEquivalent: "")
-        let sub = NSMenu(title: "Chute")
 
         let selection = FIFinderSyncController.default().selectedItemURLs() ?? []
         let target = targetFolder()
@@ -71,23 +75,25 @@ class ChuteFinderSync: FIFinderSync {
                                   action: #selector(run(_:)), keyEquivalent: "")
             item.target = self
             item.toolTip = action.detail
+            item.image = NSImage(systemSymbolName: action.symbol,
+                                 accessibilityDescription: action.plainTitle)
             // The tag is the ONLY reliable way back to the action — see the note above.
             item.tag = ChuteActions.all.firstIndex(where: { $0.id == action.id }) ?? 0
 
-            guard let parentTitle = action.parentTitle else { sub.addItem(item); continue }
+            guard let parentTitle = action.parentTitle else { root.addItem(item); continue }
             if submenus[parentTitle] == nil {
                 let holder = NSMenuItem(title: parentTitle, action: nil, keyEquivalent: "")
+                holder.image = NSImage(systemSymbolName: action.symbol,
+                                       accessibilityDescription: parentTitle)
                 let menu = NSMenu(title: parentTitle)
-                sub.addItem(holder)
-                sub.setSubmenu(menu, for: holder)
+                root.addItem(holder)
+                root.setSubmenu(menu, for: holder)
                 submenus[parentTitle] = menu
             }
             submenus[parentTitle]?.addItem(item)
         }
 
-        root.addItem(parent)
-        root.setSubmenu(sub, for: parent)
-        mark("extension-menu", "menu · kind \(menuKind.rawValue) · \(selection.count) selected · \(sub.numberOfItems) items")
+        mark("extension-menu", "menu · kind \(menuKind.rawValue) · \(selection.count) selected · \(root.numberOfItems) items inline")
         return root
     }
 

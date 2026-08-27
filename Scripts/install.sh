@@ -87,7 +87,7 @@ Chute installed.
   app   $HOME/Applications/Chute.app   (menu bar ⤓, hotkey ⌥⌘N)
   cli   $HOME/.local/bin/chute         (add ~/.local/bin to PATH if needed)
 
-Finder right-click → Chute ▸ …
+Finder right-click → Chute actions, inline in the context menu …
 
   check $HOME/.local/bin/chute doctor    (what is not wired up yet, and how to fix it)
   agents $HOME/.local/bin/chute sessions  (every terminal session, grouped by state)
