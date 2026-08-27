@@ -50,11 +50,11 @@ export interface Case {
 export const CASES: Case[] = [
   // ─── The app ────────────────────────────────────────────────────────────────────────────
   {
-    slug: "paste-eight-files-into-your-agent",
+    slug: "paste-a-whole-folder-into-your-agent",
     jtbd: 2, surface: "finder", tier: "hero", paid: true,
-    pain: "I need to give it these eight files and I'm doing it one at a time.",
+    pain: "I need to give it this whole folder and I'm feeding it one file at a time.",
     ritual: "Open each file, select all, copy, switch to the agent, paste, type the filename above it, go back for the next one.",
-    fix: "Select all eight in Finder, right-click, and every file and everything in it is on the clipboard as one blob with a token count.",
+    fix: "Select the folders in Finder, right-click once, and every file inside them is on the clipboard as one blob with a token count.",
     seconds: { manual: 150, chute: 5 }, perDay: 17, savedMinutes: 41.1,
     demo: "/media/bundle.gif",
     command: "chute bundle src/ --format xml",
