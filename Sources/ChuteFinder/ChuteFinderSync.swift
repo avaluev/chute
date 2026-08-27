@@ -75,16 +75,14 @@ class ChuteFinderSync: FIFinderSync {
                                   action: #selector(run(_:)), keyEquivalent: "")
             item.target = self
             item.toolTip = action.detail
-            item.image = NSImage(systemSymbolName: action.symbol,
-                                 accessibilityDescription: action.plainTitle)
+            item.image = Self.icon(action.symbol, label: action.plainTitle)
             // The tag is the ONLY reliable way back to the action — see the note above.
             item.tag = ChuteActions.all.firstIndex(where: { $0.id == action.id }) ?? 0
 
             guard let parentTitle = action.parentTitle else { root.addItem(item); continue }
             if submenus[parentTitle] == nil {
                 let holder = NSMenuItem(title: parentTitle, action: nil, keyEquivalent: "")
-                holder.image = NSImage(systemSymbolName: action.symbol,
-                                       accessibilityDescription: parentTitle)
+                holder.image = Self.icon(action.symbol, label: parentTitle)
                 let menu = NSMenu(title: parentTitle)
                 root.addItem(holder)
                 root.setSubmenu(menu, for: holder)
@@ -95,6 +93,15 @@ class ChuteFinderSync: FIFinderSync {
 
         mark("extension-menu", "menu · kind \(menuKind.rawValue) · \(selection.count) selected · \(root.numberOfItems) items inline")
         return root
+    }
+
+    /// At the default menu rendering, hairline-outline symbols in dark mode all read as the same
+    /// grey smudge — measured on this machine's own menu. Filled variants plus an explicit
+    /// larger, heavier configuration is what makes each shape readable at a glance.
+    private static func icon(_ symbol: String, label: String) -> NSImage? {
+        let image = NSImage(systemSymbolName: symbol, accessibilityDescription: label)
+        let config = NSImage.SymbolConfiguration(pointSize: 15, weight: .medium, scale: .large)
+        return image?.withSymbolConfiguration(config) ?? image
     }
 
     // MARK: - Running
