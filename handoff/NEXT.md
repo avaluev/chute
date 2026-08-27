@@ -48,7 +48,7 @@ Local Servers  (8)  ▸   Open in Browser · Copy the URL · Stop It (kill 55868
 Report a Problem…
 ```
 
-**CLI** — 28 commands, all covered by the e2e suite. `chute doctor` diagnoses, `chute doctor
+**CLI** — 25 commands, all covered by the e2e suite. `chute doctor` diagnoses, `chute doctor
 --report` builds a redacted problem report for a public issue.
 
 ---

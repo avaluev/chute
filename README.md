@@ -5,7 +5,8 @@
 A macOS utility for people who spend all day driving coding agents. It turns a Finder selection
 into agent-ready context, and turns agent output back into files.
 
-Offline. Zero telemetry. No account. One binary and a 328 KB menu-bar app.
+Offline. Zero telemetry. No account. No launch daemon, no background service, and not one line
+of network code.
 
 ![Copy files and contents from Finder, with a token count](marketing/media/bundle.gif)
 

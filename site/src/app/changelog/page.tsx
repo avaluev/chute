@@ -17,7 +17,7 @@ const RELEASES = [
       "Finder right-click: copy full paths, copy files with contents (with a token count), copy a folder tree at three depths, paste an image from the clipboard, new markdown file, open in Terminal.",
       "Menu bar: every terminal session grouped by whether it needs you, coloured per project, with per-session CPU and memory. Click a row to bring that terminal forward.",
       "Menu bar: every local server, what it is, which project it belongs to, and a way to stop it.",
-      "28 CLI commands, zero dependencies, 328 KB.",
+      "25 CLI commands, zero dependencies, 2.5 MB.",
       `${CONFIG.trialDays}-day trial, then ${CONFIG.price} once. The CLI stays free and MIT forever.`,
     ],
   },

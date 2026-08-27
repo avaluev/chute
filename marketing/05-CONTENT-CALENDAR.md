@@ -63,10 +63,10 @@ demos are the first thing to look at, because they are what the argument rests o
 >
 > `brew install avaluev/tap/chute`
 >
-> 28 commands. Select files in Finder, bundle their contents into one blob with a token count.
+> 25 commands. Select files in Finder, bundle their contents into one blob with a token count.
 > Paste an agent's multi-file answer back into real files. Snapshot a repo before an agent runs.
 >
-> Zero dependencies. Zero telemetry. No account. 328 KB.
+> Zero dependencies. Zero telemetry. No account. 2.5 MB.
 >
 > The Finder menu and menu-bar switcher (Chute.app) are next, priced separately.
 >
@@ -84,7 +84,7 @@ demos are the first thing to look at, because they are what the argument rests o
 > checkpoint .` snapshots everything, including untracked files, without touching your real git
 > index.
 >
-> 28 commands total, all covered by an e2e suite. Zero dependencies, zero network calls except
+> 25 commands total, all covered by an e2e suite. Zero dependencies, zero network calls except
 > the gist command, no account.
 >
 > `brew install avaluev/tap/chute` — MIT, free forever. Repo: github.com/avaluev/chute. Happy to
@@ -108,7 +108,7 @@ verbatim (the "I run coding agents ~10h/day" post). Do not rewrite it.
 > target directory. `checkpoint` builds a snapshot without ever touching your real git index or
 > worktree.
 >
-> **6/6** macOS 13+. 328 KB. Zero telemetry — the only network code is the gist command, and only
+> **6/6** macOS 13+. 2.5 MB. Zero telemetry — the only network code is the gist command, and only
 > when you run it yourself. chutedev.com
 
 ### D — Show HN (day 10 / App+1)
@@ -137,13 +137,13 @@ on HN. New for this slot, the founder's own first comment once the thread is liv
 > times-a-day of tab-hopping it used to cost me — curious if others have solved this differently.
 
 ### F — Newsletter pitch email (generic template, days 4/14/16/19)
-**Subject:** A 328 KB macOS CLI for people running Claude Code / Codex all day
+**Subject:** A 2.5 MB macOS CLI for people running Claude Code / Codex all day
 > Hi [name],
 >
 > Chute is a free, MIT command-line tool (`brew install avaluev/tap/chute`) for people who run
 > coding agents most of the day. It bundles a Finder selection into one paste-ready blob with a
 > token count, unpacks a multi-file agent answer back into real files, and snapshots a repo before
-> an agent runs — 28 commands, zero dependencies, zero telemetry, no account.
+> an agent runs — 25 commands, zero dependencies, zero telemetry, no account.
 >
 > There's a paid macOS app on top (Finder menu + menu-bar agent-status switcher, $19 one-time,
 > 14-day trial) but the CLI stands alone and is what I'd suggest linking if you cover dev tools.

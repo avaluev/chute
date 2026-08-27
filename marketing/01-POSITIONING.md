@@ -45,7 +45,7 @@ them not to buy. It is now **130.7 min/day for the app against 86.8 for the CLI*
 | The app saves 130.7 min/day | `site/src/lib/cases.ts`, re-derived from `docs/03-JTBD-LEDGER.md` on every build |
 | Safe with your repo | Preview-by-default, path-traversal refusal, checkpoint that cannot touch your worktree |
 | Actually private | No network code except the gist command you invoke yourself |
-| Not bloatware | 328 KB app, zero dependencies, no launch daemon |
+| Not bloatware | 2.5 MB app, zero dependencies, no launch daemon, no background service |
 
 ## Objections
 | They say | Answer |

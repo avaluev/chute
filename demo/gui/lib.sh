@@ -301,15 +301,106 @@ JSON
   say "measured: manual ${2}s vs chute ${3}s"
 }
 
-# The clock the viewer sees is drawn from the MEASURED time. Burning a configured number here
-# would reintroduce exactly the gap this file exists to close.
-burn_clock() { # name label seconds
-  local f="$OUT/$1.mov" font="/Library/Fonts/JetBrainsMono-Regular.ttf"
-  [ "$PLAN" = "1" ] && { say "would burn '$2 — ${3}s' onto $1.mov"; return 0; }
-  [ -f "$font" ] || font="/System/Library/Fonts/SFNSMono.ttf"
-  ffmpeg -v error -y -i "$f" -vf \
-    "drawtext=fontfile=$font:text='$2  %{eif\\:t\\:d}s':x=w-tw-28:y=28:fontsize=28:fontcolor=0xF7F7F7:box=1:boxcolor=0x0D0F17@0.85:boxborderw=10" \
-    "$OUT/$1-clocked.mov"
-  mv "$OUT/$1-clocked.mov" "$f"
-  say "clock burned in from the measured ${3}s"
+# ── delivery ────────────────────────────────────────────────────────────────────────────────
+# WHY THERE IS NO drawtext ANYWHERE: the ffmpeg on this machine is built without that filter.
+# Found by running the filtergraph on synthetic input, not at recording time with a human sitting
+# in front of the screen. Every caption is a PNG from overlay.py instead, which also means the
+# demos are captioned in JetBrains Mono and the palette from brand/tokens.json rather than in
+# whatever ffmpeg's default face happens to be.
+OVERLAY="$GUI_HERE/overlay.py"
+
+# THE HERO ARTIFACT. Two takes of the same job, side by side, aligned at their true start.
+#
+# The problem this solves: the manual ritual really does take 95 seconds, and nobody watches a
+# 95-second video of someone copy-pasting. Speeding it up would break the one rule the demo
+# cannot break (real speed — "the speed is the pitch"). So the manual take is MEASURED in full
+# and SHOWN in part: the race runs until the point is made, the right-hand clock stops at the
+# moment the job really finished, and the last frame states exactly how much of the left-hand run
+# you are not being shown. Short, and it declares its own omission.
+#
+# The two takes are recorded separately and composed. Driving two Finder windows at once is not
+# reliable, and pretending otherwise would be the lie. The frame says so itself, top right, so
+# the artifact can explain itself when it is reposted without the page around it.
+compose_race() { # slug manual_seconds chute_seconds [display_seconds]
+  local slug="$1" manual="$2" chute="$3" show="${4:-14}"
+  planned "compose the race for $slug (${show}s of a ${manual}s ritual)" && return 0
+  local L="$OUT/$slug-manual.mov" Rr="$OUT/$slug.mov"
+  [ -s "$L" ] && [ -s "$Rr" ] || die "compose_race needs both takes: $L and $Rr"
+
+  local have; have="$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$L" | cut -d. -f1)"
+  [ "$have" -ge "$show" ] || die "the manual take is only ${have}s — cannot show ${show}s of it"
+
+  python3 "$OVERLAY" labels "$OUT/$slug-label.png" --width 1920 >/dev/null
+  python3 "$OVERLAY" clock  "$OUT/$slug-clock" --width 1920 --height 660 \
+          --manual "$manual" --chute "$chute" --seconds "$show" >/dev/null
+
+  # Left is trimmed to the display length; right plays out and then HOLDS its final frame
+  # (tpad clone), which is what makes "done, and the other one is still going" legible.
+  ffmpeg -v error -y \
+    -i "$L" -i "$Rr" -i "$OUT/$slug-label.png" \
+    -framerate 1 -start_number 0 -i "$OUT/$slug-clock/%03d.png" \
+    -filter_complex "\
+[0:v]trim=0:${show},setpts=PTS-STARTPTS,scale=960:600[L];\
+[1:v]scale=960:600,tpad=stop_mode=clone:stop_duration=${show}[R];\
+[L][R]hstack=inputs=2[row];\
+[row]pad=1920:660:0:60:color=0x0D0F17[padded];\
+[padded][2:v]overlay=0:0[labeled];\
+[labeled][3:v]overlay=0:0:shortest=0[out]" \
+    -map "[out]" -t "$show" -c:v libx264 -pix_fmt yuv420p -crf 23 -movflags +faststart -an \
+    "$OUT/$slug-race.mp4" || die "compose failed for $slug"
+  rm -rf "$OUT/$slug-clock" "$OUT/$slug-label.png"
+  say "$slug-race.mp4 — ${show}s of a ${manual}s ritual, beside a ${chute}s one"
+}
+
+# The solo take, which is what the case pages and every phone actually get. A side-by-side race
+# is 187px per panel at 375px wide and unreadable there, so the race is a desktop artifact and
+# this is the one that has to survive the crop.
+export_web() { # slug
+  local slug="$1" src="$OUT/$1.mov"
+  planned "export $slug to mp4/webm/poster" && return 0
+  [ -s "$src" ] || die "no take to export: $src"
+  # scale=1280:-2 normalises the 2x that screencapture produces on a Retina display; -2 keeps
+  # the height even, which h264 requires and which is otherwise an obscure encoder failure.
+  ffmpeg -v error -y -i "$src" -vf "scale=1280:-2" -c:v libx264 -pix_fmt yuv420p -crf 23 \
+         -movflags +faststart -an "$OUT/$slug.mp4" || die "mp4 export failed"
+  ffmpeg -v error -y -i "$src" -vf "scale=1280:-2" -c:v libvpx-vp9 -crf 34 -b:v 0 -an \
+         "$OUT/$slug.webm" 2>/dev/null || say "no vp9 in this ffmpeg — mp4 only"
+  # The poster is the FIRST frame, not a flattering one from the middle: it is what a viewer
+  # stares at before the video plays, and it should be the problem state, which is the hook.
+  ffmpeg -v error -y -ss 0 -i "$src" -frames:v 1 -vf "scale=1280:-2" -q:v 3 \
+         "$OUT/$slug.jpg" || die "poster export failed"
+
+  local kb; kb=$(( $(stat -f%z "$OUT/$slug.mp4") / 1024 ))
+  say "$slug.mp4 ${kb}KB"
+  # A landing page that ships four 3 MB videos is slow on the connection of the person most
+  # likely to be on a train. Loud, not fatal — re-encode or shorten the take.
+  [ "$kb" -gt 2500 ] && say "⚠ ${kb}KB is over the 2500KB budget — shorten the take or raise crf"
+  return 0
+}
+
+# Case-page demos autoplay muted on a loop. A take that ends somewhere different from where it
+# started produces a visible jump every few seconds, which is the single most irritating thing a
+# background video can do. The tape is responsible for returning the scene; this proves it did.
+verify_loop() { # slug [tolerance]
+  # Split, not one `local`: bash expands every word of a local statement BEFORE assigning any of
+  # them, so `f="$OUT/$slug.mov"` on the same line as `slug="$1"` reads an unset variable and
+  # dies under `set -u`. Caught by PLAN mode on the first run after wiring it up.
+  local slug="$1" tol="${2:-14}"
+  local f="$OUT/$slug.mov"
+  planned "check that $slug loops cleanly" && return 0
+  local dur; dur="$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$f")"
+  local last; last="$(perl -e "printf '%.1f', $dur - 0.2")"
+  ffmpeg -v error -y -ss 0 -i "$f" -frames:v 1 -vf scale=160:-2 "/tmp/chute-loop-a.png"
+  ffmpeg -v error -y -ss "$last" -i "$f" -frames:v 1 -vf scale=160:-2 "/tmp/chute-loop-b.png"
+  # Mean absolute difference between first and last frame, as a percentage.
+  local diff; diff="$(ffmpeg -v error -i /tmp/chute-loop-a.png -i /tmp/chute-loop-b.png \
+      -filter_complex "blend=all_mode=difference,signalstats" -f null - 2>&1 \
+      | grep -o 'YAVG:[0-9.]*' | head -1 | cut -d: -f2 | cut -d. -f1)"
+  rm -f /tmp/chute-loop-a.png /tmp/chute-loop-b.png
+  [ -z "$diff" ] && { say "could not measure the loop seam for $slug"; return 0; }
+  if [ "$diff" -le "$tol" ]; then
+    say "$slug loops cleanly (seam $diff%)"
+  else
+    say "⚠ $slug jumps on loop (seam $diff%) — end the tape where it began, or it will flicker"
+  fi
 }

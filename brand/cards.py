@@ -34,8 +34,8 @@ FEATURES = [
 # (accent-coloured lead, rest) — kept as explicit data, not auto-split, so wording stays exact
 QUOTES = [
     ("90–120", "minutes a day"),
-    ("328", "KB"),
-    ("28", "commands, zero dependencies"),
+    ("0", "lines of network code"),
+    ("25", "commands, zero dependencies"),
     ("no account,", "no telemetry, no network"),
 ]
 
