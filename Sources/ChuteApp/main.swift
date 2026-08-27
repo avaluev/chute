@@ -65,8 +65,48 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
     }
 
-    func appendStandardItems(to menu: NSMenu) {
-        appendLocalServers(to: menu)
+    /// THE PAID BODY OF THE MENU BAR, behind the same gate as the Finder actions.
+    ///
+    /// It was not gated. `/buy` sells four things — the Finder menu, the session switcher, the
+    /// local-server list and the ⌥⌘N hotkey — and three of them kept working forever after the
+    /// trial ended. That is not generosity, it is the page describing a product the build does
+    /// not deliver, which is the same defect as a privacy page claiming analytics that are not
+    /// there.
+    ///
+    /// What a lapsed trial still gets, deliberately: Settings, Report a Problem, Refresh, Quit —
+    /// nobody is trapped — and a plain statement that `chute sessions`, `chute focus` and
+    /// `chute ports` still do all of this for free from the terminal. The convenience is what is
+    /// bought; the capability was never taken away. That line is the open-core promise being
+    /// kept at the exact moment it would be easiest to break.
+    func populateBody(_ menu: NSMenu, trial: TrialState) -> SessionMenu.LiveVitals? {
+        guard trial.isUnlocked else {
+            statusItem.button?.title = "⤓"      // no count: the count is part of what is bought
+            lastSessions = []
+
+            let headline = NSMenuItem(title: "Trial ended — Buy Chute, $19 once",
+                                      action: #selector(openLicenseSettings), keyEquivalent: "")
+            headline.target = self
+            menu.addItem(headline)
+
+            let cli = NSMenuItem(title: "The chute CLI is still free — chute sessions, focus, ports",
+                                 action: nil, keyEquivalent: "")
+            cli.isEnabled = false
+            cli.toolTip = "The command line tool is MIT and never expires. The app buys you the "
+                        + "Finder menu and this switcher, not the ability to do these things."
+            menu.addItem(cli)
+            menu.addItem(.separator())
+            return nil
+        }
+        let (sessions, problem) = discoverSessionsForMenu()
+        statusItem.button?.title = SessionMenu.badge(for: sessions)
+        lastSessions = sessions
+        return SessionMenu.populate(menu, sessions: sessions, problem: problem,
+                                    target: self, action: #selector(focusSession(_:)),
+                                    openSettings: #selector(openAutomationSettings))
+    }
+
+    func appendStandardItems(to menu: NSMenu, trial: TrialState) {
+        if trial.isUnlocked { appendLocalServers(to: menu) }
         menu.addItem(.separator())
         // No file actions here on purpose. They act on a Finder selection, so they live in the
         // Finder right-click menu where the files are; in the menu bar they had nothing to act on.
@@ -93,7 +133,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
         // Trial state, and nothing at all once it is paid for: an app that keeps mentioning
         // payment after the payment is nagging its own customer.
-        if let label = Trial.menuLabel(Trial.touch()) {
+        if let label = Trial.menuLabel(trial) {
             let item = NSMenuItem(title: label, action: #selector(openLicenseSettings),
                                   keyEquivalent: "")
             item.target = self
@@ -113,13 +153,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     func buildMenu() -> NSMenu {
         let menu = NSMenu()
         menu.delegate = self
-        let (sessions, problem) = discoverSessionsForMenu()
-        statusItem.button?.title = SessionMenu.badge(for: sessions)
-        lastSessions = sessions
-        liveVitals = SessionMenu.populate(menu, sessions: sessions, problem: problem,
-                                          target: self, action: #selector(focusSession(_:)),
-                                          openSettings: #selector(openAutomationSettings))
-        appendStandardItems(to: menu)
+        let trial = Trial.touch()
+        liveVitals = populateBody(menu, trial: trial)
+        appendStandardItems(to: menu, trial: trial)
         return menu
     }
 
@@ -166,14 +202,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     // statusItem.menu here: the object already being tracked for display is this one, so a swap
     // takes effect on the NEXT open, and the user sees the previous (stale) session list.
     func menuWillOpen(_ menu: NSMenu) {
-        let (sessions, problem) = discoverSessionsForMenu()
-        statusItem.button?.title = SessionMenu.badge(for: sessions)
-        lastSessions = sessions
-        liveVitals = SessionMenu.populate(menu, sessions: sessions, problem: problem,
-                                          target: self, action: #selector(focusSession(_:)),
-                                          openSettings: #selector(openAutomationSettings))
-        appendStandardItems(to: menu)
-        startVitalsRefresh()
+        let trial = Trial.touch()
+        liveVitals = populateBody(menu, trial: trial)
+        appendStandardItems(to: menu, trial: trial)
+        // Nothing to re-sample when the rows are not there.
+        if trial.isUnlocked { startVitalsRefresh() }
     }
 
     /// While the menu is open, every number on it is re-sampled every two seconds — rows and

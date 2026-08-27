@@ -88,6 +88,34 @@ public enum ChuteActions {
                     template: ["bundle", "{files}"],
                     doneMessage: "Files and contents copied."),
 
+        // A folder's whole shape, for handing an agent context it can navigate. Three depths
+        // rather than a dialog: a right-click menu cannot ask a question. NOT foldersOnly:
+        // right-clicking a FILE offers the tree of its enclosing folder — hiding the action
+        // there read as "the tree action is gone" the first time it was tried on a file.
+        ChuteAction(id: "tree-2",
+                    title: "2 Levels",
+                    detail: "The folder here (or around your selection) and one level inside it.",
+                    scope: .folder, parentTitle: "Copy Folder Tree",
+                    symbol: "folder.fill",
+                    template: ["tree", "{dir}", "--depth", "2"],
+                    doneMessage: "Folder tree copied."),
+
+        ChuteAction(id: "tree-4",
+                    title: "4 Levels",
+                    detail: "Deep enough for most projects.",
+                    scope: .folder, parentTitle: "Copy Folder Tree",
+                    symbol: "folder.fill",
+                    template: ["tree", "{dir}", "--depth", "4"],
+                    doneMessage: "Folder tree copied."),
+
+        ChuteAction(id: "tree-all",
+                    title: "Everything",
+                    detail: "The entire tree, with build and dependency folders left out.",
+                    scope: .folder, parentTitle: "Copy Folder Tree",
+                    symbol: "folder.fill",
+                    template: ["tree", "{dir}", "--depth", "99"],
+                    doneMessage: "Folder tree copied."),
+
         // The other direction, and the second-largest saving in the ledger (JTBD #9, 28.5 min/day).
         // It was CLI-only, which meant the buyer never saw the half of the loop that gets the
         // agent's answer back onto disk. Destructive, so it previews first — see `confirmButton`.
@@ -100,47 +128,10 @@ public enum ChuteActions {
                     doneMessage: "Files written.",
                     confirmButton: "Write Files"),
 
-        // A folder's whole shape, for handing an agent context it can navigate. Three depths
-        // rather than a dialog: a right-click menu cannot ask a question. NOT foldersOnly:
-        // right-clicking a FILE offers the tree of its enclosing folder — hiding the action
-        // there read as "the tree action is gone" the first time it was tried on a file.
-        ChuteAction(id: "tree-2",
-                    title: "2 Levels",
-                    detail: "The folder here (or around your selection) and one level inside it.",
-                    scope: .folder, parentTitle: "Copy Folder Tree",
-                    symbol: "folder.fill",
-                    template: ["tree", "{dir}", "--depth", "2"],
-                    doneMessage: "Folder tree copied."),
-        ChuteAction(id: "tree-4",
-                    title: "4 Levels",
-                    detail: "Deep enough for most projects.",
-                    scope: .folder, parentTitle: "Copy Folder Tree",
-                    symbol: "folder.fill",
-                    template: ["tree", "{dir}", "--depth", "4"],
-                    doneMessage: "Folder tree copied."),
-        ChuteAction(id: "tree-all",
-                    title: "Everything",
-                    detail: "The entire tree, with build and dependency folders left out.",
-                    scope: .folder, parentTitle: "Copy Folder Tree",
-                    symbol: "folder.fill",
-                    template: ["tree", "{dir}", "--depth", "99"],
-                    doneMessage: "Folder tree copied."),
-
-        // The bug-report loop: screenshot → save here → type a better name → paste the path into
-        // the issue you are writing. Saving the image was never the hard part; getting its path
-        // out of Finder and into a prompt was.
-        ChuteAction(id: "paste-image",
-                    title: "Paste Image from Clipboard",
-                    detail: "Saves the clipboard image here as a PNG and copies its full path.",
-                    scope: .folder,
-                    symbol: "photo.fill",
-                    template: ["paste-image", "--dir", "{dir}"],
-                    doneMessage: "Image saved, path copied."),
-
         ChuteAction(id: "new-markdown",
                     title: "New Markdown File",
                     detail: "An empty Untitled.md in this folder, with its name ready to type over.",
-                    scope: .folder,
+                    scope: .folder, parentTitle: "New File Here",
                     symbol: "square.and.pencil",
                     template: ["new", "--blank", "--rename", "--dir", "{dir}"],
                     doneMessage: "Markdown file created."),
@@ -148,17 +139,28 @@ public enum ChuteActions {
         ChuteAction(id: "new-markdown-clipboard",
                     title: "New Markdown File from Clipboard",
                     detail: "The clipboard saved here, named after its first line, ready to rename.",
-                    scope: .folder,
+                    scope: .folder, parentTitle: "New File Here",
                     symbol: "doc.on.clipboard.fill",
                     template: ["new", "--naming", "underscore", "--ext", "md", "--rename", "--dir", "{dir}"],
                     doneMessage: "Markdown file created."),
+
+        // The bug-report loop: screenshot → save here → type a better name → paste the path into
+        // the issue you are writing. Saving the image was never the hard part; getting its path
+        // out of Finder and into a prompt was.
+        ChuteAction(id: "paste-image",
+                    title: "Paste Image from Clipboard",
+                    detail: "Saves the clipboard image here as a PNG and copies its full path.",
+                    scope: .folder, parentTitle: "New File Here",
+                    symbol: "photo.fill",
+                    template: ["paste-image", "--dir", "{dir}"],
+                    doneMessage: "Image saved, path copied."),
 
         // JTBD #7, 9.9 min/day. Never overwrites an existing rules file (NFR-08), so it needs no
         // confirmation — the worst case is "kept existing CLAUDE.md".
         ChuteAction(id: "seed-rules",
                     title: "Add Agent Rules",
                     detail: "CLAUDE.md, .cursorrules and SCRATCHPAD.md here, without touching any that exist.",
-                    scope: .folder,
+                    scope: .folder, parentTitle: "Set Up for an Agent",
                     symbol: "doc.badge.gearshape.fill",
                     template: ["seed", "{dir}"],
                     doneMessage: "Agent rules added."),
@@ -169,7 +171,7 @@ public enum ChuteActions {
         ChuteAction(id: "sandbox-here",
                     title: "New Clean Room for an Agent",
                     detail: "A fresh folder here with git and rules ready, and the agent already running in it.",
-                    scope: .folder,
+                    scope: .folder, parentTitle: "Set Up for an Agent",
                     symbol: "shippingbox.and.arrow.backward.fill",
                     template: ["sandbox", "--dir", "{dir}"],
                     doneMessage: "Clean room ready."),
@@ -195,6 +197,39 @@ public enum ChuteActions {
     ]
 
     public static func find(_ id: String) -> ChuteAction? { all.first { $0.id == id } }
+
+    /// One row of Finder's context menu as it is actually drawn: either an action, or a submenu
+    /// holder standing in for its children.
+    public struct Row: Sendable, Equatable {
+        public let title: String
+        /// The icon on that row. For a submenu it is the FIRST declared child's — which is what
+        /// ChuteFinderSync does, because the holder is created by whichever child arrives first.
+        public let symbol: String
+        public let children: [String]   // action ids, empty for a plain row
+    }
+
+    /// What the user sees. Thirteen actions, but a context menu is judged on how many rows it
+    /// adds to Finder's own — and Finder's own is already long. This is the one implementation;
+    /// the test and `chute finder-actions --menu` both read it rather than keeping a second copy,
+    /// which is how the menu drifted the first time.
+    public static func rows(hasSelection: Bool = true, targetIsFolder: Bool = true) -> [Row] {
+        var out: [Row] = []
+        var index: [String: Int] = [:]
+        for action in visible(hasSelection: hasSelection, targetIsFolder: targetIsFolder) {
+            guard let parent = action.parentTitle else {
+                out.append(Row(title: action.plainTitle, symbol: action.symbol, children: []))
+                continue
+            }
+            if let i = index[parent] {
+                out[i] = Row(title: out[i].title, symbol: out[i].symbol,
+                             children: out[i].children + [action.id])
+            } else {
+                index[parent] = out.count
+                out.append(Row(title: parent, symbol: action.symbol, children: [action.id]))
+            }
+        }
+        return out
+    }
 
     /// Expand an action's template into a real command line.
     /// `{files}` expands in place to every selected path; `{dir}` to the folder in view.
