@@ -12,5 +12,6 @@ diagnosticsSuite()
 finderActionsSuite()
 actionRequestSuite()
 localServersSuite()
+nameDeriveSuite()
 
 T.report()

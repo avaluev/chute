@@ -150,68 +150,69 @@ check "uninstall leaves no husk"   "$(cat "$S")" '{
 echo "15. every Finder menu action, run for real"
 # Driven by `chute finder-actions --json` — the SAME table the menu draws from, so a menu item
 # that cannot work fails here instead of in the user's hands.
-FX="$T/finder"; mkdir -p "$FX/src"
+FX="$T/finder"; mkdir -p "$FX/src/deep/deeper"
 echo 'export const a = 1' > "$FX/src/a.ts"
-echo 'KEY=sk-live-abcdef1234567890' > "$FX/src/keys.env"
-( cd "$FX" && git init -q && git add -A && git -c user.email=t@t -c user.name=t commit -qm init )
-echo 'export const a = 2' > "$FX/src/a.ts"      # an uncommitted change for the diff action
+echo 'export const b = 2' > "$FX/src/deep/b.ts"
+echo 'export const c = 3' > "$FX/src/deep/deeper/c.ts"
 
-argv_for() { "$CHUTE" finder-actions --json --dir "$FX" "$FX/src/a.ts" "$FX/src/keys.env" \
+argv_for() { "$CHUTE" finder-actions --json --dir "$FX" "$FX/src/a.ts" "$FX/src/deep/b.ts" \
     | python3 -c 'import json,sys;print("\n".join(next(a["argv"] for a in json.load(sys.stdin) if a["id"]==sys.argv[1])))' "$1"; }
 run_action() { local id="$1"; shift; local args=(); while IFS= read -r line; do args+=("$line"); done < <(argv_for "$id")
     "$CHUTE" "${args[@]}" "$@" >/tmp/chute-a.out 2>/tmp/chute-a.err; return $?; }
 
-# Seed the clipboard with something every clipboard-reading action can use, so the sweep below
-# tests the ACTIONS rather than an empty pasteboard.
-printf '# Sweep Fixture\n\n### src/sweep.ts\n```ts src/sweep.ts\nconst s = 1\n```\n' | pbcopy
 ALL_IDS="$("$CHUTE" finder-actions --json | python3 -c 'import json,sys;print(" ".join(a["id"] for a in json.load(sys.stdin)))')"
 for id in $ALL_IDS; do
-  # The copy actions overwrite the clipboard as they run, so anything that READS it is re-seeded
-  # immediately before its turn.
-  printf '# Sweep Fixture\n\n### src/sweep.ts\n```ts src/sweep.ts\nconst s = 1\n```\n' | pbcopy
+  printf '# Sweep Fixture\n\nbody\n' | pbcopy      # anything reading the clipboard gets something usable
   case "$id" in
     terminal) ok "terminal: argv built (execution skipped — it opens a real window)"; continue;;
-    workspace) run_action "$id" --no-launch >/dev/null 2>&1;;
     *) run_action "$id" >/dev/null 2>&1;;
   esac
   if [ $? -eq 0 ]; then ok "$id runs clean"; else bad "$id runs clean" "$(tail -1 /tmp/chute-a.err)"; fi
 done
 
 # Each action's OBSERVABLE effect, not just its exit code.
-run_action copy-paths        >/dev/null 2>&1; has "copy-paths lands on the clipboard"    "$(pbpaste)" "$FX/src/a.ts"
-run_action copy-contents     >/dev/null 2>&1; has "copy-contents carries file bodies"    "$(pbpaste)" "export const a = 2"
-run_action copy-masked       >/dev/null 2>&1; has "copy-masked hides the secret"         "$(pbpaste)" "[REDACTED]"
-run_action copy-masked       >/dev/null 2>&1; hasnt "copy-masked leaks nothing"          "$(pbpaste)" "sk-live-abcdef1234567890"
-run_action token-cost        >/dev/null 2>&1; has "token-cost reports a total"           "$(cat /tmp/chute-a.out)" "TOTAL"
-run_action copy-tree         >/dev/null 2>&1; has "copy-tree shows the folder layout"    "$(pbpaste)" "src/"
+run_action copy-paths >/dev/null 2>&1
+has   "copy-paths lands on the clipboard"  "$(pbpaste)" "$FX/src/a.ts"
+has   "copy-paths includes every selected file" "$(pbpaste)" "$FX/src/deep/b.ts"
 
-printf '# Handoff Note\n\nbody\n' | pbcopy
-run_action clipboard-to-file >/dev/null 2>&1
-if [ -f "$FX/handoff-note.md" ]; then ok "clipboard-to-file names the file from its heading"; else bad "clipboard-to-file names the file from its heading" "no handoff-note.md in $FX"; fi
+run_action tree-2 >/dev/null 2>&1
+has   "tree-2 shows the folder"            "$(pbpaste)" "src/"
+hasnt "tree-2 stops at two levels"         "$(pbpaste)" "deeper"
+run_action tree-all >/dev/null 2>&1
+has   "tree-all reaches the bottom"        "$(pbpaste)" "deeper"
 
-# THE BUG THIS SECTION EXISTS FOR: the menu item promised a write and ran a dry run.
-printf '### src/new1.ts\n```ts\nconst n = 1\n```\n### src/new2.py\n```python\nn = 2\n```\n' | pbcopy
-run_action clipboard-to-files >/dev/null 2>&1
-if [ -f "$FX/src/new1.ts" ] && [ -f "$FX/src/new2.py" ]; then ok "clipboard-to-files WRITES the files"
-else bad "clipboard-to-files WRITES the files" "still a dry run — nothing on disk"; fi
+run_action new-markdown >/dev/null 2>&1
+if [ -f "$FX/Untitled.md" ]; then ok "new-markdown creates an empty Untitled.md"
+else bad "new-markdown creates an empty Untitled.md" "$(tail -1 /tmp/chute-a.err)"; fi
+run_action new-markdown >/dev/null 2>&1
+if [ -f "$FX/Untitled-2.md" ]; then ok "and never overwrites the first one"
+else bad "and never overwrites the first one" "no Untitled-2.md"; fi
 
-run_action snapshot >/dev/null 2>&1
-has "snapshot creates a git ref" "$(cd "$FX" && git branch --list 'chute/*'; git tag -l 'chute*'; git log --all --oneline 2>/dev/null | head -3)" "chute"
-run_action review-changes >/dev/null 2>&1; has "review-changes copies the patch" "$(pbpaste)" "export const a = 2"
-run_action workspace --no-launch >/dev/null 2>&1
-if [ -f "$(cat /tmp/chute-a.out | tail -1)/README.md" ]; then ok "workspace creates a real folder"
-else bad "workspace creates a real folder" "$(tail -1 /tmp/chute-a.err)"; fi
+# The founder's naming rule: first line of text, spaces to underscores, no slugging.
+printf '# This is thd header\n\nbody text\n' | pbcopy
+run_action new-markdown-clipboard >/dev/null 2>&1
+if [ -f "$FX/This_is_thd_header.md" ]; then ok "new-markdown-clipboard names the file from its first line"
+else bad "new-markdown-clipboard names the file from its first line" "$(ls "$FX")"; fi
+has   "and keeps the content"              "$(cat "$FX/This_is_thd_header.md" 2>/dev/null)" "body text"
 
-# Actions must never be offered where they cannot work — checked in chutetests; here we prove the
-# table the menu reads is the table this section ran.
-check "the menu table and this test agree" "$(printf '%s' "$ALL_IDS" | wc -w | tr -d ' ')" "11"
+# THOUSANDS of files: a Finder selection that would blow past ARG_MAX as arguments.
+MANY="$T/many"; mkdir -p "$MANY"
+python3 -c "
+import os
+for i in range(3000): open(os.path.join('$MANY', 'file_%04d.txt' % i), 'w').write('x')
+"
+find "$MANY" -type f > "$T/many.txt"
+"$CHUTE" paths --files-from "$T/many.txt" --no-copy > "$T/many-out.txt" 2>/dev/null
+check "3000 selected files all come through" "$(wc -l < "$T/many-out.txt" | tr -d ' ')" "3000"
+
+check "the menu table and this test agree" "$(printf '%s' "$ALL_IDS" | wc -w | tr -d ' ')" "7"
 
 echo "16. the Finder extension's request inbox (needs Chute.app running)"
 # The extension is sandboxed: it cannot run git, launch Terminal or drive AppleScript. It writes a
 # request and Chute.app carries it out. This section tests that handoff on the real inbox.
 INBOX="$HOME/.chute/requests"
-put_request() {  # id dir age_seconds
-  python3 - "$1" "$2" "${3:-0}" "$INBOX" <<'PYEOF'
+put_request() {  # id dir age_seconds [files…]
+  python3 - "$1" "$2" "${3:-0}" "$INBOX" "${@:4}" <<'PYEOF'
 import json, os, random, sys, time
 action, folder, age, inbox = sys.argv[1], sys.argv[2], float(sys.argv[3]), sys.argv[4]
 os.makedirs(inbox, exist_ok=True)
@@ -228,26 +229,31 @@ if ! pgrep -x ChuteApp >/dev/null 2>&1; then
   echo "  SKIP inbox checks — Chute.app is not running (start it: open ~/Applications/Chute.app)"
 else
   printf 'INBOX-SENTINEL' | pbcopy
-  put_request review-changes "$FX" 0 >/dev/null
+  put_request copy-paths "$FX" 0 "$FX/src/a.ts" >/dev/null
   if wait_for_empty_inbox; then ok "the app drains the inbox"; else bad "the app drains the inbox" "still pending after 10s"; fi
   sleep 1
-  has "a git action the extension CANNOT run itself succeeds through the app" "$(pbpaste)" "export const a = 2"
+  has "an action requested by the extension runs through the app" "$(pbpaste)" "$FX/src/a.ts"
 
-  # A request the app should refuse: unknown action, and one from an hour ago.
+  # A request the app must refuse: an unknown action, and one from an hour ago.
   printf 'REFUSE-SENTINEL' | pbcopy
   put_request no-such-action "$FX" 0 >/dev/null
-  put_request review-changes "$FX" 3600 >/dev/null
+  put_request copy-paths "$FX" 3600 "$FX/src/a.ts" >/dev/null
   if wait_for_empty_inbox; then ok "refused requests are cleaned up, not retried forever"
   else bad "refused requests are cleaned up, not retried forever" "still pending"; fi
   check "a stale click is never carried out later" "$(pbpaste)" "REFUSE-SENTINEL"
+
+  # THOUSANDS of files through the real handoff: the request file has no ARG_MAX.
+  printf 'MANY-SENTINEL' | pbcopy
+  put_request copy-paths "$MANY" 0 $(find "$MANY" -type f | head -1200 | tr '\n' ' ') >/dev/null
+  if wait_for_empty_inbox; then
+    check "1200 files survive the extension → app handoff" "$(pbpaste | wc -l | tr -d ' ')" "1200"
+  else bad "1200 files survive the extension → app handoff" "inbox never drained"; fi
 fi
 
 echo "17. local servers"
 OUT="$("$CHUTE" ports 2>&1)"
 has "ports names the columns"     "$OUT" "PORT"
 has "ports says where it is reachable from" "$OUT" "REACHABLE FROM"
-# There is at least one listener on any working Mac (this test suite's own machine included);
-# if there genuinely is none, the honest empty line must appear instead of a blank table.
 if printf '%s' "$OUT" | grep -q "nothing is listening"; then ok "empty case says so plainly"
 else
   if printf '%s' "$OUT" | grep -qE '^[0-9]+ +[a-z]'; then ok "ports lists at least one real listener"

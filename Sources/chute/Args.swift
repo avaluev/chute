@@ -40,11 +40,22 @@ struct Args {
     }
 
     /// Positional paths, made absolute. Falls back to the current directory when empty.
+    ///
+    /// `--files-from <file>` adds one path per line. Selecting a few thousand files in Finder
+    /// produces a command line that blows past ARG_MAX and the whole action fails with
+    /// "argument list too long"; a file has no such limit.
     func paths(defaultToCWD: Bool = false) -> [String] {
-        if positional.isEmpty && defaultToCWD {
+        var out = positional
+        if let listFile = optional("files-from"),
+           let text = try? String(contentsOfFile: listFile, encoding: .utf8) {
+            out += text.split(separator: "\n").map(String.init)
+                .map { $0.trimmingCharacters(in: .whitespaces) }
+                .filter { !$0.isEmpty }
+        }
+        if out.isEmpty && defaultToCWD {
             return [FileManager.default.currentDirectoryPath]
         }
-        return positional.map { FileScanAbsolute($0) }
+        return out.map { FileScanAbsolute($0) }
     }
 }
 

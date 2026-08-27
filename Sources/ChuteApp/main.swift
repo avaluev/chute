@@ -295,12 +295,29 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             try? FileManager.default.removeItem(atPath: path)
             guard let action = ChuteActions.find(request.id) else { continue }
             DispatchQueue.global(qos: .userInitiated).async {
-                let r = chute(ChuteActions.argv(action, dir: request.dir, files: request.files))
+                let r = chute(Self.commandLine(for: action, request: request))
                 notify(action.plainTitle,
                        ChuteActions.message(stderr: r.err, exitCode: r.code,
                                             fallback: action.doneMessage))
             }
         }
+    }
+
+    /// Selecting a few thousand files in Finder produces a command line past ARG_MAX, and the
+    /// action fails with "argument list too long". Above a modest threshold the paths go into a
+    /// file instead — `--files-from` reads one path per line, and a file has no such limit.
+    static let inlineFileLimit = 200
+
+    static func commandLine(for action: ChuteAction, request: ActionRequest) -> [String] {
+        guard request.files.count > inlineFileLimit else {
+            return ChuteActions.argv(action, dir: request.dir, files: request.files)
+        }
+        let listFile = NSTemporaryDirectory() + "chute-selection-\(UUID().uuidString).txt"
+        guard (try? request.files.joined(separator: "\n")
+                .write(toFile: listFile, atomically: true, encoding: .utf8)) != nil else {
+            return ChuteActions.argv(action, dir: request.dir, files: request.files)
+        }
+        return ChuteActions.argv(action, dir: request.dir, files: []) + ["--files-from", listFile]
     }
 
     func updateBadgeFromHooks() {

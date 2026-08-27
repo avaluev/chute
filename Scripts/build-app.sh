@@ -107,8 +107,41 @@ security find-identity -v -p codesigning 2>/dev/null | grep -q "$IDENTITY" || ID
 #   (AppSandbox) code identity <cdhash …> not in ACL for container …/Data
 # and the menu silently disappears. `Scripts/sign-identity.sh` is the cure — a stable identity
 # keeps the ACL valid across rebuilds. `Scripts/install.sh` checks for the mismatch either way.
-codesign --force --sign "$IDENTITY" --entitlements "$ROOT/Resources/ChuteFinder.entitlements" "$APPEX" \
-    2>/dev/null || echo "note: appex signing unavailable"
-codesign --force --sign "$IDENTITY" "$APP" 2>/dev/null || echo "note: app signing unavailable; it still runs locally"
+# Signing with a keychain identity can block on a "codesign wants to use your key" dialog. That
+# dialog is worth waiting for: measured on this machine, the Finder extension loads when signed
+# with the stable identity and stops loading when signed ad-hoc, because a fresh ad-hoc identity
+# no longer matches its sandbox container. So: two minutes, a message saying what to click, and
+# only then a fallback.
+sign() {  # target [entitlements]
+  local target="$1"; shift
+  if [ "$IDENTITY" != "-" ]; then
+    ( codesign --force --sign "$IDENTITY" "$@" "$target" 2>/dev/null ) & local pid=$!
+    disown 2>/dev/null || true
+    local waited=0
+    for _ in $(seq 1 120); do
+      kill -0 "$pid" 2>/dev/null || break
+      waited=$((waited+1))
+      [ "$waited" = "3" ] && echo "   macOS is asking permission to use the \"$IDENTITY\" key — click Always Allow"
+      sleep 1
+    done
+    if kill -0 "$pid" 2>/dev/null; then
+      kill -9 "$pid" >/dev/null 2>&1 || true
+      echo "note: no answer to the keychain prompt — falling back to an ad-hoc signature."
+      echo "      The Finder menu may stop appearing until the app is signed with an identity."
+      echo "      Unlock it once with:  security unlock-keychain ~/Library/Keychains/login.keychain-db"
+      echo "      or click Always Allow when macOS asks, or stop the prompts for good with:"
+      echo "      security set-key-partition-list -S apple-tool:,apple:,codesign: -s \\"
+      echo "        -k <your login password> ~/Library/Keychains/login.keychain-db"
+      IDENTITY="-"
+    else
+      wait "$pid" 2>/dev/null && return 0
+    fi
+  fi
+  codesign --force --sign - "$@" "$target" 2>/dev/null \
+    || echo "note: signing unavailable for $target; it still runs locally"
+}
+
+sign "$APPEX" --entitlements "$ROOT/Resources/ChuteFinder.entitlements"
+sign "$APP"
 echo "built $APP"
 du -sh "$APP" | awk '{print "size: " $1}'
