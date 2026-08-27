@@ -28,6 +28,17 @@ if (!existsSync(out)) {
   process.exit(1);
 }
 
+// The site may be built with a base path (a GitHub project page) or without one (the custom
+// domain). The reviewer only ever sees the custom domain, but this check must pass in both
+// builds or it stops being run — so read the prefix out of the build rather than assuming.
+const BASE = (() => {
+  const index = join(out, "index.html");
+  if (!existsSync(index)) return "";
+  const m = readFileSync(index, "utf8").match(/href="(\/[\w-]+)\/_next\//);
+  return m ? m[1] : "";
+})();
+if (BASE) console.log(`  (built with basePath "${BASE}" — the project-page build)`);
+
 const html = (route) => {
   const p = route === "/" ? join(out, "index.html") : join(out, route.replace(/^\//, ""), "index.html");
   return existsSync(p) ? readFileSync(p, "utf8") : null;
@@ -47,7 +58,7 @@ for (const route of REQUIRED) {
 // deep fails. Every page's footer must carry all three legal links.
 console.log("\n2. Legal pages are reachable from navigation on every page");
 for (const [route, body] of Object.entries(pages)) {
-  const missing = ["/terms", "/refunds", "/privacy"].filter((l) => !body.includes(`href="${l}`));
+  const missing = ["/terms", "/refunds", "/privacy"].filter((l) => !body.includes(`href="${BASE}${l}`));
   if (missing.length) bad(`${route} footer is missing ${missing.join(", ")}`);
 }
 if (!failed) ok("every page links to /terms, /refunds and /privacy");
@@ -101,6 +112,7 @@ else existsSync(join(out, "media", "og.png"))
 // 7 — a custom domain over HTTPS.
 console.log("\n7. Custom domain");
 const cname = join(out, "CNAME");
+if (BASE) console.log("  note: a basePath build cannot be the reviewed site — remove PAGES_BASE_PATH once chutedev.com resolves");
 existsSync(cname) && readFileSync(cname, "utf8").trim() === "chutedev.com"
   ? ok("CNAME → chutedev.com")
   : bad("CNAME missing or wrong", "GitHub Pages will not serve the custom domain");
