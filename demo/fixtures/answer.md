@@ -1,7 +1,10 @@
 Here is the rate limiter, split across three files.
 
+**src/rate/limit.ts**
+
 ```ts
-// src/rate/limit.ts
+import { counts } from "./store";
+
 export function allow(key: string, max: number) {
   const hits = counts.get(key) ?? 0;
   if (hits >= max) return false;
@@ -10,13 +13,15 @@ export function allow(key: string, max: number) {
 }
 ```
 
+**src/rate/store.ts**
+
 ```ts
-// src/rate/store.ts
 export const counts = new Map<string, number>();
 ```
 
+**tests/rate.test.ts**
+
 ```ts
-// tests/rate.test.ts
 import { allow } from "../src/rate/limit";
 
 test("blocks past the limit", () => {

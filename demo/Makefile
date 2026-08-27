@@ -15,10 +15,12 @@ GIFS    := $(patsubst tapes/%.tape,out/%.gif,$(TAPES))
 export CHUTE_REPO    := $(REPO)
 export CHUTE_FIXTURE := $(FIXTURE)
 
-.PHONY: all demos clean check tools
+.PHONY: all demos clean check tools verify
 all: demos
 
-demos: tools $(GIFS)
+# verify BEFORE recording. A GIF of the product failing is worse than no GIF, and unpack.gif
+# reached the live site showing "chute: no named code blocks found" twice.
+demos: tools verify $(GIFS)
 	@echo
 	@ls -la out/*.gif | awk '{printf "  %-28s %s\n", $$9, $$5}'
 	@echo "  $(words $(GIFS)) demos regenerated"
@@ -54,7 +56,11 @@ tools:
 #   2. every tape produced a real GIF at the declared width;
 #   3. two runs of the same tape agree on frame count and on >99% of the final frame — so a
 #      change in what the product PRINTS still fails loudly.
-check: tools
+verify: tools
+	@cd .. && swift build -c release >/dev/null
+	@./verify.sh
+
+check: tools verify
 	@echo "1. fixture determinism"
 	@./fixtures/make.sh .check/fx-a >/dev/null && ./fixtures/make.sh .check/fx-b >/dev/null
 	@diff -r --exclude=.git .check/fx-a .check/fx-b >/dev/null \
