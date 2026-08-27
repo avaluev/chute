@@ -6,6 +6,7 @@ import {
   Accordion, AccordionContent, AccordionItem, AccordionTrigger,
 } from "@/components/ui/accordion";
 import { CopyLine } from "@/components/copy-line";
+import { asset } from "@/lib/asset";
 import { Header, Footer } from "@/components/chrome";
 
 const BREW = "brew install avaluev/tap/chute";
@@ -103,7 +104,7 @@ export default function Home() {
         </div>
 
         <div className="mt-16 overflow-hidden rounded-[var(--radius)] border border-border shadow-hero">
-          <Image src="/media/bundle.gif" alt="chute bundle copying four files and their contents to the clipboard with a token count"
+          <Image src={asset("/media/bundle.gif")} alt="chute bundle copying four files and their contents to the clipboard with a token count"
                  width={1200} height={720} unoptimized priority className="w-full" />
         </div>
       </section>
@@ -134,9 +135,9 @@ export default function Home() {
       {/* ---------------------------------------------------------------- act 1 */}
       <Section eyebrow="Act one" title="Context in, artifacts out">
         <div className="grid gap-10 md:grid-cols-2">
-          <Shot src="/media/bundle.gif" alt="chute bundle"
+          <Shot src={asset("/media/bundle.gif")} alt="chute bundle"
                 caption="Eight files and everything in them, one blob, with the token count — before you paste, not after." />
-          <Shot src="/media/unpack.gif" alt="chute unpack"
+          <Shot src={asset("/media/unpack.gif")} alt="chute unpack"
                 caption="The other direction: a markdown answer becomes a real file tree. It previews first, and refuses to write outside the folder you aimed it at." />
         </div>
       </Section>
@@ -155,7 +156,7 @@ export default function Home() {
               never again hunt for which window holds port 3000.
             </p>
           </div>
-          <Shot src="/media/sessions.gif" alt="chute sessions"
+          <Shot src={asset("/media/sessions.gif")} alt="chute sessions"
                 caption="Grouped by state: waiting for you, working, idle." />
         </div>
       </Section>
