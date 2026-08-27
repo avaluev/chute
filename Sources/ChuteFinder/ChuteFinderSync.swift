@@ -95,13 +95,37 @@ class ChuteFinderSync: FIFinderSync {
         return root
     }
 
-    /// At the default menu rendering, hairline-outline symbols in dark mode all read as the same
-    /// grey smudge — measured on this machine's own menu. Filled variants plus an explicit
-    /// larger, heavier configuration is what makes each shape readable at a glance.
-    private static func icon(_ symbol: String, label: String) -> NSImage? {
-        let image = NSImage(systemSymbolName: symbol, accessibilityDescription: label)
-        let config = NSImage.SymbolConfiguration(pointSize: 15, weight: .medium, scale: .large)
-        return image?.withSymbolConfiguration(config) ?? image
+    /// Pre-rendered at a fixed size, not handed over as a live symbol. Two reasons, both learned
+    /// on this menu: hairline outlines at Finder's default rendering are a grey smudge, and an
+    /// NSImage is RE-ENCODED on its way across the appex → Finder boundary, where a symbol's
+    /// SymbolConfiguration can be dropped — a plain bitmap cannot be. Drawn black-on-alpha at
+    /// 2x with `isTemplate` on, so the system tints it correctly for dark mode, light mode and
+    /// the selection highlight.
+    static func icon(_ symbol: String, label: String) -> NSImage? {
+        let config = NSImage.SymbolConfiguration(pointSize: 14, weight: .semibold, scale: .large)
+        guard let base = NSImage(systemSymbolName: symbol, accessibilityDescription: label)?
+                .withSymbolConfiguration(config) else { return nil }
+
+        let points = NSSize(width: 18, height: 18)
+        guard let rep = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: 36, pixelsHigh: 36,
+                                         bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true,
+                                         isPlanar: false, colorSpaceName: .deviceRGB,
+                                         bytesPerRow: 0, bitsPerPixel: 0) else { return base }
+        rep.size = points   // 36 px into 18 pt = @2x, crisp on retina
+        NSGraphicsContext.saveGraphicsState()
+        NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: rep)
+        let s = base.size
+        let scale = min(points.width / s.width, points.height / s.height)
+        let w = s.width * scale, h = s.height * scale
+        base.draw(in: NSRect(x: (points.width - w) / 2, y: (points.height - h) / 2,
+                             width: w, height: h))
+        NSGraphicsContext.restoreGraphicsState()
+
+        let out = NSImage(size: points)
+        out.addRepresentation(rep)
+        out.isTemplate = true
+        out.accessibilityDescription = label
+        return out
     }
 
     // MARK: - Running
