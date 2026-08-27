@@ -15,12 +15,19 @@ GIFS    := $(patsubst tapes/%.tape,out/%.gif,$(TAPES))
 export CHUTE_REPO    := $(REPO)
 export CHUTE_FIXTURE := $(FIXTURE)
 
-.PHONY: all demos clean check tools verify
+.PHONY: all demos clean check tools verify shorts publish
 all: demos
+
+# A tape per free-CLI case, generated from site/src/lib/cases.ts so a demo can never run a
+# different command than the page prints beside it. It executes each command in a throwaway
+# fixture first and refuses to write a tape for one that does not work — the same rule verify.sh
+# applies before filming, moved one step earlier so a broken tape is never created at all.
+shorts:
+	@node gen-shorts.mjs --write 2>/dev/null | grep -v "^$$"
 
 # verify BEFORE recording. A GIF of the product failing is worse than no GIF, and unpack.gif
 # reached the live site showing "chute: no named code blocks found" twice.
-demos: tools verify $(GIFS)
+demos: tools shorts verify $(GIFS)
 	@echo
 	@ls -la out/*.gif | awk '{printf "  %-28s %s\n", $$9, $$5}'
 	@echo "  $(words $(GIFS)) demos regenerated"
@@ -33,6 +40,18 @@ out/%.gif: tapes/%.tape common.tape setup.tape fixtures/make.sh
 	@./fixtures/make.sh "$(FIXTURE)"
 	@echo "→ $*"
 	@vhs $< >/dev/null
+
+# Recorded GIFs are not source, so out/ is gitignored — but the site needs them committed. This
+# copies exactly the ones a case refers to, and check-paddle.mjs then proves every referenced
+# asset resolves in the built site.
+publish:
+	@mkdir -p ../site/public/media
+	@n=0; for g in out/*.gif; do \
+	  b=$$(basename $$g); \
+	  if grep -q "/media/$$b" ../site/src/lib/cases.ts; then cp $$g ../site/public/media/$$b; n=$$((n+1)); fi; \
+	done; echo "  $$n GIF(s) published to site/public/media/"
+	@echo "  cases referring to media that does not exist yet:"
+	@cd ../site && node scripts/check-cases.mjs 2>/dev/null | grep "^  note" || true
 
 # Colour comes from brand/tokens.json and nowhere else.
 common.tape chute.theme.json: ../brand/tokens.json ../brand/gen-vhs-theme.mjs
