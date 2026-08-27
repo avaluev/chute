@@ -32,15 +32,28 @@ public struct ChuteAction: Sendable, Equatable {
     public let template: [String]
     /// Shown when the command says nothing on its own.
     public let doneMessage: String
+    /// Non-nil for an action that CHANGES FILES. The app runs the command's dry run first, shows
+    /// the list it printed, and only re-runs it with `--force` if the user presses this button.
+    ///
+    /// A right-click that silently writes into a repo is the one thing that would destroy the
+    /// trust the rest of this product is sold on, so the destructive step is never the same click
+    /// as the one that opened the menu. `unpack` and `clean` both preview by default already
+    /// (NFR-05) — this carries that guarantee across the Finder boundary instead of restating it.
+    public let confirmButton: String?
 
     public init(id: String, title: String, detail: String, scope: Scope,
                 foldersOnly: Bool = false, parentTitle: String? = nil,
-                symbol: String, template: [String], doneMessage: String) {
+                symbol: String, template: [String], doneMessage: String,
+                confirmButton: String? = nil) {
         self.id = id; self.title = title; self.detail = detail; self.scope = scope
         self.foldersOnly = foldersOnly; self.parentTitle = parentTitle
         self.symbol = symbol
         self.template = template; self.doneMessage = doneMessage
+        self.confirmButton = confirmButton
     }
+
+    /// True for anything that writes or deletes. Reads as a question at the call site.
+    public var isDestructive: Bool { confirmButton != nil }
 
     public func title(count: Int) -> String {
         title.replacingOccurrences(of: "{n}", with: "\(count)")
@@ -74,6 +87,18 @@ public enum ChuteActions {
                     symbol: "shippingbox.fill",
                     template: ["bundle", "{files}"],
                     doneMessage: "Files and contents copied."),
+
+        // The other direction, and the second-largest saving in the ledger (JTBD #9, 28.5 min/day).
+        // It was CLI-only, which meant the buyer never saw the half of the loop that gets the
+        // agent's answer back onto disk. Destructive, so it previews first — see `confirmButton`.
+        ChuteAction(id: "unpack-here",
+                    title: "Write Clipboard Files Here",
+                    detail: "The files in a copied answer, written into this folder — after you see the list.",
+                    scope: .folder,
+                    symbol: "arrow.down.doc.fill",
+                    template: ["unpack", "--dir", "{dir}"],
+                    doneMessage: "Files written.",
+                    confirmButton: "Write Files"),
 
         // A folder's whole shape, for handing an agent context it can navigate. Three depths
         // rather than a dialog: a right-click menu cannot ask a question. NOT foldersOnly:
@@ -127,6 +152,38 @@ public enum ChuteActions {
                     symbol: "doc.on.clipboard.fill",
                     template: ["new", "--naming", "underscore", "--ext", "md", "--rename", "--dir", "{dir}"],
                     doneMessage: "Markdown file created."),
+
+        // JTBD #7, 9.9 min/day. Never overwrites an existing rules file (NFR-08), so it needs no
+        // confirmation — the worst case is "kept existing CLAUDE.md".
+        ChuteAction(id: "seed-rules",
+                    title: "Add Agent Rules",
+                    detail: "CLAUDE.md, .cursorrules and SCRATCHPAD.md here, without touching any that exist.",
+                    scope: .folder,
+                    symbol: "doc.badge.gearshape.fill",
+                    template: ["seed", "{dir}"],
+                    doneMessage: "Agent rules added."),
+
+        // JTBD #6, 7.3 min/day. Creates a NEW folder beside this one and launches the agent there,
+        // so an agent told to go wild does it somewhere that is not your repo. Additive: nothing
+        // existing is touched, so no confirmation.
+        ChuteAction(id: "sandbox-here",
+                    title: "New Clean Room for an Agent",
+                    detail: "A fresh folder here with git and rules ready, and the agent already running in it.",
+                    scope: .folder,
+                    symbol: "shippingbox.and.arrow.backward.fill",
+                    template: ["sandbox", "--dir", "{dir}"],
+                    doneMessage: "Clean room ready."),
+
+        // JTBD #13, 6.6 min/day. Moves to the Trash, never `rm` — but it still removes files from
+        // where the user put them, so it shows the list first.
+        ChuteAction(id: "clean-junk",
+                    title: "Move Junk to Trash",
+                    detail: "The scratch files an agent left behind, moved to the Trash — after you see the list.",
+                    scope: .folder,
+                    symbol: "trash.fill",
+                    template: ["clean", "{dir}"],
+                    doneMessage: "Junk moved to Trash.",
+                    confirmButton: "Move to Trash"),
 
         ChuteAction(id: "terminal",
                     title: "Open in Terminal",

@@ -165,7 +165,9 @@ func cmdLatest(_ a: Args) {
 func cmdClean(_ a: Args) {
     let dir = a.paths(defaultToCWD: true)[0]
     guard FileScan.isDirectory(dir) else { Out.fail("not a directory: \(dir)") }
-    let candidates = FileScan.expand([dir], maxFiles: 5000).filter {
+    // includingJunk: this is the one command that is LOOKING for junk. Without it the walk drops
+    // every scratch EXTENSION before `clean` sees it, and only the scratch PREFIXES ever showed up.
+    let candidates = FileScan.expand([dir], maxFiles: 5000, includingJunk: true).filter {
         Junk.isAgentScratch(name: ($0 as NSString).lastPathComponent)
     }
     guard !candidates.isEmpty else { Out.info("nothing to clean"); return }

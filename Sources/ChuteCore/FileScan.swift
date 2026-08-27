@@ -10,13 +10,21 @@ public enum FileScan {
     }
 
     /// Directories expand recursively, skipping junk. Files pass through.
-    public static func expand(_ paths: [String], maxFiles: Int = 500) -> [String] {
+    /// - Parameter includingJunk: keep the files a walk normally drops. Off for everything that
+    ///   builds context — junk in a prompt is wasted tokens. On for `clean`, whose whole job is to
+    ///   FIND that junk: filtering it out here made `clean` blind to every `.log`, `.tmp`, `.bak`,
+    ///   `.swp`, `.orig` and `.rej` on disk, which is most of what it advertises removing. It still
+    ///   only ever trashes what `Junk.isAgentScratch` claims, so `.env` and `.DS_Store` become
+    ///   visible here and are then rejected there.
+    public static func expand(_ paths: [String], maxFiles: Int = 500,
+                              includingJunk: Bool = false) -> [String] {
         var out: [String] = []
         for p in paths {
             let abs = absolute(p)
             guard fm.fileExists(atPath: abs) else { continue }
             if isDirectory(abs) {
-                out.append(contentsOf: walk(abs, limit: maxFiles - out.count))
+                out.append(contentsOf: walk(abs, limit: maxFiles - out.count,
+                                            includingJunk: includingJunk))
             } else {
                 out.append(abs)
             }
@@ -25,7 +33,7 @@ public enum FileScan {
         return Array(out.prefix(maxFiles))
     }
 
-    static func walk(_ dir: String, limit: Int) -> [String] {
+    static func walk(_ dir: String, limit: Int, includingJunk: Bool = false) -> [String] {
         guard limit > 0 else { return [] }
         var out: [String] = []
         guard let e = fm.enumerator(atPath: dir) else { return [] }
@@ -36,7 +44,7 @@ public enum FileScan {
                 if Junk.directories.contains(name) { e.skipDescendants() }
                 continue
             }
-            if Junk.isJunk(name: name, isDirectory: false) { continue }
+            if !includingJunk, Junk.isJunk(name: name, isDirectory: false) { continue }
             out.append(full)
             if out.count >= limit { break }
         }
