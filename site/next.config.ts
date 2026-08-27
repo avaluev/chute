@@ -5,16 +5,12 @@ import type { NextConfig } from "next";
  * middleware. Everything the site does is either HTML or a Paddle overlay opened by the browser.
  */
 /**
- * BASE PATH — temporary, and delete it the day chutedev.com resolves.
+ * Static export. The host is Cloudflare Pages, which serves the site at the ROOT of
+ * chutedev.com — so there is no base path, and the PAGES_BASE_PATH kludge that a GitHub project
+ * page needed is gone with it.
  *
- * A GitHub project page is served from /<repo>/, not from the root. Next emits ABSOLUTE asset
- * URLs, so a default build asks for /_next/static/… while the files actually live at
- * /chute/_next/static/… — the HTML returns 200 and every stylesheet, script and image 404s.
- * The result is a page of unstyled serif text, which is what was published earlier today.
- *
- * On the custom domain the site IS at the root and basePath must be empty again. So it is an
- * environment variable, set only by the Pages workflow, with the removal step written down:
- * when chutedev.com is live, delete PAGES_BASE_PATH from .github/workflows/pages.yml.
+ * It stays readable from the environment for one reason only: a preview deployment served from a
+ * subpath would break every asset the same way, silently, and leaving the hook costs one line.
  */
 const basePath = process.env.PAGES_BASE_PATH ?? "";
 
