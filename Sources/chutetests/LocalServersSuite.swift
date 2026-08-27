@@ -147,5 +147,18 @@ func localServersSuite() {
              ":3000 · node", "and drops the project when there is none")
         T.eq(LocalServer(port: 8080, command: "node", pid: 1, loopbackOnly: true).url,
              "http://localhost:8080", "the URL is the thing you paste into a browser")
+
+        // ─── Copy Server List: one paste that tells an agent everything ──
+        let listing = LocalServers.report([
+            LocalServer(port: 3220, command: "node", pid: 445, loopbackOnly: false, project: "studylock"),
+            LocalServer(port: 5432, command: "postgres", pid: 14471, loopbackOnly: true),
+        ])
+        let lines = listing.split(separator: "\n").map(String.init)
+        T.eq(lines.count, 2, "one line per server, nothing else — paste-ready")
+        T.eq(lines[0], "port 3220 · node · project studylock · pid 445 · reachable from your network · http://localhost:3220",
+             "a line carries everything an agent needs to say what it is")
+        T.eq(lines[1], "port 5432 · postgres · pid 14471 · this Mac only · http://localhost:5432",
+             "no project is no filler text")
+        T.eq(LocalServers.report([]), "", "an empty list copies as nothing, not a header")
     }
 }

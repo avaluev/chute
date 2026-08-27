@@ -30,7 +30,28 @@ extension AppDelegate {
             sub.addItem(item)
             sub.setSubmenu(actions, for: item)
         }
+        // HIG: a command acting on the WHOLE list sits apart from the item rows, after a
+        // separator at the bottom — the list reads first, the aggregate action follows.
+        sub.addItem(.separator())
+        let copyAll = NSMenuItem(title: "Copy Server List (\(servers.count))",
+                                 action: #selector(copyServerList), keyEquivalent: "")
+        copyAll.target = self
+        copyAll.toolTip = "All \(servers.count) as plain text — paste it at an agent and ask what they are."
+        sub.addItem(copyAll)
         menu.setSubmenu(sub, for: parent)
+    }
+
+    /// Re-discovered at click time, not read from the menu snapshot: the copy should describe
+    /// what is listening NOW, and two lsof calls off the main thread cost nothing visible.
+    @objc func copyServerList() {
+        DispatchQueue.global(qos: .userInitiated).async {
+            let servers = LocalServers.discover()
+            guard !servers.isEmpty else {
+                notify("Local servers", "Nothing is listening any more."); return
+            }
+            Clipboard.write(LocalServers.report(servers))
+            notify("Local servers", "Copied \(servers.count) server(s) — paste it at your agent.")
+        }
     }
 
     @objc func openServer(_ sender: NSMenuItem) {

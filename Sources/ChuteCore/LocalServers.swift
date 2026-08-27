@@ -119,6 +119,23 @@ public enum LocalServers {
         }
     }
 
+    /// The whole list as plain text, one line per server — built to be PASTED at an agent
+    /// ("what are these and which can I kill?"), so every line carries port, what it is, where
+    /// it runs, its pid, its reach and its URL. No header: a header is noise in a prompt.
+    public static func report(_ servers: [LocalServer]) -> String {
+        servers.map { s in
+            let parts = [
+                "port \(s.port)",
+                s.kind,
+                s.project.map { "project \($0)" },
+                "pid \(s.pid)",
+                s.loopbackOnly ? "this Mac only" : "reachable from your network",
+                s.url,
+            ]
+            return parts.compactMap { $0 }.joined(separator: " · ")
+        }.joined(separator: "\n")
+    }
+
     // ─── Killing a port, and why the obvious version does not work ──────────
     //
     // This used to be `lsof -ti tcp:<port>` + `kill -9` on everything it
