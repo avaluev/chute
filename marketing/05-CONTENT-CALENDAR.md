@@ -8,52 +8,53 @@ Existing drafts in `/Users/sxope/Documents/2026/Development/37.chute/marketing/0
 (X demo post, Show HN, Product Hunt, r/macapps) are **scheduled by reference below, not rewritten** —
 two copies of the same claim drift apart the moment one gets edited.
 
-## 1. The two waves
+## 1. One wave, app-first
 
-**Wave 0 — day 2 — the free CLI.** Repo public, `brew install avaluev/tap/chute` live. Costs
-nothing, needs no Apple certificate, and can start the moment this file is committed. It carries
-days 1–8 on its own: CLI demos, a newsletter pitch, one technical write-up, two subreddits.
+**SUPERSEDED 2026-08-28.** This file used to run two waves: the free CLI carried days 1–8 on its
+own, and the paid app followed on day 9. It was the right plan for a product whose paid surface
+demonstrated less of the ledger than its free one — which was true until the four Finder actions
+landed. It is no longer true, and the two-wave shape had a cost that was always going to be
+paid: **eight days of teaching an audience to want the free thing, then asking them for $19.**
 
-**Wave 1 — day 9 — the paid app. BLOCKED on the Apple Developer ID / notarization**
-(`/Users/sxope/Documents/2026/Development/37.chute/handoff/NEXT.md`, NEXT §1). Every Wave 1 row
-below is labelled `App+N` — days since the notarized build actually ships — instead of a fixed
-date. **If the certificate slips, Wave 0 does not stall**: keep posting CLI content and technical
-write-ups on the fixed Day-N cadence, and let every `App+N` row slide as one block behind it. Show
-HN and Product Hunt both belong to Wave 1 (the war stories are about the signed app); Product Hunt
-is `App+15`, which keeps it ≥ 14 days after Show HN — never the same week, per
-`/Users/sxope/Documents/2026/Development/37.chute/docs/09-GTM-DECISIONS.md` §7.
+One wave now, `App+N` throughout, where **App+0 is the day the notarized DMG and the live Paddle
+checkout both exist.** Not one of them — both. A launch post pointing at a Gatekeeper wall, or at
+a Buy button that opens nothing, spends the only attention this product gets on a broken funnel.
+
+The CLI has not been demoted in the product, only in the sequence. It stays free, MIT and
+complete; it is the hero's second line, the whole of `/cli`, and the answer to every "this should
+be free" reply. It re-enters the calendar at App+16 as top-of-funnel, where it belongs.
+
+**If the certificate slips, nothing ships.** That is the deliberate difference from the old plan,
+which kept Wave 0 running so something was always going out. Posting CLI content into the silence
+before an app launch is how you arrive at App+0 having already spent the audience.
 
 ## 2. Day-by-day
 
 | Day | Channel | Asset | Job | Worked if |
 |---|---|---|---|---|
-| 1 | Infra (no post) | n/a | Repo public, tap live: `brew install avaluev/tap/chute` | Install succeeds on a clean Mac, `chute doctor` reports 9/9 |
-| 2 | X/Twitter — Wave 0 launch | `/Users/sxope/Documents/2026/Development/37.chute/demo/out/bundle.gif` | Announce the CLI is free, MIT, forever | Replies ask "is there an app"; no unanswered "just a shell script" |
-| 3 | Reddit r/commandline | `/Users/sxope/Documents/2026/Development/37.chute/demo/out/tree.gif` | Put 28 commands in front of terminal power users, as a tool share not an ad | Net-positive score; a comment names a command they'll actually run |
-| 4 | Newsletter — Console.dev | `/Users/sxope/Documents/2026/Development/37.chute/demo/out/tokens.gif` | Pitch a one-line mention in a CLI-tool roundup | Editor replies yes or no within 7 days |
-| 5 | X/Twitter | `/Users/sxope/Documents/2026/Development/37.chute/demo/out/sessions.gif` | Preview "which agent is waiting" — no ship date promised | Replies asking "when can I buy this" |
-| 6 | Technical write-up #1 + X cross-post | `/Users/sxope/Documents/2026/Development/37.chute/demo/out/checkpoint.gif` | Publish war story 1 (§4) | Referral clicks once linked from HN/X later; a comment repeats the bug back correctly |
-| 7 | Reddit r/macapps | `/Users/sxope/Documents/2026/Development/37.chute/demo/out/ports.gif` | Schedule 03's r/macapps draft (reference, not rewritten) — reach Mac-tool readers while the app waits on the cert | Net-positive score; no pile-on left unanswered on "why no notarized build yet" |
-| 8 | Gate day (no post) | n/a | Check Developer ID status. If issued: shoot the 4 GUI recordings — `cd /Users/sxope/Documents/2026/Development/37.chute/demo/gui && ./record.sh all` | 4 files exist at `/Users/sxope/Documents/2026/Development/37.chute/demo/out/gui/{bundle,menubar,hotkey,ports}.mov` |
-| 9 / App+0 | X/Twitter — Wave 1 launch thread | `/Users/sxope/Documents/2026/Development/37.chute/demo/out/gui/bundle.mov`, reframed via `/Users/sxope/Documents/2026/Development/37.chute/demo/reframe.sh` to `.../demo/out/social/bundle-square.mp4` | Announce the $19 notarized app, 14-day trial | Click-throughs to chutedev.com; first paid conversions |
-| 10 / App+1 | Show HN | site hero = `/Users/sxope/Documents/2026/Development/37.chute/demo/out/bundle.gif` | Schedule 03's Show HN draft verbatim (title + body, §3-D below) | Front page, not flagged; comments engage the two implementation notes specifically |
-| 11 / App+2 | Reddit r/ClaudeAI | `/Users/sxope/Documents/2026/Development/37.chute/demo/out/bundle.gif` | New post (§3-E) — reach the beachhead segment already complaining about context juggling | Comments describe their own workaround, not just "cool" |
-| 12 / App+3 | Reddit r/ChatGPTCoding | `/Users/sxope/Documents/2026/Development/37.chute/demo/out/unpack.gif` | Same workflow share, secondary audience | A "does this work with Codex/Cursor" comment (tests expansion wave 2) |
-| 13 / App+4 | Technical write-up #2 + X cross-post | `/Users/sxope/Documents/2026/Development/37.chute/demo/out/doctor.gif` | Publish war story 2 (§4) | A commenter quotes the exact error string back — proof someone else hit it |
-| 14 / App+5 | Newsletter — TLDR | `/Users/sxope/Documents/2026/Development/37.chute/brand/out/og.png` | Pitch the broad dev-newsletter audience now the app is real and signed | Editor replies within 7 days |
-| 15 / App+6 | X/Twitter | `/Users/sxope/Documents/2026/Development/37.chute/demo/out/gui/menubar.mov` (reframed) | Show the live menu-bar badge, not a mock | Replies describing their own multi-terminal chaos |
-| 16 / App+7 | Newsletter — Changelog | link to write-up #1, no image | Pitch the dev-tooling podcast/newsletter on the open-core CLI angle | Editor replies within 7 days |
-| 17 / App+8 | Technical write-up #3 + X cross-post | `/Users/sxope/Documents/2026/Development/37.chute/demo/out/gui/bundle.mov` (reframed) | Publish war story 3 (§4) | A reply from someone who ships their own Finder/Services extension |
-| 18 / App+9 | YouTube, 4 min | edit of `/Users/sxope/Documents/2026/Development/37.chute/demo/out/gui/*.mov` via `.../demo/reframe.sh`, output `.../demo/out/social/bundle-wide.mp4` | One linkable explainer for the "is there a video" comments piling up on HN/Reddit | Watch-through past 60 s in YouTube Studio (first-party, no telemetry conflict) |
-| 19 / App+10 | Newsletter — Ben's Bites | `/Users/sxope/Documents/2026/Development/37.chute/brand/out/card-sessions.png` | Pitch the AI-tooling audience on "your agents shouldn't cost you attention" | Editor replies within 7 days |
-| 20 / App+11 | X/Twitter, 4-tweet mini-series | `/Users/sxope/Documents/2026/Development/37.chute/brand/out/quote-1.png` .. `quote-4.png` | One fact per card (90–120 min/day, 328 KB, 28 commands, no telemetry) — zero adjectives | Each stands alone as a retweet with no added context needed |
-| 21 / App+12 | Buffer (no new post) | n/a | Answer every open thread from days 9–20; the "should be free" and "I'll write a shell script" replies (§5) | Every top-level objection has a reply within 24 h of the original post |
-| 22–23 / App+13–14 | Buffer (no post) | n/a | Confirm PH gallery images are uploaded: `/Users/sxope/Documents/2026/Development/37.chute/brand/out/og.png` + the four `card-*.png` | PH's own listing preview passes |
-| 24 / App+15 | Product Hunt | `/Users/sxope/Documents/2026/Development/37.chute/brand/out/og.png` | Schedule 03's PH tagline + description + first comment verbatim | Top 5 for the day; comments ask real product questions, not just upvote-and-run |
+| App-1 | Gate day, no post | — | Cold-install on a second Mac: download the DMG, drag, launch, right-click, see the menu. Buy with a real card, receive the key, activate, refund yourself. | Both work first time, on a machine that has never seen this project |
+| App+0 | X — launch thread, 6 posts | `demo/out/gui/paste-a-whole-folder-into-your-agent.mov`, reframed | The app, $19, 14-day trial. The CLI is named once, in post 4. | Click-throughs to chutedev.com; first paid conversions |
+| App+1 | Show HN | site hero | Title and body reused verbatim from `03-LAUNCH-POSTS.md:18-45` — the two implementation notes are the whole reason the post works. Founder's first comment names the price and the free CLI. | Front page, not flagged; comments engage the implementation notes specifically |
+| App+2 | Reddit r/ClaudeAI | `turn-an-answer-back-into-files` demo | Workflow share. Ownership disclosed once, plainly, up front. | Comments describe their own workaround, not just "cool" |
+| App+3 | Reddit r/macapps | `which-agent-is-waiting-for-you` demo | A tools post. Price in one line, never the headline. | Net-positive; no unanswered "why should I pay" |
+| App+4 | Write-up #1 + X | — | *"Your context menu is drawn by someone else's process"* — the FinderSync/appex boundary | A commenter who ships their own extension recognises it |
+| App+5 | Newsletter — TLDR | `brand/out/og.png` | Pitch now the app is real and signed | Editor replies within 7 days |
+| App+6 | X | `demo/out/gui/menubar.mov` | The live badge, not a mock | Replies describing their own multi-terminal chaos |
+| App+7 | Reddit r/ChatGPTCoding | `unpack` demo | Secondary audience; tests expansion wave 2 | A "does this work with Codex/Cursor" comment |
+| App+8 | Write-up #2 + X | — | *"The sandbox container that remembers your old face"* — the appex code-identity trap | Someone quotes the exact error string back |
+| App+9 | Newsletter — Ben's Bites | `brand/out/card-sessions.png` | "Your agents shouldn't cost you attention" | Editor replies within 7 days |
+| App+10 | YouTube, 4 min | edit of `demo/out/gui/*.mov` | One linkable explainer for the "is there a video" replies | Watch-through past 60 s |
+| App+11 | Write-up #3 + X | — | *"The git command that lies about being complete"* — the `checkpoint` bug | A commenter repeats the bug back correctly |
+| App+12 | X, 4-card series | `brand/out/quote-1..4.png` | One fact per card, zero adjectives | Each stands alone as a retweet |
+| App+13–14 | Buffer, no post | — | Answer every open thread. Confirm PH gallery uploads. | Every top-level objection answered within 24 h |
+| App+15 | Product Hunt | `brand/out/og.png` | ≥14 days after Show HN — never the same week | Top 5 for the day; real product questions |
+| App+16 | Reddit r/commandline | `demo/out/tree.gif` | **The CLI re-enters here.** A tool share for terminal people, no mention of the app unless asked. | Net-positive; a comment names a command they will run |
+| App+18 | Newsletter — Console.dev | `demo/out/tokens.gif` | The CLI-roundup pitch | Editor replies within 7 days |
 
-`App+15` sits 14 days after `App+1` (Show HN) — satisfies "never the same week" with one day of
-slack. If Wave 1 slips, Wave 0's days 1–8 rhythm (one CLI post every 1–2 days, one write-up) is
-what keeps running; nothing here depends on the app existing until day 9.
+**The one number to watch in week one:** landing → download. If it is healthy and download →
+purchase is not, the page is fine and the product's first run is not — go and fix onboarding,
+not the copy. If landing → download is weak, the argument on the page is not landing and the
+demos are the first thing to look at, because they are what the argument rests on.
 
 ## 3. Ready-to-post copy
 

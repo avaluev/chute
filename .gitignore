@@ -20,3 +20,6 @@ CloudFlare_API.md
 .cf-token
 *.token
 *credentials*
+
+# Playwright MCP leaves snapshots and screenshots where it is run from.
+.playwright-mcp/
