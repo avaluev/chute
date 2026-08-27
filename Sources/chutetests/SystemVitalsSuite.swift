@@ -3,19 +3,23 @@ import ChuteCore
 
 func systemVitalsSuite() {
     T.suite("SystemVitals") {
-        // Real `ps -Ao pid=,tty=,pcpu=,rss=` output, including the two shapes that break naive
-        // parsing: "??" for no controlling terminal, and multiple processes on one tty.
+        // Real `ps -Axo pid=,ppid=,tty=,pcpu=,rss=,comm=` output, including the shapes that break
+        // naive parsing: "??" for no controlling terminal, multiple processes on one tty, a comm
+        // that is a full path, and a comm with spaces in it.
         let sample = """
-            1     ??   0.0  19856
-        33176 s001  12.5 512000
-        33180 s001   3.5 128000
-        54361 s002   0.0   4096
-        90588 ttys003  0.7  8192
+            1     0   ??   0.0  19856 /sbin/launchd
+        33176     1 s001  12.5 512000 /opt/homebrew/bin/node
+        33180 33176 s001   3.5 128000 node
+        54361     1 s002   0.0   4096 -zsh
+        90588     1 ttys003  0.7  8192 next-server (v16.1.1)
         garbage line
         """
         let samples = SystemVitals.parse(ps: sample)
-        T.eq(samples.count, 4, "the daemon on ?? and the garbage line are both skipped")
-        T.ok(!samples.contains { $0.tty == "??" }, "?? is never treated as a terminal")
+        T.eq(samples.count, 5, "every process parses — detached ones too; only garbage is skipped")
+        T.eq(samples.first(where: { $0.pid == 1 })?.tty, "", "?? becomes empty — detached, not a terminal")
+        T.eq(samples.first(where: { $0.pid == 33176 })?.command, "node", "a path comm is its basename")
+        T.eq(samples.first(where: { $0.pid == 90588 })?.command, "next-server (v16.1.1)",
+             "a comm with spaces survives whole")
 
         // A terminal's cost is everything running on it — the agent, its node processes, its children.
         let busy = SystemVitals.load(forTTY: "s001", in: samples)
@@ -24,6 +28,37 @@ func systemVitalsSuite() {
         T.eq(busy.residentBytes, 640_000 * 1024, "and so does their memory")
         T.ok(busy.label.contains("16%"), "the row reads '16% · …': \(busy.label)")
         T.ok(busy.label.hasSuffix("memory"), "and the size says what it measures: \(busy.label)")
+
+        // THE HOT-MAC BUG. An agent's real work happens in spawned children that DROP the tty:
+        // claude (ttys004) → zsh (??) → npm (??) → chrome-headless-shell (??) at 120%. The menu
+        // summed only tty-attached processes, so a session running a Playwright suite read
+        // "0% CPU" while the chassis burned. Captured from this machine on 2026-08-27.
+        let tree = SystemVitals.parse(ps: """
+        70180 69994 ttys004  0.5 360000 claude
+          772 70180   ??   0.0   4000 /bin/zsh
+          776   772   ??   0.0   3000 bash
+          894   776   ??   1.0  90000 npm exec playwright test
+        16699   894   ??   2.0  80000 node
+        16702 16699   ??  120.3 500000 /Users/sxope/Library/Caches/ms-playwright/chrome-headless-shell
+          364     1   ??   7.2  60000 /System/Library/WindowServer
+        """)
+        let attributed = SystemVitals.attribute(tree)
+        T.eq(attributed.first(where: { $0.pid == 16702 })?.tty, "ttys004",
+             "a detached burner is attributed to the terminal it descends from")
+        let session = SystemVitals.load(forTTY: "ttys004", in: attributed)
+        T.eq(session.processes, 6, "the whole tree belongs to the session")
+        T.ok(session.cpuPercent > 120, "and the session's CPU tells the truth: \(session.cpuPercent)%")
+        T.eq(attributed.first(where: { $0.pid == 364 })?.tty, "",
+             "a system daemon under launchd is attributed to nobody")
+
+        // A cyclic or self-parenting table must terminate, not hang the menu.
+        let cyclic = [ProcessSample(pid: 5, ppid: 5, command: "x", tty: "", cpuPercent: 1, residentKB: 1)]
+        T.eq(SystemVitals.attribute(cyclic).first?.tty, "", "a self-parenting pid ends the climb")
+
+        // The busiest process on the machine, by name — the answer to "why is my Mac hot".
+        T.eq(SystemVitals.busiest(tree)?.command, "chrome-headless-shell",
+             "the busiest process is found and named by its basename")
+        T.eq(SystemVitals.busiest([])?.command, nil, "no processes is no busiest, not a crash")
 
         // An idle shell says nothing. A row reading "0% · 4 MB" is noise in a list you are
         // scanning to find the busy one.
@@ -56,6 +91,6 @@ func systemVitalsSuite() {
         // The real machine, so the parsing is proved against live output, not only a fixture.
         let live = SystemVitals.sample()
         T.ok(live.count > 5, "the real process table parses (\(live.count) processes)")
-        T.ok(live.allSatisfy { $0.pid > 0 && !$0.tty.isEmpty }, "every live sample is well formed")
+        T.ok(live.allSatisfy { $0.pid >= 0 }, "every live sample is well formed")
     }
 }

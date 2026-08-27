@@ -1,7 +1,7 @@
 # HANDOFF — Chute — 2026-08-27 (evening)
 
 STATE: `main` · pushed · tree clean
-       unit **451/451** (`swift run chutetests`) · e2e **133/133** (`./Scripts/smoke.sh`) ·
+       unit **460/460** (`swift run chutetests`) · e2e **133/133** (`./Scripts/smoke.sh`) ·
        headless e2e **109/109** (`CHUTE_HEADLESS=1 ./Scripts/smoke.sh`) ·
        `chute doctor` **9/9** (the hooks check is gone by design, see DECISIONS) ·
        extension `loaded · 8 actions` · notifications `on` ·
@@ -20,7 +20,7 @@ swift run chutetests && ./Scripts/smoke.sh
 cd /Users/sxope/Documents/2026/Development/37.chute && ./Scripts/build-app.sh && ./Scripts/install.sh
 cd /Users/sxope/Documents/2026/Development/37.chute && ~/.local/bin/chute doctor
 ```
-Expect: `✅ 451 assertions passed`, `smoke: 133 passed, 0 failed`, `→ all 9 checks passed`.
+Expect: `✅ 460 assertions passed`, `smoke: 133 passed, 0 failed`, `→ all 9 checks passed`.
 `build-app.sh` may ask the keychain for the signing key — click **Always Allow** once.
 
 ---
@@ -152,6 +152,11 @@ of its load-bearing facts are documented nowhere but this repo.
   200 KB to prove it.
 - **`pgrep -x Terminal` never matches Terminal.app**; use `ps -Ao comm` and a path fragment.
 - **`ps -o tty=` prints `??`**, not empty, when there is no controlling terminal.
+- **An agent's real work runs DETACHED from its tty.** claude (ttys004) → zsh (??) → npm (??) →
+  chrome-headless-shell (??) at 120% CPU: summing tty-attached processes showed "0% CPU" on the
+  session cooking the chassis. `SystemVitals.attribute` walks every detached process up its
+  parent chain to the terminal it descends from; the menu also names the machine's busiest
+  process when it exceeds 80% of a core.
 - **APFS is case-insensitive**: the app executable is `ChuteApp` so it cannot collide with `chute`.
 - **`git log origin/<branch>..HEAD` returns 0 when the branch was never pushed** — the error is
   suppressed and silence reads as success. Verify with `git ls-remote --heads origin <branch>`.

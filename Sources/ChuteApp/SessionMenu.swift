@@ -80,16 +80,22 @@ enum SessionMenu {
         }
 
         // How the machine itself is doing. The battery sensor is what can be read without root;
-        // it is labelled as the battery rather than passed off as a CPU reading.
+        // it is labelled as the battery rather than passed off as a CPU reading. And when one
+        // process is visibly cooking the machine, NAME it — "running cool" next to a hot chassis
+        // read as nonsense until the burner had a name on the same line.
         let pressure = SystemVitals.thermalPressure(ProcessInfo.processInfo.thermalState)
         var machine = "This Mac — \(pressure)"
         if let c = SystemVitals.temperature() {
             machine = "This Mac — \(pressure), battery at \(SystemVitals.temperatureLabel(c))"
         }
+        if let hog = SystemVitals.busiest(samples), hog.cpuPercent >= 80 {
+            machine += " · busiest: \(hog.command) at \(Int(hog.cpuPercent.rounded()))% CPU"
+        }
         let vitals = NSMenuItem(title: machine, action: nil, keyEquivalent: "")
         vitals.isEnabled = false
         vitals.toolTip = "Temperature comes from the battery sensor. The CPU sensors need "
-                       + "administrator access, which Chute does not ask for."
+                       + "administrator access, which Chute does not ask for. "
+                       + "100% CPU means one full core, as in Activity Monitor."
         menu.addItem(vitals)
         menu.addItem(.separator())
 
