@@ -199,9 +199,9 @@ export const CASES: Case[] = [
     jtbd: 22, surface: "cli", tier: "short", paid: false,
     pain: "The files I need are in four different folders and the clipboard holds one thing.",
     ritual: "Paste each one into a scratch document as you go, then copy the whole document.",
-    fix: "Add to a buffer as you find them, flush it once when you have them all.",
+    fix: "Copy as you find them — each one lands in a buffer. Flush it once and everything comes out in one paste.",
     seconds: { manual: 45, chute: 4 }, perDay: 12, savedMinutes: 8.2,
-    command: "chute buf add src/a.ts && chute buf flush",
+    command: "chute buf add",
   },
   {
     slug: "what-did-the-agent-actually-change",
@@ -238,7 +238,7 @@ export const CASES: Case[] = [
     ritual: "Sort by date modified and hope you are in the right folder.",
     fix: "The newest thing in the folder, revealed — or previewed without opening anything.",
     seconds: { manual: 15, chute: 2 }, perDay: 20, savedMinutes: 4.3,
-    command: "chute latest --quicklook",
+    command: "chute latest",
   },
   {
     slug: "a-snapshot-before-you-let-it-run",

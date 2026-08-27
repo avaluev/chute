@@ -10,7 +10,7 @@
  *
  * Run: node scripts/check-cases.mjs      (wired into the deploy gate, see Scripts/deploy-site.sh)
  */
-import { readFileSync } from "node:fs"
+import { readFileSync, readdirSync } from "node:fs"
 import { fileURLToPath } from "node:url"
 import { dirname, resolve } from "node:path"
 import { CASES } from "../src/lib/cases.ts"
@@ -129,6 +129,20 @@ for (const c of CASES) {
 measured
   ? ok(`${measured} case(s) backed by a stopwatch, not an estimate`)
   : console.log("  note no recordings timed yet — every figure is still an estimate from the ledger")
+
+// The reverse of the missing-demo note, and just as much a defect: a recording that was made,
+// committed, and then never referenced. It costs bytes in the repo, it is not on the page it was
+// shot for, and nobody finds out because nothing renders it.
+const MEDIA = resolve(here, "../public/media")
+try {
+  const referenced = new Set(CASES.map((c) => c.demo).filter(Boolean).map((d) => d.replace("/media/", "")))
+  const orphans = readdirSync(MEDIA)
+    .filter((f) => /\.(gif|mp4|webm)$/.test(f) && !referenced.has(f) && !f.startsWith("card-") && f !== "og.png")
+  if (orphans.length) {
+    console.log(`  note ${orphans.length} recording(s) in public/media that no case refers to:`)
+    console.log(`       ${orphans.join(", ")}`)
+  }
+} catch { /* no media directory yet */ }
 
 // Recorded demos are optional until they are shot (see demo/verify.sh), but a case that claims
 // one must point somewhere real — check-paddle.mjs proves the file resolves in the built site.
