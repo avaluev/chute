@@ -69,6 +69,35 @@ func finderActionsSuite() {
         T.eq(Set(inline.map(\.symbol)).count, inline.count,
              "no two inline rows share an icon — an icon that cannot distinguish is decoration")
 
+        // DESTRUCTIVE ACTIONS. A right-click that silently writes into a repo is the one thing
+        // that would destroy the trust everything else here is sold on. Both of these preview by
+        // default in the CLI (NFR-05); the guarantee only survives the trip through the menu if
+        // the template stays in its harmless form and the app supplies --force after asking.
+        let destructive = ChuteActions.all.filter(\.isDestructive)
+        T.eq(Set(destructive.map(\.id)), ["unpack-here", "clean-junk"],
+             "exactly the two actions that change files ask first")
+        for a in destructive {
+            T.ok(!(a.confirmButton ?? "").isEmpty, "'\(a.id)' names the button that does the thing")
+            T.ok(!a.template.contains("--force"),
+                 "'\(a.id)' does not carry --force — the first run must be the preview")
+        }
+        // And the inverse, so a future action cannot quietly become destructive: anything whose
+        // command has a --force mode must declare a confirmation.
+        for a in ChuteActions.all where ["unpack", "clean"].contains(a.template.first ?? "") {
+            T.ok(a.isDestructive, "'\(a.id)' runs a --force-capable command, so it must confirm")
+        }
+
+        // THE PAID SURFACE. These four moved out of the CLI so the app demonstrates the four
+        // highest-value jobs in the ledger instead of only the ones a terminal user already has.
+        // If one is dropped, the landing page's arithmetic stops matching the product.
+        for id in ["unpack-here", "seed-rules", "sandbox-here", "clean-junk"] {
+            guard let a = ChuteActions.find(id) else { T.ok(false, "'\(id)' is in the menu"); continue }
+            T.eq(a.scope, .folder, "'\(id)' acts on the folder in view")
+            T.ok(a.parentTitle == nil, "'\(id)' is one click")
+        }
+        T.eq(ChuteActions.argv(ChuteActions.find("unpack-here")!, dir: "/tmp/p", files: ["/a.ts"]),
+             ["unpack", "--dir", "/tmp/p"], "the selection never reaches a folder action")
+
         // Titles carry the count so you see what you are about to act on.
         T.eq(paths.title(count: 3), "Copy Full Paths (3)", "the count is substituted")
         T.eq(paths.plainTitle, "Copy Full Paths", "and dropped where it is unknown")

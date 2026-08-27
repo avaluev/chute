@@ -207,6 +207,16 @@ for id in $ALL_IDS; do
   printf '# Sweep Fixture\n\nbody\n' | pbcopy      # anything reading the clipboard gets something usable
   case "$id" in
     terminal) ok "terminal: argv built (execution skipped — it opens a real window)"; continue;;
+    # Same reason as `terminal`: it opens a window and starts an agent. --no-launch exercises
+    # everything up to that point (folder, git init, rules) without leaving a Terminal behind.
+    sandbox-here)
+      if ! command -v claude >/dev/null 2>&1; then skip "sandbox-here — claude is not on PATH"; continue; fi
+      run_action "$id" --no-launch >/dev/null 2>&1;;
+    # The sweep's clipboard is plain prose, and `unpack` correctly refuses prose. Give it the
+    # thing it is for — a fenced block with a path — or this asserts the refusal, not the feature.
+    unpack-here)
+      printf '```ts sweep/out.ts\nexport const x = 1\n```\n' | pbcopy
+      run_action "$id" >/dev/null 2>&1;;
     paste-image)
       if [ "$HEADLESS" = "1" ]; then skip "paste-image — needs an image on the pasteboard"; continue; fi
       sips -s format png "$ROOT/Resources/Chute.icns" --out "$T/sweep.png" >/dev/null 2>&1
@@ -251,6 +261,30 @@ run_action bundle-xml >/dev/null 2>&1
 has   "bundle-xml carries the file contents"   "$(pbpaste)" "export const a = 1"
 has   "bundle-xml carries every selected file" "$(pbpaste)" "export const b = 2"
 has   "bundle-xml reports a token count"       "$(cat /tmp/chute-a.err)" "token"
+
+# THE FOUR ACTIONS THAT MAKE THE APP WORTH BUYING. Each was CLI-only, so the paid surface
+# demonstrated ~73 min/day of the ledger while the free CLI demonstrated ~125. Their EFFECT is
+# asserted here, not just their exit code — a menu item that runs clean and does nothing is the
+# failure mode this whole file exists for.
+
+# NFR-05 ACROSS THE MENU BOUNDARY: without --force these two must change NOTHING. The app runs
+# exactly this form first and only re-runs with --force once the user has seen the list.
+printf '```ts sweep/out.ts\nexport const x = 1\n```\n' | pbcopy
+run_action unpack-here >/dev/null 2>&1
+has   "unpack-here previews the file it would write" "$(cat /tmp/chute-a.out)" "sweep/out.ts"
+if [ ! -e "$FX/sweep/out.ts" ]; then ok "and writes nothing until it is confirmed"
+else bad "and writes nothing until it is confirmed" "$FX/sweep/out.ts exists after a preview"; fi
+
+run_action seed-rules >/dev/null 2>&1
+if [ -f "$FX/CLAUDE.md" ]; then ok "seed-rules leaves rules an agent will actually read"
+else bad "seed-rules leaves rules an agent will actually read" "no CLAUDE.md in $FX"; fi
+
+touch "$FX/temp_agent_output.log"
+run_action clean-junk >/dev/null 2>&1
+has   "clean-junk finds what an agent left behind" "$(cat /tmp/chute-a.out)" "temp_agent_output.log"
+if [ -e "$FX/temp_agent_output.log" ]; then ok "and trashes nothing until it is confirmed"
+else bad "and trashes nothing until it is confirmed" "the file was removed by a preview"; fi
+rm -f "$FX/temp_agent_output.log"
 
 run_action tree-2 >/dev/null 2>&1
 has   "tree-2 shows the folder"            "$(pbpaste)" "src/"
@@ -313,7 +347,10 @@ else
   check "and nothing is written" "$(ls "$FX"/Screenshot*.png 2>/dev/null | wc -l | tr -d ' ')" "$BEFORE_COUNT"
 fi
 
-check "the menu table and this test agree" "$(printf '%s' "$ALL_IDS" | wc -w | tr -d ' ')" "9"
+# 13 = the 9 original actions plus the four that moved out of the CLI so the paid surface can
+# demonstrate the four highest-value jobs in the ledger (unpack, seed, sandbox, clean). Change
+# this number only when the menu changes, never to make this file pass.
+check "the menu table and this test agree" "$(printf '%s' "$ALL_IDS" | wc -w | tr -d ' ')" "13"
 
 echo "16. the Finder extension's request inbox (needs Chute.app running)"
 # The extension is sandboxed: it cannot run git, launch Terminal or drive AppleScript. It writes a

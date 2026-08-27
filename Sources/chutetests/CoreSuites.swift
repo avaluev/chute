@@ -131,6 +131,37 @@ func coreSuites() {
              "and so is a plain climb, belt and braces with validate()")
     }
 
+    T.suite("FileScan.expand") {
+        // THE BUG THIS EXISTS FOR. `clean` is the one command LOOKING for junk, and the walk was
+        // dropping junk before it ever saw it — so every `.log`, `.tmp`, `.bak`, `.swp`, `.orig`
+        // and `.rej` on disk was invisible to it and only the scratch PREFIXES ever got listed.
+        // Silently removing half of what a command advertises is worse than failing at it.
+        let dir = NSTemporaryDirectory() + "chute-scan-\(UUID().uuidString)"
+        try? FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(atPath: dir) }
+        for name in ["keep.ts", "temp_agent.log", "notes.bak", ".env", ".DS_Store"] {
+            FileManager.default.createFile(atPath: (dir as NSString).appendingPathComponent(name),
+                                           contents: Data())
+        }
+        func names(_ paths: [String]) -> Set<String> {
+            Set(paths.map { ($0 as NSString).lastPathComponent })
+        }
+        let context = names(FileScan.expand([dir]))
+        T.eq(context, ["keep.ts"], "building context sees only real files — junk is wasted tokens")
+
+        let sweep = names(FileScan.expand([dir], includingJunk: true))
+        T.ok(sweep.contains("temp_agent.log") && sweep.contains("notes.bak"),
+             "a junk sweep sees the scratch files a context build hides")
+        T.ok(sweep.contains(".env"), "and everything else, so the DECISION is made in one place")
+
+        // …which is `isAgentScratch`, and it is what keeps a secret out of the Trash. `clean`
+        // filters the sweep through this, so widening the walk above widened nothing destructive.
+        T.ok(!Junk.isAgentScratch(name: ".env"), "a .env is never an agent's scratch file")
+        T.ok(!Junk.isAgentScratch(name: ".DS_Store"), "nor is a Finder file the user did not make")
+        T.ok(Junk.isAgentScratch(name: "temp_agent.log"), "a scratch extension is")
+        T.ok(Junk.isAgentScratch(name: "scratch_notes.md"), "and so is a scratch prefix")
+    }
+
     T.suite("Shell") {
         // A child that floods stderr while its stdout is still open used to deadlock BOTH
         // processes: the ~64 KB pipe filled, the child blocked mid-write, stdout never closed,
