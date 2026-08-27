@@ -124,12 +124,6 @@ export default function Home() {
             </div>
           ))}
         </div>
-        <p className="mt-8 max-w-2xl text-sm text-muted-foreground">
-          Twenty-four of these were measured, one at a time, against a stopwatch. The arithmetic is
-          in the repo — <a className="underline underline-offset-4 hover:text-foreground"
-          href="https://github.com/avaluev/chute/blob/main/docs/03-JTBD-LEDGER.md">docs/03-JTBD-LEDGER.md</a>,
-          including the ones that turned out not to be worth building.
-        </p>
       </Section>
 
       {/* ---------------------------------------------------------------- act 1 */}
