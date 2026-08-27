@@ -119,12 +119,129 @@ public enum LocalServers {
         }
     }
 
-    /// Kill whatever holds a port. Returns the pids it signalled.
+    // ─── Killing a port, and why the obvious version does not work ──────────
+    //
+    // This used to be `lsof -ti tcp:<port>` + `kill -9` on everything it
+    // returned. It looked right and failed in two directions at once.
+    //
+    // TOO WIDE: bare `-ti` returns every socket on the port, CLIENTS included.
+    // A browser tab open on localhost:3477 is in that list, so "Stop It" would
+    // `kill -9` a Google Chrome renderer. `discover()` above already gets this
+    // right with `-sTCP:LISTEN`; the kill path never did.
+    //
+    // TOO NARROW, and this is the one the user actually hits: a dev server is
+    // not one process. `npm run dev` gives you
+    //
+    //     npm exec next dev  →  node  →  next-server   ← the ONLY pid lsof returns
+    //
+    // lsof returns the LEAF. Kill it and the npm parent is still alive and
+    // still supervising, so it respawns the child and the port comes straight
+    // back — from the menu it reads as "I clicked Stop It and nothing
+    // happened", which is exactly the report. Verified 2026-08-27 against three
+    // live servers: :3400 leaf 33176 under `npm exec next start -p 3400`,
+    // :3401 leaf 54361 under its own npm, :3477 leaf 90588 under
+    // `node` under `npm exec next dev -p 3477`.
+    //
+    // So: find the LISTENER, climb to the top of its runner tree, and signal
+    // the whole subtree — TERM first so Next can flush, KILL only what
+    // survives. This is the algorithm `scripts/dev-server.sh` in the
+    // sntz_mockups repo already had to write for the same reason; its own
+    // docblock names the three-process chain.
+
+    /// Processes we are willing to climb THROUGH when looking for the root of a
+    /// server's tree.
+    ///
+    /// The climb must stop somewhere, and "keep going until pid 1" is how you
+    /// kill the user's terminal: a server started in a shell has that shell as
+    /// an ancestor, and Terminal.app above it. Anything not named here ends the
+    /// climb, so the worst case is that we kill a subtree that is too SMALL —
+    /// recoverable — rather than one that closes the window you typed in.
+    static let runnerCommands: Set<String> = [
+        // `next` and `next-server` are BOTH here and both are load-bearing: a
+        // Next tree is `npm` -> `.bin/next` -> `next-server`, so omitting the
+        // middle name stops the climb at the leaf and reintroduces the exact
+        // bug this function exists to fix. The test at LocalServersSuite caught
+        // precisely that when only `next-server` was listed.
+        "npm", "npx", "pnpm", "yarn", "bun", "node", "deno", "next", "next-server",
+        "python", "python3", "uvicorn", "gunicorn", "flask", "ruby", "rails",
+        "php", "java", "dotnet", "cargo", "vite", "esbuild", "webpack", "nodemon",
+        "concurrently", "tsx", "ts-node", "turbo", "rollup", "parcel",
+    ]
+
+    /// Parse `ps -axo pid=,ppid=,comm=` into pid → (ppid, command). Pure.
+    ///
+    /// `comm` is a PATH (`/usr/local/bin/node`, `npm exec next dev`), so the
+    /// last path component is taken and any argument tail dropped — `npm` has
+    /// to match `npm`, not `npm exec next start -p 3400`.
+    public static func parseProcessTable(_ output: String) -> [Int: (ppid: Int, command: String)] {
+        var table: [Int: (ppid: Int, command: String)] = [:]
+        for line in output.split(separator: "\n") {
+            let parts = line.split(separator: " ", omittingEmptySubsequences: true)
+            guard parts.count >= 3, let pid = Int(parts[0]), let ppid = Int(parts[1]) else { continue }
+            let full = parts[2...].joined(separator: " ")
+            let head = full.split(separator: " ").first.map(String.init) ?? full
+            let name = head.split(separator: "/").last.map(String.init) ?? head
+            table[pid] = (ppid, name)
+        }
+        return table
+    }
+
+    /// Every pid that must die for `listener` to stay dead. Pure, so the tree
+    /// walk is testable without spawning anything.
+    ///
+    /// Climbs to the highest ancestor still in `runnerCommands`, then returns
+    /// that root plus all of its descendants. Guards against a cyclic or
+    /// self-parenting table by refusing to visit a pid twice.
+    public static func killSet(listener: Int, table: [Int: (ppid: Int, command: String)]) -> [Int] {
+        var root = listener
+        var seen: Set<Int> = [listener]
+        while let entry = table[root], entry.ppid > 1, let parent = table[entry.ppid],
+              runnerCommands.contains(parent.command), !seen.contains(entry.ppid) {
+            seen.insert(entry.ppid)
+            root = entry.ppid
+        }
+
+        var children: [Int: [Int]] = [:]
+        for (pid, entry) in table { children[entry.ppid, default: []].append(pid) }
+
+        var out: [Int] = []
+        var stack = [root]
+        var visited: Set<Int> = []
+        while let pid = stack.popLast() {
+            guard visited.insert(pid).inserted else { continue }
+            out.append(pid)
+            stack.append(contentsOf: children[pid] ?? [])
+        }
+        return out.sorted()
+    }
+
+    /// Kill whatever holds a port, tree and all. Returns the pids it signalled.
+    ///
+    /// TERM, wait for the listener to actually go, then KILL the remainder. The
+    /// return value is what was SIGNALLED — the caller reports it, so it must
+    /// not claim a kill it did not perform.
     @discardableResult
     public static func kill(port: Int) -> [Int] {
-        let pids = Shell.run("lsof", ["-ti", "tcp:\(port)"]).out
+        // LISTEN only. A client socket on this port belongs to somebody else.
+        let listeners = Shell.run("lsof", ["-tnP", "-iTCP:\(port)", "-sTCP:LISTEN"]).out
             .split(separator: "\n").compactMap { Int($0.trimmingCharacters(in: .whitespaces)) }
-        for pid in pids { _ = Shell.run("kill", ["-9", String(pid)]) }
-        return pids
+        guard !listeners.isEmpty else { return [] }
+
+        let table = parseProcessTable(Shell.run("ps", ["-axo", "pid=,ppid=,comm="]).out)
+        let doomed = Array(Set(listeners.flatMap { killSet(listener: $0, table: table) })).sorted()
+
+        for pid in doomed { _ = Shell.run("kill", ["-TERM", String(pid)]) }
+
+        // Up to ~3s for a graceful exit, then force what is left. Polling the
+        // LISTENER is the honest check: the port being free is the thing the
+        // user asked for, not the pid table being empty.
+        for _ in 0..<15 {
+            let still = Shell.run("lsof", ["-tnP", "-iTCP:\(port)", "-sTCP:LISTEN"]).out
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            if still.isEmpty { return doomed }
+            Thread.sleep(forTimeInterval: 0.2)
+        }
+        for pid in doomed { _ = Shell.run("kill", ["-9", String(pid)]) }
+        return doomed
     }
 }
