@@ -92,10 +92,11 @@ Finder right-click → Chute ▸ …
   check $HOME/.local/bin/chute doctor    (what is not wired up yet, and how to fix it)
   agents $HOME/.local/bin/chute sessions  (every terminal session, grouped by state)
 
-The menu bar badge only counts BLOCKED and WAITING sessions once Claude Code hooks are wired:
+The menu bar badge only counts BLOCKED and WAITING sessions once Claude Code hooks are wired.
+Chute never edits ~/.claude/settings.json — wiring them is done by your own hand, if you want it:
 
-  $HOME/.local/bin/chute hooks status     (what is wired now)
-  $HOME/.local/bin/chute hooks install    (appends to ~/.claude/settings.json, backs it up first)
+  $HOME/.local/bin/chute hooks status     (read-only: what is wired now)
+  $HOME/.local/bin/chute hooks snippet    (prints the JSON for you to paste in yourself)
 
 First use of the hotkey or a Finder action will ask for Automation permission. That prompt is
 macOS asking whether Chute may read your Finder selection. Nothing leaves your machine.

@@ -93,7 +93,7 @@ chute diff . --copy                  # what did the agent actually change?
 | `chute env inject [dir]` | Keychain → `.env`. Refuses unless `.env` is gitignored |
 | `chute sessions` | Every terminal session, grouped by state. `--json` |
 | `chute focus <key\|project\|N>` | Bring that session to the front. Asks when a name matches several |
-| `chute hooks install\|uninstall\|status` | Wire Claude Code hooks so the badge knows BLOCKED/WAITING |
+| `chute hooks snippet\|uninstall\|status` | Agent status hooks — printed for YOU to paste; Chute never edits your settings |
 | `chute doctor` | Check every prerequisite and say how to fix it. `--fix --json` |
 
 Add `--no-copy` to any command to keep the clipboard untouched.
@@ -112,19 +112,25 @@ chute doctor            # what is not wired up yet, and the exact fix
 The menu bar `⤓` carries the count of sessions that want you. Click it for the list, colour-coded
 per project, with `⌥1`–`⌥8` on the first eight.
 
-**The badge needs hooks to be interesting.** Without them Chute can only read the terminal title
-glyph and the busy flag, so every session reads `working` and the badge stays dark. With them,
-Claude Code reports `blocked` (a permission prompt) and `waiting` (your turn) as they happen:
+**The badge needs hooks to be interesting, and wiring them is your call, made by your hand.**
+Without them Chute can only read the terminal title glyph and the busy flag, so every session
+reads `working` and the badge stays dark. With them, Claude Code reports `blocked` (a permission
+prompt) and `waiting` (your turn) as they happen.
+
+**Chute never writes to `~/.claude/settings.json` — or to any other tool's configuration.**
+Your agent setup is fragile and it is yours; no menu-bar utility should be editing it, however
+carefully. So:
 
 ```bash
-chute hooks status            # what is wired now
-chute hooks install           # append to ~/.claude/settings.json — backs up first
-chute hooks uninstall         # remove exactly what was added, nothing else
+chute hooks status            # read-only: what is wired now
+chute hooks snippet           # prints the JSON — paste it into settings.json yourself,
+                              # or add the same commands via Claude Code's /hooks menu
+chute hooks uninstall         # removes exactly the blocks OLD Chute versions added (≤0.1.0
+                              # wrote them) — backs up first, touches nothing of yours
 ```
 
-`hooks install` parses your settings, never templates them; appends only; is idempotent; validates
-the result re-parses and kept every key before replacing the file; and writes a timestamped backup
-next to it first. `--settings PATH` points it at a copy if you want to diff before committing.
+The hook commands themselves only ever write to `~/.chute/sessions/` and always exit 0, so a
+Chute failure can never break an agent session.
 
 Only live terminals count toward the badge: a hook record from a window you have since closed is
 ignored, so the number never inflates behind your back.

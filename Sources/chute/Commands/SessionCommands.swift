@@ -98,18 +98,15 @@ func cmdHooks(_ a: Args) {
     let path = a.value("settings", or: (NSHomeDirectory() as NSString)
         .appendingPathComponent(".claude/settings.json"))
     switch a.positional.first ?? "status" {
-    case "install":
-        do {
-            let r = try HookInstaller.install(settingsPath: path)
-            Out.info("→ backup: \(r.backupPath ?? "none")")
-            Out.line("wired: \(r.changed.sorted().joined(separator: ", "))")
-            if !r.skipped.isEmpty {
-                Out.line("already present: \(r.skipped.sorted().joined(separator: ", "))")
-            }
-        } catch { Out.fail("\(error)") }
+    case "install", "snippet":
+        // Chute never edits another tool's settings. The user's hand does the writing.
+        Out.line(HookInstaller.manualSnippet())
+        Out.info("→ Chute does not modify \(path) — merge the \"hooks\" object above into it "
+                 + "yourself (or via Claude Code's /hooks menu), then `chute hooks status`.")
     case "uninstall":
         do {
             let r = try HookInstaller.uninstall(settingsPath: path)
+            guard !r.changed.isEmpty else { Out.info("→ nothing of Chute's in \(path)"); break }
             Out.info("→ backup: \(r.backupPath ?? "none")")
             Out.line("removed: \(r.changed.sorted().joined(separator: ", "))")
         } catch { Out.fail("\(error)") }

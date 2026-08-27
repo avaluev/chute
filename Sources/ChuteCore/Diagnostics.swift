@@ -34,7 +34,6 @@ public struct DiagnosticsEnv: Sendable {
     public var extensionID: String
     public var automationOK: Bool
     public var processList: String
-    public var hooksWired: Int
     public var endToEndPassed: Bool
     /// Whether the extension's sandbox container still accepts the installed build's code
     /// identity. nil when there is no container yet, which is a healthy first install.
@@ -42,11 +41,11 @@ public struct DiagnosticsEnv: Sendable {
 
     public init(osMajor: Int, appPath: String, cliPath: String?, pluginkitList: String,
                 extensionID: String, automationOK: Bool, processList: String,
-                hooksWired: Int, endToEndPassed: Bool, containerAccepts: Bool? = nil) {
+                endToEndPassed: Bool, containerAccepts: Bool? = nil) {
         self.osMajor = osMajor; self.appPath = appPath; self.cliPath = cliPath
         self.pluginkitList = pluginkitList; self.extensionID = extensionID
         self.automationOK = automationOK; self.processList = processList
-        self.hooksWired = hooksWired; self.endToEndPassed = endToEndPassed
+        self.endToEndPassed = endToEndPassed
         self.containerAccepts = containerAccepts
     }
 }
@@ -79,9 +78,9 @@ public enum Diagnostics {
         Check(id: "terminal", title: "A terminal is running",
               why: "The session switcher lists terminal windows. With none open there is nothing to show.",
               fix: "Open Terminal. Informational only — nothing is broken."),
-        Check(id: "hooks", title: "Agent status hooks",
-              why: "Without them the menu bar cannot tell which agents are waiting for you.",
-              fix: "chute hooks install   (appends only, backs up first, reversible with chute hooks uninstall)"),
+        // There is deliberately NO "hooks" check: agent status hooks are optional and manual
+        // (`chute hooks snippet`), and a doctor check nudging people to edit their own
+        // ~/.claude/settings.json is a nudge toward the one file Chute promises never to touch.
         Check(id: "end-to-end", title: "End-to-end proof",
               why: "Every component can be healthy and the product still not work. This runs a real command and reads the result back.",
               fix: "If this alone fails, the pieces are fine but they are not talking. Re-run chute doctor --fix, then report it."),
@@ -135,7 +134,6 @@ public enum Diagnostics {
         add("terminal",
             env.processList.contains("Terminal.app/Contents/MacOS/Terminal"),
             env.processList.isEmpty ? "none detected" : "running")
-        add("hooks", env.hooksWired == 4, "\(env.hooksWired) of 4 wired")
         add("end-to-end", env.endToEndPassed, env.endToEndPassed ? "verified" : "failed")
         return out
     }
@@ -169,9 +167,6 @@ public enum Diagnostics {
             extensionID: extensionID,
             automationOK: probe.ok,
             processList: Shell.run("ps", ["-Ao", "comm"]).out,
-            hooksWired: HookInstaller.status(settingsPath:
-                (NSHomeDirectory() as NSString).appendingPathComponent(".claude/settings.json"))
-                .values.filter { $0 }.count,
             endToEndPassed: endToEndProbe(),
             containerAccepts: extensionHasStarted(extensionID: extensionID, appPath: appPath))
     }

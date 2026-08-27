@@ -106,14 +106,9 @@ private func applyFixes(_ outcomes: [CheckOutcome]) {
         case "automation":
             _ = Shell.run("osascript", ["-e", "tell application \"Finder\" to return 1"])
             Out.info("→ triggered the Automation prompt")
-        case "hooks":
-            do {
-                let r = try HookInstaller.install(settingsPath:
-                    (NSHomeDirectory() as NSString).appendingPathComponent(".claude/settings.json"))
-                Out.info("→ wired hooks: \(r.changed.sorted().joined(separator: ", ")) · backup \(r.backupPath ?? "none")")
-            } catch { Out.info("→ hooks not installed: \(error)") }
         default:
             break   // os, app-location, terminal and end-to-end have no safe automatic fix
+            // hooks deliberately have no --fix: Chute never writes to ~/.claude/settings.json.
         }
     }
 }

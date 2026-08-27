@@ -8,156 +8,123 @@ func hookInstallerSuite() {
         defer { try? FileManager.default.removeItem(atPath: dir) }
         let path = (dir as NSString).appendingPathComponent("settings.json")
 
-        let original = """
-        {"permissions":{"allow":["Bash"]},"model":"opus","statusLine":{"type":"command"},
+        // A settings file as an EARLIER Chute version left it: the user's own hooks plus a
+        // chute-marked block on each event. Uninstall must take exactly ours and nothing else.
+        let chuteBlock = { (state: SessionState) -> String in
+            let cmd = HookInstaller.command(for: state)
+            let data = try! JSONSerialization.data(withJSONObject:
+                ["hooks": [["type": "command", "command": cmd]]])
+            return String(decoding: data, as: UTF8.self)
+        }
+        let legacy = """
+        {"permissions":{"allow":["Bash"]},"model":"opus",
          "hooks":{
-           "Stop":[{"hooks":[{"type":"command","command":"existing-plugin-command --flag"}]}],
-           "PermissionRequest":[{"matcher":"Bash","hooks":[{"type":"command","command":"another-one"}]}],
-           "UserPromptSubmit":[{"hooks":[{"type":"command","command":"third"}]}],
-           "SessionStart":[{"hooks":[{"type":"command","command":"fourth"}]}],
+           "Stop":[{"hooks":[{"type":"command","command":"existing-plugin-command --flag"}]},
+                   \(chuteBlock(.waiting))],
+           "PermissionRequest":[{"matcher":"Bash","hooks":[{"type":"command","command":"another-one"}]},
+                   \(chuteBlock(.blocked))],
+           "UserPromptSubmit":[\(chuteBlock(.working))],
+           "SessionStart":[\(chuteBlock(.working))],
            "PreCompact":[{"hooks":[{"type":"command","command":"untouched"}]}]}}
         """
-        func reset() { try? original.write(toFile: path, atomically: true, encoding: .utf8) }
-        func load() -> [String: Any] {
-            (try? JSONSerialization.jsonObject(with: Data(contentsOf: URL(fileURLWithPath: path))))
+        try? legacy.write(toFile: path, atomically: true, encoding: .utf8)
+        func load(_ p: String) -> [String: Any] {
+            (try? JSONSerialization.jsonObject(with: Data(contentsOf: URL(fileURLWithPath: p))))
                 as? [String: Any] ?? [:]
         }
         func entries(_ d: [String: Any], _ event: String) -> Int {
             ((d["hooks"] as? [String: Any])?[event] as? [Any])?.count ?? 0
         }
 
-        reset()
-        T.noThrow("install succeeds") { _ = try HookInstaller.install(settingsPath: path) }
-        var d = load()
-
-        T.eq(entries(d, "Stop"), 2, "appended to Stop, original entry kept")
-        T.eq(entries(d, "PermissionRequest"), 2, "appended to PermissionRequest")
-        T.eq(entries(d, "UserPromptSubmit"), 2, "appended to UserPromptSubmit")
-        T.eq(entries(d, "SessionStart"), 2, "appended to SessionStart")
-        T.eq(entries(d, "PreCompact"), 1, "an unrelated event is untouched")
-        T.ok(d["permissions"] != nil && d["model"] != nil && d["statusLine"] != nil,
-             "every unrelated top-level key survives")
-
-        // The real settings.json carries `matcher` keys on some blocks. Appending must leave them
-        // byte-identical — dropping a matcher would silently change when the user's hook fires.
-        let permBlocks = ((d["hooks"] as? [String: Any])?["PermissionRequest"] as? [[String: Any]]) ?? []
-        T.eq(permBlocks.count, 2, "matcher-bearing event still gained exactly one entry")
-        T.eq((permBlocks.first?["matcher"] as? String) ?? "", "Bash",
-             "the pre-existing block's matcher key survives install untouched")
-        T.ok(permBlocks.first?["hooks"] != nil, "the pre-existing block keeps its hooks array")
-
-        let text = (try? String(contentsOfFile: path, encoding: .utf8)) ?? ""
-        T.ok(text.contains("existing-plugin-command --flag"), "the pre-existing command is intact")
-        T.ok(text.contains(HookInstaller.marker), "our entries carry the marker")
-
-        // Idempotence.
-        T.noThrow("second install succeeds") { _ = try HookInstaller.install(settingsPath: path) }
-        d = load()
-        T.eq(entries(d, "Stop"), 2, "installing twice adds nothing")
-
-        // A backup exists.
-        let backups = ((try? FileManager.default.contentsOfDirectory(atPath: dir)) ?? [])
-            .filter { $0.contains("chute-backup") }
-        T.ok(!backups.isEmpty, "a timestamped backup was written")
-
-        // Status.
+        // Status is read-only and sees the legacy wiring.
         T.eq(HookInstaller.status(settingsPath: path).values.filter { $0 }.count, 4,
-             "status reports four wired events")
+             "status reports four wired events on a legacy install")
 
-        // Uninstall restores exactly.
+        // THE CONTRACT — decided 2026-08-27: Chute NEVER writes to the user's Claude Code
+        // configuration. There is no install() any more; the snippet is generated for the
+        // user's own hand.
+        let snippet = HookInstaller.manualSnippet()
+        let parsed = (try? JSONSerialization.jsonObject(with: Data(snippet.utf8))) as? [String: Any]
+        T.ok(parsed != nil, "the manual snippet is valid JSON")
+        let snippetHooks = (parsed?["hooks"] as? [String: Any]) ?? [:]
+        T.eq(snippetHooks.keys.sorted(),
+             ["PermissionRequest", "SessionStart", "Stop", "UserPromptSubmit"],
+             "the snippet carries all four events")
+        T.ok(snippet.contains(HookInstaller.marker), "snippet commands carry the marker")
+
+        // Uninstall removes exactly ours.
         T.noThrow("uninstall succeeds") { _ = try HookInstaller.uninstall(settingsPath: path) }
-        d = load()
-        T.eq(entries(d, "Stop"), 1, "our entry removed")
+        let d = load(path)
+        T.eq(entries(d, "Stop"), 1, "our Stop entry removed, theirs kept")
+        T.eq(entries(d, "PermissionRequest"), 1, "our PermissionRequest entry removed, theirs kept")
+        T.eq(entries(d, "PreCompact"), 1, "an unrelated event is untouched")
         T.ok(((try? String(contentsOfFile: path, encoding: .utf8)) ?? "")
-                .contains("existing-plugin-command --flag"), "theirs still there after uninstall")
+                .contains("existing-plugin-command --flag"), "the user's own command survives")
+        T.ok(d["permissions"] != nil && d["model"] != nil, "every unrelated top-level key survives")
         T.eq(HookInstaller.status(settingsPath: path).values.filter { $0 }.count, 0,
-             "status reports nothing wired")
-
+             "status reports nothing wired afterwards")
         let permAfter = ((d["hooks"] as? [String: Any])?["PermissionRequest"] as? [[String: Any]]) ?? []
         T.eq((permAfter.first?["matcher"] as? String) ?? "", "Bash",
              "the matcher key survives uninstall untouched")
+        // Events that held ONLY our block are dropped, not left as [] husks.
+        T.ok((d["hooks"] as? [String: Any])?["UserPromptSubmit"] == nil,
+             "an event we emptied is dropped, not left as a [] husk")
 
-        // An event that held ONLY our block is removed entirely: an empty array is a husk we left
-        // behind, so a file with no hooks of its own must come back with no hook events at all.
-        let virgin = (dir as NSString).appendingPathComponent("virgin.json")
-        try? #"{"model":"opus"}"#.write(toFile: virgin, atomically: true, encoding: .utf8)
-        T.noThrow("install into a file with no hooks") { _ = try HookInstaller.install(settingsPath: virgin) }
-        T.noThrow("uninstall from it again") { _ = try HookInstaller.uninstall(settingsPath: virgin) }
-        let after = (try? JSONSerialization.jsonObject(
-            with: Data(contentsOf: URL(fileURLWithPath: virgin)))) as? [String: Any] ?? [:]
-        T.eq((after["hooks"] as? [String: Any])?.count, 0,
-             "events we emptied are dropped, not left as [] husks")
-        T.eq(after["model"] as? String, "opus", "and the user's own keys survive the round trip")
+        // A backup exists from the uninstall that changed something.
+        let backups = ((try? FileManager.default.contentsOfDirectory(atPath: dir)) ?? [])
+            .filter { $0.contains("chute-backup") }
+        T.eq(backups.count, 1, "one timestamped backup was written")
+
+        // Idempotence: a second uninstall finds nothing, writes nothing, backs up nothing.
+        let before = (try? String(contentsOfFile: path, encoding: .utf8)) ?? "x"
+        T.noThrow("second uninstall succeeds") {
+            let r = try HookInstaller.uninstall(settingsPath: path)
+            T.eq(r.changed, [], "a second uninstall removes nothing")
+            T.ok(r.backupPath == nil, "and leaves no backup behind")
+        }
+        T.eq((try? String(contentsOfFile: path, encoding: .utf8)) ?? "y", before,
+             "a no-op uninstall leaves the file byte-identical")
 
         // Malformed input changes nothing.
         let broken = (dir as NSString).appendingPathComponent("broken.json")
         try? "{ this is not json".write(toFile: broken, atomically: true, encoding: .utf8)
         T.throwsError("refuses to touch an unparseable file") {
-            _ = try HookInstaller.install(settingsPath: broken)
+            _ = try HookInstaller.uninstall(settingsPath: broken)
         }
         T.eq((try? String(contentsOfFile: broken, encoding: .utf8)) ?? "", "{ this is not json",
              "the unparseable file is byte-identical afterwards")
 
-        // A settings file with no hooks key at all.
-        let bare = (dir as NSString).appendingPathComponent("bare.json")
-        try? #"{"model":"opus"}"#.write(toFile: bare, atomically: true, encoding: .utf8)
-        T.noThrow("handles a file with no hooks key") { _ = try HookInstaller.install(settingsPath: bare) }
-        T.eq(entries(load2(bare), "Stop"), 1, "creates the event array when absent")
-
-        // Critical 1: a non-conforming shape must abort, not be overwritten.
+        // A non-conforming shape must abort, not be overwritten — and leave no backup.
         let oddHooks = (dir as NSString).appendingPathComponent("odd-hooks.json")
         try? #"{"model":"opus","hooks":"not-an-object"}"#.write(toFile: oddHooks, atomically: true, encoding: .utf8)
-        T.throwsError("refuses when `hooks` is not an object") { _ = try HookInstaller.install(settingsPath: oddHooks) }
+        T.throwsError("refuses when `hooks` is not an object") { _ = try HookInstaller.uninstall(settingsPath: oddHooks) }
         T.eq((try? String(contentsOfFile: oddHooks, encoding: .utf8)) ?? "",
              #"{"model":"opus","hooks":"not-an-object"}"#, "the odd file is byte-identical afterwards")
+        let oddTrace = ((try? FileManager.default.contentsOfDirectory(atPath: dir)) ?? [])
+            .filter { $0.hasPrefix("odd-hooks.json.chute-backup-") }
+        T.ok(oddTrace.isEmpty, "a refused uninstall leaves no backup file behind")
 
         let oddEvent = (dir as NSString).appendingPathComponent("odd-event.json")
         try? #"{"hooks":{"Stop":"not-an-array"}}"#.write(toFile: oddEvent, atomically: true, encoding: .utf8)
-        T.throwsError("refuses when an event value is not an array") { _ = try HookInstaller.install(settingsPath: oddEvent) }
-        T.eq((try? String(contentsOfFile: oddEvent, encoding: .utf8)) ?? "",
-             #"{"hooks":{"Stop":"not-an-array"}}"#, "the odd-event file is byte-identical afterwards")
+        T.throwsError("refuses when an event value is not an array") { _ = try HookInstaller.uninstall(settingsPath: oddEvent) }
 
-        // Important 5: a user command that merely mentions the marker is not ours.
+        // A user command that merely mentions the marker is not ours.
         T.no(HookInstaller.isChuteCommand("echo reading chute-session-state files"),
              "a command merely mentioning the marker is not treated as ours")
         T.ok(HookInstaller.isChuteCommand(HookInstaller.command(for: .waiting)),
              "our own command is recognised as ours")
-
-        // Important 6 / Fix 6b: two installs from identical input must produce byte-identical
-        // output. Without .sortedKeys this fails intermittently across processes, because Swift
-        // dictionaries are unordered and hash seeds are randomised per process.
-        let detA = (dir as NSString).appendingPathComponent("det-a.json")
-        let detB = (dir as NSString).appendingPathComponent("det-b.json")
-        try? original.write(toFile: detA, atomically: true, encoding: .utf8)
-        try? original.write(toFile: detB, atomically: true, encoding: .utf8)
-        T.noThrow("install A") { _ = try HookInstaller.install(settingsPath: detA) }
-        T.noThrow("install B") { _ = try HookInstaller.install(settingsPath: detB) }
-        T.eq((try? String(contentsOfFile: detA, encoding: .utf8)) ?? "x",
-             (try? String(contentsOfFile: detB, encoding: .utf8)) ?? "y",
-             "identical input produces byte-identical output")
-
-        // Hardening 3: a marker-prefixed but different command must not be treated as ours.
         T.no(HookInstaller.isChuteCommand("# chute-session-state-mine\necho hi"),
              "a marker-prefixed but different command is not ours")
 
-        // Hardening 4: pin the shape of the generated command so the next edit has a guard.
+        // Pin the shape of the generated command so the next edit has a guard.
         let cmd = HookInstaller.command(for: .blocked)
         T.ok(cmd.hasPrefix("# chute-session-state\n"), "command opens with the marker line")
         T.ok(cmd.contains("case \"$T\" in"), "command carries the tty whitelist")
         T.ok(cmd.contains("exit 0"), "command always exits 0 so it cannot break the user's agent")
         T.ok(cmd.contains("printf '{}"), "command emits {} on stdout")
 
-        // Hardening 1: backup must not be written when install refuses a malformed shape.
-        let noBackup = (dir as NSString).appendingPathComponent("no-backup.json")
-        try? #"{"hooks":"not-an-object"}"#.write(toFile: noBackup, atomically: true, encoding: .utf8)
-        T.throwsError("refuses odd shape (no-backup fixture)") { _ = try HookInstaller.install(settingsPath: noBackup) }
-        let noBackupTrace = ((try? FileManager.default.contentsOfDirectory(atPath: dir)) ?? [])
-            .filter { $0.hasPrefix("no-backup.json.chute-backup-") }
-        T.ok(noBackupTrace.isEmpty, "a refused install leaves no backup file behind")
+        // The snippet is deterministic — the docs can quote it verbatim.
+        T.eq(HookInstaller.manualSnippet(), HookInstaller.manualSnippet(),
+             "two snippets are byte-identical")
     }
-}
-
-private func load2(_ path: String) -> [String: Any] {
-    (try? JSONSerialization.jsonObject(with: Data(contentsOf: URL(fileURLWithPath: path))))
-        as? [String: Any] ?? [:]
 }
