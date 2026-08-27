@@ -9,7 +9,7 @@ import { CONFIG } from "@/lib/config";
 export const metadata: Metadata = {
   title: "The free command-line tool — Chute",
   description:
-    "28 commands, MIT licensed, offline, no account. Everything the app does, from a terminal.",
+    "25 commands, MIT licensed, offline, no account. Everything the app does, from a terminal.",
   alternates: { canonical: `https://${CONFIG.domain}/cli/` },
 };
 
@@ -35,7 +35,7 @@ export default function CliPage() {
           The command-line tool is free, MIT, and yours whatever happens to this page
         </h1>
         <p className="mt-5 text-lg text-muted-foreground">
-          28 commands. Zero dependencies, zero telemetry, no account, 328 KB. It does every job on
+          25 commands. Zero dependencies, zero telemetry, no account, 788 KB. It does every job on
           this site — including the {PAID.length} that the paid app puts in your right-click menu.
         </p>
 

@@ -84,8 +84,17 @@ CHUTE_SECS="$(stopwatch_read)"
 take_wait
 verify_take "$SLUG" 12
 
-emit_timing "$SLUG" "$MANUAL" "$CHUTE_SECS"
-burn_clock "$SLUG-manual" "by hand"   "$MANUAL"
-burn_clock "$SLUG"        "with Chute" "$CHUTE_SECS"
+# The scene is returned to where it opened, so the case page's autoplaying loop does not jump
+# every twelve seconds. verify_loop measures the seam and says so if this was not enough.
+key kp:esc
+pause 0.6
 
-say "done — $OUT/$SLUG.mov and $OUT/$SLUG-manual.mov"
+emit_timing  "$SLUG" "$MANUAL" "$CHUTE_SECS"
+export_web   "$SLUG"                                  # mp4 + webm + poster, for every case page
+verify_loop  "$SLUG"
+compose_race "$SLUG" "$MANUAL" "$CHUTE_SECS" 14       # the wide hero, desktop only
+
+say "done:"
+say "  $OUT/$SLUG.mp4        the solo take — case pages, and every phone"
+say "  $OUT/$SLUG-race.mp4   the race — landing hero, too wide to read at 375px"
+say "  $OUT/$SLUG.json       what the stopwatch read, consumed by check-cases.mjs"

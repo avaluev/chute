@@ -98,7 +98,7 @@ One story: **your agents should not cost you attention.**
 |---|---|
 | Running 5 agents at once | "Know which one needs you, without hunting windows" |
 | Juggling context by hand | "Eight files, one paste, with the token count" |
-| Burned by subscriptions | "One payment. Offline. No account. 328 KB." |
+| Burned by subscriptions | "One payment. Offline. No account. No network code at all." |
 | Nervous about a repo | "Every destructive command previews first" |
 
 Different entry points, one conclusion. Never say "powerful", "seamless", or "revolutionary" —

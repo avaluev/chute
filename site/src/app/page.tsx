@@ -34,13 +34,13 @@ const FAQ = [
   { q: "What happens when the 14-day trial ends?",
     a: "The app locks: the Finder menu and the menu-bar switcher stop until you enter a key. The chute command-line tool keeps working forever, because it is free and MIT licensed — and it still does every one of these jobs from a terminal." },
   { q: "Is the CLI really free?",
-    a: "Yes, all 28 commands, MIT, on Homebrew. The $19 buys the app: the Finder right-click menu, the menu-bar session switcher and the hotkey — a signed, sandboxed Finder extension is the part you cannot reasonably build yourself." },
+    a: "Yes, all 25 commands, MIT, on Homebrew. The $19 buys the app: the Finder right-click menu, the menu-bar session switcher and the hotkey — a signed, sandboxed Finder extension is the part you cannot reasonably build yourself." },
   { q: "Where do these numbers come from?",
     a: "A ledger of 24 jobs, each timed the same way: how often it happens, how long it takes by hand, how long it takes with Chute. It is in the repository, the site is generated from it, and the build fails if a figure on this page stops matching it." },
   { q: "Which agents does it work with?",
     a: "All of them. Chute never talks to an agent; it moves files, paths and text through your clipboard. Claude Code, Codex, Cursor, Aider, Gemini — if it reads a prompt, it reads Chute’s output." },
   { q: "Which macOS?",
-    a: "macOS 13 Ventura and later, Apple Silicon and Intel. One binary, 328 KB, no dependencies, no launch daemon." },
+    a: "macOS 13 Ventura and later, Apple Silicon and Intel. A 2.5 MB app and a 788 KB command-line binary, with no dependencies, no launch daemon and no background service." },
 ];
 
 function Section({ id, eyebrow, title, children }: {
@@ -115,7 +115,7 @@ export default function Home() {
       {/* ---------------------------------------------------------------- hero */}
       <section className="mx-auto w-full max-w-5xl px-6 pt-16 md:pt-24">
         <Badge variant="secondary" className="font-[family-name:var(--font-mono-loaded)] text-xs">
-          macOS 13+ · 328 KB · no account
+          macOS 13+ · no account · no telemetry
         </Badge>
 
         {/* Kept verbatim. It survived the rewrite because it answers the killer objection —
@@ -222,7 +222,7 @@ export default function Home() {
               {FREE.length} jobs · {freeMinutes} min a day
             </p>
             <p className="mt-4 text-sm text-muted-foreground">
-              All 28 commands. MIT licensed, source on GitHub, yours forever whatever happens to me
+              All 25 commands. MIT licensed, source on GitHub, yours forever whatever happens to me
               or to this page. It does every job on this site — from a terminal, one path at a time.
             </p>
             <div className="mt-6"><CopyLine text={CONFIG.brew} /></div>
