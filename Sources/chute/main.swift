@@ -49,6 +49,13 @@ files you name (redacted first) to GitHub.
 """
 
 let argv = Array(CommandLine.arguments.dropFirst())
+// `--version` and `--help` are the forms every other CLI answers to, so answer to them here:
+// anything starting with `--` is swallowed by Args as a flag and never reaches the switch below,
+// which left the `case "--version"` there looking handled while printing the help instead.
+if argv.first == "--version" || argv.first == "-V" {
+    print("chute \(ChuteVersion.current)")
+    exit(0)
+}
 guard let command = argv.first, !command.hasPrefix("--") else {
     print(helpText)
     exit(argv.isEmpty ? 1 : 0)
@@ -84,7 +91,7 @@ case "doctor":     cmdDoctor(args)
 case "finder-actions": cmdFinderActions(args)
 case "paste-image":    cmdPasteImage(args)
 case "help", "-h", "--help", "version", "--version":
-    if command.contains("version") { print("chute 0.1.0") } else { print(helpText) }
+    if command.contains("version") { print("chute \(ChuteVersion.current)") } else { print(helpText) }
 default:
     Out.fail("unknown command '\(command)' — run `chute help`")
 }

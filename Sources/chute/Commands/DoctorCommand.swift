@@ -12,7 +12,7 @@ func cmdDoctor(_ a: Args) {
             encoding: .utf8))?.trimmingCharacters(in: .whitespacesAndNewlines)
         Out.line(SupportReport.build(
             outcomes: outcomes,
-            version: "0.1.0",
+            version: ChuteVersion.current,
             osVersion: "\(v.majorVersion).\(v.minorVersion).\(v.patchVersion)",
             extras: ["finder extension": marker ?? "never loaded",
                      "notifications": (try? String(contentsOfFile:
