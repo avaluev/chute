@@ -3,7 +3,10 @@
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 APP="$ROOT/dist/Chute.app"
-VERSION="0.1.0"
+# Single source of truth: Sources/ChuteCore/Version.swift. Four hand-kept copies of this
+# number is how a bundle ends up claiming a version the binary disagrees with.
+VERSION="$(sed -n 's/.*static let current = "\([^"]*\)".*/\1/p' "$ROOT/Sources/ChuteCore/Version.swift")"
+[ -n "$VERSION" ] || { echo "build-app: cannot read the version from Sources/ChuteCore/Version.swift" >&2; exit 1; }
 
 cd "$ROOT"
 swift build -c release
