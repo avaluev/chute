@@ -76,6 +76,12 @@ func cmdUnpack(_ a: Args) {
         let full = (dir as NSString).appendingPathComponent(f.path)
         let parent = (full as NSString).deletingLastPathComponent
         try? FileManager.default.createDirectory(atPath: parent, withIntermediateDirectories: true)
+        // Checked AFTER the directories exist, because that is when the symlinks they may be are
+        // resolvable — and re-checked per file, not once for the batch.
+        guard MarkdownUnpack.staysInside(dir: dir, path: f.path) else {
+            Out.info("refusing to write outside \(dir): \(f.path) resolves elsewhere")
+            continue
+        }
         do {
             try f.content.write(toFile: full, atomically: true, encoding: .utf8)
             Out.line("wrote \(full)")

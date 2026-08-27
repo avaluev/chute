@@ -32,11 +32,20 @@ public enum ActionInbox {
     /// session, and carrying out a stale one would surprise the user.
     public static let staleAfter: TimeInterval = 60
 
+    /// The inbox is a privilege boundary: whatever lands here is executed by an UNSANDBOXED app.
+    /// Owner-only (0700) so nothing running as another user can drop work in, and so the mode is
+    /// visible to the check in `drain`.
+    static let directoryMode: NSNumber = 0o700
+
     /// Atomic write — the watcher must never read half a file.
     @discardableResult
     public static func write(_ request: ActionRequest, root: String? = nil) throws -> String {
         let dir = directory(root: root)
-        try FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(
+            atPath: dir, withIntermediateDirectories: true,
+            attributes: [.posixPermissions: directoryMode])
+        // An inbox created by an older version is loosened no further: tighten it in place.
+        try? FileManager.default.setAttributes([.posixPermissions: directoryMode], ofItemAtPath: dir)
         let obj: [String: Any] = [
             "id": request.id,
             "dir": request.dir,
@@ -60,19 +69,38 @@ public enum ActionInbox {
               let ts = obj["ts"] as? Double,
               ChuteActions.find(id) != nil
         else { return nil }
-        return ActionRequest(id: id, dir: dir,
-                             files: obj["files"] as? [String] ?? [],
+        // The app runs commands against `dir`. A relative path would resolve against whatever
+        // directory the app happens to be in, and a non-directory means the request is malformed.
+        guard dir.hasPrefix("/"), FileScan.isDirectory(dir) else { return nil }
+        let files = (obj["files"] as? [String] ?? []).filter { $0.hasPrefix("/") }
+        return ActionRequest(id: id, dir: dir, files: files,
                              createdAt: Date(timeIntervalSince1970: ts))
     }
 
-    /// Every pending request, oldest first, with its file path. Corrupt files are deleted rather
-    /// than retried forever; a malformed request can never be carried out anyway.
+    /// Is this file safe to act on? It must be a real file owned by us and not writable by anyone
+    /// else — otherwise another account could hand an unsandboxed process a command to run.
+    public static func isTrustworthy(_ path: String,
+                                     attributes: [FileAttributeKey: Any]? = nil) -> Bool {
+        let attrs = attributes ?? (try? FileManager.default.attributesOfItem(atPath: path))
+        guard let attrs else { return false }
+        guard (attrs[.type] as? FileAttributeType) == .typeRegular else { return false }
+        guard (attrs[.ownerAccountID] as? NSNumber)?.uint32Value == getuid() else { return false }
+        let mode = (attrs[.posixPermissions] as? NSNumber)?.int16Value ?? 0
+        return mode & 0o022 == 0    // no group or other write
+    }
+
+    /// Every pending request, oldest first, with its file path. Anything unparseable, untrusted or
+    /// stale is deleted rather than retried forever — none of it can be carried out anyway.
     public static func drain(root: String? = nil, now: Date = Date()) -> [(request: ActionRequest, path: String)] {
         let dir = directory(root: root)
         guard let names = try? FileManager.default.contentsOfDirectory(atPath: dir) else { return [] }
         var out: [(ActionRequest, String)] = []
         for name in names.sorted() where name.hasSuffix(".json") {
             let path = (dir as NSString).appendingPathComponent(name)
+            guard isTrustworthy(path) else {
+                try? FileManager.default.removeItem(atPath: path)
+                continue
+            }
             guard let data = FileManager.default.contents(atPath: path),
                   let request = parse(data) else {
                 try? FileManager.default.removeItem(atPath: path)

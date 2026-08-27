@@ -61,9 +61,15 @@ enum Notify {
         }
     }
 
+    /// The body is whatever the command said, and a command's output can contain a file name the
+    /// user did not choose. Backslash FIRST: escaping quotes alone leaves a trailing backslash to
+    /// escape the closing quote, and everything after it is then read as AppleScript, not text.
     private static func fallback(title: String, body: String) {
+        func escape(_ s: String) -> String {
+            s.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "'")
+        }
         Shell.launch("osascript", ["-e",
-            "display notification \"\(body.replacingOccurrences(of: "\"", with: "'"))\" with title \"\(title)\""])
+            "display notification \"\(escape(body))\" with title \"\(escape(title))\""])
     }
 }
 
@@ -295,7 +301,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             try? FileManager.default.removeItem(atPath: path)
             guard let action = ChuteActions.find(request.id) else { continue }
             DispatchQueue.global(qos: .userInitiated).async {
-                let r = chute(Self.commandLine(for: action, request: request))
+                let command = Self.commandLine(for: action, request: request)
+                let r = chute(command)
+                // The selection list is scratch, not a record: remove it once it has been read.
+                if let i = command.firstIndex(of: "--files-from"), i + 1 < command.count {
+                    try? FileManager.default.removeItem(atPath: command[i + 1])
+                }
                 notify(action.plainTitle,
                        ChuteActions.message(stderr: r.err, exitCode: r.code,
                                             fallback: action.doneMessage))
@@ -317,6 +328,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 .write(toFile: listFile, atomically: true, encoding: .utf8)) != nil else {
             return ChuteActions.argv(action, dir: request.dir, files: request.files)
         }
+        // Owner-only: it lists everything the user had selected, which is nobody else's business.
+        try? FileManager.default.setAttributes([.posixPermissions: NSNumber(value: 0o600)],
+                                               ofItemAtPath: listFile)
         return ChuteActions.argv(action, dir: request.dir, files: []) + ["--files-from", listFile]
     }
 
