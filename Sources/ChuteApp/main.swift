@@ -86,6 +86,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         reportItem.target = self
         menu.addItem(reportItem)
 
+        let settingsItem = NSMenuItem(title: "Settings…", action: #selector(openSettings),
+                                      keyEquivalent: "")
+        settingsItem.target = self
+        menu.addItem(settingsItem)
+
+        // Trial state, and nothing at all once it is paid for: an app that keeps mentioning
+        // payment after the payment is nagging its own customer.
+        if let label = Trial.menuLabel(Trial.touch()) {
+            let item = NSMenuItem(title: label, action: #selector(openLicenseSettings),
+                                  keyEquivalent: "")
+            item.target = self
+            menu.addItem(item)
+        }
+
         menu.addItem(.separator())
         // No key equivalents: in a status menu they only work while the menu is open, so showing
         // ⌘R and ⌘Q promises a global shortcut that does not exist.
@@ -122,6 +136,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                    "Diagnostics copied. Paste them into the issue that just opened.")
         }
     }
+
+    @objc func openSettings() { SettingsWindow.show() }
+    @objc func openLicenseSettings() { SettingsWindow.show(selecting: 1) }
 
     @objc func openNotificationSettings() {
         NSWorkspace.shared.open(Notify.settingsURL)
