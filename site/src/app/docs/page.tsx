@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Page, H2 } from "@/components/chrome";
 import { CopyLine } from "@/components/copy-line";
+import { InstallCli } from "@/components/install-cli";
 import { CONFIG } from "@/lib/config";
 import commands from "@/lib/commands.json";
 
@@ -14,7 +15,7 @@ export default function Docs() {
   return (
     <Page title="Every command"
           lead="All of these are free and MIT licensed. Nothing on this page needs a licence key.">
-      <CopyLine text={CONFIG.brew} />
+      <InstallCli />
 
       <H2>The loop</H2>
       <pre className="overflow-x-auto rounded-[var(--radius)] border border-border bg-card p-5 font-[family-name:var(--font-mono-loaded)] text-[13px] leading-relaxed text-foreground">

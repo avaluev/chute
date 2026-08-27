@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { CopyLine } from "@/components/copy-line";
+import { InstallCli } from "@/components/install-cli";
 import { Header, Footer } from "@/components/chrome";
 import { CaseCard } from "@/components/case-bits";
 import { FREE, PAID, minutesPerDay } from "@/lib/cases";
@@ -40,7 +41,7 @@ export default function CliPage() {
         </p>
 
         <div className="mt-8 max-w-md">
-          <CopyLine text={CONFIG.brew} />
+          <InstallCli />
         </div>
 
         <div className="mt-12 space-y-6 text-[15px] leading-relaxed text-muted-foreground">

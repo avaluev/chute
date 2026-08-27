@@ -3,16 +3,17 @@ class Chute < Formula
   homepage "https://chutedev.com"
   # VERSION comes from Sources/ChuteCore/Version.swift — the one place it lives. Bump both
   # together: tag the release, then update this line to match.
-  version "0.1.0"
+  version "0.2.0"
   url "https://github.com/avaluev/chute/archive/refs/tags/v#{version}.tar.gz"
-  # PLACEHOLDER — replace before publishing. Once the v#{version} tag exists, compute the real
-  # value with:
-  #   curl -L https://github.com/avaluev/chute/archive/refs/tags/v#{version}.tar.gz | shasum -a 256
-  sha256 "0000000000000000000000000000000000000000000000000000000000000000"
+  # Recompute on every version bump:
+  #   curl -L https://github.com/avaluev/chute/archive/refs/tags/v0.2.0.tar.gz | shasum -a 256
+  sha256 "e7c3ea3aec0357b8864c0389a14c99fa07126495a789b0179e1dd180fb280208"
   license "MIT"
 
-  depends_on :macos
-  depends_on macos: :ventura # macOS 13, the floor declared in Package.swift
+  # macOS 13 is the floor declared in Package.swift. The version form ALONE — no bare
+  # `depends_on :macos` beside it — is what Homebrew wants; having both is what triggered the
+  # deprecation warning a first-time installer would otherwise see before anything else.
+  depends_on macos: :ventura
 
   def install
     system "swift", "build", "-c", "release", "--product", "chute", "--disable-sandbox"
