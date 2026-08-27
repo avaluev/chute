@@ -119,6 +119,32 @@ the demo carries the claim or nothing does.
 notarization), paid ads (no funnel to spend against), SEO/content (months of lag), Setapp (revenue
 share on an unvalidated product).
 
+### DECIDED 2026-08-28: one wave, app-first
+
+The Bullseye channels above are unchanged and still right. The **sequence** is not.
+
+The old plan ran the free CLI for eight days before the app. That was correct for the product as
+it stood: the paid surface demonstrated ~73 min/day of the ledger and the free CLI demonstrated
+~125, so leading with the app meant leading with the weaker half. The fix was not a better
+sequence, it was a better product — `unpack`, `seed`, `sandbox` and `clean` became Finder
+actions on 2026-08-28, and the paid surface now carries **130.7 min/day against the CLI's 86.8**.
+
+With that inverted, the two-wave shape only costs: eight days spent teaching an audience to want
+the free thing, immediately before asking them for $19. One wave now, `App+N` throughout.
+
+`App+0` requires the notarized DMG **and** a live Paddle checkout. Not one of them. If the
+certificate slips, nothing ships — deliberately unlike the old plan, which kept Wave 0 running so
+that something was always going out. Spending the audience into a broken funnel is worse than
+silence.
+
+The CLI is demoted in the sequence, never in the product. Free, MIT, complete, and it re-enters
+the calendar at App+16 where a tool share belongs. It remains the answer to "this should be free"
+and the way a sceptic checks the claim before paying it.
+
+Assumption **A3** ("bundling is the wedge, not paths") is still untested and is now testable:
+`/cases` gives every job its own page, so which one people actually read is the first evidence
+this project will have. Instrument the website, never the app — §8 stands.
+
 ## 8️⃣ Experimentation Loop — and the tension we must resolve
 
 The model says the best experiments come from interpreting collected intelligence rather than
