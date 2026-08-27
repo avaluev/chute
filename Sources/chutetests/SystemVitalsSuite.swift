@@ -23,7 +23,7 @@ func systemVitalsSuite() {
         T.eq(busy.cpuPercent, 16.0, "their CPU adds up")
         T.eq(busy.residentBytes, 640_000 * 1024, "and so does their memory")
         T.ok(busy.label.contains("16%"), "the row reads '16% · …': \(busy.label)")
-        T.ok(busy.label.contains("GB") || busy.label.contains("MB"), "with a human size")
+        T.ok(busy.label.hasSuffix("memory"), "and the size says what it measures: \(busy.label)")
 
         // An idle shell says nothing. A row reading "0% · 4 MB" is noise in a list you are
         // scanning to find the busy one.

@@ -35,7 +35,7 @@ func sessionSuite() {
 
         // The load label names its unit.
         let busy = SessionLoad(cpuPercent: 12.4, residentBytes: 1_610_612_736, processes: 3)
-        T.eq(busy.label, "12% CPU · 1.5 GB", "the percentage says what it measures")
+        T.eq(busy.label, "12% CPU · 1.5 GB memory", "both numbers say what they measure")
 
         // Thermal wording is for a person, not an instrument panel.
         T.eq(SystemVitals.thermalPressure(.nominal), "running cool", "plain words")
