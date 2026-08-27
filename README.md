@@ -7,6 +7,8 @@ into agent-ready context, and turns agent output back into files.
 
 Offline. Zero telemetry. No account. One binary and a 328 KB menu-bar app.
 
+![Copy files and contents from Finder, with a token count](marketing/media/bundle.gif)
+
 ---
 
 ## Why
@@ -57,6 +59,9 @@ Extensions → Finder → ☑ Chute, or run `pluginkit -e use -i dev.valuev.chut
 ---
 
 ## The loop
+
+![An agent's markdown answer becomes a real file tree](marketing/media/unpack.gif)
+
 
 ```bash
 # context in — select files in Finder, or name them
@@ -109,6 +114,9 @@ Add `--no-copy` to any command to keep the clipboard untouched.
 ---
 
 ## Which agent is waiting for you
+
+![Sessions grouped by whether they need you](marketing/media/sessions.gif)
+
 
 ```bash
 chute sessions          # → 9 session(s), 2 need you
