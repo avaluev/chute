@@ -77,25 +77,6 @@ func notify(_ title: String, _ body: String) {
     Notify.post(title: "Chute", subtitle: title == "Chute" ? nil : title, body: body)
 }
 
-/// The menu-bar action list is the SAME table the Finder menu draws from — see
-/// `ChuteActions.all`. It used to be a second hand-written copy, which is how the two surfaces
-/// ended up offering differently-named actions, one of which could not work.
-let actions_list: [Action] = ChuteActions.all.map { action in
-    // plainTitle, not title(count:): the HUD menu is drawn before we know the selection, and
-    // asking Finder for it on the launch path is what the AppleScript rule forbids.
-    Action(title: action.plainTitle, key: "") {
-        let files = action.scope == .selection ? FinderBridge.selection() : []
-        if action.scope == .selection, files.isEmpty {
-            return notify("Chute", "Nothing is selected in Finder.")
-        }
-        let folder = FinderBridge.currentFolder()
-        let r = chute(ChuteActions.argv(action, dir: folder, files: files))
-        notify("Chute", ChuteActions.message(stderr: r.err, exitCode: r.code,
-                                             fallback: action.doneMessage))
-    }
-}
-
-
 final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     var statusItem: NSStatusItem!
     var hotKeyRef: EventHotKeyRef?
@@ -191,19 +172,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     func appendStandardItems(to menu: NSMenu) {
         appendLocalServers(to: menu)
         menu.addItem(.separator())
-        let actionsMenu = NSMenu()
-        for (i, a) in actions_list.enumerated() {
-            let item = NSMenuItem(title: a.title, action: #selector(fire(_:)), keyEquivalent: "")
-            item.target = self; item.tag = i
-            actionsMenu.addItem(item)
-        }
-        let actionsItem = NSMenuItem(title: "Chute Actions", action: nil, keyEquivalent: "")
-        menu.addItem(actionsItem)
-        menu.setSubmenu(actionsMenu, for: actionsItem)
-
-        let setupItem = NSMenuItem(title: "Setup Check…", action: #selector(openSetup), keyEquivalent: "")
-        setupItem.target = self
-        menu.addItem(setupItem)
+        // No file actions here on purpose. They act on a Finder selection, so they live in the
+        // Finder right-click menu where the files are; in the menu bar they had nothing to act on.
+        let reportItem = NSMenuItem(title: "Report a Problem…", action: #selector(reportProblem),
+                                    keyEquivalent: "")
+        reportItem.target = self
+        menu.addItem(reportItem)
 
         menu.addItem(.separator())
         menu.addItem(NSMenuItem(title: "Refresh", action: #selector(refresh), keyEquivalent: "r"))
@@ -228,14 +202,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     @objc func openSetup() { FirstRunWindow.show() }
 
+    /// Support, without an inbox: the diagnostics go to the clipboard and a prefilled issue opens
+    /// in the browser. One public answer then serves everyone who searches for the same thing.
+    @objc func reportProblem() {
+        DispatchQueue.global(qos: .userInitiated).async {
+            let report = chute(["doctor", "--report"]).out
+            Clipboard.write(report)
+            NSWorkspace.shared.open(SupportReport.issueURL(summary: report))
+            notify("Report a Problem",
+                   "Diagnostics copied. Paste them into the issue that just opened.")
+        }
+    }
+
     @objc func openAutomationSettings() {
         NSWorkspace.shared.open(URL(string:
             "x-apple.systempreferences:com.apple.preference.security?Privacy_Automation")!)
-    }
-
-    @objc func fire(_ sender: NSMenuItem) {
-        let action = actions_list[sender.tag]
-        DispatchQueue.global(qos: .userInitiated).async { action.run() }
     }
 
     @objc func focusSession(_ sender: NSMenuItem) {
@@ -341,7 +322,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         statusItem.button?.title = n == 0 ? "⤓" : "⤓ \(n)"
     }
 
-    /// FE-02 — ⌥⌘N pops the action list at the pointer, wherever you are.
+    /// FE-02 — ⌥⌘N pops the session switcher at the pointer, wherever you are. It used to pop
+    /// file actions, which needed a Finder selection the keyboard user did not have.
     func registerHotKey() {
         var hotKeyID = EventHotKeyID(signature: OSType(0x43485554), id: 1)   // 'CHUT'
         var eventType = EventTypeSpec(eventClass: OSType(kEventClassKeyboard),

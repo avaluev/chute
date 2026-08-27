@@ -14,5 +14,6 @@ actionRequestSuite()
 localServersSuite()
 nameDeriveSuite()
 finderRevealSuite()
+supportReportSuite()
 
 T.report()
