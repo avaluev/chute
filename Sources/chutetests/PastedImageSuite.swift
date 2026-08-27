@@ -26,6 +26,15 @@ func pastedImageSuite() {
         }
         T.ok(first != second, "a second paste in the same second gets its own name")
 
+        // The write itself is the collision check (O_EXCL) — two concurrent invocations can both
+        // pass an exists() probe, and the second must land on -2, never on top of the first.
+        let w1 = try? NameDerive.writeUniquely(dir: dir, base: "Race", ext: "png", data: Data("a".utf8))
+        let w2 = try? NameDerive.writeUniquely(dir: dir, base: "Race", ext: "png", data: Data("b".utf8))
+        T.eq(w1.map { ($0 as NSString).lastPathComponent }, "Race.png", "first exclusive write takes the plain name")
+        T.eq(w2.map { ($0 as NSString).lastPathComponent }, "Race-2.png", "second lands beside it, not on it")
+        T.eq(w1.flatMap { try? String(contentsOfFile: $0, encoding: .utf8) }, "a",
+             "and the first file's bytes are untouched")
+
         // The rename is tracked by INODE, because tracking by name is precisely what breaks when
         // the thing you are waiting for is a rename.
         let inode = PastedImage.inode(of: first)

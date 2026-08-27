@@ -63,15 +63,34 @@ public enum NameDerive {
         return "chute-" + f.string(from: date)
     }
 
+    static func candidate(dir: String, base: String, ext: String, n: Int) -> String {
+        let name = n == 1 ? "\(base).\(ext)" : "\(base)-\(n).\(ext)"
+        return (dir as NSString).appendingPathComponent(name)
+    }
+
     /// NFR-08 — never overwrite. Falls back to `name-2`, `name-3`, …
     public static func uniquePath(dir: String, base: String, ext: String,
                                   exists: (String) -> Bool) -> String {
-        func candidate(_ n: Int) -> String {
-            let name = n == 1 ? "\(base).\(ext)" : "\(base)-\(n).\(ext)"
-            return (dir as NSString).appendingPathComponent(name)
-        }
         var n = 1
-        while exists(candidate(n)) { n += 1 }
-        return candidate(n)
+        while exists(candidate(dir: dir, base: base, ext: ext, n: n)) { n += 1 }
+        return candidate(dir: dir, base: base, ext: ext, n: n)
+    }
+
+    /// NFR-08 under concurrency. Probing then writing is a race two simultaneous invocations can
+    /// lose — both resolve `Shot-2.png`, the second silently clobbers the first. So the WRITE is
+    /// the probe: `.withoutOverwriting` is O_EXCL at the filesystem, and a collision just moves to
+    /// the next candidate name.
+    public static func writeUniquely(dir: String, base: String, ext: String,
+                                     data: Data) throws -> String {
+        var n = 1
+        while true {
+            let path = candidate(dir: dir, base: base, ext: ext, n: n)
+            do {
+                try data.write(to: URL(fileURLWithPath: path), options: .withoutOverwriting)
+                return path
+            } catch let e as CocoaError where e.code == .fileWriteFileExists {
+                n += 1
+            }
+        }
     }
 }

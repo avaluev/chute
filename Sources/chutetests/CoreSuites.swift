@@ -130,4 +130,15 @@ func coreSuites() {
         T.ok(!MarkdownUnpack.staysInside(dir: inside, path: "../pwned.txt"),
              "and so is a plain climb, belt and braces with validate()")
     }
+
+    T.suite("Shell") {
+        // A child that floods stderr while its stdout is still open used to deadlock BOTH
+        // processes: the ~64 KB pipe filled, the child blocked mid-write, stdout never closed,
+        // readDataToEndOfFile never returned. Completing at all is the assertion — a regression
+        // here hangs the suite, which is the loudest possible failure.
+        let flood = Shell.run("sh", ["-c", "head -c 200000 /dev/zero | tr '\\0' e 1>&2; echo done"])
+        T.eq(flood.out.trimmingCharacters(in: .whitespacesAndNewlines), "done",
+             "stdout survives a 200 KB stderr flood")
+        T.eq(flood.err.count, 200_000, "and every stderr byte is captured, not truncated")
+    }
 }

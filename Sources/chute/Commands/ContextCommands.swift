@@ -96,8 +96,10 @@ func cmdBuf(_ a: Args) {
         let text = a.positional.count > 1 ? a.positional.dropFirst().joined(separator: " ") : Clipboard.read()
         guard !text.isEmpty else { Out.fail("clipboard is empty") }
         let name = String(format: "%03d.txt", entries.count + 1)
-        try? text.write(toFile: (dir as NSString).appendingPathComponent(name),
-                        atomically: true, encoding: .utf8)
+        do {
+            try text.write(toFile: (dir as NSString).appendingPathComponent(name),
+                           atomically: true, encoding: .utf8)
+        } catch { Out.fail("cannot buffer: \(error.localizedDescription)") }
         Out.info("→ buffered entry \(entries.count + 1) (\(TokenEstimate.badge(TokenEstimate.tokens(in: text))))")
     case "list":
         guard !entries.isEmpty else { Out.info("buffer is empty"); return }

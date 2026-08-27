@@ -10,7 +10,15 @@ import UserNotifications
 /// unavailable, it falls back to the old path rather than going silent.
 enum Notify {
     /// Set when macOS last told us notifications are off. The menu reads it to offer the fix.
+    /// Written ONLY via `setDenied` (a main-queue hop): the writers below run on
+    /// UNUserNotificationCenter's own queue, and the reader is the main-thread menu build —
+    /// without the hop this is an unsynchronised cross-thread mutation that `nonisolated(unsafe)`
+    /// merely silences.
     nonisolated(unsafe) static var deniedAtLastCheck = false
+
+    private static func setDenied(_ value: Bool) {
+        DispatchQueue.main.async { deniedAtLastCheck = value }
+    }
 
     /// Where the app leaves its notification state, so `chute doctor --report` can explain a
     /// silence that is otherwise invisible from outside the app.
@@ -38,7 +46,7 @@ enum Notify {
         UNUserNotificationCenter.current().getNotificationSettings { settings in
             switch settings.authorizationStatus {
             case .authorized, .provisional, .ephemeral:
-                deniedAtLastCheck = false
+                setDenied(false)
                 record("on")
                 deliver(title: title, subtitle: subtitle, body: body)
 
@@ -61,7 +69,7 @@ enum Notify {
                 // exactly how Chute's banners ended up arriving as Script Editor, with a pen icon
                 // and a Show button that opened Script Editor. So: do not fake it. Record the
                 // state instead, and let the menu offer to fix it.
-                deniedAtLastCheck = true
+                setDenied(true)
                 record("off")
                 NSLog("ChuteApp: notifications are turned off for Chute in System Settings")
 

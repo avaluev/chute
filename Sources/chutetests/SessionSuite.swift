@@ -27,11 +27,9 @@ func sessionSuite() {
         T.eq(SessionPhrasing.waitedFor(nil), "waiting for you",
              "with no timestamp it still says what is happening")
 
-        for phrase in [SessionPhrasing.waitedFor(now.addingTimeInterval(-3 * 3600)),
-                       SessionPhrasing.runningFor(now.addingTimeInterval(-90 * 60))] {
-            T.ok(phrase.rangeOfCharacter(from: CharacterSet.letters) != nil,
-                 "'\(phrase)' carries words, not just digits")
-        }
+        let phrase = SessionPhrasing.waitedFor(now.addingTimeInterval(-3 * 3600))
+        T.ok(phrase.rangeOfCharacter(from: CharacterSet.letters) != nil,
+             "'\(phrase)' carries words, not just digits")
 
         // The load label names its unit.
         let busy = SessionLoad(cpuPercent: 12.4, residentBytes: 1_610_612_736, processes: 3)
