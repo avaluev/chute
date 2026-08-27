@@ -1,83 +1,81 @@
-# Deploying chutedev.com to GitHub Pages
+# Deploying chutedev.com
 
-The workflow (`/Users/sxope/Documents/2026/Development/37.chute/.github/workflows/pages.yml`)
-builds and uploads the site. These are the one-time repo and DNS steps it depends on.
+Host: **Cloudflare Pages**. The DNS for `chutedev.com` already lives at Cloudflare, so Pages
+attaches the custom domain and provisions TLS itself — no A records to copy, no AAAA records, and
+no chance of the grey-cloud trap that silently fails certificate provisioning when the proxy is
+left on.
 
-## 1. Make the repo public (if still private)
+It also serves at the **root**, which is why the site no longer needs a base path. A GitHub
+project page is served from `/<repo>/`, and Next emits absolute asset URLs, so that build returned
+HTTP 200 on the document while every stylesheet, script and image 404'd. That whole class of bug
+does not exist here.
 
-```
-cd /Users/sxope/Documents/2026/Development/37.chute && gh repo edit avaluev/chute --visibility public --accept-visibility-change-consequences
-```
+## Once
 
-Expected output: no error; `gh repo view avaluev/chute --json visibility` prints `"PUBLIC"`.
+1. **Authenticate.** This opens a browser and stores the token in your OS keychain — never in this
+   repository, never in shell history.
 
-## 2. Enable Pages, source = GitHub Actions
+   ```bash
+   npx wrangler login
+   ```
 
-```
-cd /Users/sxope/Documents/2026/Development/37.chute && gh api -X PUT repos/avaluev/chute/pages -f build_type=workflow
-```
+   Expected: `Successfully logged in.` Confirm with:
 
-Expected output: JSON with `"build_type": "workflow"`. (Equivalent UI path: repo Settings →
-Pages → Build and deployment → Source → "GitHub Actions".)
+   ```bash
+   cd /Users/sxope/Documents/2026/Development/37.chute/site && npx wrangler whoami
+   ```
 
-## 3. Add the custom domain
+2. **Create the project** (first deploy creates it; this only names it explicitly).
 
-```
-cd /Users/sxope/Documents/2026/Development/37.chute && gh api -X PUT repos/avaluev/chute/pages -f cname=chutedev.com
-```
+   ```bash
+   cd /Users/sxope/Documents/2026/Development/37.chute && ./Scripts/deploy-site.sh
+   ```
 
-Expected output: JSON with `"cname": "chutedev.com"`. (UI path: Settings → Pages → Custom
-domain → enter `chutedev.com` → Save. This also writes `site/public/CNAME`, which the repo
-already carries at
-`/Users/sxope/Documents/2026/Development/37.chute/site/public/CNAME` — don't let GitHub's
-auto-commit fight with the checked-in one; they should agree.)
+   Expected: a `https://chute-<hash>.pages.dev` URL.
 
-## 4. DNS records on Cloudflare
+3. **Attach the domain.** Dashboard → Workers & Pages → `chute` → Custom domains → Set up a custom
+   domain → `chutedev.com`. Add `www.chutedev.com` too. Because the zone is already on Cloudflare,
+   the DNS record and the certificate are created for you; there is nothing to paste.
 
-Apex `chutedev.com` → four GitHub Pages A records. `www` → GitHub's Pages hostname.
+   Expected: both domains reach **Active** within a few minutes.
 
-| Type  | Name | Value              |
-|-------|------|---------------------|
-| A     | @    | 185.199.108.153      |
-| A     | @    | 185.199.109.153      |
-| A     | @    | 185.199.110.153      |
-| A     | @    | 185.199.111.153      |
-| CNAME | www  | avaluev.github.io    |
+4. **Turn off GitHub Pages**, so there is exactly one live copy of this site and no stale one to
+   confuse a search engine or a reviewer:
 
-```
-cd /Users/sxope/Documents/2026/Development/37.chute && for ip in 185.199.108.153 185.199.109.153 185.199.110.153 185.199.111.153; do
-  echo "add A @ -> $ip"
-done
-```
+   ```bash
+   gh api -X DELETE repos/avaluev/chute/pages
+   ```
 
-(Run the equivalent `A`/`CNAME` creates in the Cloudflare dashboard or via the Cloudflare API —
-the loop above is just the list to enter, Cloudflare has no bulk-add CLI here.)
+## Every time
 
-## 5. THE TRAP — proxy must be OFF (grey cloud / DNS-only)
-
-Cloudflare defaults new records to **Proxied** (orange cloud). Leave that on and GitHub's
-Let's Encrypt certificate challenge for `chutedev.com` cannot validate — Pages will sit
-forever on "the certificate is being provisioned" with no error, because Cloudflare's edge is
-answering for the domain instead of letting GitHub's ACME challenge and the Pages origin
-through.
-
-For **all five records above** (the four apex A records and the `www` CNAME): click the cloud
-icon in the Cloudflare DNS table until it is **grey ("DNS only")**, not orange ("Proxied").
-
-Expected: the Cloudflare DNS table shows a grey cloud on each of the 5 rows.
-
-## 6. Verify
-
-```
-cd /Users/sxope/Documents/2026/Development/37.chute && dig +short chutedev.com A
+```bash
+cd /Users/sxope/Documents/2026/Development/37.chute && ./Scripts/deploy-site.sh
 ```
 
-Expected output: the four `185.199.10x.153` addresses, directly — not a Cloudflare IP (`104.x`
-or `172.x`), which is the tell that a record is still proxied.
+It regenerates the design tokens and the social card from `brand/tokens.json`, builds, runs
+`check:paddle`, and refuses to publish if any check fails. `--preview` deploys to a preview URL
+and leaves production alone.
 
-```
-cd /Users/sxope/Documents/2026/Development/37.chute && gh api repos/avaluev/chute/pages | grep -A2 https_certificate
+## Before submitting the domain to Paddle
+
+A rejected domain review costs 5–7 business days on resubmission, and every documented failure
+mode is mechanical. Run the gate, then confirm the live site:
+
+```bash
+cd /Users/sxope/Documents/2026/Development/37.chute/site && npm run check:paddle
 ```
 
-Expected output: `"status": "approved"` once DNS propagates and GitHub issues the cert
-(can take a few minutes to a few hours).
+```bash
+for p in "" terms/ refunds/ privacy/ buy/ support/ docs/; do \
+  printf "%-40s %s\n" "https://chutedev.com/$p" \
+  "$(curl -s -o /dev/null -w '%{http_code}' -L "https://chutedev.com/$p")"; done
+```
+
+Expected: `200` on every line. Then check the one thing no script can: open the page and look at
+it. Twice today a build that compiled and returned 200 was visibly broken — once rendering with no
+CSS at all, once with every image missing.
+
+## Not used any more
+
+`Scripts/cloudflare-setup.sh` creates the A/AAAA/CNAME records GitHub Pages would have needed. It
+is kept for the day the host changes back, and it is not part of this flow.
