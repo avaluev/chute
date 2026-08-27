@@ -13,5 +13,6 @@ finderActionsSuite()
 actionRequestSuite()
 localServersSuite()
 nameDeriveSuite()
+finderRevealSuite()
 
 T.report()

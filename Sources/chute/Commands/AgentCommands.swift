@@ -22,8 +22,17 @@ func installedApp(_ candidates: [String]) -> String? {
 /// anything else is opened at the folder with the command printed for the user.
 func launchTerminal(dir: String, command: String?) {
     let app = installedApp(terminalApps) ?? "Terminal"
-    let full = command.map { "cd \(PathFormat.shellQuote(dir)) && \($0)" }
-        ?? "cd \(PathFormat.shellQuote(dir))"
+
+    // Nothing to run? Then hand the FOLDER to the terminal app and let it open there itself.
+    // Scripting a `cd` instead leaves the command echoed in the new window —
+    //     sxope@mac ~ % cd '/Users/sxope/Documents'
+    // — which is noise in the very first line of a fresh shell.
+    guard let command else {
+        Shell.launch("open", ["-a", app, dir])
+        return
+    }
+
+    let full = "cd \(PathFormat.shellQuote(dir)) && \(command)"
 
     switch app {
     case "Terminal":
@@ -43,7 +52,7 @@ func launchTerminal(dir: String, command: String?) {
             """])
     default:
         Shell.launch("open", ["-a", app, dir])
-        if let command { Out.info("→ \(app) does not accept a command; run: \(command)") }
+        Out.info("→ \(app) does not accept a command; run: \(command)")
     }
 }
 

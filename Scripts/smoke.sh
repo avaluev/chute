@@ -182,6 +182,8 @@ run_action tree-all >/dev/null 2>&1
 has   "tree-all reaches the bottom"        "$(pbpaste)" "deeper"
 
 run_action new-markdown >/dev/null 2>&1
+# --rename asks Finder to start inline rename. Without Accessibility permission the keystroke is
+# refused, and the file must STILL be created — a permission is not a reason to lose the file.
 if [ -f "$FX/Untitled.md" ]; then ok "new-markdown creates an empty Untitled.md"
 else bad "new-markdown creates an empty Untitled.md" "$(tail -1 /tmp/chute-a.err)"; fi
 run_action new-markdown >/dev/null 2>&1
@@ -194,6 +196,12 @@ run_action new-markdown-clipboard >/dev/null 2>&1
 if [ -f "$FX/This_is_thd_header.md" ]; then ok "new-markdown-clipboard names the file from its first line"
 else bad "new-markdown-clipboard names the file from its first line" "$(ls "$FX")"; fi
 has   "and keeps the content"              "$(cat "$FX/This_is_thd_header.md" 2>/dev/null)" "body text"
+"$CHUTE" new --blank --rename --dir "$FX" --name renametest >/dev/null 2>/tmp/chute-rn.err
+if [ -f "$FX/renametest.md" ]; then ok "--rename still creates the file when the keystroke is refused"
+else bad "--rename still creates the file when the keystroke is refused" "$(cat /tmp/chute-rn.err)"; fi
+if grep -q "Accessibility\|rename" /tmp/chute-rn.err 2>/dev/null || [ ! -s /tmp/chute-rn.err ]; then
+  ok "and says what to allow, rather than failing silently"
+else bad "and says what to allow, rather than failing silently" "$(cat /tmp/chute-rn.err)"; fi
 
 # THOUSANDS of files: a Finder selection that would blow past ARG_MAX as arguments.
 MANY="$T/many"; mkdir -p "$MANY"

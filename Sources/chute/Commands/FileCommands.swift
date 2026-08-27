@@ -38,7 +38,13 @@ func cmdNew(_ a: Args) {
     Out.line(path)
     Out.info("→ created \((path as NSString).lastPathComponent)"
              + (blank ? "" : " · \(TokenEstimate.badge(TokenEstimate.tokens(in: content)))"))
-    if a.has("reveal") { Shell.launch("open", ["-R", path]) }
+    // --rename reveals the file AND starts Finder's inline rename, so the name is selected and
+    // you can just type. --reveal alone only shows it.
+    if a.has("rename") {
+        if let problem = FinderReveal.revealAndBeginRename(path) { Out.info("→ \(problem)") }
+    } else if a.has("reveal") {
+        Shell.launch("open", ["-R", path])
+    }
 }
 
 // MARK: - FR-06 markdown → filesystem

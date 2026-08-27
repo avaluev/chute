@@ -1,0 +1,64 @@
+import Foundation
+
+/// Reveal a just-created file in Finder with its name ready to edit, the way Finder's own
+/// "New Folder" behaves.
+///
+/// There is no API for "begin renaming". Finder starts inline rename when Return is pressed on the
+/// selected item, so that is what this sends. Pressing a key on the user's behalf needs
+/// Accessibility permission — without it the keystroke silently does nothing, so the failure is
+/// reported rather than swallowed.
+public enum FinderReveal {
+    /// AppleScript is a string language: a quote or backslash in a path would end the literal
+    /// early and turn the rest of the path into code.
+    public static func escape(_ path: String) -> String {
+        path.replacingOccurrences(of: "\\", with: "\\\\")
+            .replacingOccurrences(of: "\"", with: "\\\"")
+    }
+
+    public static func revealScript(path: String) -> String {
+        """
+        tell application "Finder"
+          reveal POSIX file "\(escape(path))"
+          activate
+        end tell
+        """
+    }
+
+    /// key code 36 is Return. Finder turns that into inline rename for the selected item.
+    public static let beginRenameScript = """
+    tell application "System Events" to key code 36
+    """
+
+    /// macOS reports a missing Accessibility permission in more than one dialect: `-1719` from
+    /// the AX API, `1002` from System Events, and the plain words in between. Measured: sending
+    /// Return from a terminal without the permission gives
+    /// "System Events got an error: osascript is not allowed to send keystrokes. (1002)".
+    public static func problem(fromRenameError raw: String) -> String {
+        let text = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        let lower = text.lowercased()
+        if text.contains("-1719") || text.contains("(1002)")
+            || lower.contains("not allowed to send keystrokes") || lower.contains("assistive") {
+            return "created — to type the name straight away, allow Chute in "
+                 + "System Settings → Privacy & Security → Accessibility"
+        }
+        return "created, but the rename did not start: \(text)"
+    }
+
+    /// Reveals the file and starts renaming it. Returns nil on success, or a sentence explaining
+    /// what to do — never throws, because a rename that could not start must not turn a
+    /// successfully created file into a failed action.
+    @discardableResult
+    public static func revealAndBeginRename(_ path: String,
+                                            settle: TimeInterval = 0.35) -> String? {
+        let reveal = Shell.run("osascript", ["-e", revealScript(path: path)])
+        guard reveal.ok else {
+            return "created, but Finder did not respond: \(reveal.err.trimmingCharacters(in: .whitespacesAndNewlines))"
+        }
+        // Finder needs a moment to select the file; Return arriving first renames the wrong thing
+        // or nothing at all.
+        Thread.sleep(forTimeInterval: settle)
+
+        let rename = Shell.run("osascript", ["-e", beginRenameScript])
+        return rename.ok ? nil : problem(fromRenameError: rename.err)
+    }
+}
