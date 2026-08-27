@@ -160,14 +160,22 @@ fi
 # NEVER against ~/.claude/settings.json — a temp fixture only.
 S="$T/settings.json"; printf '{"hooks":{},"model":"opus"}' > "$S"
 has   "hooks status lists events"  "$("$CHUTE" hooks status --settings "$S" 2>&1)" "SessionStart"
-OUT="$("$CHUTE" hooks install --settings "$S" 2>&1)"
-has   "install reports a backup"   "$OUT" "backup:"
-has   "install wires the events"   "$OUT" "SessionStart"
-has   "status now shows wired"     "$("$CHUTE" hooks status --settings "$S" 2>&1)" "✓ SessionStart"
-has   "unrelated keys survive"     "$(cat "$S")" '"model"'
+# THE CONTRACT: Chute never writes to the agent's settings. `install`/`snippet` only PRINT.
 BEFORE="$(cat "$S")"
-"$CHUTE" hooks install --settings "$S" >/dev/null 2>&1
-check "install is idempotent"      "$(cat "$S")" "$BEFORE"
+OUT="$("$CHUTE" hooks install --settings "$S" 2>&1)"
+has   "install prints the snippet"      "$OUT" "chute-session-state"
+has   "install says it never writes"    "$OUT" "does not modify"
+check "install writes NOTHING"          "$(cat "$S")" "$BEFORE"
+# Seed a legacy install (what pre-decision Chute versions wrote) and verify uninstall
+# strips exactly it — that is the one write that remains, and it only ever subtracts.
+"$CHUTE" hooks snippet --settings "$S" 2>/dev/null > "$T/snippet.json"
+python3 -c '
+import json, sys
+s = json.load(open(sys.argv[1])); sn = json.load(open(sys.argv[2]))
+s["hooks"] = sn["hooks"]; json.dump(s, open(sys.argv[1], "w"))
+' "$S" "$T/snippet.json"
+has   "legacy hooks seeded"        "$(cat "$S")" "chute-session-state"
+has   "status shows the wiring"    "$("$CHUTE" hooks status --settings "$S" 2>&1)" "✓ SessionStart"
 "$CHUTE" hooks uninstall --settings "$S" >/dev/null 2>&1
 hasnt "uninstall removes chute"    "$(cat "$S")" "chute"
 has   "uninstall keeps your keys"  "$(cat "$S")" '"model"'
@@ -177,6 +185,9 @@ check "uninstall leaves no husk"   "$(cat "$S")" '{
   },
   "model" : "opus"
 }'
+BEFORE="$(cat "$S")"
+"$CHUTE" hooks uninstall --settings "$S" >/dev/null 2>&1
+check "second uninstall is a no-op" "$(cat "$S")" "$BEFORE"
 
 echo "15. every Finder menu action, run for real"
 # Driven by `chute finder-actions --json` — the SAME table the menu draws from, so a menu item

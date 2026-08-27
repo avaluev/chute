@@ -2,7 +2,6 @@ import Foundation
 
 public struct HookReport: Sendable {
     public let changed: [String]
-    public let skipped: [String]
     public let backupPath: String?
 }
 
@@ -22,8 +21,12 @@ public enum HookInstallError: Error, CustomStringConvertible {
     }
 }
 
-/// Append-only, backed up, idempotent, reversible. Anything less is unacceptable:
-/// this edits the user's live global Claude Code configuration.
+/// Chute NEVER writes to the user's Claude Code configuration. Decided 2026-08-27:
+/// another tool's live settings file is not ours to edit, however carefully — a corrupted
+/// agent setup costs the user more than any badge is worth. What remains here is read-only
+/// (`status`), generative (`manualSnippet` — JSON the user pastes in themselves), and
+/// subtractive (`uninstall` — removes exactly the blocks earlier Chute versions added,
+/// backed up first, for machines that still carry them).
 public enum HookInstaller {
     public static let marker = "chute-session-state"
 
@@ -85,54 +88,16 @@ public enum HookInstaller {
         }
     }
 
-    @discardableResult
-    public static func install(settingsPath: String,
-                               now: Date = Date()) throws -> HookReport {
-        let path = URL(fileURLWithPath: settingsPath).resolvingSymlinksInPath().path
-        let original = try loadObject(path)
-        let originalKeys = Set(original.keys)
-
-        var root = original
-        // Never write a key whose original value we could not decode. An unexpected shape means
-        // a plugin or a hand edit put something here we do not understand — overwriting it would
-        // destroy it silently, and a count-based check cannot notice.
+    /// The `hooks` object a user can paste into their own settings.json, verbatim. Chute
+    /// generates the JSON but the user's hand does the writing — that is the whole contract.
+    public static func manualSnippet() -> String {
         var hooks: [String: Any] = [:]
-        if let existing = root["hooks"] {
-            guard let obj = existing as? [String: Any] else {
-                throw HookInstallError.validationFailed(
-                    "`hooks` is not an object — refusing to modify this file")
-            }
-            hooks = obj
+        for (event, state) in events {
+            hooks[event] = [["hooks": [["type": "command", "command": command(for: state)]]]]
         }
-        var changed: [String] = [], skipped: [String] = []
-
-        for (event, state) in events.sorted(by: { $0.key < $1.key }) {
-            var blocks: [[String: Any]] = []
-            if let existing = hooks[event] {
-                guard let arr = existing as? [[String: Any]] else {
-                    throw HookInstallError.validationFailed(
-                        "hooks.\(event) is not an array of objects — refusing to modify this file")
-                }
-                blocks = arr
-            }
-            let already = blocks.contains { block in
-                ((block["hooks"] as? [[String: Any]]) ?? []).contains {
-                    isChuteCommand(($0["command"] as? String) ?? "")
-                }
-            }
-            if already { skipped.append(event); continue }
-            blocks.append(["hooks": [["type": "command", "command": command(for: state)]]])
-            hooks[event] = blocks
-            changed.append(event)
-        }
-        root["hooks"] = hooks
-
-        // Backup only after every shape guard above has passed — a refused file is left byte-
-        // identical (proven by the "byte-identical afterwards" tests), and now leaves no trace.
-        let backup = try makeBackup(path, now: now)
-        try validateAndWrite(root, original: original, originalKeys: originalKeys,
-                             path: path)
-        return HookReport(changed: changed, skipped: skipped, backupPath: backup)
+        let data = (try? JSONSerialization.data(withJSONObject: ["hooks": hooks],
+                                                options: [.prettyPrinted, .sortedKeys])) ?? Data()
+        return String(decoding: data, as: UTF8.self)
     }
 
     @discardableResult
@@ -178,11 +143,14 @@ public enum HookInstaller {
         }
         root["hooks"] = hooks
 
+        // Nothing of ours in the file → nothing to write, no backup to leave behind. This is what
+        // lets uninstall.sh run it unconditionally on machines that never had hooks wired.
+        guard !changed.isEmpty else { return HookReport(changed: [], backupPath: nil) }
+
         // Backup only after every shape guard above has passed — a refusal leaves no trace at all.
         let backup = try makeBackup(path, now: now)
-        try validateAndWrite(root, original: original, originalKeys: originalKeys,
-                             path: path, allowShrink: true)
-        return HookReport(changed: changed, skipped: [], backupPath: backup)
+        try validateAndWrite(root, originalKeys: originalKeys, path: path)
+        return HookReport(changed: changed, backupPath: backup)
     }
 
     static func makeBackup(_ path: String, now: Date) throws -> String {
@@ -203,12 +171,10 @@ public enum HookInstaller {
     }
 
     /// Nothing is written until the new document is proven to re-parse and to have kept
-    /// every top-level key and (unless uninstalling) every pre-existing hook entry.
+    /// every top-level key.
     static func validateAndWrite(_ root: [String: Any],
-                                 original: [String: Any],
                                  originalKeys: Set<String>,
-                                 path: String,
-                                 allowShrink: Bool = false) throws {
+                                 path: String) throws {
         guard JSONSerialization.isValidJSONObject(root) else {
             throw HookInstallError.validationFailed("result is not a serialisable object")
         }
@@ -225,28 +191,6 @@ public enum HookInstaller {
         let lost = originalKeys.subtracting(reparsed.keys)
         guard lost.isEmpty else {
             throw HookInstallError.validationFailed("would drop top-level keys: \(lost.sorted())")
-        }
-        if !allowShrink {
-            let before = (original["hooks"] as? [String: Any]) ?? [:]
-            let after = (reparsed["hooks"] as? [String: Any]) ?? [:]
-            for (event, value) in before {
-                guard let b = value as? [Any] else { continue }
-                guard let a = after[event] as? [Any], a.count >= b.count else {
-                    throw HookInstallError.validationFailed(
-                        "would shrink hooks.\(event) from \(b.count) to \((after[event] as? [Any])?.count ?? 0)")
-                }
-                // Content, not just count. Appending must leave every original block byte-identical;
-                // a dropped `matcher` keeps the count at 1 and would otherwise sail through.
-                for (i, originalBlock) in b.enumerated() {
-                    guard let lhs = originalBlock as? [String: Any],
-                          i < a.count,
-                          let rhs = a[i] as? [String: Any],
-                          NSDictionary(dictionary: lhs).isEqual(to: rhs) else {
-                        throw HookInstallError.validationFailed(
-                            "hooks.\(event)[\(i)] was modified or is an unexpected shape — refusing to write")
-                    }
-                }
-            }
         }
         let temp = path + ".chute-tmp"
         try data.write(to: URL(fileURLWithPath: temp))

@@ -10,7 +10,7 @@ func diagnosticsSuite() {
             T.no(check.title.isEmpty, "check '\(check.id)' has a title")
         }
         T.eq(Set(Diagnostics.all.map(\.id)).count, Diagnostics.all.count, "check ids are unique")
-        T.eq(Diagnostics.all.count, 10, "ten checks")
+        T.eq(Diagnostics.all.count, 9, "nine checks — hooks left deliberately, see Diagnostics.all")
 
         let good = DiagnosticsEnv(
             osMajor: 14, appPath: "/Users/x/Applications/Chute.app",
@@ -19,7 +19,7 @@ func diagnosticsSuite() {
             extensionID: "dev.valuev.chute.finder",
             automationOK: true,
             processList: "/System/Applications/Utilities/Terminal.app/Contents/MacOS/Terminal",
-            hooksWired: 4, endToEndPassed: true)
+            endToEndPassed: true)
 
         T.eq(Diagnostics.run(good).filter { !$0.passed }.count, 0, "a healthy environment passes them all")
 
@@ -43,9 +43,10 @@ func diagnosticsSuite() {
         T.eq(Diagnostics.run(noAuto).first(where: { !$0.passed })?.check.id ?? "", "automation",
              "missing automation permission is named")
 
-        var partial = good; partial.hooksWired = 2
-        T.eq(Diagnostics.run(partial).first(where: { !$0.passed })?.check.id ?? "", "hooks",
-             "partially wired hooks fail the hooks check")
+        // No "hooks" check by design: doctor must never nudge anyone toward editing
+        // ~/.claude/settings.json, the one file Chute promises not to touch.
+        T.ok(!Diagnostics.all.contains { $0.id == "hooks" },
+             "there is no hooks check to fail")
 
         var broken = good; broken.endToEndPassed = false
         T.eq(Diagnostics.run(broken).first(where: { !$0.passed })?.check.id ?? "", "end-to-end",
