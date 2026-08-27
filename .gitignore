@@ -13,3 +13,10 @@ dist/
 # SDD scratch — ledger, briefs, review packages. Never part of the repo.
 .superpowers/
 brand/out/
+
+# Never again. Credentials do not live in the repo.
+CloudFlare_API.md
+*API*.md
+.cf-token
+*.token
+*credentials*
