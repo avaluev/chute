@@ -6,6 +6,7 @@ import {
   Accordion, AccordionContent, AccordionItem, AccordionTrigger,
 } from "@/components/ui/accordion";
 import { CopyLine } from "@/components/copy-line";
+import { InstallCli } from "@/components/install-cli";
 import { asset } from "@/lib/asset";
 import { Header, Footer } from "@/components/chrome";
 import { CaseCard, DailyCost } from "@/components/case-bits";
@@ -142,13 +143,16 @@ export default function Home() {
           </span>
         </div>
 
-        {/* The brew line is small and secondary on purpose. It is credibility and a way out for
-            the sceptic, not the offer — the page that led with it sold the free thing. */}
+        {/* Small and secondary on purpose. The free tool is credibility and a way out for the
+            sceptic, not the offer — the page that led with it sold the free thing.
+            It does NOT print the brew command: the tap does not exist yet, and the reader most
+            likely to paste it is the one deciding whether to trust a stranger's $19 utility. */}
         <p className="mt-6 text-sm text-muted-foreground">
-          Or take just the free command-line tool:{" "}
+          Or take just the{" "}
           <Link href="/cli" className="text-foreground underline underline-offset-4 hover:text-[var(--color-accent-chute)]">
-            {CONFIG.brew}
+            free command-line tool
           </Link>
+          {" "}— 25 commands, MIT, and it never expires.
         </p>
 
         {/* The hero shot is the APP, not a terminal. The old one was a terminal GIF on a page
@@ -200,7 +204,7 @@ export default function Home() {
             ["Snapshots cannot lose work", "checkpoint stages into a private index file. Your index, worktree and HEAD are never touched — it only ever adds a branch."],
             ["Clearing junk moves it to the Trash", "Never rm. And it refuses to treat a .env or a file you made as an agent's leftovers."],
             ["Keys are read from the Keychain only", "It prints key names, never values, and refuses to create a .env that git would track."],
-            ["Nothing is uploaded, ever", "One exception: the gist command, when you explicitly run it, on the files you name, redacted first."],
+            ["There is no network code in Chute at all", "Not \u201cnothing is uploaded\u201d \u2014 one command, gist, does upload, and it does it by shelling out to your own gh with your own credentials, on the files you name, after redacting keys. Chute itself never opens a socket. Check it: grep -rn URLSession Sources/"],
           ].map(([h, b]) => (
             <li key={h} className="rounded-[var(--radius)] border border-border bg-card p-5">
               <p className="font-[family-name:var(--font-mono-loaded)] text-sm font-semibold">{h}</p>
@@ -225,7 +229,7 @@ export default function Home() {
               All 25 commands. MIT licensed, source on GitHub, yours forever whatever happens to me
               or to this page. It does every job on this site — from a terminal, one path at a time.
             </p>
-            <div className="mt-6"><CopyLine text={CONFIG.brew} /></div>
+            <div className="mt-6"><InstallCli /></div>
           </div>
 
           <div className="rounded-[var(--radius)] border border-[var(--color-accent-chute)] bg-card p-8">

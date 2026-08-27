@@ -24,7 +24,8 @@ command and update this file first, then the copy.
 | Lines of Swift | **6,873** | `find Sources -name '*.swift' \| xargs wc -l \| tail -1` |
 | Minimum macOS | **13 Ventura** | `grep -o 'macOS(.v[0-9]*)' Package.swift` |
 | Architectures | Apple Silicon and Intel | `lipo -info dist/Chute.app/Contents/MacOS/ChuteApp` |
-| Version | **0.1.0** | `chute --version` |
+| Version | **0.2.0** | `chute --version` |
+| Homebrew | `brew install avaluev/tap/chute` | `brew test avaluev/tap/chute` |
 
 ## Privacy — the strongest claim, and the most precise
 
@@ -107,4 +108,4 @@ post or page opens with a command name.
 | "28 commands" | There are 25. | "25 commands" |
 | "Nothing is uploaded, ever" | `gist` uploads on request. | "No network code at all; `gist` shells out to your own `gh`" |
 | "Notarized" / "signed by Apple" | Not yet true. `spctl -a dist/Chute.app` says `rejected`. | Nothing — omit until the Developer ID exists |
-| "Available on Homebrew" | The tap repo does not exist yet. | Nothing — omit until `brew install avaluev/tap/chute` works |
+| ~~"Available on Homebrew"~~ | **NOW TRUE as of 2026-08-28.** `brew install avaluev/tap/chute` installs 0.2.0 from source in ~46s with no warnings, and `brew test` passes. | Say it. |
