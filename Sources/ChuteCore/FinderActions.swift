@@ -79,16 +79,16 @@ public enum ChuteActions {
 
         ChuteAction(id: "new-markdown",
                     title: "New Markdown File",
-                    detail: "An empty Untitled.md in this folder, revealed in Finder.",
+                    detail: "An empty Untitled.md in this folder, with its name ready to type over.",
                     scope: .folder,
-                    template: ["new", "--blank", "--reveal", "--dir", "{dir}"],
+                    template: ["new", "--blank", "--rename", "--dir", "{dir}"],
                     doneMessage: "Markdown file created."),
 
         ChuteAction(id: "new-markdown-clipboard",
                     title: "New Markdown File from Clipboard",
-                    detail: "The clipboard saved here, named after its first line.",
+                    detail: "The clipboard saved here, named after its first line, ready to rename.",
                     scope: .folder,
-                    template: ["new", "--naming", "underscore", "--ext", "md", "--reveal", "--dir", "{dir}"],
+                    template: ["new", "--naming", "underscore", "--ext", "md", "--rename", "--dir", "{dir}"],
                     doneMessage: "Markdown file created."),
 
         ChuteAction(id: "terminal",
