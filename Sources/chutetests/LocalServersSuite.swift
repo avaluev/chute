@@ -64,6 +64,52 @@ func localServersSuite() {
         T.eq(LocalServers.killSet(listener: 5, table: [5: (ppid: 5, command: "node")]), [5],
              "a self-parenting pid terminates the climb instead of looping")
 
+        // ─── launchd-supervised services: bootout, never kill ────────────
+        //
+        // THE OTHER HALF OF "Stop It does nothing". postgres, redis and ollama
+        // from `brew services` are launchd agents with KeepAlive=true: launchd
+        // respawns them the instant the signal lands, so kill -TERM *and*
+        // kill -9 both read as no-ops from the menu. Captured from this machine
+        // on 2026-08-27: all three had ppid 1 and a homebrew.mxcl.* label.
+        let launchctlSample = "PID\tStatus\tLabel\n"
+            + "14471\t0\thomebrew.mxcl.postgresql@16\n"
+            + "11867\t0\thomebrew.mxcl.redis\n"
+            + "-\t0\tcom.apple.mbfloagent\n"
+            + "47743\t-9\thomebrew.mxcl.ollama\n"
+            + "garbage line\n"
+        let jobs = LocalServers.parseLaunchdJobs(launchctlSample)
+        T.eq(jobs[14471], "homebrew.mxcl.postgresql@16", "a live launchd job maps pid to label")
+        T.eq(jobs[47743], "homebrew.mxcl.ollama", "a negative Status column is still a live job")
+        T.eq(jobs.count, 3, "the header, dead jobs (PID '-') and garbage are all skipped")
+
+        // postgres: the postmaster (14471, ppid 1) listens; workers are its children.
+        let brewTable = LocalServers.parseProcessTable("""
+        1 0 /sbin/launchd
+        14471 1 /opt/homebrew/opt/postgresql@16/bin/postgres
+        14475 14471 postgres
+        7001 1 npm exec next dev
+        7002 7001 node
+        """)
+        let plan = LocalServers.killPlan(listeners: [14471, 7002], jobs: jobs, table: brewTable)
+        T.eq(plan.bootout.map(\.pid), [14471], "a launchd-owned listener is booted out, not signalled")
+        T.eq(plan.bootout.first?.label, "homebrew.mxcl.postgresql@16", "bootout is addressed by label")
+        T.eq(plan.signal, [7001, 7002], "a free process still gets its runner tree signalled")
+        T.ok(!plan.signal.contains(14471) && !plan.signal.contains(14475),
+             "nothing under a launchd job is ever signalled — launchd would just respawn it")
+
+        // A launchd job that RUNS a runner: the job is an ancestor of the
+        // listener, not the listener itself. The whole subtree goes to bootout.
+        let supervised = LocalServers.parseProcessTable("""
+        1 0 /sbin/launchd
+        500 1 node
+        501 500 node
+        """)
+        let plan2 = LocalServers.killPlan(listeners: [501], jobs: [500: "dev.example.daemon"],
+                                          table: supervised)
+        T.eq(plan2.bootout.map(\.label), ["dev.example.daemon"],
+             "a launchd job anywhere in the kill tree turns the whole stop into a bootout")
+        T.eq(plan2.signal, [], "and leaves nothing to signal")
+
 
         T.eq(servers.map(\.port), [3400, 5432, 6379], "sorted by port, one row per server")
         T.ok(!servers.contains { $0.command == "rapportd" }, "an ephemeral macOS listener is not a server")
