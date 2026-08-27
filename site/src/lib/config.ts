@@ -4,11 +4,12 @@ export const CONFIG = {
   repo: "https://github.com/avaluev/chute",
   download: "https://github.com/avaluev/chute/releases/latest",
   brew: "brew install avaluev/tap/chute",
-  /** FALSE until `avaluev/homebrew-tap` exists and `brew install avaluev/tap/chute` succeeds on a
-   *  clean Mac. While it is false, every surface shows the source install instead — printing an
-   *  install command that fails is worse than printing none, and it is the first thing a
-   *  sceptical reader tries. `npm run check:claims` fails the deploy if the two disagree. */
-  brewLive: false,
+  /** True since 2026-08-28: `avaluev/homebrew-tap` exists and installs 0.2.0. Verified with
+   *  `brew info avaluev/tap/chute`. While this is false every surface shows the source install
+   *  instead, because printing an install command that fails is worse than printing none — and
+   *  the reader most likely to paste it is the sceptic deciding whether to trust a stranger's
+   *  $19 utility. `npm run check:claims` fails the deploy if this flag and the pages disagree. */
+  brewLive: true,
   price: "$19",
   trialDays: 14,
   refundDays: 30,

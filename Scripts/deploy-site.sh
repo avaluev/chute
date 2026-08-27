@@ -36,6 +36,9 @@ echo "→ checking before publishing"
 # Every figure on the site is re-derived from the JTBD ledger before it can be published. A
 # number nobody can trace is indistinguishable from one that was invented.
 npm run check:cases
+# The fact sheet's FALSE table, enforced against the rendered pages. Three false claims reached
+# the live site before this existed; a rule a human has to remember gets broken.
+npm run check:claims
 npm run check:paddle
 
 BRANCH="main"
