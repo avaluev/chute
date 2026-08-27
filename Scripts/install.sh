@@ -30,27 +30,42 @@ open "$HOME/Applications/Chute.app" 2>/dev/null || { sleep 2; open "$HOME/Applic
 # not do it), so this runs after `open`. The flag has three states; blank is registered-but-off.
 pluginkit -e use -i dev.valuev.chute.finder 2>/dev/null || true
 
-# THE FINDER MENU'S ONE FAILURE MODE, made loud.
-# A sandboxed extension's container ACL pins the exact code identity that created it. An ad-hoc
+killall Finder 2>/dev/null || true
+
+# THE FINDER MENU'S ONE FAILURE MODE, fixed automatically.
+#
+# A sandboxed extension's container pins the exact code identity that created it. An ad-hoc
 # signature is a new identity on every build, so after a rebuild macOS refuses to start the
-# extension — "code identity <cdhash …> not in ACL for container" — and the Chute menu simply
-# stops appearing, with nothing in the UI to say why.
+# extension:  (AppSandbox) code identity <cdhash …> not in ACL for container …
+# Nothing surfaces that. pluginkit still says registered and enabled, the process still launches,
+# and the Chute menu is simply absent.
+#
+# The extension writes a marker when it loads, so "did this build ever run?" is answerable. If it
+# did not, the stale container goes to the Trash — via Finder, which needs no password — and we
+# try once more.
+APPEX_BIN="$HOME/Applications/Chute.app/Contents/PlugIns/ChuteFinder.appex/Contents/MacOS/ChuteFinder"
+MARKER="$HOME/.chute/extension-loaded.txt"
 CONTAINER="$HOME/Library/Containers/dev.valuev.chute.finder"
-CDHASH="$(codesign -dvvv "$HOME/Applications/Chute.app/Contents/PlugIns/ChuteFinder.appex" 2>&1 \
-          | awk -F= '/^CDHash=/{print $2}')"
-if [ -d "$CONTAINER" ] && ! grep -qa "$CDHASH" "$CONTAINER/.com.apple.containermanagerd.metadata.plist" 2>/dev/null; then
-  rm -rf "$CONTAINER" 2>/dev/null || true
-  if [ -d "$CONTAINER" ]; then
+
+extension_started() { [ -f "$MARKER" ] && [ "$MARKER" -nt "$APPEX_BIN" ]; }
+wait_for_extension() { for _ in 1 2 3 4 5 6 7 8 9 10; do extension_started && return 0; sleep 1; done; return 1; }
+
+if ! wait_for_extension; then
+  echo "the Finder extension did not start — clearing its stale sandbox container"
+  osascript -e "tell application \"Finder\" to delete POSIX file \"$CONTAINER\"" >/dev/null 2>&1 || true
+  killall Finder 2>/dev/null || true
+  if wait_for_extension; then
+    echo "fixed — the Chute menu is back"
+  else
     echo
-    echo "⚠️  The Finder menu will NOT appear until this stale sandbox container is removed:"
-    echo "      sudo rm -rf $CONTAINER"
-    echo "    Then run this installer again. To stop it happening on every rebuild:"
-    echo "      $ROOT/Scripts/sign-identity.sh"
+    echo "⚠️  The Finder extension still will not start. Two things to try, in order:"
+    echo "      sudo rm -rf $CONTAINER   (then run this installer again)"
+    echo "      $ROOT/Scripts/sign-identity.sh   (stops it recurring on every rebuild)"
     echo
   fi
 fi
 
-killall Finder 2>/dev/null || true
+
 
 cat <<EOF
 
