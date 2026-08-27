@@ -23,9 +23,9 @@ export function Header() {
           <Mark /> Chute
         </Link>
         <nav className="flex items-center gap-5 text-sm text-muted-foreground">
-          <Link href="/docs" className="hover:text-foreground">Commands</Link>
-          <Link href="/changelog" className="hover:text-foreground">Changelog</Link>
-          <a href={CONFIG.repo} className="hover:text-foreground">GitHub</a>
+          <Link href="/cases" className="hover:text-foreground">What it does</Link>
+          <Link href="/cli" className="hover:text-foreground">Free CLI</Link>
+          <a href={CONFIG.repo} className="hidden hover:text-foreground sm:inline">GitHub</a>
           <Link href="/buy" className="text-foreground hover:text-[var(--color-accent-chute)]">Buy</Link>
         </nav>
       </div>
@@ -52,6 +52,8 @@ export function Footer() {
           {/* Every one of these is a page Paddle's reviewer looks for. Removing one is not a
               tidy-up; it is a failed seller verification. */}
           <nav className="flex flex-wrap gap-x-5 gap-y-2">
+            <Link className="hover:text-foreground" href="/cases">What it does</Link>
+            <Link className="hover:text-foreground" href="/cli">Free CLI</Link>
             <Link className="hover:text-foreground" href="/docs">Commands</Link>
             <Link className="hover:text-foreground" href="/buy">Buy</Link>
             <Link className="hover:text-foreground" href="/support">Support</Link>

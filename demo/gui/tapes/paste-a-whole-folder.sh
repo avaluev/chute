@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # THE WEDGE, recorded as an argument rather than as a feature tour.
 #
-# Case: site/src/lib/cases.ts → paste-eight-files-into-your-agent (JTBD 2, 41.1 min/day).
+# Case: site/src/lib/cases.ts → paste-a-whole-folder-into-your-agent (JTBD 2, 41.1 min/day).
 #
 # Two takes, one fixture, one stopwatch:
 #   A — the ritual. Eight files, opened and copied one at a time, the way it is done today.
-#   B — the same eight files, right-clicked once.
+#   B — the same folders, right-clicked once.
 # The clock burned into each take is read off the stopwatch, not typed into this file, and the
 # pair is written to out/gui/<slug>.json where check-cases.mjs compares it to what the landing
 # page claims. If the ritual turns out to be faster than the ledger says, the PAGE is wrong.
@@ -19,7 +19,7 @@
 set -euo pipefail
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/lib.sh"
 
-SLUG="paste-eight-files-into-your-agent"
+SLUG="paste-a-whole-folder-into-your-agent"
 
 # WHAT GETS RIGHT-CLICKED. Three folders, because that is what a person actually selects — not
 # six individually shift-clicked files. `bundle` expands them, so one click covers everything
