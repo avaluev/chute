@@ -24,11 +24,18 @@ public struct SessionLoad: Sendable, Equatable {
     public let residentBytes: UInt64
     public let processes: Int
 
-    /// "12% · 1.2 GB". Empty when the session is doing nothing worth reporting — a row that says
-    /// "0% · 4 MB" for an idle shell is noise in a menu you are scanning for the busy one.
+    public init(cpuPercent: Double, residentBytes: UInt64, processes: Int) {
+        self.cpuPercent = cpuPercent
+        self.residentBytes = residentBytes
+        self.processes = processes
+    }
+
+    /// "12% CPU · 1.2 GB". Empty when the session is doing nothing worth reporting — a row that
+    /// says "0% CPU · 4 MB" for an idle shell is noise in a menu you scan to find the busy one.
     public var label: String {
         guard processes > 0, cpuPercent >= 1.0 || residentBytes >= 200 * 1024 * 1024 else { return "" }
-        return "\(Int(cpuPercent.rounded()))% · \(SystemVitals.bytes(residentBytes))"
+        // "2%" is a number with no referent. "2% CPU" is an answer.
+        return "\(Int(cpuPercent.rounded()))% CPU · \(SystemVitals.bytes(residentBytes))"
     }
 }
 
@@ -93,10 +100,10 @@ public enum SystemVitals {
     /// only honest answer to "is my Mac struggling" that does not need root.
     public static func thermalPressure(_ state: ProcessInfo.ThermalState) -> String {
         switch state {
-        case .nominal:  return "normal"
-        case .fair:     return "warm"
-        case .serious:  return "hot — fans up, throttling soon"
-        case .critical: return "critical — throttling now"
+        case .nominal:  return "running cool"
+        case .fair:     return "running warm"
+        case .serious:  return "running hot, about to slow down"
+        case .critical: return "too hot, slowing down now"
         @unknown default: return "unknown"
         }
     }

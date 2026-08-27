@@ -7,7 +7,7 @@ extension AppDelegate {
     /// FR-25 — what is running locally right now. Two `lsof` calls, made only when the menu opens.
     func appendLocalServers(to menu: NSMenu) {
         let servers = LocalServers.discover()
-        let title = servers.isEmpty ? "No local servers running" : "Local servers (\(servers.count))"
+        let title = servers.isEmpty ? "No Local Servers Running" : "Local Servers  (\(servers.count))"
         let parent = NSMenuItem(title: title, action: nil, keyEquivalent: "")
         menu.addItem(parent)
         guard !servers.isEmpty else { return }

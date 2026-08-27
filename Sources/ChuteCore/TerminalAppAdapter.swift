@@ -10,19 +10,29 @@ public struct TerminalAppAdapter: TerminalAdapter {
     static let US = "\u{1F}"
     static let RS = "\u{1E}"
 
+    /// Windows and tabs come and go WHILE this runs — you close a terminal, an agent finishes, a
+    /// tab opens. Without the `try` blocks the whole listing dies on
+    /// "Can't get item 13 of every window. Invalid index. (-1719)" and the menu shows nothing at
+    /// all because one window shut half a second ago. Each window and each tab is therefore
+    /// collected independently: a session that vanishes mid-scan is simply absent from the list,
+    /// which is exactly what it is.
     static let discoveryScript = """
     tell application "Terminal"
         set out to ""
         repeat with w in windows
-            set wid to id of w
-            set wname to name of w
-            set idx to 0
-            repeat with t in tabs of w
-                set idx to idx + 1
-                set out to out & wid & "\(US)" & wname & "\(US)" & idx & "\(US)" & ¬
-                    (tty of t) & "\(US)" & (busy of t) & "\(US)" & (selected of t) & "\(US)" & ¬
-                    (processes of t as string) & "\(US)" & (custom title of t) & "\(RS)"
-            end repeat
+            try
+                set wid to id of w
+                set wname to name of w
+                set idx to 0
+                repeat with t in tabs of w
+                    set idx to idx + 1
+                    try
+                        set out to out & wid & "\(US)" & wname & "\(US)" & idx & "\(US)" & ¬
+                            (tty of t) & "\(US)" & (busy of t) & "\(US)" & (selected of t) & "\(US)" & ¬
+                            (processes of t as string) & "\(US)" & (custom title of t) & "\(RS)"
+                    end try
+                end repeat
+            end try
         end repeat
         return out
     end tell

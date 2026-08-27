@@ -9,6 +9,22 @@ import UserNotifications
 /// `UNUserNotificationCenter` posts as Chute. If the user has denied notifications, or the API is
 /// unavailable, it falls back to the old path rather than going silent.
 enum Notify {
+    /// Set when macOS last told us notifications are off. The menu reads it to offer the fix.
+    nonisolated(unsafe) static var deniedAtLastCheck = false
+
+    /// Where the app leaves its notification state, so `chute doctor --report` can explain a
+    /// silence that is otherwise invisible from outside the app.
+    static func record(_ state: String) {
+        try? state.write(toFile: (NSHomeDirectory() as NSString)
+                            .appendingPathComponent(".chute/notifications.txt"),
+                         atomically: true, encoding: .utf8)
+    }
+
+    /// The System Settings pane for THIS app's notifications, not the general list.
+    static var settingsURL: URL {
+        URL(string: "x-apple.systempreferences:com.apple.Notifications-Settings.extension?id=dev.valuev.chute")!
+    }
+
     static func requestAuthorization() {
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { _, error in
             if let error { NSLog("ChuteApp: notification authorization failed: %@", error.localizedDescription) }
@@ -20,11 +36,51 @@ enum Notify {
     /// osascript fallback for the rest of the session.
     static func post(title: String, subtitle: String?, body: String) {
         UNUserNotificationCenter.current().getNotificationSettings { settings in
-            guard settings.authorizationStatus == .authorized ||
-                  settings.authorizationStatus == .provisional else {
-                return fallback(title: title, body: body)
+            switch settings.authorizationStatus {
+            case .authorized, .provisional, .ephemeral:
+                deniedAtLastCheck = false
+                record("on")
+                deliver(title: title, subtitle: subtitle, body: body)
+
+            case .notDetermined:
+                // Never asked, or the prompt was dismissed without an answer. Ask now and post the
+                // notification the moment permission arrives, rather than falling back to
+                // osascript — which is what put a Script Editor pen icon on Chute's banners.
+                UNUserNotificationCenter.current()
+                    .requestAuthorization(options: [.alert, .sound]) { granted, error in
+                        if let error {
+                            NSLog("ChuteApp: notification authorization failed: %@",
+                                  error.localizedDescription)
+                        }
+                        granted ? deliver(title: title, subtitle: subtitle, body: body)
+                                : fallback(title: title, body: body)
+                    }
+
+            case .denied:
+                // A denial is the user's decision and osascript would route around it — which is
+                // exactly how Chute's banners ended up arriving as Script Editor, with a pen icon
+                // and a Show button that opened Script Editor. So: do not fake it. Record the
+                // state instead, and let the menu offer to fix it.
+                deniedAtLastCheck = true
+                record("off")
+                NSLog("ChuteApp: notifications are turned off for Chute in System Settings")
+
+            @unknown default:
+                fallback(title: title, body: body)
             }
-            deliver(title: title, subtitle: subtitle, body: body)
+        }
+    }
+
+    /// What the notification system currently thinks, for diagnostics — a banner arriving with the
+    /// wrong icon is otherwise unexplainable from the outside.
+    static func statusDescription(_ status: UNAuthorizationStatus) -> String {
+        switch status {
+        case .authorized:   return "allowed"
+        case .provisional:  return "allowed quietly"
+        case .ephemeral:    return "allowed for now"
+        case .denied:       return "turned off in System Settings → Notifications → Chute"
+        case .notDetermined: return "never asked"
+        @unknown default:   return "unknown"
         }
     }
 
@@ -38,6 +94,8 @@ enum Notify {
             if let error {
                 NSLog("ChuteApp: native notification refused: %@", error.localizedDescription)
                 fallback(title: title, body: body)
+            } else {
+                NSLog("ChuteApp: delivered natively")
             }
         }
     }

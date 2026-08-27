@@ -57,10 +57,10 @@ func cmdSessions(_ a: Args) {
     }
     let needs = sessions.filter { $0.state == .blocked || $0.state == .waiting }.count
     var summary = "→ \(sessions.count) session(s), \(needs) need you"
+    summary += " · this Mac is \(SystemVitals.thermalPressure(ProcessInfo.processInfo.thermalState))"
     if let c = SystemVitals.temperature() {
-        summary += " · battery \(SystemVitals.temperatureLabel(c))"
+        summary += ", battery at \(SystemVitals.temperatureLabel(c))"
     }
-    summary += " · thermals \(SystemVitals.thermalPressure(ProcessInfo.processInfo.thermalState))"
     Out.info(summary)
 }
 

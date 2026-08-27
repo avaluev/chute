@@ -135,7 +135,7 @@ if printf '%s' "$OUT" | python3 -c 'import json,sys; sys.exit(0 if isinstance(js
 then ok "sessions --json is a JSON array"; else bad "sessions --json is a JSON array" "not parseable: $OUT"; fi
 OUT="$("$CHUTE" sessions 2>&1)"
 has "sessions prints a tally"      "$OUT" "session(s)"
-has "sessions reports thermals"    "$OUT" "thermals"
+has "sessions reports how hot the Mac is" "$OUT" "this Mac is running"
 # CPU and memory per session: at least one of this machine's terminals is doing something.
 if printf '%s' "$OUT" | grep -qE '[0-9]+% · [0-9.]+ (MB|GB)'; then ok "sessions reports CPU and memory"
 else ok "sessions reports CPU and memory (none busy enough to show — the quiet case)"; fi

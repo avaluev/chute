@@ -46,9 +46,9 @@ func systemVitalsSuite() {
         T.ok(SystemVitals.batteryCelsius(fromIOReg: #""Temperature" = -500"#) == nil,
              "and so is a negative one")
 
-        T.eq(SystemVitals.thermalPressure(.nominal), "normal", "thermal pressure reads as words")
-        T.ok(SystemVitals.thermalPressure(.serious).contains("throttling"),
-             "and a serious state says what it means for you")
+        T.eq(SystemVitals.thermalPressure(.nominal), "running cool", "thermal pressure reads as words")
+        T.ok(SystemVitals.thermalPressure(.serious).contains("slow down"),
+             "and a serious state says what it means for your work, not just its severity")
 
         T.eq(SystemVitals.bytes(1_610_612_736), "1.5 GB", "gigabytes to one decimal")
         T.eq(SystemVitals.bytes(524_288_000), "500 MB", "megabytes whole")
