@@ -11,6 +11,12 @@ has()  { if printf '%s' "$2" | grep -qF -- "$3"; then ok "$1"; else bad "$1" "mi
 hasnt(){ if printf '%s' "$2" | grep -qF -- "$3"; then bad "$1" "should not contain '$3'"; else ok "$1"; fi; }
 
 [ -x "$CHUTE" ] || { echo "build first: swift build -c release"; exit 1; }
+
+# CHUTE_HEADLESS=1 skips the sections that need a logged-in Mac with Finder, Terminal and the app
+# running — which is what a CI runner is. Everything else still runs, so a macOS version this
+# machine cannot boot is still tested for the 90% that is pure CLI.
+HEADLESS="${CHUTE_HEADLESS:-0}"
+skip() { printf '  SKIP %s (headless)\n' "$1"; }
 SAVED="$(pbpaste)"; trap 'printf %s "$SAVED" | pbcopy' EXIT
 
 T="$(mktemp -d)"; cd "$T"
@@ -121,6 +127,7 @@ OUT="$("$CHUTE" env inject . 2>&1)"
 has "refuses ungitignored .env" "$OUT" "not gitignored"
 
 echo "14. sessions, doctor, hooks"
+if [ "$HEADLESS" = "1" ]; then skip "sessions — needs Terminal and Automation permission"; else
 # sessions talks to Terminal via AppleScript. On a machine without permission it must still
 # emit valid JSON and say why, never crash — that is the contract being checked here.
 OUT="$("$CHUTE" sessions --json 2>/dev/null)"
@@ -141,6 +148,7 @@ has   "report carries the checks"   "$REPORT" "macOS version"
 has   "report states the version"   "$REPORT" "chute 0.1.0"
 hasnt "report repairs nothing"      "$REPORT" "Fixed"
 
+fi
 # NEVER against ~/.claude/settings.json — a temp fixture only.
 S="$T/settings.json"; printf '{"hooks":{},"model":"opus"}' > "$S"
 has   "hooks status lists events"  "$("$CHUTE" hooks status --settings "$S" 2>&1)" "SessionStart"
@@ -254,8 +262,12 @@ wait_for_clipboard_lines() { for _ in 1 2 3 4 5 6 7 8 9 10 11 12; do
 wait_for_clipboard_contains() { for _ in 1 2 3 4 5 6 7 8 9 10; do
   pbpaste | grep -qF -- "$1" && return 0; sleep 1; done; return 1; }
 
-if ! pgrep -x ChuteApp >/dev/null 2>&1; then
-  echo "  SKIP inbox checks — Chute.app is not running (start it: open ~/Applications/Chute.app)"
+if [ "$HEADLESS" = "1" ]; then
+  skip "extension inbox — needs Chute.app running"
+elif ! pgrep -x ChuteApp >/dev/null 2>&1; then
+  # NOT a skip. On a Mac with the app installed, "Chute.app is not running" is the app failing to
+  # launch — which is exactly how a bootstrap regression once slipped through as a green run.
+  bad "Chute.app is running" "not running — install it, or fix why it exits (open ~/Applications/Chute.app)"
 else
   printf 'INBOX-SENTINEL' | pbcopy
   put_request copy-paths "$FX" 0 "$FX/src/a.ts" >/dev/null

@@ -178,3 +178,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         menu.popUp(positioning: nil, at: NSEvent.mouseLocation, in: nil)
     }
 }
+
+// The app itself. This has to be the LAST thing in main.swift: everything above declares types,
+// and top-level code in a main file runs in order.
+let app = NSApplication.shared
+let delegate = AppDelegate()
+app.delegate = delegate
+app.setActivationPolicy(.accessory)     // LSUIElement — menu bar only, no Dock icon
+app.run()
