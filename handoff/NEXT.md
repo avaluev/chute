@@ -1,10 +1,11 @@
-# HANDOFF — Chute — 2026-08-27
+# HANDOFF — Chute — 2026-08-27 (evening)
 
-STATE: `main` @ `04355f6` · pushed (`git ls-remote --heads origin main` == local) · tree clean
-       unit **447/447** (`swift run chutetests`) · e2e **132/132** (`./Scripts/smoke.sh`) ·
-       headless e2e **108/108** (`CHUTE_HEADLESS=1 ./Scripts/smoke.sh`) ·
-       `chute doctor` **10/10** · extension `loaded · 8 actions` · notifications `on` ·
-       signed `Authority=Chute Local Dev` · 64 Swift files, 5,630 lines, zero dependencies
+STATE: `main` · pushed · tree clean
+       unit **444/444** (`swift run chutetests`) · e2e **133/133** (`./Scripts/smoke.sh`) ·
+       headless e2e **109/109** (`CHUTE_HEADLESS=1 ./Scripts/smoke.sh`) ·
+       `chute doctor` **9/9** (the hooks check is gone by design, see DECISIONS) ·
+       extension `loaded · 8 actions` · notifications `on` ·
+       signed `Authority=Chute Local Dev` · zero dependencies
 
 ## ONE-LINE GOAL
 Your agents should not cost you attention: turn a Finder selection into agent-ready context, and
@@ -19,7 +20,7 @@ swift run chutetests && ./Scripts/smoke.sh
 cd /Users/sxope/Documents/2026/Development/37.chute && ./Scripts/build-app.sh && ./Scripts/install.sh
 cd /Users/sxope/Documents/2026/Development/37.chute && ~/.local/bin/chute doctor
 ```
-Expect: `✅ 447 assertions passed`, `smoke: 132 passed, 0 failed`, `→ all 10 checks passed`.
+Expect: `✅ 444 assertions passed`, `smoke: 133 passed, 0 failed`, `→ all 9 checks passed`.
 `build-app.sh` may ask the keychain for the signing key — click **Always Allow** once.
 
 ---
@@ -82,9 +83,8 @@ of its load-bearing facts are documented nowhere but this repo.
 3. **Paddle**: product, checkout link, licence key generation, and an offline key check in the app.
 4. **In-app onboarding** — the first-run window only appears when something needs a human; there is
    no "here is what this does" moment for a stranger.
-5. **Uninstall parity** — `/Users/sxope/Documents/2026/Development/37.chute/Scripts/uninstall.sh`
-   removes app, CLI, `~/.chute` and the appex registration, but leaves the Claude Code hooks in
-   `~/.claude/settings.json`. Decide: prompt, or leave.
+5. ~~Uninstall parity~~ — DONE 2026-08-27: `uninstall.sh` now runs `chute hooks uninstall`
+   first (removes exactly the chute-marked blocks, backup first, no-op when none exist).
 
 ---
 
@@ -102,6 +102,13 @@ of its load-bearing facts are documented nowhere but this repo.
 - **One action table** (`ChuteCore/FinderActions.swift`) feeds the Finder menu, the app and the
   tests. Two copies had already drifted into naming different actions.
 - **No XCTest** (ships with Xcode) · **no third-party dependencies** · **no telemetry**.
+- **Chute NEVER writes to another tool's configuration** — decided 2026-08-27 by the founder:
+  a broken agent setup costs the user more than any badge is worth. `chute hooks install` is
+  gone; `chute hooks snippet` PRINTS the JSON for the user's own hand, `status` is read-only,
+  `uninstall` only ever subtracts chute-marked blocks (legacy installs). The doctor "hooks"
+  check was removed with it — doctor must not nudge people toward editing `~/.claude`.
+  The founder's own machine still has the legacy hooks wired (their choice, they power the
+  badge); `chute hooks uninstall` removes them whenever wanted.
 - **Price $19**, revisit at v1.0 once signed and auto-updating.
 - **Temperature is the battery sensor, and says so.** CPU die sensors need root; `powermetrics`
   needs sudo. `ProcessInfo.thermalState` carries the honest "is my Mac struggling" signal.
@@ -132,6 +139,17 @@ of its load-bearing facts are documented nowhere but this repo.
   Invalid index" — when a terminal closes. Each window and tab is wrapped in `try` for that reason.
 - **`lsof -ti tcp:<port>` returns the LEAF and the CLIENTS.** Killing the leaf lets the npm
   supervisor respawn the port; killing everything returned kills the browser tab watching it.
+- **`brew services` daemons cannot be killed, only booted out.** postgres/redis/ollama are
+  launchd agents with `KeepAlive=true`: TERM *and* KILL are respawned before the port check
+  even runs, so "Stop It" read as a no-op. The only stop launchd respects is
+  `launchctl bootout gui/$UID/<label>`; `LocalServers.killPlan` routes any kill tree containing
+  a launchd job pid (from `launchctl list`) to bootout. Restore with
+  `launchctl bootstrap gui/$UID ~/Library/LaunchAgents/homebrew.mxcl.<name>.plist` or
+  `brew services start <name>`.
+- **`Shell.run` used to read stdout then stderr sequentially.** A child that fills the ~64 KB
+  stderr pipe while stdout is still open deadlocks both processes — in the menu bar app that is
+  a dead menu with no error anywhere. stderr is now drained concurrently; the Shell suite floods
+  200 KB to prove it.
 - **`pgrep -x Terminal` never matches Terminal.app**; use `ps -Ao comm` and a path fragment.
 - **`ps -o tty=` prints `??`**, not empty, when there is no controlling terminal.
 - **APFS is case-insensitive**: the app executable is `ChuteApp` so it cannot collide with `chute`.
@@ -169,6 +187,22 @@ Inbox hardened to `0700` with per-file ownership checks; `unpack` blocked from e
 symlink; redaction extended to private key blocks and URL credentials; AppleScript escaping fixed
 to handle backslashes. Full detail in the commit `security: harden the request inbox…`.
 
+**2026-08-27 deep review — fixed the same day**
+- CRITICAL `chute gist` uploaded raw files while help claimed "nothing is ever uploaded" —
+  now redacts every text file before upload and the help names gist as the one exception.
+- HIGH `chute unpack --force` could mkdir OUTSIDE `--dir` through a pre-existing symlink before
+  the escape check ran — `staysInside` now runs before AND after `createDirectory`.
+- HIGH `seed`/`note`/`buf add` swallowed write errors (`try?`) then reported success — a failed
+  `chute note` claiming "anchored" was the worst lie in the product. All three now fail loudly.
+- HIGH `NameDerive.uniquePath` was probe-then-write (TOCTOU): two simultaneous pastes could both
+  resolve `Shot-2.png` and the second silently clobbered the first. `writeUniquely` makes the
+  write itself the probe (`.withoutOverwriting` = O_EXCL).
+- MEDIUM `Notify.deniedAtLastCheck` was written from UNUserNotificationCenter's queue and read on
+  main — now hops to main for every write.
+- Dead code removed: `FirstRunWindow.failuresOnly`, `SessionPhrasing.runningFor`.
+- LOW, known and accepted: `Out.fail` exits without unwinding `defer`, so a failed
+  `chute checkpoint`/`gist` can leave a stray temp file in `/tmp` (periodically purged by macOS).
+
 ---
 
 ## TESTING OTHER macOS VERSIONS WITH ONE LAPTOP
@@ -192,6 +226,7 @@ to handle backslashes. Full detail in the commit `security: harden the request i
 
 ## OPEN QUESTIONS FOR THE HUMAN
 1. **Domain** — none of the 56 in `docs/CloudflareDomainsPrice.md` spell the product's name.
-2. **Uninstall and the hooks** — should `uninstall.sh` remove the Claude Code hooks it installed?
-3. **Real CPU temperature** — worth a privileged helper, or is the battery sensor plus thermal
+2. **Real CPU temperature** — worth a privileged helper, or is the battery sensor plus thermal
    pressure enough?
+3. **Your own machine still has the legacy hooks wired** (they power the badge and were left
+   untouched on purpose). Keep them, or `chute hooks uninstall` to run hook-free?
