@@ -30,11 +30,15 @@ func cmdSessions(_ a: Args) {
     }
 
     if a.has("json") {
+        let jsonSamples = SystemVitals.sample()
         let rows = sessions.map { s -> [String: Any] in
-            ["key": s.key, "project": s.project, "title": s.title, "tty": s.tty,
-             "state": HookState.stateName(s.state), "isAgent": s.isAgent,
-             "windowID": s.windowID, "tabIndex": s.tabIndex,
-             "color": SessionColor.hex(forProject: s.project)]
+            let load = SystemVitals.load(forTTY: s.tty, in: jsonSamples)
+            return ["key": s.key, "project": s.project, "title": s.title, "tty": s.tty,
+                    "state": HookState.stateName(s.state), "isAgent": s.isAgent,
+                    "windowID": s.windowID, "tabIndex": s.tabIndex,
+                    "color": SessionColor.hex(forProject: s.project),
+                    "cpuPercent": load.cpuPercent, "memoryBytes": load.residentBytes,
+                    "processes": load.processes]
         }
         let data = try? JSONSerialization.data(withJSONObject: rows, options: [.prettyPrinted])
         Out.line(String(decoding: data ?? Data("[]".utf8), as: UTF8.self))
@@ -44,11 +48,20 @@ func cmdSessions(_ a: Args) {
     func pad(_ s: String, _ n: Int) -> String {
         s.count >= n ? String(s.prefix(n)) : s + String(repeating: " ", count: n - s.count)
     }
+    // One `ps` for all sessions, not one per row: the list is drawn while you wait for it.
+    let samples = SystemVitals.sample()
     for s in sessions {
-        Out.line(pad(s.state.label, 9) + pad(s.project, 18) + pad(s.title, 40) + s.tty)
+        let load = SystemVitals.load(forTTY: s.tty, in: samples)
+        Out.line(pad(s.state.label, 9) + pad(s.project, 18) + pad(s.title, 34)
+                 + " " + pad(s.tty, 9) + load.label)
     }
     let needs = sessions.filter { $0.state == .blocked || $0.state == .waiting }.count
-    Out.info("→ \(sessions.count) session(s), \(needs) need you")
+    var summary = "→ \(sessions.count) session(s), \(needs) need you"
+    if let c = SystemVitals.temperature() {
+        summary += " · battery \(SystemVitals.temperatureLabel(c))"
+    }
+    summary += " · thermals \(SystemVitals.thermalPressure(ProcessInfo.processInfo.thermalState))"
+    Out.info(summary)
 }
 
 func cmdFocus(_ a: Args) {

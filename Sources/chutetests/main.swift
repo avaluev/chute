@@ -16,5 +16,6 @@ nameDeriveSuite()
 finderRevealSuite()
 supportReportSuite()
 pastedImageSuite()
+systemVitalsSuite()
 
 T.report()
