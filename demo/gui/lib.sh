@@ -129,6 +129,49 @@ await_inbox_drained() { # [timeout]
   say "the app carried the request out"
 }
 
+# ── measuring a picture ─────────────────────────────────────────────────────────────────────
+# BOTH of these were wrong on the first attempt, in the same way and for the same reason: the
+# obvious `signalstats | grep YAVG` prints NOTHING on this ffmpeg. The filter runs, produces its
+# metadata, and emits none of it unless `metadata=print` is asked to write somewhere explicitly.
+#
+# That silence was not harmless. verify_take read an empty string, `[ -n "" ]` failed, and the
+# guard's else-branch deletes the take — so every recording would have been made and then
+# immediately destroyed as "essentially black", with a human sitting in front of the screen
+# wondering where the files went. An empty measurement must never be read as a bad measurement.
+
+# One signalstats value for one frame — YMAX, YAVG, YMIN.
+frame_stat() { # file key [seek_seconds]
+  ffmpeg -v error -ss "${3:-1}" -i "$1" -frames:v 1 \
+         -vf "signalstats,metadata=print:key=lavfi.signalstats.$2:file=-" -f null - 2>/dev/null \
+    | grep -o "$2=[0-9.]*" | head -1 | cut -d= -f2 | cut -d. -f1
+}
+
+# Is there anything on screen at all? YMAX, deliberately, NOT the mean.
+#
+# In limited-range yuv420p, pure black is Y=16 rather than 0 — so a mean-luminance threshold of
+# 12 accepted a completely black recording, which the self-test caught. Worse, the mean cannot
+# separate "the display slept" from "this is a dark UI": Chute's own ground is #0D0F17, which
+# measures 29 — only 13 above pure black. But any window with a line of text in it has a bright
+# pixel somewhere, and YMAX for real content is around 235. That gap is unambiguous.
+frame_has_content() { # file [seek_seconds]
+  local ymax; ymax="$(frame_stat "$1" YMAX "${2:-1}")"
+  [ -n "$ymax" ] || return 2          # unmeasurable — the caller must not read this as "black"
+  [ "$ymax" -ge 60 ]
+}
+
+# Mean squared error between two frames: 0 is identical, and it climbs fast with real change.
+# psnr's own stats output, which unlike signalstats prints without being coaxed.
+frame_mse() { # a.png b.png
+  ffmpeg -v error -i "$1" -i "$2" -filter_complex "psnr=stats_file=-" -f null - 2>/dev/null \
+    | grep -o 'mse_avg:[0-9.]*' | head -1 | cut -d: -f2 | cut -d. -f1
+}
+
+# One frame of a video, scaled small and optionally cropped, for comparing.
+grab() { # file seek out.png [crop]
+  ffmpeg -v error -y -ss "$2" -i "$1" -frames:v 1 \
+         -vf "${4:+$4,}scale=160:-2" "$3" 2>/dev/null
+}
+
 # ── the scene ───────────────────────────────────────────────────────────────────────────────
 scene() { # [subdir]
   # The fixture is built even in PLAN: it is what proves the tape's filenames are real, and a
@@ -276,10 +319,14 @@ verify_take() { # name expected_seconds
   local dur; dur="$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$f" | cut -d. -f1)"
   [ "$dur" -ge $((want - 2)) ] || { rm -f "$f"; die "$1 is ${dur}s, expected about ${want}s — take discarded"; }
   # Mean luminance of a frame a second in. A window that never drew, or a display that slept,
-  # comes out near zero and is otherwise indistinguishable from a good file.
-  local lum; lum="$(ffmpeg -v error -ss 1 -i "$f" -frames:v 1 -vf signalstats -f null - 2>&1 \
-                    | grep -o 'YAVG:[0-9.]*' | head -1 | cut -d: -f2 | cut -d. -f1)"
-  [ -n "$lum" ] && [ "$lum" -gt 12 ] || { rm -f "$f"; die "$1 is essentially black (YAVG=${lum:-?}) — take discarded"; }
+  # comes out near zero and is otherwise indistinguishable from a good file in a directory listing.
+  frame_has_content "$f" 1
+  case $? in
+    0) : ;;                                   # something was drawn
+    2) say "⚠ could not measure $1 — keeping it, look at it yourself" ;;
+    *) rm -f "$f"
+       die "$1 never drew anything (brightest pixel $(frame_stat "$f" YMAX 1), black is 16) — take discarded" ;;
+  esac
   say "$1.mov — ${dur}s, not blank"
 }
 
@@ -390,17 +437,14 @@ verify_loop() { # slug [tolerance]
   planned "check that $slug loops cleanly" && return 0
   local dur; dur="$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$f")"
   local last; last="$(perl -e "printf '%.1f', $dur - 0.2")"
-  ffmpeg -v error -y -ss 0 -i "$f" -frames:v 1 -vf scale=160:-2 "/tmp/chute-loop-a.png"
-  ffmpeg -v error -y -ss "$last" -i "$f" -frames:v 1 -vf scale=160:-2 "/tmp/chute-loop-b.png"
-  # Mean absolute difference between first and last frame, as a percentage.
-  local diff; diff="$(ffmpeg -v error -i /tmp/chute-loop-a.png -i /tmp/chute-loop-b.png \
-      -filter_complex "blend=all_mode=difference,signalstats" -f null - 2>&1 \
-      | grep -o 'YAVG:[0-9.]*' | head -1 | cut -d: -f2 | cut -d. -f1)"
+  grab "$f" 0 /tmp/chute-loop-a.png
+  grab "$f" "$last" /tmp/chute-loop-b.png
+  local diff; diff="$(frame_mse /tmp/chute-loop-a.png /tmp/chute-loop-b.png)"
   rm -f /tmp/chute-loop-a.png /tmp/chute-loop-b.png
   [ -z "$diff" ] && { say "could not measure the loop seam for $slug"; return 0; }
   if [ "$diff" -le "$tol" ]; then
-    say "$slug loops cleanly (seam $diff%)"
+    say "$slug loops cleanly (seam $diff)"
   else
-    say "⚠ $slug jumps on loop (seam $diff%) — end the tape where it began, or it will flicker"
+    say "⚠ $slug jumps on loop (seam $diff) — end the tape where it began, or it will flicker"
   fi
 }

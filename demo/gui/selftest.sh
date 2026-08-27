@@ -52,20 +52,18 @@ fi
 
 # The right panel must HOLD its last frame after its take ends — that hold is what makes
 # "done, and the other one is still going" legible. Compare the right half at 6s and at 13s.
-ffmpeg -v error -y -ss 6  -i "$OUT/$SLUG-race.mp4" -frames:v 1 -vf "crop=960:600:960:60,scale=120:-2" /tmp/st-a.png
-ffmpeg -v error -y -ss 13 -i "$OUT/$SLUG-race.mp4" -frames:v 1 -vf "crop=960:600:960:60,scale=120:-2" /tmp/st-b.png
-HOLD="$(ffmpeg -v error -i /tmp/st-a.png -i /tmp/st-b.png -filter_complex "blend=all_mode=difference,signalstats" \
-        -f null - 2>&1 | grep -o 'YAVG:[0-9.]*' | head -1 | cut -d: -f2 | cut -d. -f1)"
-[ -n "$HOLD" ] && [ "$HOLD" -le 2 ] && ok "the finished side holds its last frame (drift ${HOLD}%)" \
-                                    || bad "the finished side holds" "drifted ${HOLD:-?}% between 6s and 13s"
+grab "$OUT/$SLUG-race.mp4" 6  /tmp/st-a.png "crop=960:600:960:60"
+grab "$OUT/$SLUG-race.mp4" 13 /tmp/st-b.png "crop=960:600:960:60"
+HOLD="$(frame_mse /tmp/st-a.png /tmp/st-b.png)"
+[ -n "$HOLD" ] && [ "$HOLD" -le 5 ] && ok "the finished side holds its last frame (drift $HOLD)" \
+                                    || bad "the finished side holds" "drifted ${HOLD:-unmeasurable} between 6s and 13s"
 
 # …and the unfinished side must still be MOVING, or the race shows two frozen panels.
-ffmpeg -v error -y -ss 6  -i "$OUT/$SLUG-race.mp4" -frames:v 1 -vf "crop=960:600:0:60,scale=120:-2" /tmp/st-c.png
-ffmpeg -v error -y -ss 13 -i "$OUT/$SLUG-race.mp4" -frames:v 1 -vf "crop=960:600:0:60,scale=120:-2" /tmp/st-d.png
-MOVE="$(ffmpeg -v error -i /tmp/st-c.png -i /tmp/st-d.png -filter_complex "blend=all_mode=difference,signalstats" \
-        -f null - 2>&1 | grep -o 'YAVG:[0-9.]*' | head -1 | cut -d: -f2 | cut -d. -f1)"
-[ -n "$MOVE" ] && [ "$MOVE" -ge 3 ] && ok "the unfinished side is still running (change ${MOVE}%)" \
-                                    || bad "the unfinished side moves" "only ${MOVE:-?}% change — both panels look frozen"
+grab "$OUT/$SLUG-race.mp4" 6  /tmp/st-c.png "crop=960:600:0:60"
+grab "$OUT/$SLUG-race.mp4" 13 /tmp/st-d.png "crop=960:600:0:60"
+MOVE="$(frame_mse /tmp/st-c.png /tmp/st-d.png)"
+[ -n "$MOVE" ] && [ "$MOVE" -ge 20 ] && ok "the unfinished side is still running (change $MOVE)" \
+                                     || bad "the unfinished side moves" "only ${MOVE:-unmeasurable} change — both panels look frozen"
 rm -f /tmp/st-*.png
 
 # ── the solo export, which is what every phone gets ─────────────────────────────────────────
@@ -80,6 +78,18 @@ W="$(ffprobe -v error -show_entries stream=width -of csv=p=0 "$OUT/$SLUG.mp4")"
 verify_loop "$SLUG" | grep -q "loops cleanly" && ok "a still take is reported as looping cleanly" \
                                               || bad "loop check" "smptebars should have a ~0% seam"
 
+# ── the guard that would have eaten every recording ─────────────────────────────────────────
+# verify_take deletes a black take. It read an empty measurement and deleted EVERY take. Prove
+# both directions: a real take survives, a black one does not.
+ffmpeg -v error -y -f lavfi -i "color=c=black:s=1280x800:r=30:d=6" -pix_fmt yuv420p "$OUT/$SLUG-black.mov"
+if ( verify_take "$SLUG-black" 6 >/dev/null 2>&1 ); then
+  bad "a black take is discarded" "verify_take accepted a completely black recording"
+else
+  ok "a black take is discarded"
+fi
+verify_take "$SLUG" 5 >/dev/null 2>&1 && ok "a real take survives verify_take" \
+                                      || bad "a real take survives" "verify_take deleted a good recording"
+
 echo
-echo "delivery: $((10 - FAIL)) passed, $FAIL failed"
+echo "delivery: $((12 - FAIL)) passed, $FAIL failed"
 exit $([ "$FAIL" -eq 0 ] && echo 0 || echo 1)

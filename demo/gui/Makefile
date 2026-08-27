@@ -1,13 +1,24 @@
 # The GUI half of demos-as-code. VHS owns the terminal (see ../Makefile); this owns the Finder
 # right-click, the menu bar and the ⌥⌘N popup — the shots that sell the app rather than the CLI.
 #
-#   make plan     resolve every tape, prove the fixture matches, record nothing   (safe anywhere)
+#   make check    lint + selftest + plan — everything provable without a screen  (safe anywhere)
+#   make selftest the compose/export/verify pipeline, on synthetic takes
+#   make plan     resolve every tape, prove the fixture matches, record nothing
 #   make lint     a tape may only speak in verbs
 #   make all      record everything                    (NEEDS A HUMAN AND THE REAL SCREEN)
 TAPES := $(wildcard tapes/*.sh)
 OUT   := ../out/gui
 
-.PHONY: plan lint all clean
+.PHONY: check selftest plan lint all clean
+
+# Everything that does not need a screen. Run this before asking anyone to sit down and record.
+check: lint selftest plan
+
+# The half of this that ffmpeg and PIL can prove on their own. It exists because burn_clock was
+# written against a filter this ffmpeg does not have, and verify_take's blank-frame guard read an
+# empty measurement and would have deleted every recording the moment it was made.
+selftest:
+	@./selftest.sh
 plan: lint
 	@for t in $(TAPES); do echo "→ $$t"; PLAN=1 ./$$t | sed 's/^/  /'; done
 
