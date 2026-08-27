@@ -116,6 +116,24 @@ public enum SystemVitals {
         attribute(parse(ps: Shell.run("ps", ["-Axo", "pid=,ppid=,tty=,pcpu=,rss=,comm="]).out))
     }
 
+    /// The This-Mac line. Every claim on it is a measurement from the SAME snapshot the session
+    /// rows were computed from, so the numbers reconcile: the busiest process is inside some
+    /// row's total, and the core count is the sum of them all. No adjectives — "running cool"
+    /// beside a 171% row on a hot chassis is how this line lost the user's trust. The thermal
+    /// state speaks only when it is elevated, because that is the only time it says anything.
+    public static func machineLine(samples: [ProcessSample], cores: Int,
+                                   thermal: ProcessInfo.ThermalState,
+                                   batteryCelsius: Double?) -> String {
+        let total = samples.reduce(0.0) { $0 + $1.cpuPercent }
+        var parts = ["using \(String(format: "%.1f", total / 100)) of \(cores) cores"]
+        if let hog = busiest(samples), hog.cpuPercent >= 50 {
+            parts.append("busiest: \(hog.command) at \(Int(hog.cpuPercent.rounded()))% CPU")
+        }
+        if let c = batteryCelsius { parts.append("battery at \(temperatureLabel(c))") }
+        if thermal != .nominal { parts.append(thermalPressure(thermal)) }
+        return "This Mac — " + parts.joined(separator: " · ")
+    }
+
     // MARK: - Temperature
 
     /// `ioreg -c AppleSmartBattery -r` reports `"Temperature" = 3072` — centi-degrees Celsius.

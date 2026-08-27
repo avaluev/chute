@@ -60,6 +60,24 @@ func systemVitalsSuite() {
              "the busiest process is found and named by its basename")
         T.eq(SystemVitals.busiest([])?.command, nil, "no processes is no busiest, not a crash")
 
+        // The This-Mac line: every claim is a MEASUREMENT from the same snapshot as the rows.
+        // "running cool" next to a 171% row and a hot chassis is why this exists — nominal
+        // thermal state now says nothing instead of editorialising "cool".
+        let line = SystemVitals.machineLine(samples: tree, cores: 12,
+                                            thermal: .nominal, batteryCelsius: 30.72)
+        T.ok(line.hasPrefix("This Mac — using 1.3 of 12 cores"),
+             "total CPU is the sum of the SAME samples the rows show: \(line)")
+        T.ok(line.contains("busiest: chrome-headless-shell at 120% CPU"),
+             "the burner is named on the same line: \(line)")
+        T.ok(line.contains("battery at 31 °C"), "the battery says it is the battery: \(line)")
+        T.ok(!line.contains("cool"), "nominal thermal state claims NOTHING: \(line)")
+        T.ok(SystemVitals.machineLine(samples: tree, cores: 12,
+                                      thermal: .serious, batteryCelsius: nil)
+                .contains("slow down"), "an elevated thermal state IS said, in words")
+        let quiet = SystemVitals.machineLine(samples: [], cores: 12,
+                                             thermal: .nominal, batteryCelsius: nil)
+        T.eq(quiet, "This Mac — using 0.0 of 12 cores", "no burner, no battery: just the number")
+
         // An idle shell says nothing. A row reading "0% · 4 MB" is noise in a list you are
         // scanning to find the busy one.
         T.eq(SystemVitals.load(forTTY: "s002", in: samples).label, "", "an idle session stays quiet")

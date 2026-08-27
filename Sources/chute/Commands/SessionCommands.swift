@@ -56,15 +56,11 @@ func cmdSessions(_ a: Args) {
                  + " " + pad(s.tty, 9) + load.label)
     }
     let needs = sessions.filter { $0.state == .blocked || $0.state == .waiting }.count
-    var summary = "→ \(sessions.count) session(s), \(needs) need you"
-    summary += " · this Mac is \(SystemVitals.thermalPressure(ProcessInfo.processInfo.thermalState))"
-    if let c = SystemVitals.temperature() {
-        summary += ", battery at \(SystemVitals.temperatureLabel(c))"
-    }
-    if let hog = SystemVitals.busiest(samples), hog.cpuPercent >= 80 {
-        summary += " · busiest: \(hog.command) at \(Int(hog.cpuPercent.rounded()))% CPU"
-    }
-    Out.info(summary)
+    Out.info("→ \(sessions.count) session(s), \(needs) need you · "
+             + SystemVitals.machineLine(samples: samples,
+                                        cores: ProcessInfo.processInfo.activeProcessorCount,
+                                        thermal: ProcessInfo.processInfo.thermalState,
+                                        batteryCelsius: SystemVitals.temperature()))
 }
 
 func cmdFocus(_ a: Args) {

@@ -28,6 +28,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     var lastSessions: [Session] = []
     var watcher: DispatchSourceFileSystemObject?
     var requestWatcher: DispatchSourceFileSystemObject?
+    var liveVitals: SessionMenu.LiveVitals?
+    var vitalsTimer: Timer?
+    var vitalsSampling = false
 
     func applicationDidFinishLaunching(_ n: Notification) {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
@@ -99,9 +102,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let (sessions, problem) = discoverSessionsForMenu()
         statusItem.button?.title = SessionMenu.badge(for: sessions)
         lastSessions = sessions
-        SessionMenu.populate(menu, sessions: sessions, problem: problem,
-                             target: self, action: #selector(focusSession(_:)),
-                             openSettings: #selector(openAutomationSettings))
+        liveVitals = SessionMenu.populate(menu, sessions: sessions, problem: problem,
+                                          target: self, action: #selector(focusSession(_:)),
+                                          openSettings: #selector(openAutomationSettings))
         appendStandardItems(to: menu)
         return menu
     }
@@ -149,10 +152,39 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let (sessions, problem) = discoverSessionsForMenu()
         statusItem.button?.title = SessionMenu.badge(for: sessions)
         lastSessions = sessions
-        SessionMenu.populate(menu, sessions: sessions, problem: problem,
-                             target: self, action: #selector(focusSession(_:)),
-                             openSettings: #selector(openAutomationSettings))
+        liveVitals = SessionMenu.populate(menu, sessions: sessions, problem: problem,
+                                          target: self, action: #selector(focusSession(_:)),
+                                          openSettings: #selector(openAutomationSettings))
         appendStandardItems(to: menu)
+        startVitalsRefresh()
+    }
+
+    /// While the menu is open, every number on it is re-sampled every two seconds — rows and
+    /// the This-Mac line from ONE snapshot, so they always describe the same instant. The timer
+    /// runs in .common modes because menu tracking blocks the default run loop mode; sampling
+    /// happens off the main thread so the open menu never stutters.
+    func startVitalsRefresh() {
+        vitalsTimer?.invalidate()
+        let timer = Timer(timeInterval: 2.0, repeats: true) { [weak self] _ in
+            guard let self, !self.vitalsSampling else { return }
+            self.vitalsSampling = true
+            DispatchQueue.global(qos: .userInteractive).async {
+                let samples = SystemVitals.sample()
+                let battery = SystemVitals.temperature()
+                DispatchQueue.main.async {
+                    self.liveVitals?.apply(samples: samples, batteryCelsius: battery)
+                    self.vitalsSampling = false
+                }
+            }
+        }
+        RunLoop.main.add(timer, forMode: .common)
+        vitalsTimer = timer
+    }
+
+    func menuDidClose(_ menu: NSMenu) {
+        vitalsTimer?.invalidate()
+        vitalsTimer = nil
+        liveVitals = nil
     }
 
     /// Badge updates are event-driven off the hook directory — no polling, no AppleScript.
