@@ -6,6 +6,7 @@ import {
   Accordion, AccordionContent, AccordionItem, AccordionTrigger,
 } from "@/components/ui/accordion";
 import { CopyLine } from "@/components/copy-line";
+import { Header, Footer } from "@/components/chrome";
 
 const BREW = "brew install avaluev/tap/chute";
 const DOWNLOAD = "https://github.com/avaluev/chute/releases/latest";
@@ -68,17 +69,7 @@ export default function Home() {
   return (
     <main className="min-h-screen">
       {/* ---------------------------------------------------------------- hero */}
-      <header className="mx-auto w-full max-w-5xl px-6 pt-10">
-        <div className="flex items-center justify-between">
-          <span className="font-[family-name:var(--font-mono-loaded)] text-sm font-semibold">
-            <span className="text-[var(--color-glow)]">⤓</span> Chute
-          </span>
-          <a href="https://github.com/avaluev/chute"
-             className="text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline">
-            GitHub
-          </a>
-        </div>
-      </header>
+      <Header />
 
       <section className="mx-auto w-full max-w-5xl px-6 pt-16 md:pt-24">
         <Badge variant="secondary" className="font-[family-name:var(--font-mono-loaded)] text-xs">
@@ -238,16 +229,7 @@ export default function Home() {
         </Accordion>
       </Section>
 
-      <footer className="mx-auto w-full max-w-5xl px-6 pb-16">
-        <Separator className="mb-8" />
-        <div className="flex flex-col gap-3 text-sm text-muted-foreground sm:flex-row sm:justify-between">
-          <span>Chute — drop context into your agent.</span>
-          <span className="flex gap-5">
-            <a className="hover:text-foreground" href="https://github.com/avaluev/chute">Source</a>
-            <a className="hover:text-foreground" href="https://github.com/avaluev/chute/issues">Report a problem</a>
-          </span>
-        </div>
-      </footer>
+      <Footer />
     </main>
   );
 }
