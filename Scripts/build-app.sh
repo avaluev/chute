@@ -98,9 +98,33 @@ plutil -lint "$APP/Contents/Info.plist" >/dev/null
 # A stable identity if one exists (see Scripts/sign-identity.sh), otherwise ad-hoc. Ad-hoc has no
 # identity at all, which is why macOS re-asks "differs from previously opened versions" after every
 # single rebuild — the same app arrives looking like a different one.
-IDENTITY="Chute Local Dev"
-security find-identity -v -p codesigning 2>/dev/null | grep -q "$IDENTITY" || IDENTITY="-"
+#
+# Three identities, in falling order of what they buy you:
+#   1. Developer ID Application  — the only one a STRANGER can open without a Gatekeeper wall.
+#      Picked automatically when present, or forced with CHUTE_SIGN_ID. Gets the hardened runtime
+#      and a secure timestamp, both of which notarisation REFUSES the submission without.
+#   2. Chute Local Dev           — stable, local, keeps the appex sandbox container ACL valid.
+#   3. ad-hoc                    — works on this machine until the next rebuild changes the cdhash.
+IDENTITY="${CHUTE_SIGN_ID:-}"
+if [ -z "$IDENTITY" ]; then
+  IDENTITY="$(security find-identity -v -p codesigning 2>/dev/null \
+    | sed -n 's/.*"\(Developer ID Application:[^"]*\)".*/\1/p' | head -1)"
+fi
+if [ -z "$IDENTITY" ]; then
+  IDENTITY="Chute Local Dev"
+  security find-identity -v -p codesigning 2>/dev/null | grep -q "$IDENTITY" || IDENTITY="-"
+fi
 [ "$IDENTITY" = "-" ] && echo "note: signing ad-hoc — run ./Scripts/sign-identity.sh once to stop the repeat macOS prompts"
+
+# Hardened runtime + timestamp ONLY for Developer ID. Locally they are pure cost: the timestamp
+# needs Apple's server, and the hardened runtime buys nothing for a build that never leaves here.
+HARDEN=()
+case "$IDENTITY" in
+  "Developer ID Application:"*)
+    HARDEN=(--options runtime --timestamp)
+    echo "signing for distribution with: $IDENTITY"
+    ;;
+esac
 
 # The sandbox entitlement is REQUIRED: without it Finder registers the extension and then never
 # loads it. Measured — an unsigned-for-sandbox appex produced no menu and no container at all.
@@ -118,7 +142,7 @@ security find-identity -v -p codesigning 2>/dev/null | grep -q "$IDENTITY" || ID
 sign() {  # target [entitlements]
   local target="$1"; shift
   if [ "$IDENTITY" != "-" ]; then
-    ( codesign --force --sign "$IDENTITY" "$@" "$target" 2>/dev/null ) & local pid=$!
+    ( codesign --force --sign "$IDENTITY" "${HARDEN[@]+"${HARDEN[@]}"}" "$@" "$target" 2>/dev/null ) & local pid=$!
     disown 2>/dev/null || true
     local waited=0
     for _ in $(seq 1 120); do
