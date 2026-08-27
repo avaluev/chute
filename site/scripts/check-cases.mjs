@@ -112,23 +112,33 @@ paid > free
 // page ends up overstating in good faith. The tolerance is for run-to-run jitter, not for
 // disagreement — if the ritual really is faster than the ledger says, fix the LEDGER.
 const TIMINGS = resolve(here, "../../demo/out/gui")
-let measured = 0
+let measured = 0, partial = 0
 for (const c of CASES) {
   let m
   try { m = JSON.parse(readFileSync(resolve(TIMINGS, `${c.slug}.json`), "utf8")).measured }
   catch { continue }
   measured++
   const near = (got, want) => Math.abs(got - want) <= Math.max(3, want * 0.15)
-  if (!near(m.manual, c.seconds.manual)) {
+  // A null side was not performed. Only the race tape runs the manual ritual; the other seven
+  // film the Chute path alone, and comparing the ledger's own estimate against itself would
+  // report agreement while proving nothing.
+  if (m.manual !== null && !near(m.manual, c.seconds.manual)) {
     bad(`${c.slug} manual seconds`, `the stopwatch read ${m.manual}s, the page claims ${c.seconds.manual}s — quote the recording`)
   }
-  if (!near(m.chute, c.seconds.chute)) {
+  if (m.chute !== null && !near(m.chute, c.seconds.chute)) {
     bad(`${c.slug} chute seconds`, `the stopwatch read ${m.chute}s, the page claims ${c.seconds.chute}s — quote the recording`)
   }
+  if (m.manual === null) partial++
 }
-measured
-  ? ok(`${measured} case(s) backed by a stopwatch, not an estimate`)
-  : console.log("  note no recordings timed yet — every figure is still an estimate from the ledger")
+if (measured) {
+  ok(`${measured} case(s) backed by a stopwatch, not an estimate`)
+  if (partial) {
+    console.log(`  note ${partial} of those timed only the Chute side — the manual ritual is`)
+    console.log(`       performed by the race tape alone, so those savings remain ledger estimates`)
+  }
+} else {
+  console.log("  note no recordings timed yet — every figure is still an estimate from the ledger")
+}
 
 // The reverse of the missing-demo note, and just as much a defect: a recording that was made,
 // committed, and then never referenced. It costs bytes in the repo, it is not on the page it was

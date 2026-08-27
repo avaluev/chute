@@ -48,6 +48,11 @@ WIN_X=120; WIN_Y=120; WIN_W=1280; WIN_H=800
 # this box for the mobile variant instead of being scaled down whole.
 CROP_W=640; CROP_H=400
 
+# The menu-bar capture: a column under the status item. 900 wide fits the widest session row
+# ("waiting · studylock · claude · 12m") without cropping the project name, which is the one part
+# of that menu a viewer has to be able to read.
+MENUBAR_W=900; MENUBAR_H=700
+
 # ── failure is loud ─────────────────────────────────────────────────────────────────────────
 die() { printf '\n  ✗ %s\n' "$*" >&2; exit 1; }
 say() { printf '  · %s\n' "$*"; }
@@ -279,6 +284,54 @@ OSA
   say "picked '$title' by type-ahead"
 }
 
+# Two of the eight heroes film an action that now lives one level down — `seed` and `sandbox`
+# moved under "Set Up for an Agent" when thirteen actions were grouped into eight rows. A submenu
+# needs a hover to open before the child is reachable, and the hover has to be given time the
+# same way a hand would.
+menu_pick_sub() { # parent_title child_title
+  planned "open '$1' and pick '$2'" && return 0
+  pause 0.35
+  if osascript >/dev/null 2>&1 <<OSA
+tell application "System Events" to tell process "Finder"
+    click menu item "$2" of menu 1 of menu item "$1" of menu 1 of window 1
+end tell
+OSA
+  then say "picked '$1' → '$2' by name"; return 0; fi
+  # Type-ahead to the parent, right-arrow to open it, type-ahead to the child. Every step is a
+  # guess; what is believed is the caller's await_* afterwards.
+  key "t:${1:0:10}"
+  pause 0.2
+  key kp:arrow-right
+  pause 0.25
+  key "t:${2:0:10}"
+  pause 0.2
+  key kp:return
+  say "picked '$1' → '$2' by type-ahead"
+}
+
+# The menu-bar half. `chute sessions` and `chute ports` are the two menu-bar heroes, and neither
+# is reachable from a Finder right-click — the status item has to be clicked where it actually is.
+menubar_open() {
+  planned "click the Chute status item" && return 0
+  # Ask AppKit where it is rather than guessing at a screen coordinate: the menu bar's contents
+  # shift with every other status item the user has installed, and a demo machine has different
+  # ones from a developer machine.
+  local pt; pt="$(osascript 2>/dev/null <<'OSA'
+tell application "System Events" to tell process "Chute"
+    set p to position of menu bar item 1 of menu bar 1
+    set s to size of menu bar item 1 of menu bar 1
+    return ((item 1 of p) + (item 1 of s) / 2 as integer) & "," & ((item 2 of p) + 10 as integer)
+end tell
+OSA
+)"
+  pt="$(printf '%s' "$pt" | tr -d ' ')"
+  [ -n "$pt" ] || die "could not find Chute in the menu bar — is the app running, and is
+    Accessibility granted to THIS terminal? System Settings → Privacy & Security → Accessibility."
+  move_to "${pt%,*}" "${pt#*,}" 500
+  key "c:$pt"
+  say "opened the menu bar at $pt"
+}
+
 # ── the stopwatch ───────────────────────────────────────────────────────────────────────────
 # The number on the landing page comes from HERE, not from a config file.
 _t0=0
@@ -302,6 +355,25 @@ take_start() { # name seconds
   await "the recorder to start writing" 6 test -s "$OUT/$1.mov" \
     || die "screencapture never started — is Screen Recording granted to THIS terminal?"
   say "recording $1"
+}
+
+# The menu bar is not inside the Finder rectangle, so the two menu-bar heroes need their own
+# region: a column under the status item, wide enough for the dropdown and tall enough for a long
+# session list. Anchored to the RIGHT EDGE of the main display rather than to a fixed x, because
+# where Chute sits depends on how many other status items the machine has.
+take_menubar() { # name seconds
+  TAKE_NAME="$1"
+  planned "record the menu bar for ${2}s" && return 0
+  local w; w="$(osascript -e 'tell application "Finder" to return item 1 of (bounds of window of desktop)' 2>/dev/null)"
+  local sw; sw="$(osascript -e 'tell application "Finder" to return item 3 of (bounds of window of desktop)' 2>/dev/null)"
+  [ -n "$sw" ] || die "could not read the display width"
+  local x=$(( sw - MENUBAR_W ))
+  rm -f "$OUT/$1.mov"
+  screencapture -v -V "$2" -R"$x,0,$MENUBAR_W,$MENUBAR_H" "$OUT/$1.mov" &
+  TAKE_PID=$!
+  await "the recorder to start writing" 6 test -s "$OUT/$1.mov" \
+    || die "screencapture never started — is Screen Recording granted to THIS terminal?"
+  say "recording $1 (menu bar, ${MENUBAR_W}x${MENUBAR_H} at ${x},0)"
 }
 
 take_wait() {
@@ -331,21 +403,31 @@ verify_take() { # name expected_seconds
 }
 
 # ── the measurement the page is allowed to quote ────────────────────────────────────────────
-emit_timing() { # slug manual_seconds chute_seconds
+# Pass "-" for a side that was NOT measured. Only the race tape performs the manual ritual; the
+# other seven film the Chute path alone, and writing the ledger's own estimate into a file called
+# "measured" would make check-cases.mjs compare a number against itself and report agreement.
+# That is worse than no measurement: it looks like evidence.
+emit_timing() { # slug manual_seconds|- chute_seconds
   # NEVER in PLAN. A dry run reads 0.0s off a stopwatch that was never started, and writing that
   # out produced a timing file the deploy gate then trusted — a dry run silently poisoning the
   # numbers on the live site. Caught by check-cases.mjs on its first run against this directory,
   # which is the argument for having the gate read the measurements at all.
   planned "record the measured timing for $1" && return 0
   mkdir -p "$OUT"
+  local manual="$2"
+  [ "$manual" = "-" ] && manual="null"
   cat > "$OUT/$1.json" <<JSON
 {
   "slug": "$1",
-  "measured": { "manual": $2, "chute": $3 },
-  "note": "Seconds read off a stopwatch around two real takes, not estimated. Consumed by site/scripts/check-cases.mjs."
+  "measured": { "manual": $manual, "chute": $3 },
+  "note": "Seconds read off a stopwatch around a real take. null means that side was not performed — only the race tape runs the manual ritual. Consumed by site/scripts/check-cases.mjs."
 }
 JSON
-  say "measured: manual ${2}s vs chute ${3}s"
+  if [ "$manual" = "null" ]; then
+    say "measured: chute ${3}s (the manual side was not performed by this tape)"
+  else
+    say "measured: manual ${2}s vs chute ${3}s"
+  fi
 }
 
 # ── delivery ────────────────────────────────────────────────────────────────────────────────
