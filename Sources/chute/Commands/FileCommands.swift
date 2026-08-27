@@ -4,18 +4,27 @@ import ChuteCore
 // MARK: - FR-04 clipboard → file
 
 func cmdNew(_ a: Args) {
-    let content = a.has("stdin")
+    // --blank makes an empty document. The clipboard is irrelevant, and demanding one would be
+    // the difference between "New Markdown File" working and mysteriously refusing.
+    let blank = a.has("blank")
+    let content = blank ? "" : (a.has("stdin")
         ? String(data: FileHandle.standardInput.readDataToEndOfFile(), encoding: .utf8) ?? ""
-        : Clipboard.read()
-    guard !content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+        : Clipboard.read())
+    if !blank, content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
         Out.fail("clipboard is empty — copy something first")
     }
     let dir = FileScan.absolute(a.value("dir", or: FileManager.default.currentDirectoryPath))
     guard FileScan.isDirectory(dir) else { Out.fail("not a directory: \(dir)") }
 
-    let ext = a.optional("ext") ?? LanguageDetect.fileExtension(for: content)
+    let ext = a.optional("ext") ?? (blank ? "md" : LanguageDetect.fileExtension(for: content))
+    // --naming underscore keeps the document's own first line: "# My Notes" → "My_Notes.md".
+    // The default stays the kebab slug the CLI has always produced.
+    let derived = a.value("naming", or: "slug") == "underscore"
+        ? NameDerive.underscoreName(from: content)
+        : NameDerive.slug(fromMarkdown: content)
     let base = a.optional("name").map { NameDerive.slugify($0) }
-        ?? NameDerive.slug(fromMarkdown: content)
+        ?? (blank ? "Untitled" : nil)
+        ?? derived
         ?? NameDerive.fallbackName()
 
     let path = NameDerive.uniquePath(dir: dir, base: base, ext: ext) {
@@ -27,7 +36,8 @@ func cmdNew(_ a: Args) {
         Out.fail("cannot write \(path): \(error.localizedDescription)")
     }
     Out.line(path)
-    Out.info("→ created \(TokenEstimate.badge(TokenEstimate.tokens(in: content)))")
+    Out.info("→ created \((path as NSString).lastPathComponent)"
+             + (blank ? "" : " · \(TokenEstimate.badge(TokenEstimate.tokens(in: content)))"))
     if a.has("reveal") { Shell.launch("open", ["-R", path]) }
 }
 

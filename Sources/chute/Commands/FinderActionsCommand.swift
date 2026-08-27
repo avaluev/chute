@@ -17,9 +17,9 @@ func cmdFinderActions(_ a: Args) {
                 "id": action.id,
                 "title": action.title(count: files.count),
                 "detail": action.detail,
-                "group": action.group,
                 "scope": action.scope.rawValue,
-                "requiresGit": action.requiresGit,
+                "foldersOnly": action.foldersOnly,
+                "parentTitle": action.parentTitle ?? "",
                 "argv": ChuteActions.argv(action, dir: dir, files: files),
             ]
         }

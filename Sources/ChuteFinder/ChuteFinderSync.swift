@@ -3,19 +3,26 @@ import FinderSync
 import ChuteCore
 
 /// The `Chute ▸` submenu in the Finder context menu — on files, on folders, and on the empty
-/// background of a window. Every item comes from `ChuteActions.all`; this file decides only how to
-/// draw them and how to report what happened.
+/// background of a window. Every item comes from `ChuteActions.all`; this file only draws them and
+/// hands the work over.
 ///
 /// There is deliberately NO main.swift: `NSExtensionMain` is a C entry point that cannot be called
-/// from Swift. The binary is linked with `-Xlinker -e -Xlinker _NSExtensionMain` instead.
+/// from Swift. The binary is linked with `-Xlinker -e -Xlinker _NSExtensionMain`.
 ///
-/// SANDBOX FACTS, each measured in this extension rather than assumed:
-///   · the appex is sandboxed (`LSApplicationInSandboxKey=true`) and so is anything it spawns;
-///   · spawning the bundled `chute` IS permitted and its writes reach the real filesystem;
-///   · `NSHomeDirectory()` here is the container, so every path must be absolute and come from
-///     Finder — a `~`-relative write lands in the container and still exits 0;
-///   · the appex inherits almost no PATH, so `launch` sets one that includes the tools `chute`
-///     shells out to (git, claude).
+/// TWO THINGS THAT WILL BITE THE NEXT PERSON, both measured here:
+///
+/// 1. **`representedObject` does not survive the trip to Finder.** A FinderSync menu is built in
+///    this process and rendered by Finder, and only the plain properties cross that boundary —
+///    `tag` does, `representedObject` comes back nil. Dispatching on it meant EVERY menu item was
+///    a silent no-op: the menu appeared, clicks did nothing, and nothing was logged anywhere.
+///    Actions are therefore addressed by `tag`, an index into `ChuteActions.all`.
+///
+/// 2. **The extension is sandboxed and so is anything it spawns.** `git` refuses to run at all
+///    ("xcrun: error: cannot be used within an App Sandbox"), launching an app is denied
+///    (`_LSOpenURLsWithCompletionHandler … error -54`), and AppleScript to Terminal is denied
+///    ("A privilege violation occurred. (-10004)"). So the extension writes a request and
+///    `ChuteApp` — unsandboxed — carries it out. `NSHomeDirectory()` here is the container, never
+///    the real home, so every path is absolute and comes from Finder.
 @objc(ChuteFinderSync)
 class ChuteFinderSync: FIFinderSync {
 
@@ -23,38 +30,30 @@ class ChuteFinderSync: FIFinderSync {
         super.init()
         // An extension observing nothing shows no menu, and says nothing about why.
         FIFinderSyncController.default().directoryURLs = [URL(fileURLWithPath: "/")]
-        // Kept deliberately: when the menu does not appear, the first question is always whether
-        // the extension loaded at all, and `log show --predicate 'processImagePath CONTAINS
-        // "ChuteFinder"'` answers it in one command.
-        NSLog("Chute: extension loaded, %d actions available", ChuteActions.all.count)
-        // A file, not just a log line: `log show` is unreliable for an appex, and "did the
-        // extension load?" is the first question every Finder-menu problem asks.
-        try? "loaded \(Date()) · \(ChuteActions.all.count) actions\n"
-            .write(toFile: "/Users/" + NSUserName() + "/.chute/extension-loaded.txt",
-                   atomically: true, encoding: .utf8)
+        mark("extension-loaded", "loaded · \(ChuteActions.all.count) actions")
     }
 
-    /// An appex does not reliably inherit PATH, so resolve the binary from our own bundle:
-    /// …/Chute.app/Contents/PlugIns/ChuteFinder.appex → up 2 → Contents/MacOS/chute
-    private var chuteBinary: String {
-        Bundle.main.bundleURL
-            .deletingLastPathComponent()   // PlugIns
-            .deletingLastPathComponent()   // Contents
-            .appendingPathComponent("MacOS/chute")
-            .path
+    /// Breadcrumbs in ~/.chute. `log show` is unreliable for an appex, and every Finder-menu
+    /// problem starts with the same three questions: did it load, did it draw, did the click land?
+    private func mark(_ name: String, _ text: String) {
+        try? "\(text) · \(Date())\n".write(
+            toFile: "/Users/" + NSUserName() + "/.chute/\(name).txt",
+            atomically: true, encoding: .utf8)
     }
 
-    // MARK: - Menu
-
-    /// The folder the action applies to: the selected folder, the parent of the selected file, or
-    /// the folder whose background was right-clicked.
-    private func targetFolder() -> String? {
+    /// The folder an action applies to: the selected folder, the parent of a selected file, or the
+    /// folder whose background was right-clicked.
+    private func targetFolder() -> (path: String, isFolder: Bool)? {
         let controller = FIFinderSyncController.default()
         guard let url = controller.selectedItemURLs()?.first ?? controller.targetedURL() else { return nil }
         var isDir: ObjCBool = false
         guard FileManager.default.fileExists(atPath: url.path, isDirectory: &isDir) else { return nil }
-        return isDir.boolValue ? url.path : (url.path as NSString).deletingLastPathComponent
+        return isDir.boolValue
+            ? (url.path, true)
+            : ((url.path as NSString).deletingLastPathComponent, false)
     }
+
+    // MARK: - Menu
 
     override func menu(for menuKind: FIMenuKind) -> NSMenu {
         let root = NSMenu(title: "Chute")
@@ -62,88 +61,76 @@ class ChuteFinderSync: FIFinderSync {
         let sub = NSMenu(title: "Chute")
 
         let selection = FIFinderSyncController.default().selectedItemURLs() ?? []
-        let folder = targetFolder()
+        let target = targetFolder()
         let visible = ChuteActions.visible(hasSelection: !selection.isEmpty,
-                                           inGitRepo: folder.map(ChuteActions.isInGitRepo) ?? false)
+                                           targetIsFolder: target?.isFolder ?? true)
 
-        var lastGroup: String?
+        var submenus: [String: NSMenu] = [:]
         for action in visible {
-            if let last = lastGroup, last != action.group { sub.addItem(.separator()) }
-            lastGroup = action.group
-
             let item = NSMenuItem(title: action.title(count: selection.count),
                                   action: #selector(run(_:)), keyEquivalent: "")
             item.target = self
             item.toolTip = action.detail
-            item.representedObject = action.id
-            sub.addItem(item)
-        }
+            // The tag is the ONLY reliable way back to the action — see the note above.
+            item.tag = ChuteActions.all.firstIndex(where: { $0.id == action.id }) ?? 0
 
-        if visible.isEmpty {
-            sub.addItem(withTitle: "Nothing to do here", action: nil, keyEquivalent: "")
+            guard let parentTitle = action.parentTitle else { sub.addItem(item); continue }
+            if submenus[parentTitle] == nil {
+                let holder = NSMenuItem(title: parentTitle, action: nil, keyEquivalent: "")
+                let menu = NSMenu(title: parentTitle)
+                sub.addItem(holder)
+                sub.setSubmenu(menu, for: holder)
+                submenus[parentTitle] = menu
+            }
+            submenus[parentTitle]?.addItem(item)
         }
 
         root.addItem(parent)
         root.setSubmenu(sub, for: parent)
-        NSLog("Chute: menu built — kind %d, %d selected, %d items", menuKind.rawValue,
-              selection.count, sub.numberOfItems)
-        try? "menu \(Date()) · kind \(menuKind.rawValue) · \(selection.count) selected · \(sub.numberOfItems) items\n"
-            .write(toFile: "/Users/" + NSUserName() + "/.chute/extension-menu.txt",
-                   atomically: true, encoding: .utf8)
+        mark("extension-menu", "menu · kind \(menuKind.rawValue) · \(selection.count) selected · \(sub.numberOfItems) items")
         return root
     }
 
     // MARK: - Running
 
-    /// The extension does not run the action. It writes a request and `ChuteApp` carries it out.
-    ///
-    /// Measured inside this extension, which is why: `git` refuses to run in a sandbox at all
-    /// ("xcrun: error: cannot be used within an App Sandbox"), launching an app is denied
-    /// (`_LSOpenURLsWithCompletionHandler() … error -54`), and AppleScript to Terminal is denied
-    /// ("A privilege violation occurred. (-10004)"). Spawning `chute` here would work for the
-    /// copy actions and silently fail for the rest — a menu where half the items lie.
     @objc func run(_ sender: NSMenuItem) {
-        guard let id = sender.representedObject as? String,
-              let action = ChuteActions.find(id) else { return }
+        let actions = ChuteActions.all
+        guard sender.tag >= 0, sender.tag < actions.count else { return }
+        let action = actions[sender.tag]
+        mark("extension-action", "clicked \(action.id)")
+
         let controller = FIFinderSyncController.default()
         let files = (controller.selectedItemURLs() ?? []).map(\.path)
-
         if action.scope == .selection, files.isEmpty {
             return notify(action: action, message: "Nothing is selected.")
         }
-        guard let folder = targetFolder() else {
+        guard let target = targetFolder() else {
             return notify(action: action, message: "Could not tell which folder this is.")
         }
         do {
-            try ActionInbox.write(ActionRequest(id: action.id, dir: folder, files: files))
+            try ActionInbox.write(ActionRequest(id: action.id, dir: target.path, files: files))
         } catch {
             return notify(action: action, message: "Failed — could not reach Chute: \(error.localizedDescription)")
         }
-        // Chute.app reports the outcome once the work is done. Say nothing here unless it never
-        // picks the request up — a second banner per click is noise.
+        // Chute.app reports the outcome once the work is done; a second banner per click is noise.
+        // If it never picks the request up, that silence is itself the thing worth reporting.
         DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + 3) {
-            let pending = ActionInbox.drain().contains { $0.request.id == action.id }
-            if pending {
+            if ActionInbox.drain().contains(where: { $0.request.id == action.id }) {
                 self.notify(action: action, message: "Chute is not running — open Chute and try again.")
             }
         }
     }
 
-    /// A silent action reads as "nothing happened", so failures always report. Successes are
-    /// reported by ChuteApp, which is the process that actually did the work.
-    // ponytail: osascript notifications are attributed to Script Editor in Notification Center.
-    // Upgrade path if that reads as untrustworthy: UNUserNotificationCenter from a signed app.
+    /// Failures only. Successes are announced by ChuteApp, which is the process that did the work
+    /// and can post a proper notification under Chute's own name.
     private func notify(action: ChuteAction, message: String) {
         func escape(_ s: String) -> String {
             s.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "'")
         }
-        let script = """
-        display notification "\(escape(message))" with title "Chute" \
-        subtitle "\(escape(action.plainTitle))"
-        """
         let osa = Process()
         osa.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
-        osa.arguments = ["-e", script]
+        osa.arguments = ["-e", "display notification \"\(escape(message))\" with title \"Chute\" "
+                             + "subtitle \"\(escape(action.plainTitle))\""]
         try? osa.run()
         osa.waitUntilExit()
     }
