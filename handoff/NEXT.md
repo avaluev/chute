@@ -1,11 +1,15 @@
-# HANDOFF — Chute — 2026-08-27 (evening)
+# HANDOFF — Chute — 2026-08-28
 
-STATE: `main` · pushed · tree clean
-       unit **466/466** (`swift run chutetests`) · e2e **133/133** (`./Scripts/smoke.sh`) ·
-       headless e2e **109/109** (`CHUTE_HEADLESS=1 ./Scripts/smoke.sh`) ·
-       `chute doctor` **9/9** (the hooks check is gone by design, see DECISIONS) ·
-       extension `loaded · 8 actions` · notifications `on` ·
-       signed `Authority=Chute Local Dev` · zero dependencies
+STATE: `main` · tree clean · **not pushed**
+       unit **583/583** (`swift run chutetests`) ·
+       headless e2e **125/125** (`CHUTE_HEADLESS=1 ./Scripts/smoke.sh`) ·
+       cases **25/25** (`cd site && npm run check:cases`) ·
+       site **38 routes** (`cd site && npx next build`) · Paddle gate passes ·
+       extension `13 actions · 8 drawn rows` · signed `Authority=Chute Local Dev` · zero dependencies
+
+> The old header claimed 466 unit / 133 e2e and README.md:197 claimed 519 / 140. Both were stale
+> and they disagreed with each other. The numbers above were measured on 2026-08-28. **Re-measure
+> before quoting; do not copy a count forward.**
 
 ## ONE-LINE GOAL
 Your agents should not cost you attention: turn a Finder selection into agent-ready context, and
@@ -68,30 +72,54 @@ of its load-bearing facts are documented nowhere but this repo.
 
 ## NEXT — in order
 
-0. **Memory JTBDs + every-macOS strategy** — full plan ready to execute in a fresh session:
-   `/Users/sxope/Documents/2026/Development/37.chute/docs/10-MEMORY-JTBD-PLAN.md`
-   (extracted from Memory Diag: pressure line, hungriest-process, guilty-session alerts;
-   plus the 5-leg strategy for keeping every feature working on macOS 13 → 26).
+Everything below the line is done. **Everything blocking revenue is manual and yours.**
 
-1. **Buy the Developer ID and notarise.**
-   ```bash
-   xcrun notarytool store-credentials chute --apple-id <you> --team-id <team>
-   cd /Users/sxope/Documents/2026/Development/37.chute && ./Scripts/build-app.sh
-   ditto -c -k --keepParent dist/Chute.app dist/Chute.zip
-   xcrun notarytool submit dist/Chute.zip --keychain-profile chute --wait
-   xcrun stapler staple dist/Chute.app
-   ```
-   expect: `status: Accepted`, then `The staple and validate action worked!`
-2. **Website + domain.** `/Users/sxope/Documents/2026/Development/37.chute/docs/CloudflareDomainsPrice.md`
-   still lists 56 variations of **`chut`** — the wrong word — on TLDs like `.plumbing`. Check
-   `usechute.com`, `chute.tools`, `getchute.app`, `chute.sh` instead.
-3. **Paddle**: product, checkout link, licence key generation, and an offline key check in the app.
-4. **In-app onboarding** — the first-run window only appears when something needs a human; there is
-   no "here is what this does" moment for a stranger.
-5. ~~Uninstall parity~~ — DONE 2026-08-27: `uninstall.sh` now runs `chute hooks uninstall`
-   first (removes exactly the chute-marked blocks, backup first, no-op when none exist).
+### 1. Phase 0 — nothing ships without these (all manual)
+| # | Thing | Why it blocks | Where |
+|---|---|---|---|
+| 1 | Two CNAMEs for chutedev.com → `chute.pages.dev`, **proxied** | `dig +short chutedev.com` is empty; every launch asset prints that domain | Cloudflare DNS |
+| 2 | Apple Developer ID ($99/yr) + notarytool profile | `Scripts/release.sh` dies on it; every stranger meets Gatekeeper | `Scripts/notarize-setup.md` |
+| 3 | Production Ed25519 keypair | `Sources/ChuteCore/License.swift:28` is still `REPLACE_ME_BEFORE_RELEASE` — no key can verify | `cd worker && node keygen.mjs` |
+| 4 | `hello@` and `keys@chutedev.com` | the only stated support channel, and the licence email's sender | Cloudflare Email Routing + verify in Resend |
+| 5 | Paddle account, product, `pri_…` | checkout degrades to trial-download while the env vars are empty | `site/src/lib/config.ts:25` |
+| 6 | Worker deploy + 3 secrets | no key is minted without it | `cd worker && npx wrangler deploy` |
+| 7 | Homebrew tap | `chute.rb` has a 64-zero sha256; needs a real `v0.1.0` tag first, which needs (2) | `packaging/homebrew/README.md` |
 
----
+Order matters: **(2) → `release.sh` → tag → sha256 → (7).** (1), (4) and (6) can run in parallel.
+
+### 2. Record the demos — needs you at the machine
+19 of 25 cases have no recording. `demo/gui/` is built and dry-runs clean:
+
+```bash
+make -C demo/gui plan   # safe anywhere
+cd /Users/sxope/Documents/2026/Development/37.chute && make -C demo/gui all    # real screen
+```
+Grant Screen Recording **and** Accessibility to your TERMINAL, not to Chute, and relaunch the
+terminal afterwards — macOS only re-reads that permission on launch. One tape exists as the
+worked example; 24 to write, and each one is ~30 lines of verbs.
+
+### 3. Hand-verify the one thing no test covers
+The menu-bar gate wiring. ChuteApp is AppKit and outside the test target, so `trial.isUnlocked`
+is tested but "both menu builders call it" is not:
+
+```bash
+cd /Users/sxope/Documents/2026/Development/37.chute && python3 - <<'EOF'
+import json, time, os
+p = os.path.expanduser("~/Library/Application Support/Chute/trial.json")
+os.makedirs(os.path.dirname(p), exist_ok=True)
+long_ago = time.time() - 400 * 86400 - 978307200
+json.dump({"firstRun": long_ago, "lastSeen": time.time() - 978307200}, open(p, "w"))
+EOF
+```
+Then open the menu bar. Expect **two rows** — "Trial ended — Buy Chute, $19 once" and the free-CLI
+line — and **no session list, no server list, no count on the badge**. Delete `trial.json` after.
+
+### 4. Look at the eight-row Finder menu
+```bash
+cd /Users/sxope/Documents/2026/Development/37.chute && .build/release/chute finder-actions --menu
+```
+That prints it without a right-click. Then right-click for real and judge it. The grouping was
+reasoned, not seen — the one part of this that has not met a human eye.
 
 ## DECISIONS (do not re-litigate)
 
@@ -123,6 +151,30 @@ of its load-bearing facts are documented nowhere but this repo.
   run-loop modes, sampling off-main).
 
 ---
+
+### Decided 2026-08-28
+
+- **The app is the product; the CLI is the sample.** One launch wave, app-first. The two-wave
+  plan spent eight days teaching the audience to want the free thing before asking for $19. See
+  `docs/09-GTM-DECISIONS.md` §7 and `marketing/05-CONTENT-CALENDAR.md` §1.
+- **Four Finder actions added** — unpack, seed, sandbox, clean. The paid surface demonstrated
+  ~73 min/day against the free CLI's ~125; a buyer's own arithmetic said not to buy. It is now
+  **130.7 vs 86.8**, asserted by `site/scripts/check-cases.mjs` so it cannot invert again.
+- **Destructive Finder actions confirm before writing.** `confirmButton` on `ChuteAction`; the
+  app runs the harmless form, shows the list, and only re-runs with `--force` on a yes. Cancel is
+  the default button. A right-click that silently writes into a repo is the one thing that would
+  destroy the trust the whole page is sold on.
+- **The menu bar is gated.** It was not, and `/buy` sold it — three of the four things that page
+  lists kept working forever. A lapsed trial now gets two rows and a plain statement that the
+  free CLI still does all of it.
+- **The menu is 8 drawn rows, not 13.** Grouped, not trimmed. The rule for what stays one click
+  is the ledger: above ~10 min/day is inline, below may sit one level down.
+- **Every figure on the site is re-derived from the ledger at build time**, including the
+  ledger's own arithmetic. A number that cannot be traced cannot be published.
+- **A recorded stopwatch beats an estimate.** Where `demo/out/gui/<slug>.json` exists, the deploy
+  fails if the page claims a saving the recording did not reproduce.
+- **No placeholder art, and no hole where art would go.** A case without a recording renders as
+  one column, deliberately — not a two-column row with an empty half.
 
 ## TRAPS (each cost real time)
 
@@ -179,6 +231,26 @@ of its load-bearing facts are documented nowhere but this repo.
   committing.
 
 ---
+
+### From 2026-08-28
+
+- **`FileScan.expand` filtered junk out before `clean` could see it.** Right for `bundle`, exactly
+  backwards for the one command whose job is to find junk — every `.log`, `.tmp`, `.bak`, `.swp`,
+  `.orig` and `.rej` was invisible and only the scratch PREFIXES were ever listed. Fixed with
+  `includingJunk:`; `isAgentScratch` still decides what is actually trashed. → If a command seems
+  to under-report, check what the shared scan dropped before blaming the command.
+- **A dry run wrote a timing file the deploy gate believed.** `emit_timing` read 0.0s off a
+  stopwatch that was never started. → Any mode that fakes execution must be enforced in the
+  library, never left to each caller to remember; `make -C demo/gui lint` exists for this.
+- **PLAN mode leaked within ten minutes of existing**, because a tape called `osascript` directly
+  and started driving the real cursor. → A tape may only speak in verbs.
+- **The site's nav did not link to the two new pages**, and five sections reserved an empty slot
+  for demos that do not exist. Both survived a green build, 38 generated routes and zero failed
+  network requests. → **Open it in a browser and look at it.** Nothing else catches this class.
+- **The copy said "eight files"; the demo selects three folders holding six.** → The page quotes
+  the demo. Never bend the recording to match a sentence.
+- **`git commit` in this repo needs an explicit pathspec** and the working directory does NOT
+  persist as expected between agent shell calls — `cd` to the repo root in every command.
 
 ## REVIEW FINDINGS STILL OPEN
 
