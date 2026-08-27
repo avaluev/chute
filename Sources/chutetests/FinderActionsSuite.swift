@@ -69,6 +69,29 @@ func finderActionsSuite() {
         T.eq(Set(inline.map(\.symbol)).count, inline.count,
              "no two inline rows share an icon — an icon that cannot distinguish is decoration")
 
+        // THE MENU AS DRAWN. Thirteen actions, but the number that matters is how many rows this
+        // adds to a Finder context menu that is already long. Eight was arrived at by grouping,
+        // not by dropping anything: three ways to copy context out, one to bring an answer back,
+        // then create / set up / clean up / leave. Change this number on purpose or not at all.
+        let rows = ChuteActions.rows()
+        T.eq(rows.count, 8, "the right-click adds eight rows to Finder's menu")
+        T.eq(rows.map(\.title), ["Copy Full Paths", "Copy Files with Contents", "Copy Folder Tree",
+                                 "Write Clipboard Files Here", "New File Here", "Set Up for an Agent",
+                                 "Move Junk to Trash", "Open in Terminal"],
+             "and they read in that order — context out, answer in, make, set up, tidy, leave")
+        T.eq(Set(rows.map(\.symbol)).count, rows.count,
+             "no two DRAWN rows share an icon, submenu holders included")
+        // ChuteFinderSync builds a submenu's holder from whichever child reaches it first, so the
+        // holder's icon is the first DECLARED child's. Stated here because it is the reason the
+        // tree depths were made to share one symbol, and the reason they no longer have to.
+        for row in rows where !row.children.isEmpty {
+            T.eq(row.symbol, ChuteActions.find(row.children[0])!.symbol,
+                 "the '\(row.title)' submenu takes its icon from its first child")
+        }
+        // With nothing selected the selection-scoped rows drop out; nothing may be left orphaned.
+        T.ok(ChuteActions.rows(hasSelection: false, targetIsFolder: true).count < rows.count,
+             "an empty selection draws fewer rows, not the same ones greyed out")
+
         // DESTRUCTIVE ACTIONS. A right-click that silently writes into a repo is the one thing
         // that would destroy the trust everything else here is sold on. Both of these preview by
         // default in the CLI (NFR-05); the guarantee only survives the trip through the menu if
@@ -93,7 +116,15 @@ func finderActionsSuite() {
         for id in ["unpack-here", "seed-rules", "sandbox-here", "clean-junk"] {
             guard let a = ChuteActions.find(id) else { T.ok(false, "'\(id)' is in the menu"); continue }
             T.eq(a.scope, .folder, "'\(id)' acts on the folder in view")
-            T.ok(a.parentTitle == nil, "'\(id)' is one click")
+        }
+        // WHAT STAYS ONE CLICK. Not everything can: eight rows is already a lot to add to
+        // Finder's own menu. The rule is the ledger — anything worth more than ~10 min/day is
+        // reached in one click, everything else may sit one level down. Today that is bundle
+        // (41.1) and unpack (28.5); seed (9.9) and sandbox (7.3) are under "Set Up for an Agent".
+        // A submenu is not a demotion, but burying the two biggest savings would be.
+        for id in ["bundle-xml", "unpack-here"] {
+            T.ok(ChuteActions.find(id)?.parentTitle == nil,
+                 "'\(id)' is one click — it is one of the two largest savings in the ledger")
         }
         T.eq(ChuteActions.argv(ChuteActions.find("unpack-here")!, dir: "/tmp/p", files: ["/a.ts"]),
              ["unpack", "--dir", "/tmp/p"], "the selection never reaches a folder action")
