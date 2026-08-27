@@ -133,7 +133,15 @@ if [ "$HEADLESS" = "1" ]; then skip "sessions — needs Terminal and Automation 
 OUT="$("$CHUTE" sessions --json 2>/dev/null)"
 if printf '%s' "$OUT" | python3 -c 'import json,sys; sys.exit(0 if isinstance(json.load(sys.stdin), list) else 1)' 2>/dev/null
 then ok "sessions --json is a JSON array"; else bad "sessions --json is a JSON array" "not parseable: $OUT"; fi
-has "sessions prints a tally" "$("$CHUTE" sessions 2>&1)" "session(s)"
+OUT="$("$CHUTE" sessions 2>&1)"
+has "sessions prints a tally"      "$OUT" "session(s)"
+has "sessions reports thermals"    "$OUT" "thermals"
+# CPU and memory per session: at least one of this machine's terminals is doing something.
+if printf '%s' "$OUT" | grep -qE '[0-9]+% · [0-9.]+ (MB|GB)'; then ok "sessions reports CPU and memory"
+else ok "sessions reports CPU and memory (none busy enough to show — the quiet case)"; fi
+if printf '%s' "$("$CHUTE" sessions --json 2>/dev/null)" \
+   | python3 -c 'import json,sys; d=json.load(sys.stdin); sys.exit(0 if not d or all("cpuPercent" in r and "memoryBytes" in r for r in d) else 1)'
+then ok "sessions --json carries the vitals"; else bad "sessions --json carries the vitals" "missing keys"; fi
 "$CHUTE" focus nosuchprojectanywhere >/dev/null 2>&1 && bad "focus on no match exits non-zero" "exit 0" || ok "focus on no match exits non-zero"
 
 OUT="$("$CHUTE" doctor --json 2>/dev/null)"

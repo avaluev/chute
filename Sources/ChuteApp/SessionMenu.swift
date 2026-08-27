@@ -38,6 +38,9 @@ enum SessionMenu {
                          target: AnyObject, action: Selector, openSettings: Selector) {
         menu.removeAllItems()
         var hotkey = 1
+        // One `ps` for the whole menu. Sampling per row would be thirteen process listings for a
+        // menu the user is already waiting on.
+        let samples = SystemVitals.sample()
 
         if let problem {
             let item = NSMenuItem(title: "Cannot read Terminal — click to fix",
@@ -63,18 +66,35 @@ enum SessionMenu {
                 let detail = s.state == .blocked || s.state == .waiting
                     ? "\(s.state.label) · \(age(s.since))"
                     : elide(s.title)
-                let item = NSMenuItem(title: "\(s.project)   \(detail)",
+                // The cost of the session, appended only when it is worth reading: an idle shell
+                // showing "0% · 4 MB" is noise in a list you scan to find the busy one.
+                let load = SystemVitals.load(forTTY: s.tty, in: samples).label
+                let item = NSMenuItem(title: "\(s.project)   \(detail)\(load.isEmpty ? "" : "   \(load)")",
                                       action: action,
                                       keyEquivalent: hotkey <= 8 ? "\(hotkey)" : "")
                 item.keyEquivalentModifierMask = [.option]
                 item.image = dot(SessionColor.hex(forProject: s.project))
                 item.representedObject = s.key
                 item.target = target
+                item.toolTip = load.isEmpty ? s.title : "\(s.title) — \(load) on \(s.tty)"
                 menu.addItem(item)
                 hotkey += 1
             }
             menu.addItem(.separator())
         }
+
+        // How the machine itself is doing. The battery sensor is what can be read without root;
+        // it is labelled as the battery rather than passed off as a CPU reading.
+        var machine = "Mac · thermals \(SystemVitals.thermalPressure(ProcessInfo.processInfo.thermalState))"
+        if let c = SystemVitals.temperature() {
+            machine = "Mac · battery \(SystemVitals.temperatureLabel(c)) · thermals "
+                    + SystemVitals.thermalPressure(ProcessInfo.processInfo.thermalState)
+        }
+        let vitals = NSMenuItem(title: machine, action: nil, keyEquivalent: "")
+        vitals.isEnabled = false
+        vitals.toolTip = "Battery sensor — the CPU die sensors need root, which Chute does not ask for."
+        menu.addItem(vitals)
+        menu.addItem(.separator())
 
         if sessions.isEmpty && problem == nil {
             let empty = NSMenuItem(title: "No terminal sessions", action: nil, keyEquivalent: "")
