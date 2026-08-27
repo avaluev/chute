@@ -26,6 +26,20 @@ extension AppDelegate {
             // event for the next minute.
             try? FileManager.default.removeItem(atPath: path)
             guard let action = ChuteActions.find(request.id) else { continue }
+
+            // THE GATE, and the only one. Every Finder action arrives here, so the trial is
+            // checked once rather than in eight action handlers. The sandboxed extension is
+            // deliberately not involved: it cannot read the licence file from inside its
+            // container, and licence logic has no business inside a sandbox.
+            //
+            // The `chute` CLI is never gated — it is MIT and free forever, and install.sh
+            // symlinks it out of this very bundle.
+            guard Trial.touch().isUnlocked else {
+                notify("Trial ended", "Chute's Finder actions need a licence. $19, one payment.")
+                DispatchQueue.main.async { SettingsWindow.show(selecting: 1) }
+                continue
+            }
+
             DispatchQueue.global(qos: .userInitiated).async {
                 let command = Self.commandLine(for: action, request: request)
                 let r = chute(command)

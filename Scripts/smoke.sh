@@ -222,6 +222,29 @@ run_action copy-paths >/dev/null 2>&1
 has   "copy-paths lands on the clipboard"  "$(pbpaste)" "$FX/src/a.ts"
 has   "copy-paths includes every selected file" "$(pbpaste)" "$FX/src/deep/b.ts"
 
+# OPEN CORE, ASSERTED. The CLI is MIT and free forever; only Chute.app is licensed. If a trial
+# check ever leaks into ChuteCore paths the CLI reaches, `brew install chute` starts expiring and
+# the whole top of the funnel dies quietly. So: plant an EXPIRED trial record and prove the CLI
+# does not care. install.sh symlinks ~/.local/bin/chute out of the app bundle, which is exactly
+# how such a leak would reach a free user.
+TRIALDIR="$T/Library/Application Support/Chute"; mkdir -p "$TRIALDIR"
+python3 - "$TRIALDIR/trial.json" <<'PY'
+import json, sys, time
+long_ago = time.time() - 400 * 86400
+json.dump({"firstRun": long_ago - 978307200, "lastSeen": time.time() - 978307200}, open(sys.argv[1], "w"))
+PY
+if HOME="$T" "$CHUTE" paths "$FX/src/a.ts" --no-copy >/dev/null 2>&1; then
+  ok "the CLI still runs with an expired trial on disk"
+else
+  bad "the CLI still runs with an expired trial on disk" "$(tail -1 /tmp/chute-a.err 2>/dev/null)"
+fi
+if HOME="$T" "$CHUTE" bundle "$FX/src/a.ts" --no-copy >/dev/null 2>&1; then
+  ok "including the paid-looking wedge command"
+else
+  bad "including the paid-looking wedge command" "bundle refused to run"
+fi
+hasnt "and the CLI binary carries no licence prompt" "$("$CHUTE" help 2>&1)" "licence"
+
 # THE WEDGE: one right-click must produce every file's CONTENTS plus a token count. This is the
 # claim the landing page and the demo both rest on, so it is asserted, not assumed.
 run_action bundle-xml >/dev/null 2>&1
