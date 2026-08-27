@@ -68,6 +68,11 @@ of its load-bearing facts are documented nowhere but this repo.
 
 ## NEXT — in order
 
+0. **Memory JTBDs + every-macOS strategy** — full plan ready to execute in a fresh session:
+   `/Users/sxope/Documents/2026/Development/37.chute/docs/10-MEMORY-JTBD-PLAN.md`
+   (extracted from Memory Diag: pressure line, hungriest-process, guilty-session alerts;
+   plus the 5-leg strategy for keeping every feature working on macOS 13 → 26).
+
 1. **Buy the Developer ID and notarise.**
    ```bash
    xcrun notarytool store-credentials chute --apple-id <you> --team-id <team>
