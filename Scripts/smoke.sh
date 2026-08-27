@@ -222,6 +222,13 @@ run_action copy-paths >/dev/null 2>&1
 has   "copy-paths lands on the clipboard"  "$(pbpaste)" "$FX/src/a.ts"
 has   "copy-paths includes every selected file" "$(pbpaste)" "$FX/src/deep/b.ts"
 
+# THE WEDGE: one right-click must produce every file's CONTENTS plus a token count. This is the
+# claim the landing page and the demo both rest on, so it is asserted, not assumed.
+run_action bundle-xml >/dev/null 2>&1
+has   "bundle-xml carries the file contents"   "$(pbpaste)" "export const a = 1"
+has   "bundle-xml carries every selected file" "$(pbpaste)" "export const b = 2"
+has   "bundle-xml reports a token count"       "$(cat /tmp/chute-a.err)" "token"
+
 run_action tree-2 >/dev/null 2>&1
 has   "tree-2 shows the folder"            "$(pbpaste)" "src/"
 hasnt "tree-2 stops at two levels"         "$(pbpaste)" "deeper"
@@ -283,7 +290,7 @@ else
   check "and nothing is written" "$(ls "$FX"/Screenshot*.png 2>/dev/null | wc -l | tr -d ' ')" "$BEFORE_COUNT"
 fi
 
-check "the menu table and this test agree" "$(printf '%s' "$ALL_IDS" | wc -w | tr -d ' ')" "8"
+check "the menu table and this test agree" "$(printf '%s' "$ALL_IDS" | wc -w | tr -d ' ')" "9"
 
 echo "16. the Finder extension's request inbox (needs Chute.app running)"
 # The extension is sandboxed: it cannot run git, launch Terminal or drive AppleScript. It writes a

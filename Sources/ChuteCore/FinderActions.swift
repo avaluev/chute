@@ -61,6 +61,20 @@ public enum ChuteActions {
                     template: ["paths", "{files}"],
                     doneMessage: "Full paths copied."),
 
+        // THE WEDGE. Eight files and everything in them, as one blob with a token count, in one
+        // click. It was CLI-only until now, which meant the largest saving in the JTBD ledger was
+        // invisible to anyone who never opened a terminal — and unfilmable for the demo that is
+        // supposed to carry it. XML only: the format is the default everywhere else, and a menu
+        // that asks "which format?" before the most-used action taxes every use to serve a few.
+        // `chute bundle --format md` still exists for the people who want it.
+        ChuteAction(id: "bundle-xml",
+                    title: "Copy Files with Contents ({n})",
+                    detail: "Every selected file and everything in it, in one blob, with a token count.",
+                    scope: .selection,
+                    symbol: "shippingbox.fill",
+                    template: ["bundle", "{files}"],
+                    doneMessage: "Files and contents copied."),
+
         // A folder's whole shape, for handing an agent context it can navigate. Three depths
         // rather than a dialog: a right-click menu cannot ask a question. NOT foldersOnly:
         // right-clicking a FILE offers the tree of its enclosing folder — hiding the action
