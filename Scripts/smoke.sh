@@ -134,6 +134,13 @@ if printf '%s' "$OUT" | python3 -c 'import json,sys; d=json.load(sys.stdin); sys
 then ok "doctor --json reports id+passed per check"; else bad "doctor --json reports id+passed per check" "bad shape"; fi
 has "doctor names a fix" "$("$CHUTE" doctor 2>&1)" "checks"
 
+# A problem report is pasted into a PUBLIC issue, so it must carry the checks and no secrets.
+REPORT="$("$CHUTE" doctor --report 2>/dev/null)"
+has   "report asks what happened"   "$REPORT" "What happened"
+has   "report carries the checks"   "$REPORT" "macOS version"
+has   "report states the version"   "$REPORT" "chute 0.1.0"
+hasnt "report repairs nothing"      "$REPORT" "Fixed"
+
 # NEVER against ~/.claude/settings.json — a temp fixture only.
 S="$T/settings.json"; printf '{"hooks":{},"model":"opus"}' > "$S"
 has   "hooks status lists events"  "$("$CHUTE" hooks status --settings "$S" 2>&1)" "SessionStart"

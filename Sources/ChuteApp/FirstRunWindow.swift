@@ -8,9 +8,23 @@ enum FirstRunWindow {
         (NSHomeDirectory() as NSString).appendingPathComponent(".chute/state.json")
     }
 
+    /// Silence is the goal. A window that appears to say "everything is fine" is a window that
+    /// teaches people to dismiss windows — and this one used to offer "Fix everything" over a list
+    /// of ten green ticks.
+    ///
+    /// So: run the checks in the background, repair what can be repaired without a human, and open
+    /// only if something is STILL failing. A customer who never sees this window is the success
+    /// case; `chute doctor` is there for the developer who wants to look anyway.
     static func showIfNeeded() {
-        guard !FileManager.default.fileExists(atPath: statePath) else { return }
-        show()
+        DispatchQueue.global(qos: .utility).async {
+            let outcomes = Diagnostics.run(Diagnostics.liveEnv())
+            let failing = outcomes.filter { !$0.passed }
+            guard !failing.isEmpty else {
+                markSeen()   // nothing to show, and nothing to show next time either
+                return
+            }
+            DispatchQueue.main.async { show(only: failing) }
+        }
     }
 
     @discardableResult
@@ -28,18 +42,23 @@ enum FirstRunWindow {
 
     nonisolated(unsafe) static var window: NSWindow?
 
-    static func show() {
+    /// What the window is currently showing. When it lists only failures, the passing checks are
+    /// deliberately absent: ten green ticks are noise around the one line that needs action.
+    nonisolated(unsafe) static var failuresOnly: [CheckOutcome]?
+
+    static func show(only failures: [CheckOutcome]? = nil) {
+        failuresOnly = failures
         let w = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 480, height: 380),
                          styleMask: [.titled, .closable], backing: .buffered, defer: false)
         w.title = "Chute"
         w.center()
-        w.contentView = makeBody(outcomes: nil)   // draws immediately: "Checking…"
+        w.contentView = makeBody(outcomes: failures)   // failures if we have them, else "Checking…"
         w.isReleasedWhenClosed = false
         window = w
         NSApp.activate(ignoringOtherApps: true)
         w.makeKeyAndOrderFront(nil)
         markSeen()
-        refresh()
+        if failures == nil { refresh() }
     }
 
     /// The probe shells out to osascript/pluginkit/ps and blocks. It must never run on the
@@ -60,26 +79,34 @@ enum FirstRunWindow {
         root.spacing = 10
         root.edgeInsets = NSEdgeInsets(top: 20, left: 20, bottom: 20, right: 20)
 
-        let heading = NSTextField(labelWithString: "Chute is almost ready")
+        // Apple's wording rule for an alert: the title states what needs doing, not how the app
+        // feels about it. "Chute is almost ready" over ten green ticks said nothing at all.
+        let failures = (outcomes ?? []).filter { !$0.passed }
+        let title = outcomes == nil
+            ? "Checking your setup"
+            : (failures.count == 1 ? "One thing needs your permission" : "\(failures.count) things need your permission")
+        let heading = NSTextField(labelWithString: title)
         heading.font = .systemFont(ofSize: 18, weight: .semibold)
         root.addArrangedSubview(heading)
 
-        guard let outcomes else {
-            root.addArrangedSubview(NSTextField(labelWithString: "Checking your setup…"))
+        guard outcomes != nil else {
+            root.addArrangedSubview(NSTextField(labelWithString: "One moment…"))
             return root
         }
 
-        for outcome in outcomes {
+        // Only what is failing. A passing check is not information; it is furniture.
+        for outcome in failures {
             root.addArrangedSubview(row(outcome))
         }
 
         let buttons = NSStackView()
         buttons.orientation = .horizontal
         buttons.spacing = 10
-        let fix = NSButton(title: "Fix everything", target: Handler.shared,
-                           action: #selector(Handler.fixAll))
+        // The default button does the work; "Later" dismisses. Both verbs, both about this window.
+        let fix = NSButton(title: failures.count == 1 ? "Fix It" : "Fix These",
+                           target: Handler.shared, action: #selector(Handler.fixAll))
         fix.keyEquivalent = "\r"
-        let skip = NSButton(title: "Skip", target: Handler.shared, action: #selector(Handler.skip))
+        let skip = NSButton(title: "Later", target: Handler.shared, action: #selector(Handler.skip))
         buttons.addArrangedSubview(fix)
         buttons.addArrangedSubview(skip)
         root.addArrangedSubview(buttons)
