@@ -27,7 +27,7 @@ Expect: `✅ 451 assertions passed`, `smoke: 133 passed, 0 failed`, `→ all 9 c
 
 ## WHAT THE PRODUCT DOES TODAY
 
-**Finder right-click → Chute actions INLINE in the context menu** (8 actions, `chute finder-actions` lists them; no `Chute ▸` hop since 2026-08-27 — each row carries an SF Symbol, only the three tree depths share a submenu):
+**Finder right-click → Chute actions INLINE in the context menu** (8 actions, `chute finder-actions` lists them; no `Chute ▸` hop since 2026-08-27 — each row carries a literal SF Symbol — folder for the tree, photo for the image, square.and.pencil for new files — and the tree shows on FILE clicks too, copying the enclosing folder):
 Copy Full Paths (n) · Copy Folder Tree ▸ 2 Levels / 4 Levels / Everything ·
 Paste Image from Clipboard · New Markdown File · New Markdown File from Clipboard · Open in Terminal.
 
