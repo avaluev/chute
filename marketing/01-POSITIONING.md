@@ -37,7 +37,7 @@ the thing that makes someone say "wait, do that again".
 | They say | Answer |
 |---|---|
 | "Raycast already does this" | Raycast is a launcher overlay. Chute lives where the files are — the Finder right-click — and knows what an agent needs. |
-| "I'll write a shell script" | You will write four, forget the flags, and never handle binaries, token counts, or path traversal. It is $9. |
+| "I'll write a shell script" | You will write four, forget the flags, and never handle binaries, token counts, or path traversal. Free 14-day trial. |
 | "Another subscription?" | One payment. No account. Works offline forever. |
 | "Unsigned app?" | Fair — v0.1 is direct-download. Notarization is the next release. |
 

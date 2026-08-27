@@ -13,7 +13,7 @@
 >
 > [20s video: select 8 files → right-click → Bundle Context → paste → ~14k tokens]
 >
-> Chute. macOS. $9 once. Offline. 328 KB. Link below.
+> Chute. macOS. Free 14-day trial, $19 after. Offline. 328 KB. Link below.
 
 ## Hacker News — Show HN
 **Title:** Show HN: Chute – Turn a Finder selection into agent-ready context
@@ -61,7 +61,7 @@
 > anything about the implementation.
 
 ## Reddit r/macapps
-**Title:** I made a 328 KB utility that turns a Finder selection into LLM context (offline, $9)
+**Title:** I made a 328 KB utility that turns a Finder selection into LLM context (offline, free trial + $19)
 > Not another right-click suite — it does one loop well: context into your agent, artifacts back
 > out. Bundle 8 files into one XML blob with a token estimate, unpack a multi-file answer into a
 > real file tree, snapshot a repo before an agent touches it. No telemetry, no account, no

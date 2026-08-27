@@ -1,17 +1,18 @@
 # Pricing and demo
 
-## Price: $9 one-time
+## Price: Free 14-day trial. $19 one-time after trial ends.
+Trial includes full app features; the app locks after 14 days, but the free CLI remains available. No subscription, no account.
+
 | Option | Verdict |
 |---|---|
 | Free | Leaves money on the table; this saves an hour a day for the exact people who bill by the hour |
-| **$9 one-time** | **Chosen.** Impulse-priced, no subscription fatigue, no billing support burden |
+| $9 one-time | Lower-priced option; superseded 2026-08-27 when Developer ID signature improved |
 | $29/yr | The MagicMenu model. Invites the "another subscription?" objection Chute wins against |
-| $19 one-time | Defensible on value, but $9 buys the volume and word of mouth v0.1 needs more |
+| **$19 one-time** | **Chosen.** Defensible on value and trust now that app is signed and notarized. Trial removes purchase friction. |
 
-Rationale: v0.1 is unsigned and direct-download. Price for trust and volume now, raise it at
-v1.0 when notarization and auto-update land.
+Rationale: Developer ID and notarization are now in place; the trust premise supports the price.
 
-**Store:** LemonSqueezy (merchant of record, handles EU VAT). Gumroad as the fallback.
+**Store:** Paddle Billing (merchant of record, handles EU VAT). Licensing via offline Ed25519 keys minted by Cloudflare Worker.
 **Refund:** 30 days, no questions. Say so on the button.
 
 ## Demo video — 20 seconds, no narration
@@ -22,7 +23,7 @@ v1.0 when notarization and auto-update land.
 | 6–10 s | Cut to Claude Code. ⌘V. The whole codebase lands in one message. |
 | 10–14 s | Cut back to Finder. Agent's answer on the clipboard → *Chute – Unpack Markdown Here* → preview list → `--force` → four files appear. |
 | 14–18 s | `chute checkpoint .` → `chute sandbox spike --yolo` → Terminal opens with claude already running. |
-| 18–20 s | Wordmark: **Chute — drop context into your agent.** $9. |
+| 18–20 s | Wordmark: **Chute — drop context into your agent.** chutedev.com · free 14-day trial, then $19. |
 
 Rules: real speed, no time-lapse. No cursor highlights, no zoom effects, no music.
 The speed is the pitch; anything added to it reads as compensation.

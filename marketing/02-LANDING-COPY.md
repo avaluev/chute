@@ -3,7 +3,7 @@
 ## Hero
 # Drop context into your agent.
 ### Select files in Finder. Get agent-ready context. Paste an answer back. Get real files.
-**[Download for macOS — $9 one-time]**  ·  Offline · No account · 328 KB
+**[Download for macOS — free 14-day trial]**  ·  Offline · No account · 328 KB
 
 *20-second loop above the fold: select 8 files → right-click → Bundle Context → paste into
 Claude Code → the token badge shows ~14k. No narration, no cuts.*
@@ -44,9 +44,8 @@ You unpack a multi-file answer by hand, block by block.
 ---
 
 ## Pricing
-### $9 — one payment
-Every command. Every future v0.x update. No account, no subscription, no telemetry.
-30-day refund, no questions.
+### Free for 14 days. $19 once after that.
+The command-line tool is free forever. The Chute.app (Finder menu, hotkey, menu-bar switcher) is the paid surface. No subscription, no telemetry. 30-day refund, no questions.
 
 ## FAQ
 **Does it phone home?** No. There is no network code except `chute gist`, which you invoke.
