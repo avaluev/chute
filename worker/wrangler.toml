@@ -1,0 +1,9 @@
+name = "chute-licences"
+main = "src/index.js"
+compatibility_date = "2026-08-01"
+
+# Secrets are NEVER in this file. Set them once:
+#   cd /Users/sxope/Documents/2026/Development/37.chute/worker
+#   npx wrangler secret put PADDLE_WEBHOOK_SECRET
+#   npx wrangler secret put CHUTE_LICENSE_SEED
+#   npx wrangler secret put RESEND_API_KEY
