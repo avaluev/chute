@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "check:paddle": "node scripts/check-paddle.mjs",
+    "tokens": "node ../brand/gen-tailwind.mjs && node ../brand/gen-commands.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",

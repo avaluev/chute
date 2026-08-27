@@ -1,0 +1,102 @@
+[
+  {
+    "cmd": "chute paths <files…>",
+    "does": "Absolute paths for a prompt. --format posix\\|quoted\\|relative\\|at"
+  },
+  {
+    "cmd": "chute bundle <files…>",
+    "does": "Files + contents in one blob. --format xml\\|md"
+  },
+  {
+    "cmd": "chute tokens <files…>",
+    "does": "Estimated token cost, per file and total"
+  },
+  {
+    "cmd": "chute tree [dir]",
+    "does": "Directory skeleton, junk excluded. --depth N"
+  },
+  {
+    "cmd": "chute new",
+    "does": "Clipboard → new file, named from its # heading, extension from its syntax"
+  },
+  {
+    "cmd": "chute unpack",
+    "does": "Fenced code blocks → a real file tree. **Previews by default**, writes with --force"
+  },
+  {
+    "cmd": "chute seed [dir]",
+    "does": "CLAUDE.md, .cursorrules, AGENTS.md, SCRATCHPAD.md. Never overwrites"
+  },
+  {
+    "cmd": "chute note \"…\"",
+    "does": "Append to SCRATCHPAD.md — where you left off"
+  },
+  {
+    "cmd": "chute latest [dir]",
+    "does": "Reveal the newest artifact. --quicklook"
+  },
+  {
+    "cmd": "chute clean [dir]",
+    "does": "List agent scratch files. **Lists by default**, Trashes with --force"
+  },
+  {
+    "cmd": "chute sandbox [name]",
+    "does": "Folder + git + rules + terminal + agent. --agent claude\\|codex\\|gemini --yolo --each"
+  },
+  {
+    "cmd": "chute open [dir]",
+    "does": "Terminal or editor here. --with terminal\\|editor"
+  },
+  {
+    "cmd": "chute ports",
+    "does": "Every local server: port, what it is, which project, reachable from where. --kill 3000"
+  },
+  {
+    "cmd": "chute checkpoint [dir]",
+    "does": "Snapshot before the agent runs — never touches your worktree"
+  },
+  {
+    "cmd": "chute diff [dir]",
+    "does": "What changed. --copy puts the patch on the clipboard"
+  },
+  {
+    "cmd": "chute redact",
+    "does": "Mask API keys and tokens before sharing"
+  },
+  {
+    "cmd": "chute gist <files…>",
+    "does": "Secret gist, URL on the clipboard"
+  },
+  {
+    "cmd": "chute dataurl <image>",
+    "does": "Base64 data URL for vision prompts. --markdown"
+  },
+  {
+    "cmd": "chute buf add\\|list\\|flush",
+    "does": "Gather context across many copies, paste once"
+  },
+  {
+    "cmd": "chute prompt decompose\\|ponytail",
+    "does": "Prompt templates: split work into 15-min tasks; cut over-engineering"
+  },
+  {
+    "cmd": "chute env inject [dir]",
+    "does": "Keychain → .env. Refuses unless .env is gitignored"
+  },
+  {
+    "cmd": "chute sessions",
+    "does": "Every terminal session, grouped by state. --json"
+  },
+  {
+    "cmd": "chute focus <key\\|project\\|N>",
+    "does": "Bring that session to the front. Asks when a name matches several"
+  },
+  {
+    "cmd": "chute hooks snippet\\|uninstall\\|status",
+    "does": "Agent status hooks — printed for YOU to paste; Chute never edits your settings"
+  },
+  {
+    "cmd": "chute doctor",
+    "does": "Check every prerequisite and say how to fix it. --fix --json"
+  }
+]
