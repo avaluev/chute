@@ -143,8 +143,20 @@ public enum Diagnostics {
     /// The real environment. Every probe here is one that `docs/08-MACOS-COMPATIBILITY.md`
     /// records as VERIFIED — notably `ps -Ao comm` rather than pgrep, which never matches
     /// a bundled app.
+    /// Where Chute.app actually is. `Bundle.main.bundlePath` answers this for the app, but the CLI
+    /// is a symlink in ~/.local/bin pointing INTO the bundle, so from there it reports
+    /// "/Users/x/.local/bin" and the app-location check fails on a perfectly good install.
+    public static func resolvedAppPath(_ appPath: String) -> String {
+        if appPath.hasSuffix(".app") { return appPath }
+        let exe = URL(fileURLWithPath: Bundle.main.executablePath ?? "")
+            .resolvingSymlinksInPath().path
+        if let r = exe.range(of: ".app/") { return String(exe[..<r.lowerBound]) + ".app" }
+        return (NSHomeDirectory() as NSString).appendingPathComponent("Applications/Chute.app")
+    }
+
     public static func liveEnv(extensionID: String = "dev.valuev.chute.finder",
                                appPath: String = Bundle.main.bundlePath) -> DiagnosticsEnv {
+        let appPath = resolvedAppPath(appPath)
         let v = ProcessInfo.processInfo.operatingSystemVersion
         let cli = ["\(NSHomeDirectory())/.local/bin/chute", "/usr/local/bin/chute"]
             .first { FileManager.default.isExecutableFile(atPath: $0) }

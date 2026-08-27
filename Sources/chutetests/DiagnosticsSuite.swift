@@ -120,5 +120,12 @@ func diagnosticsSuite() {
         T.eq(started?.passed, false, "the outcome fails")
         T.ok(started?.detail.contains("stale sandbox container") == true,
              "and names the cause rather than saying 'failed'")
+
+        // The CLI is a symlink in ~/.local/bin pointing INTO the bundle. Reporting that directory
+        // as the app location failed the app-location check on a perfectly good install.
+        T.eq(Diagnostics.resolvedAppPath("/Users/x/Applications/Chute.app"),
+             "/Users/x/Applications/Chute.app", "an app path is already the answer")
+        T.ok(Diagnostics.resolvedAppPath("/Users/x/.local/bin").hasSuffix(".app"),
+             "anything else resolves to an app bundle, never a bin directory")
     }
 }
