@@ -33,6 +33,9 @@ echo "→ building"
 npx next build
 
 echo "→ checking before publishing"
+# Every figure on the site is re-derived from the JTBD ledger before it can be published. A
+# number nobody can trace is indistinguishable from one that was invented.
+npm run check:cases
 npm run check:paddle
 
 BRANCH="main"
