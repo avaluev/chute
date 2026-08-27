@@ -95,12 +95,23 @@ class ChuteFinderSync: FIFinderSync {
         return root
     }
 
+    /// One colour per action, so a row can be found by colour before it is read. Mid-saturation
+    /// system colours hold up on both light and dark menu backgrounds.
+    static let tints: [String: NSColor] = [
+        "list.clipboard.fill":   .systemBlue,
+        "folder.fill":           .systemCyan,
+        "photo.fill":            .systemGreen,
+        "square.and.pencil":     .systemOrange,
+        "doc.on.clipboard.fill": .systemPurple,
+        "terminal.fill":         .systemIndigo,
+    ]
+
     /// Pre-rendered at a fixed size, not handed over as a live symbol. Two reasons, both learned
     /// on this menu: hairline outlines at Finder's default rendering are a grey smudge, and an
     /// NSImage is RE-ENCODED on its way across the appex → Finder boundary, where a symbol's
-    /// SymbolConfiguration can be dropped — a plain bitmap cannot be. Drawn black-on-alpha at
-    /// 2x with `isTemplate` on, so the system tints it correctly for dark mode, light mode and
-    /// the selection highlight.
+    /// SymbolConfiguration can be dropped — a plain bitmap cannot be. The colour is baked into
+    /// the bitmap and `isTemplate` stays OFF: a template is tinted monochrome by the system,
+    /// which is exactly what made the icons hard to tell apart.
     static func icon(_ symbol: String, label: String) -> NSImage? {
         let config = NSImage.SymbolConfiguration(pointSize: 14, weight: .semibold, scale: .large)
         guard let base = NSImage(systemSymbolName: symbol, accessibilityDescription: label)?
@@ -117,13 +128,15 @@ class ChuteFinderSync: FIFinderSync {
         let s = base.size
         let scale = min(points.width / s.width, points.height / s.height)
         let w = s.width * scale, h = s.height * scale
-        base.draw(in: NSRect(x: (points.width - w) / 2, y: (points.height - h) / 2,
-                             width: w, height: h))
+        let frame = NSRect(x: (points.width - w) / 2, y: (points.height - h) / 2,
+                           width: w, height: h)
+        base.draw(in: frame)
+        (tints[symbol] ?? .systemBlue).setFill()
+        NSRect(origin: .zero, size: points).fill(using: .sourceAtop)   // recolour the glyph only
         NSGraphicsContext.restoreGraphicsState()
 
         let out = NSImage(size: points)
         out.addRepresentation(rep)
-        out.isTemplate = true
         out.accessibilityDescription = label
         return out
     }
