@@ -88,6 +88,16 @@ buyJs.includes("_ptxn")
   ? ok(`/buy handles the ?_ptxn= redirect (found in ${buyChunks.length} loaded chunks)`)
   : bad("/buy does not handle ?_ptxn=", "set it as the default payment link and buyers land on a page with no checkout");
 
+// 6b — the OG image must EXIST. It was referenced in metadata and absent from public/, so every
+// link shared into X, Slack or iMessage rendered a blank card — invisible in the build output,
+// obvious the moment anyone shares the launch post.
+console.log("\n6b. Social preview image");
+const ogRef = [...Object.values(pages).join("").matchAll(/content="[^"]*?(\/media\/og\.png)"/g)][0];
+if (!ogRef) bad("no og:image declared");
+else existsSync(join(out, "media", "og.png"))
+  ? ok("og:image is declared and the file exists")
+  : bad("og:image is declared but the file is missing", "every shared link renders a blank card");
+
 // 7 — a custom domain over HTTPS.
 console.log("\n7. Custom domain");
 const cname = join(out, "CNAME");

@@ -8,7 +8,9 @@
     "start": "next start",
     "lint": "eslint",
     "check:paddle": "node scripts/check-paddle.mjs",
-    "tokens": "node ../brand/gen-tailwind.mjs && node ../brand/gen-commands.mjs"
+    "tokens": "node ../brand/gen-tailwind.mjs && node ../brand/gen-commands.mjs",
+    "assets": "python3 ../brand/cards.py >/dev/null && cp ../brand/out/og.png public/media/og.png && echo 'public/media/og.png <- brand/cards.py'",
+    "prebuild": "npm run tokens"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",
