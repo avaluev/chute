@@ -2,6 +2,14 @@
 
 **Measured 2026-08-28. Re-measure before quoting; never copy a number forward.**
 
+> This file went stale within four hours of being written: it said `0.1.0` while the build said
+> `0.2.0`. That is not an argument against the file, it is the argument for it — the version was
+> wrong in one place that names the command to check, instead of wrong in eleven that do not.
+>
+> The FALSE table at the bottom is **enforced**: `site/scripts/check-claims.mjs` parses it and
+> fails the deploy if any of those strings appears on a rendered page. Strike a row through with
+> `~~…~~` when it stops being false and enforcement drops it on the next run.
+
 This file exists because three false claims reached the live site: "328 KB" (the app is 2.5 MB),
 "28 commands" (there are 25), and unit-test counts that disagreed between the README and the
 handoff. A number in marketing copy with no command beside it is a number that will be wrong
@@ -52,7 +60,8 @@ more credible than the absolute one, and it survives someone reading the source.
 |---|---|---|
 | Unit assertions | **583 passed** | `swift run chutetests` |
 | End-to-end | **125 passed** headless | `CHUTE_HEADLESS=1 ./Scripts/smoke.sh` |
-| Demo commands | **13 verified working** | `./demo/verify.sh` |
+| Demo tapes | **17** (13 hand-written, 4 generated from cases.ts) | `ls demo/tapes/*.tape \| wc -l` |
+| Demo delivery pipeline | **12 checks** | `./demo/gui/selftest.sh` |
 | Case data | **25 cases** | `cd site && npm run check:cases` |
 | Site routes | **38** | `cd site && npx next build` |
 | CI | macOS 13, 14, 15 | `.github/workflows/macos-matrix.yml` |
