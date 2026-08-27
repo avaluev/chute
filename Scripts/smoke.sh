@@ -203,7 +203,7 @@ for i in range(3000): open(os.path.join('$MANY', 'file_%04d.txt' % i), 'w').writ
 "
 find "$MANY" -type f > "$T/many.txt"
 "$CHUTE" paths --files-from "$T/many.txt" --no-copy > "$T/many-out.txt" 2>/dev/null
-check "3000 selected files all come through" "$(wc -l < "$T/many-out.txt" | tr -d ' ')" "3000"
+check "3000 selected files all come through" "$(awk 'END{print NR}' "$T/many-out.txt")" "3000"
 
 check "the menu table and this test agree" "$(printf '%s' "$ALL_IDS" | wc -w | tr -d ' ')" "7"
 
@@ -224,6 +224,12 @@ PYEOF
 }
 wait_for_empty_inbox() { for _ in 1 2 3 4 5 6 7 8 9 10; do
   [ "$(ls "$INBOX" 2>/dev/null | wc -l | tr -d ' ')" = "0" ] && return 0; sleep 1; done; return 1; }
+# The app DELETES a request before running it — deliberately, so a crash cannot make it retry
+# forever. An empty inbox therefore means "started", not "finished": wait for the actual result.
+wait_for_clipboard_lines() { for _ in 1 2 3 4 5 6 7 8 9 10 11 12; do
+  [ "$(pbpaste | awk 'END{print NR}')" = "$1" ] && return 0; sleep 1; done; return 1; }
+wait_for_clipboard_contains() { for _ in 1 2 3 4 5 6 7 8 9 10; do
+  pbpaste | grep -qF -- "$1" && return 0; sleep 1; done; return 1; }
 
 if ! pgrep -x ChuteApp >/dev/null 2>&1; then
   echo "  SKIP inbox checks — Chute.app is not running (start it: open ~/Applications/Chute.app)"
@@ -231,8 +237,9 @@ else
   printf 'INBOX-SENTINEL' | pbcopy
   put_request copy-paths "$FX" 0 "$FX/src/a.ts" >/dev/null
   if wait_for_empty_inbox; then ok "the app drains the inbox"; else bad "the app drains the inbox" "still pending after 10s"; fi
-  sleep 1
-  has "an action requested by the extension runs through the app" "$(pbpaste)" "$FX/src/a.ts"
+  if wait_for_clipboard_contains "$FX/src/a.ts"
+  then ok "an action requested by the extension runs through the app"
+  else bad "an action requested by the extension runs through the app" "clipboard: $(pbpaste | head -1)"; fi
 
   # A request the app must refuse: an unknown action, and one from an hour ago.
   printf 'REFUSE-SENTINEL' | pbcopy
@@ -245,9 +252,9 @@ else
   # THOUSANDS of files through the real handoff: the request file has no ARG_MAX.
   printf 'MANY-SENTINEL' | pbcopy
   put_request copy-paths "$MANY" 0 $(find "$MANY" -type f | head -1200 | tr '\n' ' ') >/dev/null
-  if wait_for_empty_inbox; then
-    check "1200 files survive the extension → app handoff" "$(pbpaste | wc -l | tr -d ' ')" "1200"
-  else bad "1200 files survive the extension → app handoff" "inbox never drained"; fi
+  # awk NR, not wc -l: the clipboard's last path has no trailing newline and wc undercounts it.
+  if wait_for_clipboard_lines 1200; then ok "1200 files survive the extension → app handoff"
+  else bad "1200 files survive the extension → app handoff" "clipboard held $(pbpaste | awk 'END{print NR}') lines"; fi
 fi
 
 echo "17. local servers"
