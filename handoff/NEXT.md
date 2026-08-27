@@ -1,7 +1,7 @@
 # HANDOFF — Chute — 2026-08-27 (evening)
 
 STATE: `main` · pushed · tree clean
-       unit **448/448** (`swift run chutetests`) · e2e **133/133** (`./Scripts/smoke.sh`) ·
+       unit **451/451** (`swift run chutetests`) · e2e **133/133** (`./Scripts/smoke.sh`) ·
        headless e2e **109/109** (`CHUTE_HEADLESS=1 ./Scripts/smoke.sh`) ·
        `chute doctor` **9/9** (the hooks check is gone by design, see DECISIONS) ·
        extension `loaded · 8 actions` · notifications `on` ·
@@ -20,14 +20,14 @@ swift run chutetests && ./Scripts/smoke.sh
 cd /Users/sxope/Documents/2026/Development/37.chute && ./Scripts/build-app.sh && ./Scripts/install.sh
 cd /Users/sxope/Documents/2026/Development/37.chute && ~/.local/bin/chute doctor
 ```
-Expect: `✅ 448 assertions passed`, `smoke: 133 passed, 0 failed`, `→ all 9 checks passed`.
+Expect: `✅ 451 assertions passed`, `smoke: 133 passed, 0 failed`, `→ all 9 checks passed`.
 `build-app.sh` may ask the keychain for the signing key — click **Always Allow** once.
 
 ---
 
 ## WHAT THE PRODUCT DOES TODAY
 
-**Finder right-click → `Chute ▸`** (8 actions, `chute finder-actions` lists them):
+**Finder right-click → Chute actions INLINE in the context menu** (8 actions, `chute finder-actions` lists them; no `Chute ▸` hop since 2026-08-27 — each row carries an SF Symbol, only the three tree depths share a submenu):
 Copy Full Paths (n) · Copy Folder Tree ▸ 2 Levels / 4 Levels / Everything ·
 Paste Image from Clipboard · New Markdown File · New Markdown File from Clipboard · Open in Terminal.
 

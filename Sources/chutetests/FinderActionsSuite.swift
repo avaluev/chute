@@ -52,6 +52,15 @@ func finderActionsSuite() {
         T.eq(depths.count, 3, "three depths to choose from")
         T.ok(depths.allSatisfy { $0.foldersOnly }, "all of them folders-only")
 
+        // The actions sit inline in Finder's own context menu; the icons ARE the branding, so a
+        // missing one is a naked row in the middle of a labelled group.
+        T.ok(ChuteActions.all.allSatisfy { !$0.symbol.isEmpty }, "every action carries an SF Symbol")
+        T.eq(Set(depths.map(\.symbol)).count, 1,
+             "siblings in one submenu share a symbol, so the submenu's own icon is deterministic")
+        let inline = ChuteActions.all.filter { $0.parentTitle == nil }
+        T.eq(Set(inline.map(\.symbol)).count, inline.count,
+             "no two inline rows share an icon — an icon that cannot distinguish is decoration")
+
         // Titles carry the count so you see what you are about to act on.
         T.eq(paths.title(count: 3), "Copy Full Paths (3)", "the count is substituted")
         T.eq(paths.plainTitle, "Copy Full Paths", "and dropped where it is unknown")
