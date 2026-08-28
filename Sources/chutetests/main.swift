@@ -24,5 +24,6 @@ resumeCommandSuite()
 contextBufferSuite()
 processMetricsSuite()
 processIdentitySuite()
+statusMenuSuite()
 
 T.report()

@@ -87,38 +87,43 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     /// kept at the exact moment it would be easiest to break.
     func populateBody(_ menu: NSMenu, trial: TrialState) {
         // CLEARED HERE, AND ONLY HERE. menuWillOpen populates the menu AppKit hands us IN PLACE,
-        // so whatever was on it from last time is still there. SessionMenu.populate used to do
-        // this — which meant the expired-trial branch below, which returns before ever reaching
-        // it, appended a second complete copy of the menu on every open. It grew without bound,
-        // in front of the one person who was deciding whether to pay.
+        // so whatever was on it from last time is still there. SessionMenu used to do this —
+        // which meant the expired-trial branch, which returned before ever reaching it, appended
+        // a second complete copy of the menu on every open. It grew without bound, in front of
+        // the one person who was deciding whether to pay. `StatusMenuSuite` now asserts that
+        // building the menu twice produces the same menu rather than two of it.
         menu.removeAllItems()
-        guard trial.isUnlocked else {
-            // No count: the count is part of what is bought.
-            SessionMenu.applyBadge(to: statusItem.button, count: 0)
-            lastSessions = []
 
-            let headline = NSMenuItem(title: "Trial ended — Buy Chute, $19 once",
-                                      action: #selector(openLicenseSettings), keyEquivalent: "")
-            headline.target = self
-            menu.addItem(headline)
-
-            let cli = NSMenuItem(title: "The chute CLI is still free — chute sessions, focus, ports",
-                                 action: nil, keyEquivalent: "")
-            cli.isEnabled = false
-            cli.toolTip = "The command line tool is MIT and never expires. The app buys you the "
-                        + "Finder menu and this switcher, not the ability to do these things."
-            menu.addItem(cli)
-            menu.addItem(.separator())
-            return
-        }
-        let (sessions, problem) = discoverSessionsForMenu()
-        SessionMenu.applyBadge(to: statusItem.button, count: SessionMenu.attentionCount(sessions))
+        let (sessions, problem) = trial.isUnlocked ? discoverSessionsForMenu() : ([], nil)
+        SessionMenu.applyBadge(to: statusItem.button,
+                               count: trial.isUnlocked ? SessionMenu.attentionCount(sessions) : 0)
         lastSessions = sessions
-        liveVitals = SessionMenu.populate(menu, sessions: sessions, problem: problem,
-                                          transcripts: transcripts,
-                                          target: self, action: #selector(focusSession(_:)),
-                                          openSettings: #selector(openAutomationSettings),
-                                          alternate: #selector(runSessionCommand(_:)))
+
+        // ONE `SystemVitals.sample()` FOR THE WHOLE MENU. Sampling per row would be thirteen
+        // process listings for a menu the user is already waiting on.
+        let samples = trial.isUnlocked ? SystemVitals.sample() : []
+
+        let model = StatusMenu.model(
+            sessions: sessions,
+            trial: trial,
+            problem: problem,
+            recent: trial.isUnlocked ? ContextBuffer().entries().reversed().map { $0 } : [],
+            notificationsDenied: Notify.deniedAtLastCheck,
+            loadFor: { SystemVitals.load(forTTY: $0, in: samples) },
+            sessionCommands: { [transcripts] s in
+                SessionCommand.available(for: s, transcript: transcripts.cached(s.sessionID))
+            },
+            detailFor: { [transcripts] s in
+                SessionPhrasing.detail(agent: s.agent, transcript: transcripts.cached(s.sessionID))
+            })
+
+        let live = SessionMenu.LiveVitals()
+        SessionMenu.render(model, into: menu, target: self,
+                           selector: { Self.selector(for: $0) },
+                           servers: { [weak self] in self?.appendLocalServers(to: $0) },
+                           live: live)
+        liveVitals = live
+
         // Refresh what the rows just rendered from cache, so the NEXT open is current. The read
         // is 37 ms per transcript and must never happen while a menu is being drawn.
         let ids = sessions.compactMap(\.sessionID)
@@ -129,58 +134,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
     }
 
-    func appendStandardItems(to menu: NSMenu, trial: TrialState) {
-        if trial.isUnlocked {
-            appendLocalServers(to: menu)
-            BufferMenu.append(to: menu, target: self)
+    /// The one place a model Command becomes an AppKit selector. Kept exhaustive on purpose: a
+    /// new command added to the model will not compile until it has somewhere to go.
+    static func selector(for command: StatusMenu.Command) -> Selector? {
+        switch command {
+        case .focusSession:              return #selector(focusSession(_:))
+        case .sessionCommand:            return #selector(runSessionCommand(_:))
+        case .openLicenseSettings:       return #selector(openLicenseSettings)
+        case .openAutomationSettings:    return #selector(openAutomationSettings)
+        case .openNotificationSettings:  return #selector(openNotificationSettings)
+        case .reportProblem:             return #selector(reportProblem)
+        case .openSettings:              return #selector(openSettings)
+        case .quit:                      return #selector(NSApplication.terminate(_:))
+        case .bufferCopyOne:             return #selector(bufferCopyOne(_:))
+        case .bufferFlush:               return #selector(bufferFlush)
+        case .bufferClear:               return #selector(bufferClear)
         }
-        menu.addItem(.separator())
-        // No file actions here on purpose. They act on a Finder selection, so they live in the
-        // Finder right-click menu where the files are; in the menu bar they had nothing to act on.
-        // Only ever set when a fallback notification was actually refused — which means the HUD
-        // could not draw, so this really is the last channel left. The old tooltip claimed Chute
-        // could not report anything without notifications; the HUD reports every action
-        // regardless, so saying so would have been false.
-        if Notify.deniedAtLastCheck {
-            let fix = NSMenuItem(title: "Turn On Chute Notifications…",
-                                 action: #selector(openNotificationSettings), keyEquivalent: "")
-            fix.target = self
-            fix.toolTip = "Chute normally confirms an action on screen. When it cannot — no "
-                        + "display attached — a notification is the only way left to tell you."
-            menu.addItem(fix)
-        }
-
-        let reportItem = NSMenuItem(title: "Report a Problem…", action: #selector(reportProblem),
-                                    keyEquivalent: "")
-        reportItem.target = self
-        menu.addItem(reportItem)
-
-        let settingsItem = NSMenuItem(title: "Settings…", action: #selector(openSettings),
-                                      keyEquivalent: "")
-        settingsItem.target = self
-        menu.addItem(settingsItem)
-
-        // Trial state, and nothing at all once it is paid for: an app that keeps mentioning
-        // payment after the payment is nagging its own customer.
-        if let label = Trial.menuLabel(trial) {
-            let item = NSMenuItem(title: label, action: #selector(openLicenseSettings),
-                                  keyEquivalent: "")
-            item.target = self
-            menu.addItem(item)
-        }
-
-        menu.addItem(.separator())
-        // NO "REFRESH NOW". It called refresh(), which built a NEW NSMenu and assigned it to
-        // statusItem.menu — and menuWillOpen then fired on that fresh object and rebuilt the whole
-        // thing again from scratch, so the work was discarded every time. It could not have done
-        // anything: this menu is already rebuilt on every open, and the badge is driven by a
-        // DispatchSource on the hook directory. A command that cannot change what you see is worse
-        // than a missing one, because it teaches the reader that the menu might be stale.
-        //
-        // No key equivalents on what remains, either: in a status menu they only work while the
-        // menu is open, so ⌘Q here would promise a global shortcut that does not exist.
-        menu.addItem(NSMenuItem(title: "Quit Chute",
-                                action: #selector(NSApplication.terminate(_:)), keyEquivalent: ""))
     }
 
     /// Only for the ⌥⌘N HUD popup, which has no live NSMenu already being tracked by AppKit
@@ -190,7 +159,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         menu.delegate = self
         let trial = Trial.touch()
         populateBody(menu, trial: trial)
-        appendStandardItems(to: menu, trial: trial)
         return menu
     }
 
@@ -319,7 +287,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     func menuWillOpen(_ menu: NSMenu) {
         let trial = Trial.touch()
         populateBody(menu, trial: trial)
-        appendStandardItems(to: menu, trial: trial)
         // Nothing to re-sample when the rows are not there.
         if trial.isUnlocked { startVitalsRefresh() }
     }
