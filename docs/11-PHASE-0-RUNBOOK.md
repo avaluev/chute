@@ -273,7 +273,7 @@ own. It must never touch a transcript, a log, an agent's context, or this repo.
 7. Mint one for yourself and use it:
 
    ```bash
-   cd /Users/sxope/Documents/2026/Development/37.chute && node worker/keygen.mjs mint <PASTE_PRIVATE_HALF> valuev.alexandr@gmail.com
+   cd /Users/sxope/Documents/2026/Development/37.chute && read -rs CHUTE_LICENSE_SEED && export CHUTE_LICENSE_SEED && node worker/keygen.mjs mint valuev.alexandr@gmail.com; unset CHUTE_LICENSE_SEED
    ```
 
    Rebuild, then Chute menu bar → **Settings…** → **License** → paste → **Activate**.

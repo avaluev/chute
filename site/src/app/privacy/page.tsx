@@ -44,9 +44,9 @@ export default function Privacy() {
 
       <H2>This website</H2>
       <p>
-        Cookieless page analytics, so we can tell whether anyone read this. No cookies, no
-        cross-site tracking, no advertising pixels, no session recording. Nothing that would let
-        us identify a visitor.
+        No analytics of any kind. No cookies, no cross-site tracking, no advertising pixels, no
+        session recording, and no script that counts you. There is nothing here that would let us
+        identify a visitor, or tell us that you visited at all.
       </p>
 
       <H2>Payment data</H2>

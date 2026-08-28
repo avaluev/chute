@@ -242,7 +242,9 @@ export const CASES: Case[] = [
   },
   {
     slug: "a-snapshot-before-you-let-it-run",
-    jtbd: 12, surface: "cli", tier: "short", paid: false,
+    // Reached the Finder menu on 2026-08-28 as "Set Up for an Agent ▸ Save a Checkpoint".
+    // It was the last T1 job in the ledger with a clean folder scope and no surface.
+    jtbd: 12, surface: "finder", tier: "short", paid: true,
     pain: "I am about to let it loose on a repo with work in it I have not committed.",
     ritual: "Commit something you did not want to commit, or stash and find out later that stashing skipped your untracked files.",
     // The mechanism, deliberately, instead of the ledger's risk-adjusted "+20 min/day" — an

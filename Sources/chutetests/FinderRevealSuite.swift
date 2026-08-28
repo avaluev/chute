@@ -3,6 +3,13 @@ import ChuteCore
 
 func finderRevealSuite() {
     T.suite("FinderReveal") {
+        // BOTH scripts must carry a deadline. Without one, `osascript` waits on Finder forever —
+        // measured past ten minutes with Finder busy — and `chute new --rename` hangs with no
+        // output on any user whose Finder happens to be tracking a menu.
+        T.ok(FinderReveal.revealScript(path: "/tmp/x").contains("with timeout of"),
+             "the reveal is bounded by a timeout")
+        T.ok(FinderReveal.beginRenameScript.contains("with timeout of"),
+             "and so is the keystroke that starts the rename")
         // AppleScript is a string language: an unescaped quote in a path ends the literal early
         // and the rest of the path becomes code.
         T.eq(FinderReveal.escape(#"/tmp/a"b"#), #"/tmp/a\"b"#, "a quote in a path is escaped")
