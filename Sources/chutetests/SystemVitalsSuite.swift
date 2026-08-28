@@ -62,9 +62,15 @@ func systemVitalsSuite() {
         // whole-machine core average never explained why anything was slow. These tests passed
         // and the feature was still wrong, which is the only kind of test worth deleting.
 
-        // An idle shell says nothing. A row reading "0% · 4 MB" is noise in a list you are
-        // scanning to find the busy one.
-        T.eq(SystemVitals.load(forTTY: "s002", in: samples).label, "", "an idle session stays quiet")
+        // EVERY SESSION REPORTS, INCLUDING THE QUIET ONES. `label` used to go empty below 1% CPU
+        // and 200 MB, on the theory that "0% CPU · 4 MB memory" was noise. Owner's call,
+        // 2026-08-28: these numbers are the useful part of the row. A blank where a number belongs
+        // reads as "not measured", and a reader comparing five agents needs all five figures, not
+        // only the ones something decided were interesting.
+        T.eq(SystemVitals.load(forTTY: "s002", in: samples).label, "0% CPU · 4 MB memory",
+             "a quiet session still reports")
+        T.eq(SystemVitals.load(forTTY: "ttys999", in: samples).label, "",
+             "but a tty with no processes at all has nothing to report")
         T.eq(SystemVitals.load(forTTY: "ttys999", in: samples).processes, 0, "an unknown tty is empty")
         T.eq(SystemVitals.load(forTTY: "/dev/s001", in: samples).processes, 2,
              "a /dev-prefixed tty matches the same session")
