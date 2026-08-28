@@ -182,6 +182,12 @@ func coreSuites() {
         T.ok(Redact.apply("before\n" + key + "\nafter").contains("before"),
              "and the surrounding text survives")
 
+    }
+
+    // ITS OWN SUITE. These assertions sat inside T.suite("Redact"), so a symlink-escape failure
+    // reported as "Redact › a path through a symlink…" — the one label a reader greps for at 3am,
+    // pointing at the wrong module. A failing security guard must say which guard it is.
+    T.suite("MarkdownUnpack.staysInside") {
         // SECURITY — a path that escapes through a symlink already sitting in the target folder.
         let box = NSTemporaryDirectory() + "chute-escape-\(UInt32.random(in: 0...99999))"
         let inside = (box as NSString).appendingPathComponent("safe")
@@ -200,6 +206,25 @@ func coreSuites() {
              "a path through a symlink that leaves the folder is refused")
         T.ok(!MarkdownUnpack.staysInside(dir: inside, path: "../pwned.txt"),
              "and so is a plain climb, belt and braces with validate()")
+        T.ok(!MarkdownUnpack.staysInside(dir: inside, path: "link/deep/pwned.txt"),
+             "a symlink escape is caught even when the path continues past it")
+
+        // THE FALSE REFUSAL. `resolvingSymlinksInPath()` only rewrites components that exist, so
+        // an unwritten parent came back verbatim while the existing root came back normalised —
+        // and macOS collapses /private/tmp to /tmp, so `chute unpack` from inside /tmp compared
+        // `/tmp/x` against `/private/tmp/x/notes` and refused every nested file in the answer.
+        // Silently: one `continue` per file, under this function's own escape message.
+        let privateRoot = "/private/tmp/chute-staysinside-\(UUID().uuidString)"
+        try? FileManager.default.createDirectory(atPath: privateRoot, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(atPath: privateRoot) }
+        T.ok(MarkdownUnpack.staysInside(dir: privateRoot, path: "notes/hello.md"),
+             "a nested path under /private/tmp is inside, not an escape")
+        T.ok(MarkdownUnpack.staysInside(dir: privateRoot, path: "a/b/c/d.txt"),
+             "and so is one several levels deep that does not exist yet")
+        try? FileManager.default.createSymbolicLink(
+            atPath: (privateRoot as NSString).appendingPathComponent("out"), withDestinationPath: "/private/etc")
+        T.ok(!MarkdownUnpack.staysInside(dir: privateRoot, path: "out/passwd"),
+             "and a real escape from there is still refused")
     }
 
     T.suite("FileScan.expand") {
