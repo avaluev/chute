@@ -39,19 +39,19 @@ brew install avaluev/tap/chute
 The Chute.app (Finder menu, menu-bar switcher, hotkey):
 
 ```bash
-cd /Users/sxope/Documents/2026/Development/37.chute && ./Scripts/install.sh
+./Scripts/install.sh
 ```
 
-Installs `~/Applications/Chute.app` (menu bar `⤓`, hotkey `⌥⌘N`) and `~/.local/bin/chute`.
+Installs `~/Applications/Chute.app` (menu bar `⤓`, hotkey `⌥⌘N`). The CLI comes from Homebrew.
 
 Remove it completely at any time:
 
 ```bash
-cd /Users/sxope/Documents/2026/Development/37.chute && ./Scripts/uninstall.sh
+./Scripts/uninstall.sh
 ```
 
-**Three ways to use it:** right-click in Finder → **Chute ▸**, the `⌥⌘N` hotkey anywhere, or the
-`chute` CLI.
+**Three ways to use it:** right-click in Finder — the actions sit inline in the context menu,
+with no `Chute ▸` hop to open first — the `⌥⌘N` hotkey anywhere, or the `chute` CLI.
 
 The Finder menu is a sandboxed `FIFinderSync` extension inside the app. `install.sh` registers and
 enables it for you; if it ever goes missing, tick it in System Settings → Privacy & Security →
@@ -194,12 +194,17 @@ Chute is built to be trusted with a repo an agent is about to rampage through.
 ## Development
 
 ```bash
-cd /Users/sxope/Documents/2026/Development/37.chute && swift build -c release   # build
-cd /Users/sxope/Documents/2026/Development/37.chute && swift run chutetests      # 751 assertions
-cd /Users/sxope/Documents/2026/Development/37.chute && CHUTE_HEADLESS=1 ./Scripts/smoke.sh  # 128 passed
-cd /Users/sxope/Documents/2026/Development/37.chute && ./Scripts/smoke.sh        # + the Finder/Terminal sections
-cd /Users/sxope/Documents/2026/Development/37.chute && ./Scripts/build-app.sh    # assemble Chute.app
+swift build -c release                # build
+swift run chutetests                  # the unit suite
+CHUTE_HEADLESS=1 ./Scripts/smoke.sh   # the CLI end to end, no GUI
+./Scripts/smoke.sh                    # + the Finder/Terminal sections
+./Scripts/build-app.sh                # assemble Chute.app, stamped with the git SHA
 ```
+
+The tally each of those prints lives in `marketing/06-FACT-SHEET.md` §Verification, and only
+there. This block used to carry its own copies — "751 assertions", "128 passed" — and both were
+wrong by the time anyone read them. Run the gate and read its tally; a count copied into a second
+file is a count nobody re-derived.
 
 No third-party dependencies. Builds with Command Line Tools — Xcode is not required.
 `swift test` is unavailable on a CLT-only toolchain (XCTest ships with Xcode), so the suite is a
