@@ -28,9 +28,9 @@ plan: lint
 # osa / key / pause instead; they are the same thing with the guard attached.
 lint:
 	@fail=0; for t in $(TAPES); do \
-	  if sed 's/#.*//' $$t | grep -nE '\b(osascript|cliclick|sleep|screencapture)\b' >/dev/null; then \
+	  if sed 's/#.*//' $$t | grep -nE '\b(osascript|cliclick|sleep|screencapture|open|killall)\b' >/dev/null; then \
 	    echo "  FAIL $$t reaches past the verbs:"; \
-	    sed 's/#.*//' $$t | grep -nE '\b(osascript|cliclick|sleep|screencapture)\b' | sed 's/^/       /'; \
+	    sed 's/#.*//' $$t | grep -nE '\b(osascript|cliclick|sleep|screencapture|open|killall)\b' | sed 's/^/       /'; \
 	    echo "       use osa / key / pause / take_start — they carry the PLAN guard"; \
 	    fail=1; \
 	  fi; \
