@@ -153,7 +153,11 @@ has "doctor names a fix" "$("$CHUTE" doctor 2>&1)" "checks"
 REPORT="$("$CHUTE" doctor --report 2>/dev/null)"
 has   "report asks what happened"   "$REPORT" "What happened"
 has   "report carries the checks"   "$REPORT" "macOS version"
-has   "report states the version"   "$REPORT" "chute 0.1.0"
+# Read from the single source, never a literal. This line said "chute 0.1.0" and went red the
+# moment the version was bumped — a hardcoded copy of the number that Sources/ChuteCore/
+# Version.swift exists to be the only copy of.
+VERSION="$(sed -n 's/.*static let current = "\([^"]*\)".*/\1/p' "$ROOT/Sources/ChuteCore/Version.swift")"
+has   "report states the version"   "$REPORT" "chute $VERSION"
 hasnt "report repairs nothing"      "$REPORT" "Fixed"
 
 fi
