@@ -115,7 +115,13 @@ func licenseSuite() {
         // The menu line. Silent when licensed — a paid app that keeps mentioning payment is
         // nagging its own customer.
         T.eq(Trial.menuLabel(.licensed(email: "a@b.c")), nil, "a customer is never shown a price")
-        T.eq(Trial.menuLabel(.trial(daysLeft: 9)), "Trial — 9 days left", "the count reads plainly")
+        // QUIET FOR MOST OF THE TRIAL. Fourteen reminders over fourteen days is fourteen chances
+        // to find the menu annoying, and the first eleven cannot change a decision nobody is
+        // making yet. Settings → License shows the real state on every one of those days.
+        T.eq(Trial.menuLabel(.trial(daysLeft: 9)), nil, "day 9 says nothing in the menu")
+        T.eq(Trial.menuLabel(.trial(daysLeft: 4)), nil, "nor does day 4")
+        T.eq(Trial.menuLabel(.trial(daysLeft: 3)), "Trial — 3 days left",
+             "three days out it starts speaking, because now it can change something")
         T.eq(Trial.menuLabel(.trial(daysLeft: 1)), "Trial — last day", "and the last day says so")
         T.eq(Trial.menuLabel(.expired), "Buy Chute — $19 one-time", "expiry states the price")
 

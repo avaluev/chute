@@ -22,9 +22,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     var lastSessions: [Session] = []
     var watcher: DispatchSourceFileSystemObject?
     var requestWatcher: DispatchSourceFileSystemObject?
-    var liveVitals: SessionMenu.LiveVitals?
-    var vitalsTimer: Timer?
-    var vitalsSampling = false
 
     func applicationDidFinishLaunching(_ n: Notification) {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
@@ -81,7 +78,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     /// `chute ports` still do all of this for free from the terminal. The convenience is what is
     /// bought; the capability was never taken away. That line is the open-core promise being
     /// kept at the exact moment it would be easiest to break.
-    func populateBody(_ menu: NSMenu, trial: TrialState) -> SessionMenu.LiveVitals? {
+    func populateBody(_ menu: NSMenu, trial: TrialState) {
+        // CLEARED HERE, AND ONLY HERE. menuWillOpen populates the menu AppKit hands us IN PLACE,
+        // so whatever was on it from last time is still there. SessionMenu.populate used to do
+        // this — which meant the expired-trial branch below, which returns before ever reaching
+        // it, appended a second complete copy of the menu on every open. It grew without bound,
+        // in front of the one person who was deciding whether to pay.
+        menu.removeAllItems()
         guard trial.isUnlocked else {
             statusItem.button?.title = "⤓"      // no count: the count is part of what is bought
             lastSessions = []
@@ -98,14 +101,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                         + "Finder menu and this switcher, not the ability to do these things."
             menu.addItem(cli)
             menu.addItem(.separator())
-            return nil
+            return
         }
         let (sessions, problem) = discoverSessionsForMenu()
         statusItem.button?.title = SessionMenu.badge(for: sessions)
         lastSessions = sessions
-        return SessionMenu.populate(menu, sessions: sessions, problem: problem,
-                                    target: self, action: #selector(focusSession(_:)),
-                                    openSettings: #selector(openAutomationSettings))
+        SessionMenu.populate(menu, sessions: sessions, problem: problem,
+                             target: self, action: #selector(focusSession(_:)),
+                             openSettings: #selector(openAutomationSettings))
     }
 
     func appendStandardItems(to menu: NSMenu, trial: TrialState) {
@@ -146,20 +149,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
 
         menu.addItem(.separator())
-        // No key equivalents: in a status menu they only work while the menu is open, so showing
-        // ⌘R and ⌘Q promises a global shortcut that does not exist.
-        menu.addItem(NSMenuItem(title: "Refresh Now", action: #selector(refresh), keyEquivalent: ""))
+        // NO "REFRESH NOW". It called refresh(), which built a NEW NSMenu and assigned it to
+        // statusItem.menu — and menuWillOpen then fired on that fresh object and rebuilt the whole
+        // thing again from scratch, so the work was discarded every time. It could not have done
+        // anything: this menu is already rebuilt on every open, and the badge is driven by a
+        // DispatchSource on the hook directory. A command that cannot change what you see is worse
+        // than a missing one, because it teaches the reader that the menu might be stale.
+        //
+        // No key equivalents on what remains, either: in a status menu they only work while the
+        // menu is open, so ⌘Q here would promise a global shortcut that does not exist.
         menu.addItem(NSMenuItem(title: "Quit Chute",
                                 action: #selector(NSApplication.terminate(_:)), keyEquivalent: ""))
     }
 
-    /// Only for contexts where menuWillOpen does not apply — refresh() and the ⌥⌘N HUD popup —
-    /// because there is no live NSMenu already being tracked by AppKit to populate in place.
+    /// Only for the ⌥⌘N HUD popup, which has no live NSMenu already being tracked by AppKit
+    /// to populate in place. Every other path goes through menuWillOpen.
     func buildMenu() -> NSMenu {
         let menu = NSMenu()
         menu.delegate = self
         let trial = Trial.touch()
-        liveVitals = populateBody(menu, trial: trial)
+        populateBody(menu, trial: trial)
         appendStandardItems(to: menu, trial: trial)
         return menu
     }
@@ -198,8 +207,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
     }
 
-    @objc func refresh() { statusItem.menu = buildMenu() }
-
     // AppleScript runs ONLY when the menu opens (menuWillOpen) — the user has just clicked,
     // so the cost is hidden by the click. Never called from the launch path.
     //
@@ -208,39 +215,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     // takes effect on the NEXT open, and the user sees the previous (stale) session list.
     func menuWillOpen(_ menu: NSMenu) {
         let trial = Trial.touch()
-        liveVitals = populateBody(menu, trial: trial)
+        populateBody(menu, trial: trial)
         appendStandardItems(to: menu, trial: trial)
-        // Nothing to re-sample when the rows are not there.
-        if trial.isUnlocked { startVitalsRefresh() }
     }
 
-    /// While the menu is open, every number on it is re-sampled every two seconds — rows and
-    /// the This-Mac line from ONE snapshot, so they always describe the same instant. The timer
-    /// runs in .common modes because menu tracking blocks the default run loop mode; sampling
-    /// happens off the main thread so the open menu never stutters.
-    func startVitalsRefresh() {
-        vitalsTimer?.invalidate()
-        let timer = Timer(timeInterval: 2.0, repeats: true) { [weak self] _ in
-            guard let self, !self.vitalsSampling else { return }
-            self.vitalsSampling = true
-            DispatchQueue.global(qos: .userInteractive).async {
-                let samples = SystemVitals.sample()
-                let battery = SystemVitals.temperature()
-                DispatchQueue.main.async {
-                    self.liveVitals?.apply(samples: samples, batteryCelsius: battery)
-                    self.vitalsSampling = false
-                }
-            }
-        }
-        RunLoop.main.add(timer, forMode: .common)
-        vitalsTimer = timer
-    }
-
-    func menuDidClose(_ menu: NSMenu) {
-        vitalsTimer?.invalidate()
-        vitalsTimer = nil
-        liveVitals = nil
-    }
+    // startVitalsRefresh() and menuDidClose() are gone with the numbers they maintained. The
+    // timer woke twice a second-and-a-half to re-title rows with a CPU figure that is no longer
+    // drawn; there is nothing left on this menu that changes while it is open.
 
     /// Badge updates are event-driven off the hook directory — no polling, no AppleScript.
     func startWatching() {

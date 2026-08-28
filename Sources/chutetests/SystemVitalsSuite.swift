@@ -55,28 +55,12 @@ func systemVitalsSuite() {
         let cyclic = [ProcessSample(pid: 5, ppid: 5, command: "x", tty: "", cpuPercent: 1, residentKB: 1)]
         T.eq(SystemVitals.attribute(cyclic).first?.tty, "", "a self-parenting pid ends the climb")
 
-        // The busiest process on the machine, by name — the answer to "why is my Mac hot".
-        T.eq(SystemVitals.busiest(tree)?.command, "chrome-headless-shell",
-             "the busiest process is found and named by its basename")
-        T.eq(SystemVitals.busiest([])?.command, nil, "no processes is no busiest, not a crash")
-
-        // The This-Mac line: every claim is a MEASUREMENT from the same snapshot as the rows.
-        // "running cool" next to a 171% row and a hot chassis is why this exists — nominal
-        // thermal state now says nothing instead of editorialising "cool".
-        let line = SystemVitals.machineLine(samples: tree, cores: 12,
-                                            thermal: .nominal, batteryCelsius: 30.72)
-        T.ok(line.hasPrefix("This Mac — using 1.3 of 12 cores"),
-             "total CPU is the sum of the SAME samples the rows show: \(line)")
-        T.ok(line.contains("busiest: chrome-headless-shell at 120% CPU"),
-             "the burner is named on the same line: \(line)")
-        T.ok(line.contains("battery at 31 °C"), "the battery says it is the battery: \(line)")
-        T.ok(!line.contains("cool"), "nominal thermal state claims NOTHING: \(line)")
-        T.ok(SystemVitals.machineLine(samples: tree, cores: 12,
-                                      thermal: .serious, batteryCelsius: nil)
-                .contains("slow down"), "an elevated thermal state IS said, in words")
-        let quiet = SystemVitals.machineLine(samples: [], cores: 12,
-                                             thermal: .nominal, batteryCelsius: nil)
-        T.eq(quiet, "This Mac — using 0.0 of 12 cores", "no burner, no battery: just the number")
+        // DELETED WITH THE CODE THEY COVERED: busiest, machineLine, and the whole battery
+        // temperature path. The menu line they backed said "This Mac — using 0.4 of 16 cores ·
+        // battery at 31 °C · 87 °F", and two of those three claims were not worth reading: the
+        // battery sensor does not track how hot the chassis gets under an agent workload, and a
+        // whole-machine core average never explained why anything was slow. These tests passed
+        // and the feature was still wrong, which is the only kind of test worth deleting.
 
         // An idle shell says nothing. A row reading "0% · 4 MB" is noise in a list you are
         // scanning to find the busy one.
@@ -85,23 +69,6 @@ func systemVitalsSuite() {
         T.eq(SystemVitals.load(forTTY: "/dev/s001", in: samples).processes, 2,
              "a /dev-prefixed tty matches the same session")
 
-        // Temperature: ioreg reports centi-degrees Celsius.
-        let ioreg = #"      "Temperature" = 3072"#
-        T.eq(SystemVitals.batteryCelsius(fromIOReg: ioreg), 30.72, "3072 is 30.72 °C")
-        T.eq(SystemVitals.fahrenheit(30.0), 86.0, "30 °C is 86 °F")
-        T.eq(SystemVitals.temperatureLabel(30.72), "31 °C · 87 °F", "both units, rounded, as asked")
-
-        // A misread is refused rather than reported as a hot Mac.
-        T.ok(SystemVitals.batteryCelsius(fromIOReg: #""Temperature" = 999999"#) == nil,
-             "an impossible reading is refused")
-        T.ok(SystemVitals.batteryCelsius(fromIOReg: "no temperature here") == nil,
-             "a missing sensor is nil, not zero")
-        T.ok(SystemVitals.batteryCelsius(fromIOReg: #""Temperature" = -500"#) == nil,
-             "and so is a negative one")
-
-        T.eq(SystemVitals.thermalPressure(.nominal), "running cool", "thermal pressure reads as words")
-        T.ok(SystemVitals.thermalPressure(.serious).contains("slow down"),
-             "and a serious state says what it means for your work, not just its severity")
 
         T.eq(SystemVitals.bytes(1_610_612_736), "1.5 GB", "gigabytes to one decimal")
         T.eq(SystemVitals.bytes(524_288_000), "500 MB", "megabytes whole")
