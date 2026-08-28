@@ -13,7 +13,19 @@ pkill -x ChuteApp 2>/dev/null || true
 # there, but an uninstall must not leave dead hooks behind either. `hooks uninstall` removes
 # exactly the chute-marked blocks (backup first) and is a byte-for-byte no-op when none exist.
 # It must run while the CLI still exists — the binary is inside the app bundle removed below.
-"$HOME/.local/bin/chute" hooks uninstall 2>/dev/null || true
+#
+# TWO FIXES, 2026-08-29. `--force`: `hooks uninstall` previews by default now, like the other
+# destructive commands, so this line removed nothing and then deleted the only binary that could
+# — leaving legacy hook blocks in a file with no tool left to clean them. And the binary is
+# resolved rather than assumed: install.sh stopped creating ~/.local/bin/chute (Homebrew owns the
+# CLI), so on any recent install this pointed at nothing and the `|| true` hid it. The copy inside
+# the bundle is the one that is certainly present at uninstall time.
+for CLI in "$HOME/Applications/Chute.app/Contents/MacOS/chute" \
+           "/opt/homebrew/bin/chute" "/usr/local/bin/chute" "$HOME/.local/bin/chute"; do
+  [ -x "$CLI" ] || continue
+  "$CLI" hooks uninstall --force 2>/dev/null || true
+  break
+done
 pluginkit -r "$HOME/Applications/Chute.app/Contents/PlugIns/ChuteFinder.appex" 2>/dev/null || true
 rm -rf "$HOME/Applications/Chute.app"
 rm -f "$HOME/.local/bin/chute"
