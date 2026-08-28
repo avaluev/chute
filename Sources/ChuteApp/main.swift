@@ -40,6 +40,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         // needed, which is the honest time to ask.
         registerHotKey()
         FirstRunWindow.showIfNeeded()
+        // Teaching, not repair. FirstRunWindow shows only what is FAILING and stays silent when
+        // everything passes — which means a stranger whose install went perfectly sees nothing at
+        // all, in an app with no Dock icon. This runs once, on genuine first launch, and never
+        // reappears uninvited; `chute onboard` is the way back.
+        Onboard.showIfFirstRun()
         startWatching()
         startWatchingRequests()
         updateBadgeFromHooks()

@@ -42,6 +42,7 @@ SHARING
 
 SETUP
   doctor                Check every prerequisite and say how to fix it   --fix --json
+  onboard               What Chute is, and the first thing to try
 
 Global: --no-copy  suppress clipboard write.
 Everything is offline and nothing is uploaded, with one explicit exception: `gist` sends the
@@ -91,6 +92,7 @@ case "sessions":   cmdSessions(args)
 case "focus":      cmdFocus(args)
 case "hooks":      cmdHooks(args)
 case "doctor":     cmdDoctor(args)
+case "onboard":    cmdOnboard(args)
 case "finder-actions": cmdFinderActions(args)
 case "paste-image":    cmdPasteImage(args)
 case "help", "-h", "--help", "version", "--version":
