@@ -310,3 +310,50 @@ Expected: `✅ 637 assertions passed` and `smoke: 152 passed, 0 failed`.
 > ```bash
 > swift build -c release && ./Scripts/smoke.sh
 > ```
+
+---
+
+## F. The numbers, validated by hand against an independent tool
+
+**Rule 6 of the measurement doctrine** (`Sources/ChuteCore/ProcessMetrics.swift`): validate once
+against an independent tool, by hand, and write down the date and the delta. A number that agrees
+with itself proves nothing; a number that agrees with the tool Apple ships is a number a user can
+check behind you.
+
+### 2026-08-28 — `footprint(1)` vs Chute, same pid, same instant
+
+`footprint` is Apple's own memory accounting tool. It reports `phys_footprint` and
+`phys_footprint_peak`, which are precisely the two fields Chute reads from
+`proc_pid_rusage(RUSAGE_INFO_V6)` — so this is a direct comparison of the same quantity, not two
+tools' opinions of "memory".
+
+| Quantity | `footprint -p 77569` | Chute | Delta |
+|---|---|---|---|
+| `phys_footprint` | 384 MB | 383 MB | **1 MB — 0.26%** |
+| `phys_footprint_peak` | 421 MB | 421 MB | **exact** |
+
+The 1 MB on the live figure is sampling skew: the process kept running between the two reads. The
+peak matched exactly, which is what a high-water mark should do — it is a record, not a sample.
+
+Reproduce it:
+
+```bash
+./.build/release/chute sessions --json | python3 -c 'import json,sys; print(json.load(sys.stdin)[0]["tty"])'
+```
+
+```bash
+/usr/bin/footprint -p <a pid on that tty>
+```
+
+`footprint` needs **no root** for your own processes. `footprint <name>` also aggregates every
+process of that name with shared pages de-duplicated — useful as a sanity check on a whole tree,
+but not a like-for-like comparison with a per-session sum, because a session is not all the
+processes of one name.
+
+### Why this is not a test
+
+It is here, in a document, with a date on it, rather than in `chutetests`, because it needs a
+second tool and a human reading two screens. The automated half is
+`cd /Users/sxope/Documents/2026/Development/37.chute && ./Scripts/check-metrics.sh`, which pins
+the same numbers against the RAM and the cores in the machine and against loads of known size.
+Re-run this by-hand check when the metrics code changes, and append a row above with the new date.
