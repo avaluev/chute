@@ -1,6 +1,7 @@
 # HANDOFF — the surfaces agree — 2026-08-29
 
-STATE: `main` · `7f2f701 → a6b8a09` (7 commits) · tree clean · **pushed**
+STATE: `main` · `7f2f701 → ffe364b` (10 commits) · tree clean · **pushed**
+Installed app stamp matches HEAD: `chute 0.2.0 · app build ffe364b` · `→ all 10 checks passed`
 Counts live in ONE place: `marketing/06-FACT-SHEET.md` §Verification. Re-derived from the gates
 this session, not copied forward.
 
@@ -72,6 +73,12 @@ when Homebrew took over the CLI, so the legacy cleanup had been dead before the 
 - **Write the invariant against the real data first.** Three candidate naming rules were measured
   across all 14 actions; two produced legitimate false positives. Only "a word appearing nowhere
   in the table" had exactly one violation — the real one.
+
+- **`check-metrics` flakes under heavy load — 1 run in 3, and it is not a regression.** The
+  one-core assertion read `moved 196.7%, expected 80–130%` once while four subagents were running,
+  green on every other run of the day. No metrics code was touched this session. Do NOT widen the
+  bound: that is exactly how this gate would stop catching the 24× error it was built for. Re-run
+  on a quiet machine before believing a red.
 
 ---
 
