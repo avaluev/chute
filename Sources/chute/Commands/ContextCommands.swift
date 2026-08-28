@@ -44,7 +44,18 @@ func cmdTokens(_ a: Args) {
         Out.line(String(format: "%8d  %@", n, PathFormat.relativize(p, to: root)))
     }
     Out.line(String(repeating: "-", count: 40))
-    Out.line(String(format: "%8d  TOTAL (%@)", total, TokenEstimate.badge(total)))
+    // Part B — TOTAL is the ASSEMBLED-BUNDLE count, not the sum of the rows above: the wrapper
+    // markup (XML tags, or MD fences under --format md) is real text the user pastes. Reuses the
+    // exact call sequence `bundle` uses so the two always agree; the rows above are correct and
+    // no longer sum to this — that gap is the markup, not a bug.
+    let (bundled, _) = FileScan.bundleFiles(expanded)
+    let bundleRoot = ProjectRoot.of(bundled.map(\.path))
+    let bundleText = a.value("format", or: "xml") == "md"
+        ? ContextBundle.markdown(bundled, root: bundleRoot)
+        : ContextBundle.xml(bundled, root: bundleRoot)
+    let bundleTokens = TokenEstimate.tokens(in: bundleText)
+    Out.line(String(format: "%8d  TOTAL — as pasted, bundle markup included (%@)",
+                    bundleTokens, TokenEstimate.badge(bundleTokens)))
 }
 
 // MARK: - FR-10 tree

@@ -83,6 +83,33 @@ func coreSuites() {
         T.throwsError("rejects absolute path") { _ = try MarkdownUnpack.validate([UnpackedFile(path: "/etc/passwd", content: "x")]) }
         T.throwsError("rejects parent traversal") { _ = try MarkdownUnpack.validate([UnpackedFile(path: "../../etc/passwd", content: "x")]) }
         T.noThrow("accepts nested relative path") { _ = try MarkdownUnpack.validate([UnpackedFile(path: "a/b/c.ts", content: "x")]) }
+
+        // Part A — pathFromBody: what agents actually emit when there's no fence info and no
+        // heading above the fence — the path named in a leading comment inside the block.
+        let slashPath = MarkdownUnpack.parse("```ts\n// src/c.ts\nexport const c = 1\n```")
+        T.eq(slashPath.first?.path ?? "", "src/c.ts", "path from // comment on body[0]")
+        let hashPath = MarkdownUnpack.parse("```python\n# app/main.py\nprint(1)\n```")
+        T.eq(hashPath.first?.path ?? "", "app/main.py", "path from # comment on body[0]")
+        let blockPath = MarkdownUnpack.parse("```css\n/* src/d.css */\nbody { margin: 0 }\n```")
+        T.eq(blockPath.first?.path ?? "", "src/d.css", "path from /* */ comment on body[0]")
+        let htmlPath = MarkdownUnpack.parse("```html\n<!-- src/e.html -->\n<div></div>\n```")
+        T.eq(htmlPath.first?.path ?? "", "src/e.html", "path from <!-- --> comment on body[0]")
+        // DECISION: the marker is KEPT in the written content — that comment is part of the file
+        // the agent wrote, not part of the path. Only the extracted PATH has it stripped.
+        T.eq(slashPath.first?.content ?? "", "// src/c.ts\nexport const c = 1",
+             "comment marker is KEPT in the written content, not stripped")
+        T.throwsError("a traversal path sourced from a body comment is still rejected") {
+            _ = try MarkdownUnpack.validate(MarkdownUnpack.parse("```ts\n// ../../etc/passwd\nx\n```"))
+        }
+        T.ok(MarkdownUnpack.parse("```ts\nconst x = 1\n```").isEmpty,
+             "ordinary code on body[0] yields no file — info-string and heading paths do not regress")
+        // A shebang survives the "#" strip as "!/bin/bash": no space, full of slashes, and it
+        // would have written a file into a directory named "!". Both comment-stripping callers
+        // had the hole, so the guard lives in looksLikePath.
+        T.ok(MarkdownUnpack.parse("```bash\n#!/bin/bash\necho hi\n```").isEmpty,
+             "a shebang on body[0] is not a path")
+        T.ok(MarkdownUnpack.parse("#!/bin/bash\n\n```bash\necho hi\n```").isEmpty,
+             "a shebang in the line above the fence is not a path either")
     }
 
     // MARK: - FR-19 redaction
