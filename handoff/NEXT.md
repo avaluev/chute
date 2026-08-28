@@ -80,6 +80,13 @@ of its load-bearing facts are documented nowhere but this repo.
 
 ## NEXT — in order
 
+> **THE NEXT SESSION HAS A WRITTEN PLAN: `handoff/HANDOFF-2026-08-28-measurement.md`.**
+> Read it before anything else. It carries the measurement doctrine, the syscall surface proved
+> on this machine with real timings, the agent dispatch (3 Sonnet + 2 Haiku on disjoint files),
+> and the plausibility gate — because every gate in this repo checks that a number EXISTS and
+> none checks that it is SANE, which is how CPU stayed 24× wrong through a green build.
+
+
 Everything below the line is done. **Everything blocking revenue is manual and yours.**
 
 ### 1. Phase 0 — nothing ships without these (all manual)
@@ -294,11 +301,13 @@ reasoned, not seen — the one part of this that has not met a human eye.
 ## REVIEW FINDINGS STILL OPEN
 
 **Apple platform design**
-- The status item draws a text glyph (`⤓ 3`). Apple's own menu-bar items use a template `NSImage`,
-  so Chute will not tint correctly in every menu-bar appearance.
+- ~~The status item draws a text glyph (`⤓ 3`)~~ — **FIXED 2026-08-28.** It is a template
+  `NSImage` now (`Sources/ChuteApp/SessionMenu.swift`, `applyBadge`), so the system tints it.
 - The first-run window is a hand-built `NSWindow` of stacked rows; `NSAlert` is the HIG-correct
-  shape for "one thing needs your permission".
-- No Settings window and no About panel. A paid app needs both before launch.
+  shape for "one thing needs your permission". **Still open, but read the doc comment first —
+  the current shape is argued for, so this is a decision to revisit rather than a defect.**
+- ~~No Settings window~~ — it exists (`Sources/ChuteApp/SettingsWindow.swift`, three tabs).
+  **No About panel: still genuinely missing.** Nothing calls `orderFrontStandardAboutPanel`.
 
 **Code**
 - `/Users/sxope/Documents/2026/Development/37.chute/Sources/chute/Commands/AgentCommands.swift`
