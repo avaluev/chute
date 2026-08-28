@@ -38,6 +38,11 @@ enum ResultHUD {
     static func show(_ text: String, anchor: NSRect? = nil) -> Bool {
         // Tests and CI have no window server. Drawing there is a crash, not a feature.
         guard NSApp != nil, !isHeadless else { return false }
+        // A clamshell Mac with its external display asleep has a live window server and NO
+        // screens: `origin(for:)` then falls back to (0,0) of nothing, the panel is drawn where
+        // nobody can see it, and returning true here would suppress the notification too — the
+        // one case where the durable, later-visible surface is the ONLY one that can work.
+        guard !NSScreen.screens.isEmpty else { return false }
         precondition(Thread.isMainThread, "ResultHUD must be shown on the main thread")
 
         let body = NSTextField(labelWithString: text)

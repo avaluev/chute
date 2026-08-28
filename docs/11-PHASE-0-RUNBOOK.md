@@ -22,7 +22,7 @@ State below was **measured**, not assumed — every "reality" cell has the comma
 
 ### The trap that will bite
 
-`/Users/sxope/Documents/2026/Development/37.chute/Scripts/release.sh:36` refuses a tag that already
+`/Users/sxope/Documents/2026/Development/37.chute/Scripts/release.sh:32` refuses a tag that already
 exists, and `v0.2.0` is already pushed with no GitHub release attached. Before the first real
 release, bump
 `/Users/sxope/Documents/2026/Development/37.chute/Sources/ChuteCore/Version.swift:12` to `0.3.0`.
@@ -70,7 +70,7 @@ Steps 3, 5, 6 and 4 are all same-day. Start 1 and 2 today, do the rest while the
    open -e /Users/sxope/Documents/2026/Development/37.chute/site/src/lib/config.ts
    ```
 
-   Lines 23–24:
+   Lines 24–25 — shown here FILLED IN; in the file both are still `""`:
 
    ```ts
      seller: {
@@ -197,7 +197,7 @@ Resend sends.** They must not both own the apex MX.
 ### 4b. Outbound — Resend
 
 The Worker sends **from** `Chute <keys@chutedev.com>`
-(`/Users/sxope/Documents/2026/Development/37.chute/worker/src/index.js:104`). That address must be
+(`/Users/sxope/Documents/2026/Development/37.chute/worker/src/index.js:102`). That address must be
 verified in Resend or every licence email is filed as spam.
 
 7. Sign up at <https://resend.com/signup>. Free tier is 3,000 emails/month.
@@ -417,7 +417,7 @@ Summary with the links:
    tap that already exists:
 
    ```bash
-   cd /Users/sxope/Documents/2026/Development/37.chute && git clone https://github.com/avaluev/homebrew-tap.git /tmp/homebrew-tap && cp packaging/homebrew/chute.rb /tmp/homebrew-tap/Formula/chute.rb && cd /tmp/homebrew-tap && git commit -am "chute 0.3.0" && git push
+   cd /Users/sxope/Documents/2026/Development/37.chute && rm -rf /tmp/homebrew-tap && git clone https://github.com/avaluev/homebrew-tap.git /tmp/homebrew-tap && cp packaging/homebrew/chute.rb /tmp/homebrew-tap/Formula/chute.rb && cd /tmp/homebrew-tap && git commit -am "chute 0.3.0" && git push
    ```
 
 4. Verify as a stranger would:

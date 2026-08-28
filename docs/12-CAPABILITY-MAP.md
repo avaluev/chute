@@ -6,7 +6,7 @@ same engine, and this is the one page that says which job each of them is actual
 | Surface | What it is | Paid? |
 |---|---|---|
 | **`chute` CLI** | 27 commands, MIT, free forever. Every capability lives here first. | free |
-| **Finder right-click** | 13 actions in 8 rows. Every one of them shells out to the CLI. | paid |
+| **Finder right-click** | 14 actions in 8 rows. Every one of them shells out to the CLI. | paid |
 | **Menu bar (⤓)** | Session switcher, local servers, licence, diagnostics. Uses ChuteCore in-process. | paid |
 
 The rule that keeps them honest: **the app is a surface, never a second implementation**
@@ -39,6 +39,7 @@ swift run chute finder-actions --menu
   Set Up for an Agent  ▸           ● purple
         Add Agent Rules
         New Scratch Folder
+        Save a Checkpoint
   Move Junk to Trash…              ● red
   Open in Terminal                 ● indigo
 ```
@@ -56,10 +57,16 @@ swift run chute finder-actions --menu
 | New File ▸ Image from Clipboard | `paste-image` | `chute paste-image --dir <dir>` | folder | **3** (image variant) | ″ | green |
 | Set Up for an Agent ▸ Add Agent Rules | `seed-rules` | `chute seed <dir>` | folder | **7** Seed agent rule files | 9.9 min | purple |
 | Set Up for an Agent ▸ New Scratch Folder | `sandbox-here` | `chute sandbox --dir <dir>` | folder | **6** Agent sandbox init | 7.3 min | purple |
+| Set Up for an Agent ▸ Save a Checkpoint | `checkpoint-here` | `chute checkpoint <dir>` | folder | **12** Pre-agent checkpoint | 3.3 min **+ ~20 min risk-adj.** | purple |
 | Move Junk to Trash… | `clean-junk` | `chute clean <dir>` | folder | **13** Clean agent junk | 6.6 min | **red** |
 | Open in Terminal | `terminal` | `chute open <dir>` | folder | **8** Open terminal here | 5.9 min | indigo |
 
-**Total surfaced through Finder: 9 of the 24 ledger JTBDs, ≈ 126 min/day.** The two largest
+**Total surfaced through Finder: 10 of the 24 ledger JTBDs, ≈ 129 min/day** on the clock, plus
+JTBD 12's ~20 min/day of risk-adjusted saving.
+
+> JTBD **4** (syntax auto-detection, 2.0 min/day) rides along inside `new` and `unpack` rather
+> than being a row of its own, so it is not counted in either figure. Counting it would make the
+> line read 11 of 24 and ≈131 min/day. The two largest
 savings in the whole ledger — bundle (41.1) and unpack (28.5) — are both one click, never behind a
 submenu. `Sources/chutetests/FinderActionsSuite.swift` fails the build if either is demoted.
 
@@ -84,6 +91,9 @@ submenu. `Sources/chutetests/FinderActionsSuite.swift` fails the build if either
 - **Set Up for an Agent ▸ New Scratch Folder** — a *new* folder beside this one, with git
   initialised, rules seeded, and the agent already running in it. Where you send an agent you do
   not trust yet.
+- **Set Up for an Agent ▸ Save a Checkpoint** — a restore point for this folder before you let an
+  agent run. Uses `git add -A` against a private index and `commit-tree`, so your worktree, your
+  index and `HEAD` are never touched — it can only add a branch. Not destructive, so it never asks.
 - **Move Junk to Trash…** — the scratch files an agent left behind, moved to the Trash (never
   `rm`). Lists them first.
 - **Open in Terminal** — a terminal already `cd`'d here.
@@ -98,7 +108,7 @@ submenu. `Sources/chutetests/FinderActionsSuite.swift` fails the build if either
 |---|---|---|---|---|
 | `paths <files>` | 1 | ✅ | — | |
 | `bundle <files>` | 2 | ✅ | — | Finder is XML-only; `--format md` stays CLI. |
-| `tokens <files>` | **24** | ❌ | — | **Gap — see C.** Partly covered: the bundle prints a count. |
+| `tokens <files>` | 24 | ❌ | — | Partly covered: the bundle prints a count. See C. |
 | `tree [dir]` | 5 | ✅ | — | |
 | `buf add\|list\|flush\|clear` | 22 | ❌ | — | A ring needs state across clicks; a context menu has none. |
 | `new` | 3, 4 | ✅ | — | |
@@ -111,7 +121,7 @@ submenu. `Sources/chutetests/FinderActionsSuite.swift` fails the build if either
 | `open [dir]` | 8 | ✅ (terminal) | — | `--with editor` is CLI-only. **Half a gap — see C.** |
 | `ports` | 15 | — | ✅ Local Servers | Correct: ports have no folder to right-click. |
 | `prompt decompose\|ponytail` | 17, 18 | ❌ | ❌ | No file context at all. Belongs in the menu bar, not Finder. |
-| `checkpoint [dir]` | **12** | ❌ | — | **Gap — see C.** |
+| `checkpoint [dir]` | 12 | ✅ | — | |
 | `diff [dir]` | 11 | ❌ | — | **Gap — see C.** |
 | `redact [files]` | 19 | ❌ | — | **Gap — see C.** |
 | `gist <files>` | 20 | ❌ | — | **Gap — see C.** The JTBD is literally named "from Finder". |
@@ -132,12 +142,13 @@ badge count, the live CPU/memory columns, the licence field, and ⌥⌘N.
 
 ## C. The gaps, ranked
 
-Nine ledger JTBDs have a CLI command, fit a folder or a selection, and are not in the Finder menu.
-Ranked by tier then saving:
+JTBD 12 was the last T1 job with a clean folder scope and no Finder surface. **It is in the menu
+as of 2026-08-28** — as a third child of "Set Up for an Agent", so the menu is still eight rows.
+What remains:
 
 | JTBD | CLI | Tier | Saves/day | Fits a right-click? | Verdict |
 |---|---|---|---|---|---|
-| **12** Pre-agent checkpoint | `checkpoint` | **T1** | 3.3 min **+ ~20 min risk-adjusted** | folder — yes | **Worth adding.** |
+| ~~**12** Pre-agent checkpoint~~ | `checkpoint` | T1 | — | — | **Done — `checkpoint-here`.** |
 | **24** Token estimate | `tokens` | **T1** | prevents a full retry | selection — yes | Partly covered already. |
 | 16 Scratchpad note | `note` | T2 | 8.8 min | needs typed text | Correctly absent. |
 | 11 Diff snapshot | `diff` | T2 | 4.9 min | folder — yes | Defer. |
@@ -147,20 +158,29 @@ Ranked by tier then saving:
 | 23 Image → data URL | `dataurl` | T2 | 2.7 min | selection — yes | Defer. |
 | 8b Open in editor | `open --with editor` | T1 | part of 5.9 min | folder — yes | Defer. |
 
-### The one recommendation
+### What adding it caught
 
-**Add `checkpoint` as a third child of "Set Up for an Agent".** It is the only T1 job with a clean
-folder scope and no Finder surface, it is what makes letting an agent run feel safe, and it costs
-**zero new top-level rows** — the menu stays at eight. Proposed:
+Putting `checkpoint` in the menu meant the section-15 smoke sweep started running it in declared
+order against the same folder as every other action — and it found **three real bugs in
+`chute checkpoint`, all of them reachable by two ordinary right-clicks:**
 
-```
-  Set Up for an Agent  ▸           ● purple
-        Add Agent Rules
-        New Scratch Folder
-        Save a Checkpoint First     ← chute checkpoint {dir}
-```
+1. **`git add -A` is fatal on a nested repo with no commit.** "New Scratch Folder" git-inits a
+   folder inside this one; a checkpoint of the parent then refused to snapshot *anything*
+   (`error: 'x/' does not have a commit checked out`). Now `--ignore-errors`, judged on
+   `write-tree` instead of add's exit code, and the summary line says so when something was
+   skipped rather than claiming "every file".
+2. **A brand-new `git init` folder could not be checkpointed at all.** `git rev-parse HEAD` on an
+   unborn HEAD prints the literal `HEAD` on stdout, so the emptiness check read it as a real
+   parent and `commit-tree` died with "not a valid object name HEAD". Now
+   `rev-parse --verify -q HEAD^{commit}`, which is the question actually being asked.
+3. **Two checkpoints in the same second collided.** The branch name was stamped to the second, and
+   an unchanged worktree produces the byte-identical commit — so `git branch` refused. The name
+   now carries the short sha, and a branch already pointing at this exact commit is success.
+   Clicking a safety net twice must never be an error.
 
-Everything else in the table stays out for now. Eight rows added to Finder's own already-long menu
+All three are regression-tested in `Scripts/smoke.sh` section 8.
+
+Everything else in the gap table stays out for now. Eight rows added to Finder's own already-long menu
 is the budget, and the six deferred jobs are worth ~23 min/day *combined* — less than half of what
 "Copy Files as Context" returns on its own. A ninth row costs every user on every right-click; it
 should be bought by a T1 job, not by six T2s.
@@ -283,4 +303,10 @@ cd /Users/sxope/Documents/2026/Development/37.chute && swift run chute finder-ac
 cd /Users/sxope/Documents/2026/Development/37.chute && swift run chutetests && ./Scripts/smoke.sh
 ```
 
-Expected: `✅ 623 assertions passed` and `smoke: 149 passed, 0 failed`.
+Expected: `✅ 637 assertions passed` and `smoke: 152 passed, 0 failed`.
+
+> **`smoke.sh` runs `.build/release/chute`, not the debug build.** It will happily pass against a
+> stale binary and tell you nothing changed. Always:
+> ```bash
+> swift build -c release && ./Scripts/smoke.sh
+> ```
