@@ -66,7 +66,9 @@ preflight() {
   # plumbing can be exercised on a machine with no Screen Recording grant and no human at it.
   if [ "$PLAN" = "1" ]; then say "PLAN — nothing will be recorded"; mkdir -p "$OUT"; return 0; fi
   # A recording made while the app is not running produces a menu with no effect behind it.
-  pgrep -x Chute >/dev/null || die "Chute.app is not running — the Finder actions do nothing without it"
+  # The executable is ChuteApp, not Chute — renamed because APFS is case-insensitive and the
+  # bundle also carries the `chute` CLI. `pgrep -x Chute` matched nothing and killed every take.
+  pgrep -x ChuteApp >/dev/null || die "Chute.app is not running — the Finder actions do nothing without it"
   local probe="/tmp/chute-permcheck-$$.png"
   screencapture -x -R0,0,8,8 "$probe" 2>/dev/null || true
   [ -s "$probe" ] || die "Screen Recording is not granted to this terminal.
@@ -87,8 +89,37 @@ planned() { [ "$PLAN" = "1" ] && { say "would $*"; return 0; }; return 1; }
 # The two primitives a tape is allowed to reach the machine through.
 osa() { planned "run applescript: $(printf '%s' "$1" | head -1 | cut -c1-60)…" && return 0
         osascript >/dev/null <<<"$1"; }
+# Keyboard goes through System Events, never cliclick. Measured 2026-08-28: cliclick posts key
+# events at a level an OPEN MENU's tracking loop never sees — typing into a tracking context
+# menu changed nothing, twice, on two different menus — while the same keys sent via System
+# Events land everywhere, menus included. Every failed take of that afternoon was this. The
+# mouse stays with cliclick: System Events cannot ease a cursor.
 key() { planned "press $*" && return 0
-        cliclick "$@" >/dev/null; }
+        local a code k held="" using
+        for a in "$@"; do
+          # cliclick's kd:/ku: hold a modifier across the next strokes. System Events posts its
+          # own events, which do NOT inherit a cliclick-held modifier — so the hold is tracked
+          # here and re-expressed as `using {… down}` on each stroke, or ⌘A would type "a".
+          case "$a" in
+            kd:cmd) held="cmd" ; continue ;;
+            ku:cmd) held=""    ; continue ;;
+            kd:*|ku:*) die "key: only the cmd modifier is mapped — add '${a#*:}' here" ;;
+          esac
+          using=""; [ "$held" = "cmd" ] && using=" using {command down}"
+          case "$a" in
+            t:*) osascript -e "tell application \"System Events\" to keystroke \"${a#t:}\"$using" ;;
+            kp:*) k="${a#kp:}"
+                  case "$k" in
+                    arrow-down) code=125 ;; arrow-up)    code=126 ;;
+                    arrow-left) code=123 ;; arrow-right) code=124 ;;
+                    return) code=36 ;; enter) code=76 ;; esc|escape) code=53 ;;
+                    space) code=49 ;; tab) code=48 ;;
+                    *) die "key: no key code mapping for '$k' — add it here" ;;
+                  esac
+                  osascript -e "tell application \"System Events\" to key code $code$using" ;;
+            *) cliclick "$a" >/dev/null ;;
+          esac
+        done; }
 pause() { planned "wait ${1}s" && return 0
           perl -e "select(undef,undef,undef,$1)"; }
 
@@ -243,23 +274,94 @@ move_to() { # x y [milliseconds]
 
 # Where the current Finder selection actually is on screen, so a right-click lands on the
 # selection rather than on a coordinate someone measured once in 2026.
-selection_point() {
-  osascript <<'OSA' 2>/dev/null || echo ""
+# BOTH of these address the file list as the RIGHTMOST scroll area of the window, never as
+# "scroll area 1". Measured 2026-08-28: on a machine with a wide sidebar and a long tag list,
+# scroll area 1 IS the sidebar — the old query right-clicked a tag row and every take then typed
+# into Finder's tag menu. Sidebar width varies per machine; "rightmost" does not.
+#
+# The coordinates are returned as ONE text value. The old `a & "," & b` builds an AppleScript
+# LIST, which osascript prints as "x,,,y" — cliclick rejects that, so selection_point silently
+# failed on every run and the blind window-geometry fallback was what actually recorded.
+# Shared locator: `target` becomes the file list's scroll area. On this macOS the file browser
+# is nested one splitter group down (sidebar | { file list }), so scroll areas are collected from
+# both levels and the RIGHTMOST wins — the sidebar is always the leftmost thing in the window.
+# The heredoc is deliberately unquoted so "$1" splices the caller's epilogue; the AppleScript
+# itself contains nothing the shell would expand.
+_file_area_osa() { # applescript-epilogue-that-uses-`target`-and-returns-"x,y"
+  osascript 2>/dev/null <<OSA || echo ""
 tell application "System Events" to tell process "Finder"
-    set r to position of (first UI element of outline 1 of scroll area 1 of splitter group 1 of window 1 whose selected is true)
-    set s to size of (first UI element of outline 1 of scroll area 1 of splitter group 1 of window 1 whose selected is true)
-    return ((item 1 of r) + (item 1 of s) / 4 as integer) & "," & ((item 2 of r) + (item 2 of s) / 2 as integer)
+    set sg to splitter group 1 of window 1
+    set cands to scroll areas of sg
+    repeat with g in splitter groups of sg
+        set cands to cands & (scroll areas of g)
+    end repeat
+    set target to missing value
+    set bx to -1000000
+    repeat with sa in cands
+        set p to position of sa
+        if (item 1 of p) > bx then
+            set bx to item 1 of p
+            set target to sa
+        end if
+    end repeat
+    $1
 end tell
 OSA
+}
+
+selection_point() {
+  _file_area_osa '
+    set sel to first row of outline 1 of target whose selected is true
+    set r to position of sel
+    set s to size of sel
+    set px to ((item 1 of r) + (item 1 of s) / 4) as integer
+    set py to ((item 2 of r) + (item 2 of s) / 2) as integer
+    return (px as text) & "," & (py as text)'
+}
+
+# A point on the file area's BACKGROUND — inside the list, below the rows — for the tapes that
+# right-click the folder rather than a selection. The old fallback guessed WIN_X+240,WIN_Y+150,
+# which is sidebar territory on a machine with a wide sidebar. A THIRD of the way down, not the
+# bottom: the menu opens downward from the click, and a click near the bottom edge pushes most
+# of it below the recorded frame.
+file_area_background() {
+  _file_area_osa '
+    set p to position of target
+    set s to size of target
+    set px to ((item 1 of p) + (item 1 of s) / 2) as integer
+    set py to ((item 2 of p) + (item 2 of s) / 3) as integer
+    return (px as text) & "," & (py as text)'
+}
+
+# A scratch TextEdit window standing in for an agent's input box — launched and placed WITHOUT
+# TextEdit's AppleScript dictionary. `tell application "TextEdit"` needs its own Automation
+# grant per machine, and where the pair was never approved the consent prompt does not draw and
+# every event dies at the AE timeout (measured 2026-08-28). LaunchServices and System Events are
+# the channels a recording machine already trusts.
+scratch_editor() { # x y w h
+  planned "open a scratch TextEdit window at $1,$2 ${3}x$4" && return 0
+  open -a TextEdit
+  await "TextEdit to draw the scratch document" 10 osascript -e \
+    'tell application "System Events" to tell process "TextEdit" to if (count of windows) is 0 then error "not yet"'
+  osa "tell application \"System Events\" to tell process \"TextEdit\"
+         set frontmost to true
+         set position of window 1 to {$1, $2}
+         set size of window 1 to {$3, $4}
+       end tell"
 }
 
 right_click_selection() {
   planned "right-click the selection" && return 0
   local pt; pt="$(selection_point | tr -d ' ')"
   if [ -z "$pt" ]; then
-    # The Accessibility path is the one that breaks between macOS releases. Say so and fall back
-    # to the window's own geometry rather than pretending the click was precise.
-    say "accessibility could not locate the selection — falling back to window geometry"
+    # No selection (or the Accessibility path broke): a background click on the FILE AREA is
+    # what a folder-scope tape means anyway. The window-geometry guess is the last resort only —
+    # on this machine it landed in the sidebar and opened Finder's tag menu instead.
+    say "no selection located — right-clicking the file area background"
+    pt="$(file_area_background | tr -d ' ')"
+  fi
+  if [ -z "$pt" ]; then
+    say "accessibility could not locate the file area — falling back to window geometry"
     pt="$((WIN_X + 240)),$((WIN_Y + 150))"
   fi
   move_to "${pt%,*}" "${pt#*,}" 500
@@ -273,14 +375,12 @@ menu_pick() { # visible menu title
   planned "pick '$1' from the menu" && return 0
   local title="$1"
   perl -e 'select(undef,undef,undef,0.35)'   # the menu's own open animation, not a guess at work
-  if osascript >/dev/null 2>&1 <<OSA
-tell application "System Events" to tell process "Finder" to click menu item "$title" of menu 1 of window 1
-OSA
-  then say "picked '$title' by name"; return 0; fi
-  # Type-ahead: macOS menus select the first item matching what you type.
-  cliclick "t:${title:0:12}" >/dev/null
+  # Type-ahead only. The old first route — clicking `menu item of menu 1 of window 1` by name —
+  # can never work: while a context menu is tracking, Finder's AX tree reads as EMPTY (measured
+  # 2026-08-28), so the query failed on every take and only the type-ahead ever ran.
+  key "t:${title:0:12}"
   perl -e 'select(undef,undef,undef,0.2)'
-  cliclick kp:return >/dev/null
+  key kp:return
   say "picked '$title' by type-ahead"
 }
 
@@ -291,14 +391,9 @@ OSA
 menu_pick_sub() { # parent_title child_title
   planned "open '$1' and pick '$2'" && return 0
   pause 0.35
-  if osascript >/dev/null 2>&1 <<OSA
-tell application "System Events" to tell process "Finder"
-    click menu item "$2" of menu 1 of menu item "$1" of menu 1 of window 1
-end tell
-OSA
-  then say "picked '$1' → '$2' by name"; return 0; fi
-  # Type-ahead to the parent, right-arrow to open it, type-ahead to the child. Every step is a
-  # guess; what is believed is the caller's await_* afterwards.
+  # Type-ahead to the parent, right-arrow to open it, type-ahead to the child. The by-name AX
+  # route was deleted for the same reason as in menu_pick: a tracking menu is invisible to AX.
+  # Every step here is a guess; what is believed is the caller's await_* afterwards.
   key "t:${1:0:10}"
   pause 0.2
   key kp:arrow-right
@@ -344,6 +439,17 @@ stopwatch_read()  { perl -MTime::HiRes=time -e "printf \"%.1f\", time - $_t0"; }
 # happened before recording began; it papered over that with `( sleep 0.8; click ) &`, which is a
 # guess about how fast the machine is today. Waiting for the file to exist is not a guess.
 TAKE_PID=0; TAKE_NAME=""
+# Did the recorder actually start? It used to await the .mov turning non-empty, but this macOS
+# writes the file only when capture ENDS — so that condition could never come true mid-take and
+# every recording died as "never started". The real signal is the recorder surviving its first
+# moments: a screencapture without the Screen Recording grant exits within a second. An empty,
+# short or black take is still caught by verify_take, so nothing is trusted on this alone.
+take_started() { # name
+  perl -e 'select(undef,undef,undef,1.5)'
+  kill -0 "$TAKE_PID" 2>/dev/null \
+    || die "screencapture never started — is Screen Recording granted to THIS terminal?"
+}
+
 take_start() { # name seconds
   TAKE_NAME="$1"
   planned "record $1 for ${2}s" && return 0
@@ -352,8 +458,7 @@ take_start() { # name seconds
   # is what the user actually sees on their own screen.
   screencapture -v -V "$2" -R"$WIN_X,$WIN_Y,$WIN_W,$WIN_H" "$OUT/$1.mov" &
   TAKE_PID=$!
-  await "the recorder to start writing" 6 test -s "$OUT/$1.mov" \
-    || die "screencapture never started — is Screen Recording granted to THIS terminal?"
+  take_started "$1"
   say "recording $1"
 }
 
@@ -371,8 +476,7 @@ take_menubar() { # name seconds
   rm -f "$OUT/$1.mov"
   screencapture -v -V "$2" -R"$x,0,$MENUBAR_W,$MENUBAR_H" "$OUT/$1.mov" &
   TAKE_PID=$!
-  await "the recorder to start writing" 6 test -s "$OUT/$1.mov" \
-    || die "screencapture never started — is Screen Recording granted to THIS terminal?"
+  take_started "$1"
   say "recording $1 (menu bar, ${MENUBAR_W}x${MENUBAR_H} at ${x},0)"
 }
 
