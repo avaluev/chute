@@ -182,10 +182,35 @@ func cmdHooks(_ a: Args) {
         Out.info("→ Chute does not modify \(path) — merge the \"hooks\" object above into it "
                  + "yourself (or via Claude Code's /hooks menu), then `chute hooks status`.")
     case "uninstall":
+        // Read-only preview of which event(s) carry a Chute hook — status() never touches the
+        // file. (It can over-report versus the stricter match uninstall() itself applies when a
+        // block was hand-merged with a user's own hook, which uninstall() deliberately leaves
+        // alone — see HookInstaller.uninstall's comment. That edge case is rare enough that a
+        // slightly conservative preview beats a second, duplicated matcher here.)
+        let wired = HookInstaller.status(settingsPath: path).filter(\.value).map(\.key).sorted()
+        guard !wired.isEmpty else { Out.info("→ nothing of Chute's in \(path)"); break }
+
+        // NFR-05 — preview by default, uninstall only with --force. Early `return` before any
+        // mutation: nothing is backed up or written below this line without it.
+        guard a.has("force") else {
+            Out.info("dry run — would remove Chute's hook(s) from \(path):")
+            wired.forEach { Out.line("  \($0)") }
+            Out.info("→ a timestamped backup of \(path) is written before any change · " +
+                     "re-run with --force to uninstall")
+            return
+        }
         do {
             let r = try HookInstaller.uninstall(settingsPath: path)
             guard !r.changed.isEmpty else { Out.info("→ nothing of Chute's in \(path)"); break }
-            Out.info("→ backup: \(r.backupPath ?? "none")")
+            // HookInstaller.uninstall backs up BEFORE it writes (verified 2026-08-29: `makeBackup`
+            // runs, then `validateAndWrite`) and only returns a nil backupPath on the early-return
+            // path above, where `changed` is empty and nothing was written. A non-empty `changed`
+            // with a nil backupPath here would mean a write happened with no recovery path — worse
+            // than refusing, so this fails loudly instead of printing "none".
+            guard let backupPath = r.backupPath else {
+                Out.fail("uninstall wrote \(path) but reported no backup — refusing to trust the result")
+            }
+            Out.info("→ backup: \(backupPath)")
             Out.line("removed: \(r.changed.sorted().joined(separator: ", "))")
         } catch { Out.fail("\(error)") }
     default:

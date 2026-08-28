@@ -206,7 +206,12 @@ s["hooks"] = sn["hooks"]; json.dump(s, open(sys.argv[1], "w"))
 ' "$S" "$T/snippet.json"
 has   "legacy hooks seeded"        "$(cat "$S")" "chute-session-state"
 has   "status shows the wiring"    "$("$CHUTE" hooks status --settings "$S" 2>&1)" "✓ SessionStart"
-"$CHUTE" hooks uninstall --settings "$S" >/dev/null 2>&1
+# NFR-05, extended 2026-08-29: uninstall previews by default. The dry run must change NOTHING.
+BEFORE_UNINSTALL="$(cat "$S")"
+OUT="$("$CHUTE" hooks uninstall --settings "$S" 2>&1)"
+has   "uninstall previews first"   "$OUT" "re-run with --force"
+check "the preview writes NOTHING" "$(cat "$S")" "$BEFORE_UNINSTALL"
+"$CHUTE" hooks uninstall --settings "$S" --force >/dev/null 2>&1
 hasnt "uninstall removes chute"    "$(cat "$S")" "chute"
 has   "uninstall keeps your keys"  "$(cat "$S")" '"model"'
 check "uninstall leaves no husk"   "$(cat "$S")" '{
@@ -216,7 +221,7 @@ check "uninstall leaves no husk"   "$(cat "$S")" '{
   "model" : "opus"
 }'
 BEFORE="$(cat "$S")"
-"$CHUTE" hooks uninstall --settings "$S" >/dev/null 2>&1
+"$CHUTE" hooks uninstall --settings "$S" --force >/dev/null 2>&1
 check "second uninstall is a no-op" "$(cat "$S")" "$BEFORE"
 
 echo "15. every Finder menu action, run for real"
@@ -581,6 +586,76 @@ if [ "$HEADLESS" = "1" ]; then skip "metrics are plausible in magnitude"; else
   else
     bad "metrics are plausible in magnitude" "$(grep -A1 '^  FAIL' /tmp/chute-metrics.out | head -4)"
   fi
+fi
+
+echo "23. the destructive commands preview before they act"
+# NFR-05 applied the same way everywhere. `clean` and `unpack` — which only Trash and only
+# overwrite — dry-ran by default; the five that do worse did not. Each pair below proves BOTH
+# halves: nothing happened without --force, and the command still does its job with it. A guard
+# that is only checked in the safe direction is a guard nobody has seen work.
+
+# ports --kill — the one typo away from killing the user's Postgres. Throwaway listener only.
+PORT=8977
+python3 -m http.server "$PORT" >/dev/null 2>&1 &
+SRVPID=$!
+sleep 1
+if kill -0 "$SRVPID" 2>/dev/null; then
+  OUT="$("$CHUTE" ports --kill "$PORT" 2>&1)"
+  has  "ports --kill previews the row"  "$OUT" "re-run with --force to kill"
+  has  "and names the pid it would end" "$OUT" "$SRVPID"
+  if kill -0 "$SRVPID" 2>/dev/null; then ok "the preview killed nothing"; else bad "the preview killed nothing" "process died"; fi
+  "$CHUTE" ports --kill "$PORT" --force >/dev/null 2>&1
+  sleep 1
+  if kill -0 "$SRVPID" 2>/dev/null; then bad "--force still kills" "still alive"; else ok "--force still kills"; fi
+  kill -9 "$SRVPID" 2>/dev/null || true
+else
+  skip "ports --kill guard (could not start a throwaway listener on $PORT)"
+fi
+
+# env inject — the preview must never print a VALUE. Throwaway Keychain item, removed after.
+ENVDIR="$T/envguard"; mkdir -p "$ENVDIR"; printf 'node_modules\n.env\n' > "$ENVDIR/.gitignore"
+(cd "$ENVDIR" && git init -q . 2>/dev/null) || true
+security add-generic-password -U -s "chute:CHUTE_SMOKE_KEY" -a chute -w "smoke-secret-value" 2>/dev/null || true
+OUT="$("$CHUTE" env inject "$ENVDIR" --keys CHUTE_SMOKE_KEY 2>&1)"
+has   "env inject previews"            "$OUT" "re-run with --force to write"
+hasnt "and NEVER prints the value"     "$OUT" "smoke-secret-value"
+if [ -f "$ENVDIR/.env" ]; then bad "the preview wrote no .env" "it exists"; else ok "the preview wrote no .env"; fi
+"$CHUTE" env inject "$ENVDIR" --keys CHUTE_SMOKE_KEY --force >/dev/null 2>&1
+has   "--force writes the key"         "$(cat "$ENVDIR/.env" 2>/dev/null)" "CHUTE_SMOKE_KEY="
+# The merge bug: running it twice used to duplicate every key.
+"$CHUTE" env inject "$ENVDIR" --keys CHUTE_SMOKE_KEY --force >/dev/null 2>&1
+check "a second run replaces, never duplicates" "$(grep -c '^CHUTE_SMOKE_KEY=' "$ENVDIR/.env" 2>/dev/null || echo 0)" "1"
+security delete-generic-password -s "chute:CHUTE_SMOKE_KEY" -a chute >/dev/null 2>&1 || true
+
+# gist — uploads to GitHub. Only the preview half can be tested; --force is a real publish.
+printf 'sk-test-not-a-real-key-000000\n' > "$T/gistguard.txt"
+OUT="$("$CHUTE" gist "$T/gistguard.txt" 2>&1)"
+has   "gist previews before uploading" "$OUT" "re-run with --force to upload"
+has   "and says what it redacted"      "$OUT" "redact"
+
+# doctor --fix — Trashes a container and kills two processes. Preview only; --force is destructive.
+OUT="$("$CHUTE" doctor --fix 2>&1)"
+hasnt "doctor --fix never repairs unasked" "$OUT" "cleared the stale extension container"
+
+echo "24. tokens and bundle agree on the number you actually paste"
+# JTBD 24 exists to answer "how big is this before you send it", and the thing you paste is the
+# bundle. `tokens` used to sum raw file contents and `bundle` counted the assembled blob — 2.8x
+# apart, in the one job that exists to prevent overflow. This lives here rather than in the unit
+# suite because chutetests links ChuteCore only and cannot see cmdTokens at all: an in-process
+# check would recompute the same ChuteCore calls and stay green through any regression in the
+# command itself. Measured that way once, deliberately, and it did.
+TB="$T/tokbundle"; mkdir -p "$TB"
+printf 'export const a = 1\n' > "$TB/a.ts"
+printf '# hello\nworld\nmore prose so the count is not trivial\n' > "$TB/b.md"
+# Compare the BADGES both commands print, not raw integers: the badge is what the user reads,
+# and both sides round identically, so a 2.8x gap is still glaring while formatting cannot make
+# the assertion flaky. --no-copy so the smoke run never touches the real clipboard.
+BUNDLE_BADGE="$("$CHUTE" bundle "$TB" --no-copy 2>&1 >/dev/null | sed -n 's/.*· //p')"
+TOKENS_BADGE="$("$CHUTE" tokens "$TB" 2>/dev/null | sed -n 's/.*TOTAL.*(\(.*\))$/\1/p')"
+if [ -n "$BUNDLE_BADGE" ] && [ -n "$TOKENS_BADGE" ]; then
+  check "tokens TOTAL equals bundle's count" "$TOKENS_BADGE" "$BUNDLE_BADGE"
+else
+  bad "tokens TOTAL equals bundle's count" "could not parse (bundle='$BUNDLE_BADGE' tokens='$TOKENS_BADGE')"
 fi
 
 cd /; rm -rf "$T"
