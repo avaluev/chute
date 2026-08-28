@@ -165,6 +165,7 @@ export const CASES: Case[] = [
     ritual: "Type out the structure by hand, or paste a tree with node_modules in it and burn the context on nothing.",
     fix: "Right-click, pick a depth, and the skeleton is on the clipboard with the build and dependency folders left out.",
     seconds: { manual: 30, chute: 3 }, perDay: 10, savedMinutes: 4.5,
+    demo: "/media/tree.gif",
     command: "chute tree . --depth 4",
   },
 
@@ -176,6 +177,7 @@ export const CASES: Case[] = [
     ritual: "Write the decomposition prompt again from memory, slightly differently every time.",
     fix: "One command puts the decomposition prompt on your clipboard, the same way every time.",
     seconds: { manual: 120, chute: 3 }, perDay: 8, savedMinutes: 15.6,
+    demo: "/media/break-a-big-task-into-steps.gif",
     command: "chute prompt decompose",
   },
   {
@@ -194,6 +196,7 @@ export const CASES: Case[] = [
     ritual: "Explain again, in your own words, that you wanted the small version.",
     fix: "The anti-bloat prompt, on the clipboard, worded the same way every time.",
     seconds: { manual: 60, chute: 3 }, perDay: 10, savedMinutes: 9.5,
+    demo: "/media/stop-it-writing-a-framework.gif",
     command: "chute prompt ponytail",
   },
   {
@@ -203,6 +206,7 @@ export const CASES: Case[] = [
     ritual: "Read your own diff and guess.",
     fix: "One line, timestamped, appended to a SCRATCHPAD.md the agent can read too.",
     seconds: { manual: 40, chute: 5 }, perDay: 15, savedMinutes: 8.8,
+    demo: "/media/where-you-left-off.gif",
     command: 'chute note "waiting on the migration"',
   },
   {
@@ -240,6 +244,7 @@ export const CASES: Case[] = [
     ritual: "Skim for anything that looks like a token, and find out later that you missed one.",
     fix: "Keys and tokens are masked before the text ever reaches your clipboard.",
     seconds: { manual: 90, chute: 3 }, perDay: 4, savedMinutes: 5.8,
+    demo: "/media/redact.gif",
     command: "chute redact server.log",
   },
   {
@@ -249,6 +254,7 @@ export const CASES: Case[] = [
     ritual: "Sort by date modified and hope you are in the right folder.",
     fix: "The newest thing in the folder, revealed — or previewed without opening anything.",
     seconds: { manual: 15, chute: 2 }, perDay: 20, savedMinutes: 4.3,
+    demo: "/media/find-the-file-it-just-wrote.gif",
     command: "chute latest",
   },
   {
@@ -263,6 +269,7 @@ export const CASES: Case[] = [
     // more convincing as a fact about git than as a number.
     fix: "A snapshot of everything, untracked files included, without touching your index, your worktree or HEAD. It can only ever add a branch.",
     seconds: { manual: 25, chute: 3 }, perDay: 9, savedMinutes: 3.3,
+    demo: "/media/checkpoint.gif",
     command: "chute checkpoint .",
   },
   {
@@ -290,6 +297,7 @@ export const CASES: Case[] = [
     ritual: "Rename it once you notice the syntax highlighting is missing.",
     fix: "The extension comes from the code in the file, not from what you remembered to type.",
     seconds: { manual: 10, chute: 0 }, perDay: 12, savedMinutes: 2.0,
+    demo: "/media/new.gif",
     command: "chute new",
   },
   {
@@ -302,6 +310,7 @@ export const CASES: Case[] = [
     // No time saved directly — it prevents a full retry rather than shaving seconds. Saying so
     // is worth more than a fabricated figure.
     savedMinutes: null,
+    demo: "/media/tokens.gif",
     command: "chute tokens src/*.ts",
   },
 ]

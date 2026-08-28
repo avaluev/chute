@@ -8,7 +8,7 @@ Output out/where-you-left-off.gif
 Set Height 380
 
 Sleep 600ms
-Type "chute note \"waiting on the migration\""
+Type 'chute note "waiting on the migration"'
 Enter
 Sleep 2.5s
 Sleep 1s
