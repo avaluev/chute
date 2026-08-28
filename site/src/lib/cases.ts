@@ -56,7 +56,8 @@ export const CASES: Case[] = [
     ritual: "Open each file, select all, copy, switch to the agent, paste, type the filename above it, go back for the next one.",
     fix: "Select the folders in Finder, right-click once, and every file inside them is on the clipboard as one blob with a token count.",
     seconds: { manual: 150, chute: 5 }, perDay: 17, savedMinutes: 41.1,
-    demo: "/media/bundle.gif",
+    demo: "/media/paste-a-whole-folder-into-your-agent.mp4",
+    poster: "/media/paste-a-whole-folder-into-your-agent.jpg",
     command: "chute bundle src/ --format xml",
   },
   {
@@ -80,7 +81,8 @@ export const CASES: Case[] = [
     // Deliberately no figure. This one buys back attention, not seconds, and inventing a number
     // for it would make the other twenty-four less believable, not this one more so.
     savedMinutes: null,
-    demo: "/media/sessions.gif",
+    demo: "/media/which-agent-is-waiting-for-you.mp4",
+    poster: "/media/which-agent-is-waiting-for-you.jpg",
     command: "chute sessions",
   },
   {
@@ -101,7 +103,8 @@ export const CASES: Case[] = [
     ritual: "One path at a time, and the one with a space in it breaks the command you paste it into.",
     fix: "Select any number of files, right-click once, and every path is on the clipboard, escaped correctly.",
     seconds: { manual: 20, chute: 3 }, perDay: 32, savedMinutes: 9.1,
-    demo: "/media/paths.gif",
+    demo: "/media/stop-typing-file-paths.mp4",
+    poster: "/media/stop-typing-file-paths.jpg",
     command: "chute paths src/*.ts",
   },
   {
@@ -111,6 +114,8 @@ export const CASES: Case[] = [
     ritual: "Find the last project that had it, open the file, copy, new file, paste. Then the same for .cursorrules.",
     fix: "Right-click the folder. The rules files land there, and any that already exist are left exactly as they are.",
     seconds: { manual: 90, chute: 5 }, perDay: 7, savedMinutes: 9.9,
+    demo: "/media/agent-rules-in-one-click.mp4",
+    poster: "/media/agent-rules-in-one-click.jpg",
     command: "chute seed .",
   },
   {
@@ -120,6 +125,8 @@ export const CASES: Case[] = [
     ritual: "mkdir, cd, git init, copy the rules in, open a terminal, start the agent, remember what you called the folder.",
     fix: "Right-click. A fresh folder with git and rules already in it, and the agent running in a terminal that is already there.",
     seconds: { manual: 45, chute: 5 }, perDay: 11, savedMinutes: 7.3,
+    demo: "/media/a-clean-room-for-a-risky-agent.mp4",
+    poster: "/media/a-clean-room-for-a-risky-agent.jpg",
     command: "chute sandbox spike --yolo",
   },
   {
@@ -129,7 +136,8 @@ export const CASES: Case[] = [
     ritual: "lsof, read the PID, guess which project it belongs to, kill it, hope it was the right one.",
     fix: "The menu bar lists every local server with the process and the project it belongs to. One click stops it.",
     seconds: { manual: 30, chute: 3 }, perDay: 11, savedMinutes: 4.9,
-    demo: "/media/ports.gif",
+    demo: "/media/whats-on-port-3000.mp4",
+    poster: "/media/whats-on-port-3000.jpg",
     command: "chute ports --kill 3000",
   },
   {
