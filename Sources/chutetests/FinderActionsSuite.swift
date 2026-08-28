@@ -69,7 +69,7 @@ func finderActionsSuite() {
         T.eq(Set(inline.map(\.symbol)).count, inline.count,
              "no two inline rows share an icon — an icon that cannot distinguish is decoration")
 
-        // THE MENU AS DRAWN. Thirteen actions, but the number that matters is how many rows this
+        // THE MENU AS DRAWN. Fourteen actions, but the number that matters is how many rows this
         // adds to a Finder context menu that is already long. Eight was arrived at by grouping,
         // not by dropping anything: three ways to copy context out, one to bring an answer back,
         // then create / set up / clean up / leave. Change this number on purpose or not at all.
@@ -141,6 +141,15 @@ func finderActionsSuite() {
             guard let a = ChuteActions.find(id) else { T.ok(false, "'\(id)' is in the menu"); continue }
             T.eq(a.scope, .folder, "'\(id)' acts on the folder in view")
         }
+        // JTBD #12 reached the menu as a THIRD CHILD, not a ninth row — the eight-row budget is
+        // the whole reason the other six ledger gaps are still gaps. If this ever becomes a
+        // top-level row, that decision was made on purpose or the budget has quietly gone.
+        let agentSetup = ChuteActions.all.filter { $0.parentTitle == "Set Up for an Agent" }
+        T.eq(agentSetup.map(\.id), ["seed-rules", "sandbox-here", "checkpoint-here"],
+             "setting up for an agent is rules, a scratch folder, and a way back")
+        T.ok(ChuteActions.find("checkpoint-here")?.isDestructive == false,
+             "a checkpoint can only add a branch, so it never asks")
+
         // WHAT STAYS ONE CLICK. Not everything can: eight rows is already a lot to add to
         // Finder's own menu. The rule is the ledger — anything worth more than ~10 min/day is
         // reached in one click, everything else may sit one level down. Today that is bundle

@@ -39,7 +39,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let menu = NSMenu()
         menu.delegate = self
         statusItem.menu = menu
-        Notify.requestAuthorization()
+        // NOT requesting notification permission here any more. Since the HUD became the only
+        // surface, `Notify.post` runs only in the no-screen fallback — so a launch-time macOS
+        // permission dialog asks a first-run user to approve a channel the app will almost never
+        // use. `Notify.post`'s `.notDetermined` branch already asks at the moment one is actually
+        // needed, which is the honest time to ask.
         registerHotKey()
         FirstRunWindow.showIfNeeded()
         startWatching()
@@ -110,14 +114,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         menu.addItem(.separator())
         // No file actions here on purpose. They act on a Finder selection, so they live in the
         // Finder right-click menu where the files are; in the menu bar they had nothing to act on.
-        // If macOS is refusing our banners, say so where it will be read, with the fix one click
-        // away. Silently posting through osascript instead is what made every banner arrive as
-        // Script Editor.
+        // Only ever set when a fallback notification was actually refused — which means the HUD
+        // could not draw, so this really is the last channel left. The old tooltip claimed Chute
+        // could not report anything without notifications; the HUD reports every action
+        // regardless, so saying so would have been false.
         if Notify.deniedAtLastCheck {
             let fix = NSMenuItem(title: "Turn On Chute Notifications…",
                                  action: #selector(openNotificationSettings), keyEquivalent: "")
             fix.target = self
-            fix.toolTip = "Chute cannot tell you when an action finishes until notifications are on."
+            fix.toolTip = "Chute normally confirms an action on screen. When it cannot — no "
+                        + "display attached — a notification is the only way left to tell you."
             menu.addItem(fix)
         }
 

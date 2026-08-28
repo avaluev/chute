@@ -102,7 +102,7 @@ class ChuteFinderSync: FIFinderSync {
 
     /// Colour by what the action DOES, not by which action it is.
     ///
-    /// This was a `[symbol: NSColor]` table, and it was missing four of the thirteen symbols —
+    /// This was a `[symbol: NSColor]` table, and it was missing four of the symbols —
     /// `arrow.down.doc.fill`, `doc.badge.gearshape.fill`, `shippingbox.and.arrow.backward.fill`
     /// and `trash.fill` — so each of them fell through to `?? .systemBlue`. "Move Junk to Trash"
     /// was drawn the same blue as "Copy Full Paths". A partial lookup with a default cannot tell
@@ -185,7 +185,14 @@ class ChuteFinderSync: FIFinderSync {
         // If it never picks the request up, that silence is itself the thing worth reporting.
         DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + 3) {
             if ActionInbox.drain().contains(where: { $0.request.id == action.id }) {
-                self.notify(action: action, message: "Chute is not running — open Chute and try again.")
+                // NOT "Chute is not running": from in here that cannot be told apart from Chute
+                // being busy — a confirmation sheet open from a previous destructive action
+                // blocks its main queue and the inbox is not drained until it is answered. The
+                // old wording was a false statement in that case, and the app then reported the
+                // action a second time when the sheet was dismissed.
+                self.notify(action: action,
+                            message: "Still queued — Chute has not picked this up yet. It may be "
+                                   + "waiting for an answer in another window.")
             }
         }
     }
