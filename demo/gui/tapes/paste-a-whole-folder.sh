@@ -45,14 +45,17 @@ stopwatch_start          # after the recorder is writing, so it times the WORK, 
 
 # A scratch document standing in for the agent's input box. The paste has to land SOMEWHERE or
 # this measures copying, not the job.
-osa 'tell application "TextEdit"
-       activate
-       make new document
-       set bounds of front window to {1420, 120, 2000, 920}
-     end tell'
+#
+# TextEdit is driven WITHOUT its own AppleScript dictionary: `tell application "TextEdit"` needs
+# a per-target Automation grant, and on a machine where that pair was never approved the consent
+# prompt does not draw and every event dies at the AE timeout (measured 2026-08-28). Launch
+# Services (`open`) and System Events are the two channels every recording machine already
+# trusts, so the ritual speaks only through them.
+scratch_editor 1420 120 580 800
 
 for f in "${RITUAL[@]}"; do
-  osa "tell application \"TextEdit\" to open POSIX file \"$FIXTURE/$f\""
+  open -a TextEdit "$FIXTURE/$f"
+  pause 0.8                      # LaunchServices open is asynchronous; let the window arrive
   key kd:cmd t:a ku:cmd          # select all
   key kd:cmd t:c ku:cmd          # copy
   key kd:cmd t:w ku:cmd          # close it again
@@ -63,7 +66,7 @@ for f in "${RITUAL[@]}"; do
 done
 MANUAL="$(stopwatch_read)"
 take_wait
-osa 'tell application "TextEdit" to close every document saving no'
+killall TextEdit 2>/dev/null || true   # scratch only; nothing in it is worth a save sheet
 verify_take "$SLUG-manual" 95
 
 # ── Take B — the same job ───────────────────────────────────────────────────────────────────
