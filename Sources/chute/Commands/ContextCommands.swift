@@ -9,7 +9,8 @@ func cmdPaths(_ a: Args) {
     let style = PathStyle(rawValue: a.value("format", or: "posix")) ?? .posix
     let sep: PathSeparator = a.value("sep", or: style == .at ? "space" : "line") == "space" ? .space : .line
     let text = PathFormat.render(files, style: style, separator: sep)
-    Out.deliver(text, a, badge: "\(files.count) path(s)")
+    Out.deliver(text, a, badge: "\(files.count) path(s)",
+                label: files.count == 1 ? "1 full path" : "\(files.count) full paths")
 }
 
 // MARK: - FR-02 bundle
@@ -24,7 +25,8 @@ func cmdBundle(_ a: Args) {
         ? ContextBundle.markdown(files, root: root)
         : ContextBundle.xml(files, root: root)
     let tokens = TokenEstimate.tokens(in: text)
-    Out.deliver(text, a, badge: "\(files.count) file(s) · \(TokenEstimate.badge(tokens))")
+    Out.deliver(text, a, badge: "\(files.count) file(s) · \(TokenEstimate.badge(tokens))",
+                label: "\(contextLabel(files.map(\.path))) · \(files.count) file(s) · \(TokenEstimate.badge(tokens))")
     if !skipped.isEmpty { Out.info("→ skipped \(skipped.count) binary file(s)") }
 }
 
@@ -51,7 +53,8 @@ func cmdTree(_ a: Args) {
     let dir = a.paths(defaultToCWD: true)[0]
     guard FileScan.isDirectory(dir) else { Out.fail("not a directory: \(dir)") }
     let depth = Int(a.value("depth", or: "3")) ?? 3
-    Out.deliver(TreeRender.render(dir, depth: depth), a)
+    Out.deliver(TreeRender.render(dir, depth: depth), a,
+                label: "Folder tree · \((dir as NSString).lastPathComponent) (\(depth) deep)")
 }
 
 // MARK: - FR-19 redact
@@ -63,7 +66,8 @@ func cmdRedact(_ a: Args) {
     guard !input.isEmpty else { Out.fail("nothing to redact") }
     let out = Redact.apply(input)
     let hits = out.components(separatedBy: "[REDACTED]").count - 1
-    Out.deliver(out, a, badge: "\(hits) secret(s) masked")
+    Out.deliver(out, a, badge: "\(hits) secret(s) masked",
+                label: "Redacted · \(hits) secret(s) masked")
 }
 
 // MARK: - FR-23 data URL
@@ -80,7 +84,8 @@ func cmdDataURL(_ a: Args) {
     let name = (file as NSString).lastPathComponent
     let url = "data:\(mime);base64,\(data.base64EncodedString())"
     let text = a.has("markdown") ? "![\(name)](\(url))" : url
-    Out.deliver(text, a, badge: "\(data.count / 1024) KB")
+    Out.deliver(text, a, badge: "\(data.count / 1024) KB",
+                label: "Image as a data URL · \(data.count / 1024) KB")
 }
 
 // MARK: - FR-22 context buffer
@@ -108,7 +113,8 @@ func cmdBuf(_ a: Args) {
     case "flush":
         guard let joined = buf.flushText() else { Out.fail("buffer is empty") }
         let n = buf.entries().count
-        Out.deliver(joined, a, badge: "\(n) entries · \(TokenEstimate.badge(TokenEstimate.tokens(in: joined)))")
+        Out.deliver(joined, a, badge: "\(n) entries · \(TokenEstimate.badge(TokenEstimate.tokens(in: joined)))",
+                    label: "\(n) recent copies, together")
         if !a.has("keep") { buf.clear() }
     case "clear":
         let n = buf.entries().count
@@ -119,3 +125,13 @@ func cmdBuf(_ a: Args) {
     }
 }
 
+/// The shortest true description of what a bundle covered, for a menu row. Folder names where
+/// they are common, otherwise a count — "src/auth, src/api" is what you are scanning for; the
+/// first sixty characters of an XML blob is not.
+func contextLabel(_ files: [String]) -> String {
+    let dirs = Array(Set(files.map { ($0 as NSString).deletingLastPathComponent })).sorted()
+        .map { $0.isEmpty ? "." : ($0 as NSString).lastPathComponent }
+    if dirs.isEmpty { return "Context" }
+    if dirs.count <= 2 { return dirs.joined(separator: ", ") }
+    return "\(dirs.count) folders"
+}

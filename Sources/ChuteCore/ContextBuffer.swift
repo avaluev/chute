@@ -17,16 +17,28 @@ import Foundation
 /// SURFACE onto this, never a second implementation.
 public struct ContextBuffer: Sendable {
     public struct Entry: Sendable, Equatable {
-        public let name: String      // "001.txt"
+        public let name: String       // "1787923488-a1b2.json"
+        public let label: String      // what it was, in the words it was delivered under
+        public let date: Date
         public let text: String
 
-        /// One bounded line, for a menu row. Never the whole thing: an entry can be a whole file.
+        /// One bounded line for a menu row. The LABEL, not the content: "src/auth · 8 files ·
+        /// ~4.1k tokens" is what someone is looking for; the first sixty characters of an XML
+        /// bundle is not.
         public var preview: String {
-            let flat = text.replacingOccurrences(of: "\n", with: " ")
+            let flat = label.replacingOccurrences(of: "\n", with: " ")
                 .trimmingCharacters(in: .whitespacesAndNewlines)
             return flat.count <= 60 ? flat : String(flat.prefix(59)) + "…"
         }
     }
+
+    /// How many are kept. This holds real content — a bundle is a hundred kilobytes — in the
+    /// user's home directory, so it forgets rather than grows.
+    public static let keep = 10
+
+    /// Anything larger is not recorded. A five-megabyte paste is not something anyone scrolls
+    /// back to from a menu, and writing it on every copy is a cost with no matching benefit.
+    public static let maxEntryBytes = 2 * 1024 * 1024
 
     public let directory: String
 
@@ -41,26 +53,57 @@ public struct ContextBuffer: Sendable {
     }
 
     public func entries() -> [Entry] {
+        // ORDERED BY THE RECORDED TIME, not by filename. The name starts with a millisecond
+        // timestamp, which looks like time order until two copies land inside the same
+        // millisecond — then the random tail that keeps them from colliding decides the order
+        // instead, and the buffer hands back "third, first, second". `ts` is a Date, so it
+        // separates them; the name breaks the remaining tie so the result is at least stable.
         let names = ((try? fm.contentsOfDirectory(atPath: directory)) ?? [])
-            .filter { $0.hasSuffix(".txt") }
-            .sorted()
-        return names.map { Entry(name: $0, text: (try? String(contentsOfFile: path($0), encoding: .utf8)) ?? "") }
+            .filter { $0.hasSuffix(".json") }
+        return names.compactMap { name in
+            guard let data = fm.contents(atPath: path(name)),
+                  let o = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
+                  let text = o["text"] as? String else { return nil }
+            return Entry(name: name,
+                         label: (o["label"] as? String) ?? text,
+                         date: Date(timeIntervalSince1970: (o["ts"] as? Double) ?? 0),
+                         text: text)
+        }
+        .sorted { ($0.date, $0.name) < ($1.date, $1.name) }
     }
 
-    /// Names are the HIGHEST EXISTING INDEX plus one, not the count plus one.
+    /// EVERYTHING CHUTE HANDS YOU IS REMEMBERED. No ritual, nothing to press, nothing to learn:
+    /// you right-click or run a command, it copies something for you, and it is here afterwards.
     ///
-    /// Counting was a silent overwrite: with 001, 002 and 003 held and 002 removed, the count is 2
-    /// and the next add writes 003 — destroying an entry the user was in the middle of collecting.
-    /// The one thing this feature exists to prevent is losing a copy.
+    /// AND STILL NOTHING IS WATCHED. This records what this app WROTE to the clipboard at your
+    /// request — it never reads the pasteboard, so it cannot contain a password you copied from
+    /// a manager, a message from a chat window, or anything else you did not ask Chute for.
+    /// That distinction is the whole reason this is not a clipboard-history feature.
+    public func record(_ text: String, label: String) {
+        guard !text.isEmpty, text.utf8.count <= Self.maxEntryBytes else { return }
+        try? fm.createDirectory(atPath: directory, withIntermediateDirectories: true)
+        let now = Date()
+        // Timestamp then a random tail: two copies inside the same second must not collide, and
+        // sorting by name has to stay sorting by time.
+        let name = String(format: "%012.0f-%@.json", now.timeIntervalSince1970 * 1000,
+                          String(UUID().uuidString.prefix(4)))
+        let payload: [String: Any] = ["ts": now.timeIntervalSince1970,
+                                      "label": label.isEmpty ? text : label,
+                                      "text": text]
+        guard let data = try? JSONSerialization.data(withJSONObject: payload) else { return }
+        try? data.write(to: URL(fileURLWithPath: path(name)))
+
+        let all = entries()
+        if all.count > Self.keep { all.prefix(all.count - Self.keep).forEach(remove) }
+    }
+
+    /// The explicit path, still there for `chute buf add` — something on the clipboard that
+    /// Chute did not produce. The menu no longer offers it: an item you must remember to press
+    /// AFTER copying is a ritual, and the moment you need it is the moment you have forgotten.
     @discardableResult
     public func add(_ text: String) -> Entry? {
-        guard !text.isEmpty else { return nil }
-        try? fm.createDirectory(atPath: directory, withIntermediateDirectories: true)
-        let highest = entries().compactMap { Int($0.name.prefix(3)) }.max() ?? 0
-        let name = String(format: "%03d.txt", highest + 1)
-        guard (try? text.write(toFile: path(name), atomically: true, encoding: .utf8)) != nil
-        else { return nil }
-        return Entry(name: name, text: text)
+        record(text, label: text)
+        return entries().last
     }
 
     public func remove(_ entry: Entry) { try? fm.removeItem(atPath: path(entry.name)) }

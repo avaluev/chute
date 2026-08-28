@@ -200,14 +200,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     // clicked — Chute does not observe the pasteboard, and this is the whole of its involvement
     // with it.
 
-    @objc func bufferAdd() {
-        let text = Clipboard.read()
-        guard !text.isEmpty else { say("Clipboard is empty — nothing to buffer"); return }
-        guard ContextBuffer().add(text) != nil else { say("Could not write to the buffer"); return }
-        let n = ContextBuffer().entries().count
-        say(n == 1 ? "Buffered — 1 waiting" : "Buffered — \(n) waiting")
-    }
-
     @objc func bufferCopyOne(_ sender: NSMenuItem) {
         guard let name = sender.representedObject as? String,
               let entry = ContextBuffer().entries().first(where: { $0.name == name }) else { return }
@@ -219,25 +211,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         guard let joined = buf.flushText() else { return }
         let n = buf.entries().count
         buf.clear()
-        deliver(joined, "\(n) copied as one — buffer emptied")
+        deliver(joined, n == 1 ? "Copied" : "\(n) copied as one")
     }
 
     @objc func bufferClear() {
-        let buf = ContextBuffer()
-        let n = buf.entries().count
-        guard n > 0 else { return }
-        // Confirm, because this is the only path here that destroys something the user assembled
-        // by hand and cannot get back.
-        let alert = NSAlert()
-        alert.messageText = n == 1 ? "Empty the buffer?" : "Empty the buffer of \(n) items?"
-        alert.informativeText = "They are not copied anywhere first. This cannot be undone."
-        alert.addButton(withTitle: "Empty")
-        alert.addButton(withTitle: "Cancel")
-        alert.alertStyle = .warning
-        NSApp.activate(ignoringOtherApps: true)
-        guard alert.runModal() == .alertFirstButtonReturn else { return }
-        buf.clear()
-        say("Buffer emptied")
+        // No confirmation. Recent Copies refills itself every time you use the product, so there
+        // is nothing here anyone assembled by hand — a sheet would cost more attention than the
+        // contents are worth. Contrast Move Junk to Trash, which confirms because it touches
+        // files the user made.
+        ContextBuffer().clear()
+        say("Recent copies cleared")
     }
 
     @objc func openSetup() { FirstRunWindow.show() }
@@ -297,6 +280,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     func deliver(_ text: String, _ message: String) {
         guard !text.isEmpty else { say(message); return }
         Clipboard.write(text)
+        // Remembered under the same words the confirmation used, so the row in Recent Copies and
+        // the HUD that announced it say the same thing.
+        ContextBuffer().record(text, label: message)
         say(message)
     }
 

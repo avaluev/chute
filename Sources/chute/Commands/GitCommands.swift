@@ -127,6 +127,7 @@ func cmdDiff(_ a: Args) {
     if a.has("copy") {
         let patch = Shell.run("git", ["diff", "HEAD"], cwd: dir).out
         Clipboard.write(patch)
+        ContextBuffer().record(patch, label: "Diff · what the agent changed")
         Out.info("→ full patch copied (\(TokenEstimate.badge(TokenEstimate.tokens(in: patch))))")
     }
 }
@@ -172,6 +173,7 @@ func cmdGist(_ a: Args) {
         .last(where: { $0.hasPrefix("https://") })
         .map(String.init) ?? r.out.trimmingCharacters(in: .whitespacesAndNewlines)
     Clipboard.write(url)
+        ContextBuffer().record(url, label: "Secret gist URL")
     Out.line(url)
     Out.info(redacted > 0
              ? "→ copied to clipboard · secrets redacted in \(redacted) file(s) before upload"
