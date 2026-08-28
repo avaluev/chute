@@ -101,14 +101,20 @@ public enum ActionInbox {
                 try? FileManager.default.removeItem(atPath: path)
                 continue
             }
+            // A request that cannot be read is DELETED, and used to be deleted in silence — a
+            // right-click that produced nothing at all and left no trace of why. Say so: this is
+            // the only evidence anyone gets that a click was received and thrown away.
             guard let data = FileManager.default.contents(atPath: path),
                   let request = parse(data) else {
+                NSLog("Chute: unreadable request discarded: %@", (path as NSString).lastPathComponent)
                 try? FileManager.default.removeItem(atPath: path)
                 continue
             }
             let age = now.timeIntervalSince(request.createdAt)
             // A negative age means a clock skew, not a fresh request: drop it rather than trust it.
             guard age >= 0, age < staleAfter else {
+                NSLog("Chute: stale request discarded (%.0fs old): %@",
+                      age, (path as NSString).lastPathComponent)
                 try? FileManager.default.removeItem(atPath: path)
                 continue
             }

@@ -97,6 +97,19 @@ enum Notify {
         content.title = title
         if let subtitle { content.subtitle = subtitle }
         content.body = body
+
+        // Delivery is not display. Measured 2026-08-28: this app hands the request to
+        // UNUserNotificationCenter in 4 ms — but a Focus mode, a Scheduled Summary or an alert
+        // style of "None" can then hold the banner for minutes, which is exactly what was
+        // reported. `.timeSensitive` is the one lever an app has: it breaks through Focus and is
+        // never rolled into a summary.
+        //
+        // It needs com.apple.developer.usernotifications.time-sensitive, which needs the Developer
+        // ID that does not exist yet. Setting it without the entitlement is SAFE — macOS silently
+        // treats it as .active — so it is set now and starts working the day the app is signed
+        // properly, rather than being a thing someone has to remember later.
+        content.interruptionLevel = .timeSensitive
+
         let request = UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil)
         UNUserNotificationCenter.current().add(request) { error in
             if let error {
@@ -120,6 +133,22 @@ enum Notify {
     }
 }
 
+/// Tell the user something finished.
+///
+/// TWO SURFACES, ON PURPOSE, and they answer different questions.
+///
+/// The HUD answers "did that work?" in the same run loop turn. It is a borderless panel this app
+/// draws itself, so no notification policy applies to it: not Focus, not a Scheduled Summary, not
+/// an alert style of "None". That matters because the delay reported on 2026-08-28 was never in
+/// this code — measured against the unified log, handing a request to UNUserNotificationCenter
+/// takes 4 ms, and the banner still arrived minutes later. macOS was holding it.
+///
+/// The notification answers "what happened while I was looking elsewhere?" It is the durable
+/// record in Notification Centre, and it is allowed to be late.
+///
+/// Called from background queues, so the HUD hops to the main thread; AppKit windows are
+/// main-thread-only and this used to be reached straight off a global queue.
 func notify(_ title: String, _ body: String) {
+    DispatchQueue.main.async { ResultHUD.show(body) }
     Notify.post(title: "Chute", subtitle: title == "Chute" ? nil : title, body: body)
 }
