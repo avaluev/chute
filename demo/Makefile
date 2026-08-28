@@ -44,12 +44,21 @@ out/%.gif: tapes/%.tape common.tape setup.tape fixtures/make.sh
 # Recorded GIFs are not source, so out/ is gitignored — but the site needs them committed. This
 # copies exactly the ones a case refers to, and check-paddle.mjs then proves every referenced
 # asset resolves in the built site.
+# THE ONLY PLACE A RECORDING BECOMES DURABLE. demo/out/ is gitignored (see demo/.gitignore) —
+# footage that has not been published lives in exactly one untracked directory and dies with the
+# working tree. Run this after EVERY take, not once at the end of a batch.
+#
+# The guard is the STEM, not the whole filename: cases.ts names `<slug>.mp4` and `<slug>.jpg`, and
+# matching on the stem carries the `.webm` alternate source across too without cases.ts having to
+# name a file no author ever writes by hand. `<slug>-race.mp4` has a different stem, so the
+# side-by-side stays a social artifact until something on the site actually asks for it.
 publish:
 	@mkdir -p ../site/public/media
-	@n=0; for g in out/*.gif; do \
-	  b=$$(basename $$g); \
-	  if grep -q "/media/$$b" ../site/src/lib/cases.ts; then cp $$g ../site/public/media/$$b; n=$$((n+1)); fi; \
-	done; echo "  $$n GIF(s) published to site/public/media/"
+	@n=0; for f in out/*.gif out/gui/*.mp4 out/gui/*.webm out/gui/*.jpg; do \
+	  [ -e "$$f" ] || continue; \
+	  b=$$(basename $$f); \
+	  if grep -q "/media/$${b%.*}\." ../site/src/lib/cases.ts; then cp $$f ../site/public/media/$$b; n=$$((n+1)); fi; \
+	done; echo "  $$n file(s) published to site/public/media/"
 	@echo "  cases referring to media that does not exist yet:"
 	@cd ../site && node scripts/check-cases.mjs 2>/dev/null | grep "^  note" || true
 
