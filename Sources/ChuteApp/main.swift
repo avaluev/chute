@@ -206,12 +206,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         deliver(entry.text, "Copied")
     }
 
+    /// NOT VIA `deliver`. The joined text is made OUT of the entries — recording it would file an
+    /// eleventh row holding a copy of the other ten, and `keep` would then evict the oldest of the
+    /// very things it had just concatenated. A derived blob is not a new thing you collected.
     @objc func bufferFlush() {
         let buf = ContextBuffer()
         guard let joined = buf.flushText() else { return }
         let n = buf.entries().count
         buf.clear()
-        deliver(joined, n == 1 ? "Copied" : "\(n) copied as one")
+        Clipboard.write(joined)
+        say(n == 1 ? "Copied" : "\(n) copied as one")
     }
 
     @objc func bufferClear() {
@@ -256,33 +260,41 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
               let s = lastSessions.first(where: { $0.key == payload.key }),
               let sessionID = s.sessionID else { return }
 
+        // Every label names its SESSION. Four agents running means four "Resume command" rows,
+        // and without the project on each one the list cannot tell you which is which.
         switch payload.kind {
         case .copyID:
-            deliver(sessionID, "Session ID copied")
+            deliver(sessionID, "Session ID copied", label: "Session ID · \(s.project)")
         case .copyResume:
             guard let cmd = ResumeCommand.resume(agent: s.agent, sessionID: sessionID) else { return }
-            deliver(cmd, "Resume command copied")
+            deliver(cmd, "Resume command copied", label: "Resume · \(s.project)")
         case .tmux:
             guard let cmd = ResumeCommand.tmux(project: s.project, cwd: s.cwd,
                                                agent: s.agent, sessionID: sessionID) else { return }
-            deliver(cmd, "tmux command copied — the conversation resumes; the old window keeps running")
+            deliver(cmd, "tmux command copied — the conversation resumes; the old window keeps running",
+                    label: "tmux · \(s.project)")
         case .copyCost:
             guard let t = transcripts.cached(sessionID),
                   let label = AgentTranscript.costLabel(output: t.outputTokens,
                                                         cacheRead: t.cacheReadTokens) else { return }
-            deliver(label, "Cost copied")
+            deliver(label, "Cost copied", label: "Cost · \(s.project) · \(label)")
         }
     }
 
     /// Put something on the clipboard and say so. NEVER writes an empty string: `deliver("", …)`
     /// would silently destroy whatever the user had copied, which is the opposite of this app's
     /// job. Use `say` for a message with nothing to hand over.
-    func deliver(_ text: String, _ message: String) {
+    ///
+    /// `message` is the CONFIRMATION — what the HUD says once, in the moment. `label` is the
+    /// ROW — what Recent Copies shows for as long as it holds the entry, and they are not the
+    /// same sentence. This used to file the confirmation as the label, so every row read "Session
+    /// ID copied" and none of them said WHICH session: a list of identical verbs you had to copy
+    /// out one by one to tell apart. A label names the content; it defaults to the message only
+    /// for the callers where the two genuinely coincide.
+    func deliver(_ text: String, _ message: String, label: String? = nil) {
         guard !text.isEmpty else { say(message); return }
         Clipboard.write(text)
-        // Remembered under the same words the confirmation used, so the row in Recent Copies and
-        // the HUD that announced it say the same thing.
-        ContextBuffer().record(text, label: message)
+        ContextBuffer().record(text, label: label ?? message)
         say(message)
     }
 

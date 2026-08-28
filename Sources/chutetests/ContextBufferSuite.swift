@@ -79,5 +79,37 @@ func contextBufferSuite() {
         buf.clear()
         buf.record("some text", label: "")
         T.eq(buf.entries().first?.label, "some text", "an empty label falls back to the content")
+
+        // ── USING THE LIST MUST NOT DESTROY THE LIST ────────────────────────────────────────
+        //
+        // Owner's report, 2026-08-28: "Recent Copies — it is a shit hardcode. It never works."
+        // It was both, and one caused the other. Clicking a row called AppDelegate.deliver, which
+        // recorded the replay as a NEW entry under the HUD's confirmation wording. So the list
+        // filled with identical rows reading "Copied", and because `keep` is 10, each of those
+        // rows evicted one of the real things the list existed to hold. Ten clicks emptied it of
+        // everything worth keeping and left ten copies of the same verb.
+        //
+        // A replay is not a new copy. Deduplicated on the TEXT — the content is the thing being
+        // collected, and the same content handed over under two confirmations is still one thing.
+        buf.clear()
+        buf.record("the patch", label: "Diff · what the agent changed")
+        buf.record("the patch", label: "Copied")          // ← clicking the row in Recent Copies
+        buf.record("the patch", label: "Copied")
+        T.eq(buf.entries().count, 1, "putting a held entry back on the clipboard files nothing new")
+        T.eq(buf.entries().first?.label, "Diff · what the agent changed",
+             "and the row keeps the words it was delivered under, not the confirmation's")
+
+        // The eviction that followed from it, stated as the thing a user would notice: ten real
+        // entries, then ten replays, and everything real is still there.
+        buf.clear()
+        for i in 0..<ContextBuffer.keep { buf.record("body \(i)", label: "real \(i)") }
+        for i in 0..<ContextBuffer.keep { buf.record("body \(i)", label: "Copied") }
+        T.eq(buf.entries().count, ContextBuffer.keep, "replaying every row adds no rows")
+        T.no(buf.entries().contains { $0.label == "Copied" }, "and none of them is a bare 'Copied'")
+        T.eq(buf.entries().first?.label, "real 0", "the oldest real entry was never evicted")
+
+        // Genuinely different content is still recorded — the dedupe must not become a mute.
+        buf.record("something else", label: "new thing")
+        T.ok(buf.entries().contains { $0.label == "new thing" }, "a new copy is still recorded")
     }
 }

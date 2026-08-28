@@ -79,8 +79,19 @@ public struct ContextBuffer: Sendable {
     /// request — it never reads the pasteboard, so it cannot contain a password you copied from
     /// a manager, a message from a chat window, or anything else you did not ask Chute for.
     /// That distinction is the whole reason this is not a clipboard-history feature.
+    ///
+    /// A REPLAY IS NOT A NEW COPY. Putting something back on the clipboard that is already in
+    /// here does not record a second row. Without that, the feature destroyed itself by being
+    /// used: clicking a Recent Copies row called `deliver`, which recorded a fresh entry under
+    /// the HUD's confirmation wording — so ten clicks left ten rows reading "Copied" and evicted,
+    /// via `keep`, the ten real things the list existed to hold. The same held for the CLI, where
+    /// running `chute diff` twice filed the identical patch twice.
+    ///
+    /// Deduplicated on the TEXT, not the label: the text is the thing the user is collecting, and
+    /// the same content handed over under two different confirmations is still one thing.
     public func record(_ text: String, label: String) {
         guard !text.isEmpty, text.utf8.count <= Self.maxEntryBytes else { return }
+        guard !entries().contains(where: { $0.text == text }) else { return }
         try? fm.createDirectory(atPath: directory, withIntermediateDirectories: true)
         let now = Date()
         // Timestamp then a random tail: two copies inside the same second must not collide, and
