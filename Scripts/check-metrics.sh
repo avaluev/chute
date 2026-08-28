@@ -76,7 +76,10 @@ import json, sys
 d = json.load(sys.stdin)
 print(max((r.get("cpuPercent", 0) for r in d), default=0))
 ')
-if python3 -c "import sys; sys.exit(0 if float('$WORST') <= $MAXCPU else 1)"; then
+# Through the ENVIRONMENT, not spliced into the source. Both values are floats printed by
+# max() today, so nothing can escape the quotes — but the same script already does this the
+# right way for MEMSIZE above, and two patterns for one job is how the wrong one survives.
+if WORST="$WORST" MAXCPU="$MAXCPU" python3 -c 'import os, sys; sys.exit(0 if float(os.environ["WORST"]) <= float(os.environ["MAXCPU"]) else 1)'; then
   ok "the busiest session reads $(printf '%.1f' "$WORST")%, within the $MAXCPU% this machine can produce"
 else
   bad "a session claims more CPU than the machine has" \
@@ -89,31 +92,62 @@ fi
 echo
 echo "2. a known one-core load reads as one core"
 
-python3 -c '
+# MEASURED AS A DELTA, not as an absolute. The first version read "the busiest session" while the
+# load ran — which is the busiest session's WHOLE tree, agents and compilers included, not the
+# load. It read 121% for one pinned core on a machine that was working, and it went red when two
+# other jobs were competing for the same core. A gate that cries wolf gets ignored, which is worse
+# than no gate at all. Before-and-after on the session that hosts the burn isolates the one core
+# we started from everything else the machine is doing.
+per_tty_cpu() {
+  "$CHUTE" sessions --json 2>/dev/null | python3 -c '
+import json, sys
+for r in json.load(sys.stdin):
+    print(r.get("tty", "?"), r.get("cpuPercent", 0))
+'
+}
+cpu_delta() {
+  python3 -c '
+import sys
+def load(p):
+    d = {}
+    for line in open(p):
+        parts = line.split()
+        if len(parts) == 2: d[parts[0]] = float(parts[1])
+    return d
+a, b = load(sys.argv[1]), load(sys.argv[2])
+print(f"{max((b[k] - a.get(k, 0.0) for k in b), default=0.0):.1f}")
+' "$1" "$2"
+}
+
+# BEST OF THREE. A busy-loop that loses its core to something else under-reports, and that is a
+# fact about the machine rather than about the code — so a contended attempt is not evidence.
+# The best attempt is the one where the loop actually got a core, which is the reading we mean.
+# No attempt can over-report, so taking the maximum cannot hide the bug this is here to catch.
+READING=0
+for _ in 1 2 3; do
+  B=$(mktemp); per_tty_cpu > "$B"
+  python3 -c '
 import time
-end = time.time() + 3.0
+end = time.time() + 2.5
 while time.time() < end: pass
 ' &
-BURN=$!
-# ponytail: sleep-then-sample rather than synchronising with the child. The load runs 3s and we
-# read at 1.2s, so the window is comfortably inside it; a handshake would be more code for a
-# margin we already have.
-sleep 1.2
-READING=$("$CHUTE" sessions --json 2>/dev/null | python3 -c '
-import json, sys
-d = json.load(sys.stdin)
-print(max((r.get("cpuPercent", 0) for r in d), default=0))
-')
-wait $BURN 2>/dev/null
+  BURN=$!
+  sleep 1.2
+  A=$(mktemp); per_tty_cpu > "$A"
+  wait $BURN 2>/dev/null
+  THIS=$(cpu_delta "$B" "$A"); rm -f "$B" "$A"
+  READING=$(A="$READING" B="$THIS" python3 -c 'import os; print(max(float(os.environ["A"]), float(os.environ["B"])))')
+  # Stop as soon as one attempt lands — the rest would only cost time.
+  R="$READING" python3 -c 'import os, sys; v = float(os.environ["R"]); sys.exit(0 if 80 <= v <= 130 else 1)' && break
+done
 
-# 80-130 is deliberately loose: this machine is not quiet, the load shares a core with whatever
-# else is running, and the sampling window is not exactly the burn window. The bug this catches
-# was 24x, and 24x does not fit in that band from either side.
-if python3 -c "import sys; sys.exit(0 if 80 <= float('$READING') <= 130 else 1)"; then
-  ok "one pinned core reads as $(printf '%.1f' "$READING")% — in the 80–130% band"
+# 80-130 is deliberately loose: the sampling window is not exactly the burn window. The bug this
+# catches was 24x, and 24x does not fit in that band from either side.
+if R="$READING" python3 -c 'import os, sys; v = float(os.environ["R"]); sys.exit(0 if 80 <= v <= 130 else 1)'; then
+  ok "one pinned core moves its session by ${READING}% — in the 80–130% band"
 else
   bad "a known one-core load does not read as one core" \
-      "read $READING%, expected 80–130%. Below: a unit factor (mach ticks are not nanoseconds — this Mac's timebase is 125/3, so the naive reading is 24x low). Above: double counting."
+      "moved ${READING}%, expected 80–130%. Below: a unit factor (mach ticks are not nanoseconds — this Mac's timebase is 125/3, so the naive reading is 24x low), or the machine was too busy to give the loop a core. Above: double counting."
 fi
 
 echo

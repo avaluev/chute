@@ -111,5 +111,23 @@ func contextBufferSuite() {
         // Genuinely different content is still recorded — the dedupe must not become a mute.
         buf.record("something else", label: "new thing")
         T.ok(buf.entries().contains { $0.label == "new thing" }, "a new copy is still recorded")
+
+        // ── NOT WORLD-READABLE ──────────────────────────────────────────────────────────────
+        //
+        // Security review, 2026-08-28: these were landing at 755/644 under the standard umask,
+        // readable by every local account on the machine. What is in here is a git diff, a secret
+        // gist URL from `chute gist`, or whatever `chute buf add` was pointed at. Every other
+        // sensitive path in this codebase already restricts its mode — ActionRequest 0700,
+        // RequestInbox 0600, the env file 0600 — and this one was simply missed.
+        let fm2 = FileManager.default
+        let dirMode = (try? fm2.attributesOfItem(atPath: dir)[.posixPermissions] as? NSNumber)??.intValue
+        T.eq(dirMode, 0o700, "the buffer directory is ours alone")
+        if let first = buf.entries().first {
+            let file = (dir as NSString).appendingPathComponent(first.name)
+            let mode = (try? fm2.attributesOfItem(atPath: file)[.posixPermissions] as? NSNumber)??.intValue
+            T.eq(mode, 0o600, "and so is every file in it")
+        } else {
+            T.ok(false, "there is an entry to check the mode of")
+        }
     }
 }

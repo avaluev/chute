@@ -265,7 +265,17 @@ public enum SystemVitals {
 
     /// The previous snapshot, so CPU can be a RATE rather than a lifetime average. Held here
     /// because it is state about the machine, not about any one menu.
+    ///
+    /// LOCKED, and it was not. Review caught this: `sample()` runs on the MAIN thread when the
+    /// menu opens or the ⌥⌘N HUD pops, and on a BACKGROUND queue every two seconds while a menu
+    /// is on screen — and `vitalsSampling` only stops the timer overlapping itself. Two threads
+    /// could read this tuple, mutate the dictionary and write it back with no synchronisation:
+    /// a real data race on Dictionary's copy-on-write storage, and at best a torn pairing of `at`
+    /// with `samples` feeding `cpuPercent` a plausible wrong answer — which is the exact class of
+    /// bug this file exists to prevent. The two caches added alongside it were locked; this one
+    /// was missed.
     nonisolated(unsafe) private static var previous: (at: Date, samples: [Int32: ProcessMetrics.Sample])?
+    private static let previousLock = NSLock()
 
     /// One `ps` for the process TREE — pid, ppid, tty and command, which libproc does not give
     /// conveniently — then real numbers from `ProcessMetrics` for everything a user will read.
@@ -308,14 +318,25 @@ public enum SystemVitals {
         }
         let tree = attribute(rows)
         let pids = tree.map { Int32($0.pid) }
-        if previous == nil {
-            previous = (Date(), ProcessMetrics.snapshot(pids: pids))
+        // The snapshots are taken OUTSIDE the lock — they are syscalls over three hundred
+        // processes, and holding a lock across them would serialise the menu against its own
+        // background refresh. Only the read-and-replace of the shared tuple is guarded.
+        previousLock.lock()
+        let needsSettle = previous == nil
+        previousLock.unlock()
+        if needsSettle {
+            let first = ProcessMetrics.snapshot(pids: pids)
+            previousLock.lock()
+            if previous == nil { previous = (Date(), first) }
+            previousLock.unlock()
             Thread.sleep(forTimeInterval: settleSeconds)
         }
         let now = Date()
         let live = ProcessMetrics.snapshot(pids: pids)
+        previousLock.lock()
         let last = previous
         previous = (now, live)
+        previousLock.unlock()
 
         let seconds = last.map { now.timeIntervalSince($0.at) } ?? 0
         // Built once, not per process: a browser helper has to be walked up its parent chain to
@@ -324,15 +345,23 @@ public enum SystemVitals {
         var ppidByPid: [Int: Int] = [:]
         for p in tree { ppidByPid[p.pid] = p.ppid }
 
-        return tree.map { p in
+        // RULE 4, ENFORCED HERE TOO — and it was not, until review found it. `residentKB` is
+        // always 0 now that `ps` is gone, so the `bytes` fallback that used to cover a refusal is
+        // dead code on this path. A process that exited between the listing and the snapshot —
+        // routine, on a machine whose whole premise is trees of short-lived agent subprocesses —
+        // would therefore contribute 0 bytes and 0% to its session's totals, silently
+        // understating them. A process we have no reading for is DROPPED. `snapshot` says it
+        // best: a map that says nothing about a pid is honest, a map that says 0 is not.
+        return tree.compactMap { p -> ProcessSample? in
             let pid = Int32(p.pid)
+            guard let reading = live[pid] else { return nil }
             let cpu = last.flatMap {
                 ProcessMetrics.cpuPercent(pid: pid, from: $0.samples, to: live, seconds: seconds)
             }
             var out = ProcessSample(pid: p.pid, ppid: p.ppid, command: p.command, tty: p.tty,
                                     cpuPercent: cpu ?? 0, residentKB: p.residentKB)
-            out.footprintBytes = live[pid]?.footprintBytes ?? 0
-            out.peakFootprintBytes = live[pid]?.peakFootprintBytes ?? 0
+            out.footprintBytes = reading.footprintBytes
+            out.peakFootprintBytes = reading.peakFootprintBytes
             out.sid = p.sid
             out.instance = browserInstance(pid: pid, named: p.command, ppid: ppidByPid)
             return out

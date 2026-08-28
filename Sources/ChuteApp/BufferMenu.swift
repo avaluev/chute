@@ -17,11 +17,21 @@ import ChuteCore
 ///
 /// ── AND IT IS STILL NOT CLIPBOARD HISTORY ───────────────────────────────────────────────────
 ///
-/// Chute records what it WROTE, never what it read. There is no pasteboard observer, no
-/// `changeCount` poll, no timer. It is not possible for a password you copied out of a manager,
-/// or a message from a chat window, to appear in this list: nothing reaches it that this app did
-/// not produce because you asked it to. That is the difference between a feature and a red flag,
-/// and it is why this is not off by default and needs no explaining.
+/// Nothing here WATCHES. There is no pasteboard observer, no `changeCount` poll, no timer, and
+/// no menu item that captures the clipboard. Everything this menu records, it recorded because
+/// this app put it on your clipboard at your request.
+///
+/// THE ONE EXCEPTION, STATED, BECAUSE THE CLAIM WAS OVERSOLD. This comment used to say it was
+/// "not possible" for a password copied out of a manager to appear in this list. That was false,
+/// and security review caught it: `chute buf add` with no argument reads whatever is on the
+/// pasteboard right now (Sources/chute/Commands/ContextCommands.swift) and files it in the same
+/// store this menu displays. It is an explicit command a person types, not a background capture
+/// — but "you can put anything here on purpose" is a different sentence from "this cannot
+/// contain your password", and only the first one is true.
+///
+/// So the honest version: nothing reaches this list passively. The menu has no verb that adds
+/// the clipboard, and it never will. The CLI has one, deliberately, and it does exactly what its
+/// name says.
 ///
 /// Hidden entirely until there is something in it, so it costs a reader nothing on day one.
 enum BufferMenu {
