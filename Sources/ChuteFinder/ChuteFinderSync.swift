@@ -75,14 +75,19 @@ class ChuteFinderSync: FIFinderSync {
                                   action: #selector(run(_:)), keyEquivalent: "")
             item.target = self
             item.toolTip = action.detail
-            item.image = Self.icon(action.symbol, label: action.plainTitle)
+            item.image = Self.icon(action.symbol, tint: Self.tint(action.kind),
+                                   label: action.plainTitle)
             // The tag is the ONLY reliable way back to the action — see the note above.
             item.tag = ChuteActions.all.firstIndex(where: { $0.id == action.id }) ?? 0
 
             guard let parentTitle = action.parentTitle else { root.addItem(item); continue }
             if submenus[parentTitle] == nil {
                 let holder = NSMenuItem(title: parentTitle, action: nil, keyEquivalent: "")
-                holder.image = Self.icon(action.symbol, label: parentTitle)
+                // The holder inherits the FIRST child's icon and kind, which is why the tree
+                // depths are all .copy and the two agent actions are both .setup: a submenu whose
+                // rows disagree about safety cannot be honestly coloured by one of them.
+                holder.image = Self.icon(action.symbol, tint: Self.tint(action.kind),
+                                         label: parentTitle)
                 let menu = NSMenu(title: parentTitle)
                 root.addItem(holder)
                 root.setSubmenu(menu, for: holder)
@@ -95,17 +100,30 @@ class ChuteFinderSync: FIFinderSync {
         return root
     }
 
-    /// One colour per action, so a row can be found by colour before it is read. Mid-saturation
-    /// system colours hold up on both light and dark menu backgrounds.
-    static let tints: [String: NSColor] = [
-        "list.clipboard.fill":   .systemBlue,
-        "shippingbox.fill":      .systemTeal,
-        "folder.fill":           .systemCyan,
-        "photo.fill":            .systemGreen,
-        "square.and.pencil":     .systemOrange,
-        "doc.on.clipboard.fill": .systemPurple,
-        "terminal.fill":         .systemIndigo,
-    ]
+    /// Colour by what the action DOES, not by which action it is.
+    ///
+    /// This was a `[symbol: NSColor]` table, and it was missing four of the thirteen symbols —
+    /// `arrow.down.doc.fill`, `doc.badge.gearshape.fill`, `shippingbox.and.arrow.backward.fill`
+    /// and `trash.fill` — so each of them fell through to `?? .systemBlue`. "Move Junk to Trash"
+    /// was drawn the same blue as "Copy Full Paths". A partial lookup with a default cannot tell
+    /// you it is incomplete; a switch over an enum will not compile until it is.
+    ///
+    /// Seven arbitrary hues also asked colour to do a job it is bad at. A reader cannot hold
+    /// "teal means bundle" in their head, but they can hold "red means it changes something".
+    /// Identity stays with the icon and the word — no two drawn rows share a symbol — and colour
+    /// answers the one question worth answering before the mouse comes up: is this safe?
+    ///
+    /// Mid-saturation system colours, so they hold up on both light and dark menu backgrounds,
+    /// and they follow the user's accessibility settings rather than fixed RGB.
+    static func tint(_ kind: ChuteAction.Kind) -> NSColor {
+        switch kind {
+        case .copy:        return .systemBlue      // reads; nothing on disk moves
+        case .create:      return .systemGreen     // makes something that was not there
+        case .setup:       return .systemPurple    // prepares a folder, additively
+        case .destructive: return .systemRed       // changes what exists — and always asks first
+        case .open:        return .systemIndigo    // leaves Finder
+        }
+    }
 
     /// Pre-rendered at a fixed size, not handed over as a live symbol. Two reasons, both learned
     /// on this menu: hairline outlines at Finder's default rendering are a grey smudge, and an
@@ -113,7 +131,7 @@ class ChuteFinderSync: FIFinderSync {
     /// SymbolConfiguration can be dropped — a plain bitmap cannot be. The colour is baked into
     /// the bitmap and `isTemplate` stays OFF: a template is tinted monochrome by the system,
     /// which is exactly what made the icons hard to tell apart.
-    static func icon(_ symbol: String, label: String) -> NSImage? {
+    static func icon(_ symbol: String, tint: NSColor, label: String) -> NSImage? {
         let config = NSImage.SymbolConfiguration(pointSize: 14, weight: .semibold, scale: .large)
         guard let base = NSImage(systemSymbolName: symbol, accessibilityDescription: label)?
                 .withSymbolConfiguration(config) else { return nil }
@@ -132,7 +150,7 @@ class ChuteFinderSync: FIFinderSync {
         let frame = NSRect(x: (points.width - w) / 2, y: (points.height - h) / 2,
                            width: w, height: h)
         base.draw(in: frame)
-        (tints[symbol] ?? .systemBlue).setFill()
+        tint.setFill()
         NSRect(origin: .zero, size: points).fill(using: .sourceAtop)   // recolour the glyph only
         NSGraphicsContext.restoreGraphicsState()
 

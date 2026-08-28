@@ -74,7 +74,7 @@ take_start "$SLUG" 12
 stopwatch_start
 
 right_click_selection
-menu_pick "Copy Files with Contents"
+menu_pick "Copy Files as Context"
 await_inbox_drained
 # The wedge's whole claim is contents PLUS a token count. Assert both, or a take that copied
 # only the paths passes every check and ships as proof of something it does not show.

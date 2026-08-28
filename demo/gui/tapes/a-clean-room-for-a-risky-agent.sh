@@ -19,7 +19,7 @@ take_start "$SLUG" 15
 stopwatch_start
 
 right_click_selection
-menu_pick_sub "Set Up for an Agent" "New Clean Room for an Agent"
+menu_pick_sub "Set Up for an Agent" "New Scratch Folder"
 await_inbox_drained
 CHUTE_SECS="$(stopwatch_read)"
 take_wait

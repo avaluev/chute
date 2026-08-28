@@ -32,8 +32,12 @@ Expect: `✅ 466 assertions passed`, `smoke: 133 passed, 0 failed`, `→ all 9 c
 ## WHAT THE PRODUCT DOES TODAY
 
 **Finder right-click → Chute actions INLINE in the context menu** (8 actions, `chute finder-actions` lists them; no `Chute ▸` hop since 2026-08-27 — each row carries a literal SF Symbol — folder for the tree, photo for the image, square.and.pencil for new files — and the tree shows on FILE clicks too, copying the enclosing folder):
-Copy Full Paths (n) · Copy Folder Tree ▸ 2 Levels / 4 Levels / Everything ·
-Paste Image from Clipboard · New Markdown File · New Markdown File from Clipboard · Open in Terminal.
+Copy Full Paths (n) · Copy Files as Context (n) · Copy Folder Tree ▸ 2 / 4 / All Levels ·
+Save Clipboard as Files… · New File ▸ Empty Markdown File / Markdown File from Clipboard /
+Image from Clipboard · Set Up for an Agent ▸ Add Agent Rules / New Scratch Folder ·
+Move Junk to Trash… · Open in Terminal.
+Renamed and recoloured 2026-08-28 — the full row-by-row map, the naming rules and the
+JTBD/CLI coverage tables are in docs/12-CAPABILITY-MAP.md.
 
 **Menu bar** — sessions grouped by what you must do about them, with per-session cost:
 ```
