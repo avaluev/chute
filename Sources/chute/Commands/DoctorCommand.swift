@@ -35,7 +35,27 @@ func cmdDoctor(_ a: Args) {
     var outcomes = Diagnostics.run(Diagnostics.liveEnv())
 
     if a.has("fix") {
-        applyFixes(outcomes)
+        // Only checks that actually HAVE a repair. Counting every failure would promise repairs
+        // for `terminal` and `end-to-end`, which have none — the same "plausible number answering
+        // a different question" this command exists to stop telling.
+        let toFix = outcomes.filter { !$0.passed }
+            .compactMap { o in repair(o.check.id, dryRun: true).map { (id: o.check.id, what: $0) } }
+        // NFR-05 — preview by default, fix only with --force. `--fix` is already an opt-in flag,
+        // so a second one on top could read as nagging — but this is still the most destructive
+        // thing in the product (Trashes a container, kills two processes), and consistency is the
+        // entire point of this move: a convention with one exception is not a convention. Decided
+        // 2026-08-29: `--fix` gets the same gate as the other four, no carve-out for being opt-in
+        // already. Nothing to fix → nothing to gate: `applyFixes` below is a no-op on an empty
+        // list, same as before this change.
+        if !toFix.isEmpty {
+            guard a.has("force") else {
+                Out.info("dry run — --fix would attempt \(toFix.count) repair(s):")
+                toFix.forEach { Out.line("  \($0.id): \($0.what)") }
+                Out.info("→ re-run with --force to fix")
+                return
+            }
+        }
+        toFix.forEach { repair($0.id, dryRun: false) }
         // Never claim success without re-verifying. Reporting a fix that was not re-checked is
         // the failure mode this whole module exists to prevent.
         Out.info("→ re-running every check")
@@ -96,29 +116,40 @@ func cmdDoctor(_ a: Args) {
     exit(failures.contains { $0.check.id == "os" } ? 2 : 1)
 }
 
-private func applyFixes(_ outcomes: [CheckOutcome]) {
-    for o in outcomes where !o.passed {
-        switch o.check.id {
-        case "cli":
-            // NOT FIXED FROM HERE ANY MORE. This used to symlink the bundled binary into
-            // ~/.local/bin, which put `chute` on PATH twice at the same version — a collision
-            // the app created and then diagnosed, offering to recreate it as the remedy.
-            // Homebrew owns the CLI; installing it is a decision for the user's package manager,
-            // not something an app writes into their home directory behind a --fix flag.
-            Out.info("→ the CLI comes from Homebrew: brew install avaluev/tap/chute")
-        case "ext-started":
-            // A sandboxed extension's container pins the code identity that created it, so after
-            // a rebuild macOS silently refuses to start the new one. The remedy is the sequence
-            // Scripts/install.sh has always run, and it needs NO PASSWORD: Finder moves the
-            // container to the Trash on request. The old advice was `sudo rm -rf`, which is a
-            // root delete a customer cannot verify, for a fault the product caused.
-            //
-            // Order matters, and it was measured: drop the container, DEREGISTER (macOS will not
-            // recreate a container for a registration it still holds), relaunch the host app —
-            // which is what actually registers an appex — then restart Finder.
+/// ONE SWITCH, describing and doing. The preview arrived as a second switch mirroring this one,
+/// "kept in sync by hand" — which is the same shape as the row that titled itself "New Scratch
+/// Folder" and then toasted "Clean room ready.", and as the four hand-kept copies of the version
+/// number. Two places for one truth drift, and here the drift would preview a repair that does
+/// not happen, or hide one that does, for the most destructive command in the product.
+///
+/// Returns the one-line description, or nil when this check has no automatic fix at all — which
+/// is also what keeps the preview from counting repairs it will not attempt.
+@discardableResult
+private func repair(_ id: String, dryRun: Bool) -> String? {
+    let container = (NSHomeDirectory() as NSString)
+        .appendingPathComponent("Library/Containers/dev.valuev.chute.finder")
+    switch id {
+    case "cli":
+        // NOT FIXED FROM HERE ANY MORE. This used to symlink the bundled binary into
+        // ~/.local/bin, which put `chute` on PATH twice at the same version — a collision
+        // the app created and then diagnosed, offering to recreate it as the remedy.
+        // Homebrew owns the CLI; installing it is a decision for the user's package manager,
+        // not something an app writes into their home directory behind a --fix flag.
+        if !dryRun { Out.info("→ the CLI comes from Homebrew: brew install avaluev/tap/chute") }
+        return "print the Homebrew install command — no files touched"
+
+    case "ext-started":
+        // A sandboxed extension's container pins the code identity that created it, so after
+        // a rebuild macOS silently refuses to start the new one. The remedy is the sequence
+        // Scripts/install.sh has always run, and it needs NO PASSWORD: Finder moves the
+        // container to the Trash on request. The old advice was `sudo rm -rf`, which is a
+        // root delete a customer cannot verify, for a fault the product caused.
+        //
+        // Order matters, and it was measured: drop the container, DEREGISTER (macOS will not
+        // recreate a container for a registration it still holds), relaunch the host app —
+        // which is what actually registers an appex — then restart Finder.
+        if !dryRun {
             let app = Diagnostics.resolvedAppPath(Bundle.main.bundlePath)
-            let container = (NSHomeDirectory() as NSString)
-                .appendingPathComponent("Library/Containers/dev.valuev.chute.finder")
             _ = Shell.run("osascript", ["-e",
                 "tell application \"Finder\" to delete POSIX file \"\(container)\""])
             _ = Shell.run("pluginkit", ["-r", app + "/Contents/PlugIns/ChuteFinder.appex"])
@@ -128,19 +159,34 @@ private func applyFixes(_ outcomes: [CheckOutcome]) {
             _ = Shell.run("pluginkit", ["-e", "use", "-i", "dev.valuev.chute.finder"])
             _ = Shell.run("killall", ["Finder"])
             Out.info("→ cleared the stale extension container and restarted Finder")
-        case "ext-registered":
+        }
+        return "Trash \(container), then kill ChuteApp and Finder to reload the extension"
+
+    case "ext-registered":
+        if !dryRun {
             let appex = Bundle.main.bundlePath + "/Contents/PlugIns/ChuteFinder.appex"
             _ = Shell.run("pluginkit", ["-a", appex])
             Out.info("→ registered the Finder extension")
-        case "ext-enabled":
+        }
+        return "register the Finder extension with pluginkit"
+
+    case "ext-enabled":
+        if !dryRun {
             _ = Shell.run("pluginkit", ["-e", "use", "-i", "dev.valuev.chute.finder"])
             Out.info("→ asked macOS to enable the Finder extension")
-        case "automation":
+        }
+        return "ask macOS to enable the Finder extension"
+
+    case "automation":
+        if !dryRun {
             _ = Shell.run("osascript", ["-e", "tell application \"Finder\" to return 1"])
             Out.info("→ triggered the Automation prompt")
-        default:
-            break   // os, app-location, terminal and end-to-end have no safe automatic fix
-            // hooks deliberately have no --fix: Chute never writes to ~/.claude/settings.json.
         }
+        return "trigger the Automation permission prompt"
+
+    default:
+        // os, app-location, terminal and end-to-end have no safe automatic fix. hooks
+        // deliberately has none either: Chute never writes to ~/.claude/settings.json.
+        return nil
     }
 }

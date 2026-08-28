@@ -149,7 +149,7 @@ func cmdGist(_ a: Args) {
     catch { Out.fail("cannot stage gist: \(error.localizedDescription)") }
     defer { try? FileManager.default.removeItem(atPath: stage) }
     var staged: [String] = []
-    var redacted = 0
+    var redactedFiles: [String] = []
     for (i, file) in files.enumerated() {
         var dest = (stage as NSString).appendingPathComponent((file as NSString).lastPathComponent)
         if FileManager.default.fileExists(atPath: dest) {   // two selections, same basename
@@ -157,7 +157,7 @@ func cmdGist(_ a: Args) {
         }
         if let text = try? String(contentsOfFile: file, encoding: .utf8) {
             let clean = Redact.apply(text)
-            if clean != text { redacted += 1 }
+            if clean != text { redactedFiles.append(file) }
             do { try clean.write(toFile: dest, atomically: true, encoding: .utf8) }
             catch { Out.fail("cannot stage \(file): \(error.localizedDescription)") }
         } else {
@@ -167,15 +167,29 @@ func cmdGist(_ a: Args) {
         }
         staged.append(dest)
     }
+
+    // NFR-05 — preview by default, upload only with --force. Staging (including redaction) above
+    // only ever touches a scratch dir under `stage`, cleaned by the `defer`; nothing has left this
+    // machine yet. Once `gh gist create` runs it is on GitHub whatever happens next.
+    guard a.has("force") else {
+        Out.info("dry run — \(files.count) file(s) would be uploaded as a secret gist:")
+        files.forEach { Out.line("  \($0)") }
+        Out.info(redactedFiles.isEmpty
+                 ? "  nothing to redact"
+                 : "  secrets redacted in: \(redactedFiles.joined(separator: ", "))")
+        Out.info("→ re-run with --force to upload")
+        return
+    }
+
     let r = Shell.run("gh", ["gist", "create", "--secret"] + staged)
     guard r.ok else { Out.fail("gh failed: \(r.err.trimmingCharacters(in: .whitespacesAndNewlines))") }
     let url = (r.out + r.err).split(separator: "\n")
         .last(where: { $0.hasPrefix("https://") })
         .map(String.init) ?? r.out.trimmingCharacters(in: .whitespacesAndNewlines)
     Clipboard.write(url)
-        ContextBuffer().record(url, label: "Secret gist URL")
+    ContextBuffer().record(url, label: "Secret gist URL")
     Out.line(url)
-    Out.info(redacted > 0
-             ? "→ copied to clipboard · secrets redacted in \(redacted) file(s) before upload"
-             : "→ copied to clipboard · nothing to redact")
+    Out.info(redactedFiles.isEmpty
+             ? "→ copied to clipboard · nothing to redact"
+             : "→ copied to clipboard · secrets redacted in \(redactedFiles.count) file(s) before upload")
 }

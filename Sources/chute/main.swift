@@ -22,7 +22,7 @@ FILES
 AGENTS
   sandbox [name]        New folder + git + rules + agent  --agent claude|codex|gemini --yolo --dir D --each <dirs…>
   open [dir]            Terminal or editor here           --with terminal|editor
-  ports                 What is listening                 --kill PORT
+  ports                 What is listening                 --kill PORT --force  (kill previews by default)
   prompt decompose|ponytail                               Prompt templates → clipboard
 
 GIT SAFETY
@@ -33,16 +33,18 @@ AGENT SESSIONS
   sessions              Every terminal session, grouped by state     --json
   focus <key|project|N> Bring that session to the front
   resume [key|N]        The command to pick that conversation up again  --tmux
-  hooks snippet|uninstall|status  Never edits your settings itself   --settings PATH
+  hooks snippet|uninstall|status  Never edits your settings itself   --settings PATH --force
+                                   (uninstall previews by default)
 
 SHARING
   redact [files…]       Mask API keys and tokens
-  gist <files…>         Secret gist → URL on clipboard
+  gist <files…>         Secret gist → URL on clipboard    --force  (dry run by default)
   dataurl <image>       Base64 data URL                   --markdown
-  env inject [dir]      Keychain → .env                   --keys A,B
+  env inject [dir]      Keychain → .env                   --keys A,B --force  (dry run by default)
 
 SETUP
-  doctor                Check every prerequisite and say how to fix it   --fix --json
+  doctor                Check every prerequisite and say how to fix it   --fix --force --json
+                                   (--fix previews by default)
   onboard               What Chute is, and the first thing to try
 
 Global: --no-copy  suppress clipboard write.

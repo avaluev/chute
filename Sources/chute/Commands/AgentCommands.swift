@@ -124,7 +124,27 @@ func cmdSandbox(_ a: Args) {
 // MARK: - FR-15 zombie ports
 
 func cmdPorts(_ a: Args) {
+    func pad(_ s: String, _ n: Int) -> String {
+        s.count >= n ? s : s + String(repeating: " ", count: n - s.count)
+    }
+    func printRow(_ s: LocalServer) {
+        Out.line(pad(String(s.port), 8) + pad(s.kind, 12) + pad(s.project ?? "—", 22)
+                 + pad(String(s.pid), 8) + (s.loopbackOnly ? "this Mac only" : "your network"))
+    }
+
     if let port = a.optional("kill").flatMap({ Int($0) }) {
+        let matches = LocalServers.discover().filter { $0.port == port }
+        guard !matches.isEmpty else { Out.info("nothing is listening on \(port)"); return }
+
+        // NFR-05 — preview by default, kill only with --force. A typo'd port (5432 instead of
+        // 5433) kills the user's Postgres, so the row must name what dies before it dies.
+        guard a.has("force") else {
+            Out.info("dry run — \(matches.count) process(es) on port \(port) would be killed:")
+            Out.line(pad("PORT", 8) + pad("WHAT", 12) + pad("PROJECT", 22) + pad("PID", 8) + "REACHABLE FROM")
+            matches.forEach(printRow)
+            Out.info("→ re-run with --force to kill")
+            return
+        }
         let pids = LocalServers.kill(port: port)
         guard !pids.isEmpty else { Out.info("nothing is listening on \(port)"); return }
         Out.info("→ killed \(pids.count) process(es) on port \(port)")
@@ -133,14 +153,8 @@ func cmdPorts(_ a: Args) {
     let servers = LocalServers.discover()
     guard !servers.isEmpty else { Out.info("nothing is listening"); return }
 
-    func pad(_ s: String, _ n: Int) -> String {
-        s.count >= n ? s : s + String(repeating: " ", count: n - s.count)
-    }
     Out.line(pad("PORT", 8) + pad("WHAT", 12) + pad("PROJECT", 22) + pad("PID", 8) + "REACHABLE FROM")
-    for s in servers {
-        Out.line(pad(String(s.port), 8) + pad(s.kind, 12) + pad(s.project ?? "—", 22)
-                 + pad(String(s.pid), 8) + (s.loopbackOnly ? "this Mac only" : "your network"))
-    }
+    servers.forEach(printRow)
     Out.info("→ \(servers.count) listening · open one with http://localhost:<port> · free one with `chute ports --kill <port>`")
 }
 
@@ -162,23 +176,49 @@ func cmdEnv(_ a: Args) {
 
     let keys = a.value("keys", or: "ANTHROPIC_API_KEY,OPENAI_API_KEY,GEMINI_API_KEY,GROQ_API_KEY")
         .split(separator: ",").map(String.init)
-    var lines: [String] = []
     var found: [String] = []
+    var injectedLines: [String: String] = [:]
     for key in keys {
         let r = Shell.run("security", ["find-generic-password", "-s", "chute:\(key)", "-w"])
         let value = r.out.trimmingCharacters(in: .whitespacesAndNewlines)
         guard r.ok, !value.isEmpty else { continue }
-        lines.append("\(key)=\(value)")
+        injectedLines[key] = "\(key)=\(value)"
         found.append(key)                      // names only — never the value
     }
-    guard !lines.isEmpty else {
+    guard !found.isEmpty else {
         Out.fail("no keys in the Keychain. Store one with:\n" +
                  "  security add-generic-password -s chute:OPENAI_API_KEY -a chute -w")
     }
+
     let existing = (try? String(contentsOfFile: envPath, encoding: .utf8)) ?? ""
-    let merged = existing.isEmpty ? lines.joined(separator: "\n") + "\n"
-                                  : existing + "\n" + lines.joined(separator: "\n") + "\n"
-    do { try merged.write(toFile: envPath, atomically: true, encoding: .utf8) }
+    let existingLines = existing.split(separator: "\n", omittingEmptySubsequences: true).map(String.init)
+    let existingKeys = Set(existingLines.compactMap { $0.split(separator: "=", maxSplits: 1).first.map(String.init) })
+    let newKeys = found.filter { !existingKeys.contains($0) }
+    let replacedKeys = found.filter { existingKeys.contains($0) }
+
+    // NFR-05 — preview by default, write only with --force. NEVER print a VALUE here — these
+    // are live secrets pulled out of the Keychain and this terminal may be shared or logged.
+    guard a.has("force") else {
+        Out.info("dry run — \(found.count) key(s) from the Keychain, names only:")
+        if !newKeys.isEmpty { Out.line("  new in \(envPath): \(newKeys.joined(separator: ", "))") }
+        if !replacedKeys.isEmpty { Out.line("  replacing existing in \(envPath): \(replacedKeys.joined(separator: ", "))") }
+        Out.info("→ re-run with --force to write")
+        return
+    }
+
+    // Merge by key: an existing FOO=old is REPLACED by FOO=new in place, key order otherwise
+    // preserved, new keys appended — blind concatenation duplicated every key on a second run.
+    var replaced = Set<String>()
+    var merged = existingLines.map { line -> String in
+        guard let key = line.split(separator: "=", maxSplits: 1).first.map(String.init),
+              let replacement = injectedLines[key] else { return line }
+        replaced.insert(key)
+        return replacement
+    }
+    for key in found where !replaced.contains(key) { merged.append(injectedLines[key]!) }
+    let mergedText = merged.joined(separator: "\n") + "\n"
+
+    do { try mergedText.write(toFile: envPath, atomically: true, encoding: .utf8) }
     catch { Out.fail("cannot write .env: \(error.localizedDescription)") }
     try? FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: envPath)
     Out.line(envPath)
