@@ -152,6 +152,26 @@ public enum Diagnostics {
         return (NSHomeDirectory() as NSString).appendingPathComponent("Applications/Chute.app")
     }
 
+    /// WHICH BUILD IS ACTUALLY INSTALLED, read back from the bundle `Scripts/build-app.sh` stamped.
+    ///
+    /// `ChuteVersion.current` is hand-bumped and answers "which release is this". It cannot answer
+    /// "is the app on this Mac the app in the tree", and on 2026-08-28 that cost a session: Recent
+    /// Copies was fixed at 21:09, the running app had been built at 20:14, and every test passed
+    /// because the tests read the SOURCE. A stamp that changes on every build is the only thing
+    /// that can tell those two apart — for a maintainer now, and inside a stranger's bug report
+    /// later, which has to answer the same question with nobody around to ask.
+    ///
+    /// Nil when the key is absent: a bundle built before this existed, or a `swift run` with no
+    /// bundle at all. Absent is not "current" and must not read as it.
+    public static func installedBuild(appPath: String? = nil) -> String? {
+        let app = resolvedAppPath(appPath ?? Bundle.main.bundlePath)
+        let plist = (app as NSString).appendingPathComponent("Contents/Info.plist")
+        guard let dict = NSDictionary(contentsOfFile: plist),
+              let build = dict["ChuteBuild"] as? String,
+              !build.trimmingCharacters(in: .whitespaces).isEmpty else { return nil }
+        return build
+    }
+
     /// Where the CLI is looked for, in order. Homebrew owns it: `brew install avaluev/tap/chute`
     /// is the free top of funnel and what the site advertises, and the app no longer writes
     /// `~/.local/bin/chute`. It used to — and then diagnosed the resulting two-copies-on-PATH

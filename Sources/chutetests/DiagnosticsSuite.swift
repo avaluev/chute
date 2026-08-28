@@ -164,5 +164,27 @@ func diagnosticsSuite() {
             T.no(check.fix.contains("/Documents/") || check.fix.contains("/Users/"),
                  "check '\(check.id)' names no path that exists on one machine only")
         }
+
+        // WHICH BUILD IS INSTALLED. The stamp is the answer to the only question nine passing
+        // checks cannot answer: is the app on this Mac the app in this tree. Absent must read as
+        // absent — a nil that quietly became "current" would be the false all-clear again.
+        let bundle = NSTemporaryDirectory() + "chute-build-\(UUID().uuidString)/Chute.app/Contents"
+        try? FileManager.default.createDirectory(atPath: bundle, withIntermediateDirectories: true)
+        let stampedApp = (bundle as NSString).deletingLastPathComponent
+        let plist = (bundle as NSString).appendingPathComponent("Info.plist")
+
+        T.eq(Diagnostics.installedBuild(appPath: stampedApp), nil, "no Info.plist reads as not stamped")
+
+        try? NSDictionary(dictionary: ["CFBundleVersion": "0.2.0"]).write(toFile: plist, atomically: true)
+        T.eq(Diagnostics.installedBuild(appPath: stampedApp), nil, "a plist without the key reads as not stamped")
+
+        try? NSDictionary(dictionary: ["ChuteBuild": "   "]).write(toFile: plist, atomically: true)
+        T.eq(Diagnostics.installedBuild(appPath: stampedApp), nil, "a blank stamp is not a stamp")
+
+        try? NSDictionary(dictionary: ["ChuteBuild": "0d23f86 2026-08-28T21:09Z"])
+            .write(toFile: plist, atomically: true)
+        T.eq(Diagnostics.installedBuild(appPath: stampedApp), "0d23f86 2026-08-28T21:09Z",
+             "the stamp build-app.sh wrote is read back verbatim")
+        try? FileManager.default.removeItem(atPath: (stampedApp as NSString).deletingLastPathComponent)
     }
 }
