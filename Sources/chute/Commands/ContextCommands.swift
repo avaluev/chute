@@ -13,17 +13,29 @@ func cmdPaths(_ a: Args) {
                 label: files.count == 1 ? "1 full path" : "\(files.count) full paths")
 }
 
+/// The text `bundle` hands over — and therefore the text `tokens` must count. ONE definition.
+///
+/// Making the two agree put this five-line sequence in the file twice, which is the same
+/// two-places-for-one-truth collapsed out of `doctor --fix` three commits earlier, reintroduced
+/// while fixing something else. The smoke assertion that they produce the same number is the
+/// test; this is the reason it cannot fail by drift.
+func assembledBundle(_ paths: [String], _ a: Args)
+    -> (text: String, files: [BundleFile], skipped: [String]) {
+    let (files, skipped) = FileScan.bundleFiles(paths)
+    let root = ProjectRoot.of(files.map(\.path))
+    let text = a.value("format", or: "xml") == "md"
+        ? ContextBundle.markdown(files, root: root)
+        : ContextBundle.xml(files, root: root)
+    return (text, files, skipped)
+}
+
 // MARK: - FR-02 bundle
 
 func cmdBundle(_ a: Args) {
     let expanded = FileScan.expand(a.paths(defaultToCWD: true))
     guard !expanded.isEmpty else { Out.fail("no readable files in the selection") }
-    let (files, skipped) = FileScan.bundleFiles(expanded)
+    let (text, files, skipped) = assembledBundle(expanded, a)
     guard !files.isEmpty else { Out.fail("every selected file is binary or unreadable") }
-    let root = ProjectRoot.of(files.map(\.path))
-    let text = a.value("format", or: "xml") == "md"
-        ? ContextBundle.markdown(files, root: root)
-        : ContextBundle.xml(files, root: root)
     let tokens = TokenEstimate.tokens(in: text)
     Out.deliver(text, a, badge: "\(files.count) file(s) · \(TokenEstimate.badge(tokens))",
                 label: "\(contextLabel(files.map(\.path))) · \(files.count) file(s) · \(TokenEstimate.badge(tokens))")
@@ -44,16 +56,10 @@ func cmdTokens(_ a: Args) {
         Out.line(String(format: "%8d  %@", n, PathFormat.relativize(p, to: root)))
     }
     Out.line(String(repeating: "-", count: 40))
-    // Part B — TOTAL is the ASSEMBLED-BUNDLE count, not the sum of the rows above: the wrapper
-    // markup (XML tags, or MD fences under --format md) is real text the user pastes. Reuses the
-    // exact call sequence `bundle` uses so the two always agree; the rows above are correct and
-    // no longer sum to this — that gap is the markup, not a bug.
-    let (bundled, _) = FileScan.bundleFiles(expanded)
-    let bundleRoot = ProjectRoot.of(bundled.map(\.path))
-    let bundleText = a.value("format", or: "xml") == "md"
-        ? ContextBundle.markdown(bundled, root: bundleRoot)
-        : ContextBundle.xml(bundled, root: bundleRoot)
-    let bundleTokens = TokenEstimate.tokens(in: bundleText)
+    // TOTAL is the ASSEMBLED-BUNDLE count, not the sum of the rows above: the wrapper markup is
+    // real text the user pastes, and this command exists to say how big the paste will be. The
+    // rows are still correct and no longer add up to it — that gap IS the markup.
+    let bundleTokens = TokenEstimate.tokens(in: assembledBundle(expanded, a).text)
     Out.line(String(format: "%8d  TOTAL — as pasted, bundle markup included (%@)",
                     bundleTokens, TokenEstimate.badge(bundleTokens)))
 }
