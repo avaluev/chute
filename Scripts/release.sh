@@ -29,7 +29,14 @@ die()  { echo "release: $1" >&2; exit 1; }
 # ---------------------------------------------------------------- preflight
 step "Preflight"
 [ -z "$(git status --porcelain)" ] || die "the tree is dirty — commit or stash first"
-git rev-parse "$TAG" >/dev/null 2>&1 && die "$TAG already exists; bump Sources/ChuteCore/Version.swift"
+# Only when we are actually going to CUT the tag. --dry-run never reaches the tag path (see the
+# publish section), but this check ran before $DRY was consulted — so with v0.2.0 already pushed,
+# `release.sh --dry-run` died here before building, signing or notarising anything. That flag
+# exists precisely to prove the pipeline without cutting a release, and it could not.
+if [ "$DRY" = "0" ]; then
+  git rev-parse "$TAG" >/dev/null 2>&1 \
+    && die "$TAG already exists; bump Sources/ChuteCore/Version.swift"
+fi
 
 SIGN_ID="$(security find-identity -v -p codesigning 2>/dev/null \
   | sed -n 's/.*"\(Developer ID Application:[^"]*\)".*/\1/p' | head -1)"
@@ -94,12 +101,32 @@ if [ "$DRY" = "1" ]; then
 fi
 
 step "Tagging and publishing $TAG"
+# THREE STEPS THAT MUST NOT HALF-HAPPEN. Each one used to be unguarded, and `set -e` turned any
+# failure into a half-published release that the preflight above then refused to retry, with a
+# message ("$TAG already exists") that reads as if the release went out when it did not.
 git tag -a "$TAG" -m "Chute $VERSION"
-git push origin "$TAG"
-gh release create "$TAG" "$DMG" \
+
+git push origin "$TAG" || {
+  git tag -d "$TAG" >/dev/null 2>&1 || true      # local only; nothing was published
+  die "could not push $TAG — the local tag has been removed, so this is safe to re-run"
+}
+
+if ! gh release create "$TAG" "$DMG" \
   --title "Chute $VERSION" \
   --notes "Notarised by Apple. Download the disk image, drag Chute to Applications, and launch it once.
 
 The \`chute\` CLI is free and MIT: \`brew install avaluev/tap/chute\`"
+then
+  # The tag IS live on the remote now. Take it back down rather than leaving the exact state the
+  # preflight cannot distinguish from a finished release.
+  git push origin ":refs/tags/$TAG" >/dev/null 2>&1 || true
+  git tag -d "$TAG" >/dev/null 2>&1 || true
+  die "the GitHub release failed; $TAG has been withdrawn locally and on origin, so re-running is safe.
+      The notarised disk image is still at $DMG — nothing has to be rebuilt."
+fi
+
+# The release exists from here on. Nothing below may abort the script: a transient `gh` failure
+# on the LAST line used to make a completed release look like a crash.
 echo
-echo "released: $(gh release view "$TAG" --json url -q .url)"
+URL="$(gh release view "$TAG" --json url -q .url 2>/dev/null || true)"
+echo "released: ${URL:-https://github.com/avaluev/chute/releases/tag/$TAG}"

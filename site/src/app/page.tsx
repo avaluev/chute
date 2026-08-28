@@ -41,7 +41,7 @@ const FAQ = [
   { q: "Which agents does it work with?",
     a: "All of them. Chute never talks to an agent; it moves files, paths and text through your clipboard. Claude Code, Codex, Cursor, Aider, Gemini — if it reads a prompt, it reads Chute’s output." },
   { q: "Which macOS?",
-    a: "macOS 13 Ventura and later, Apple Silicon and Intel. A 2.5 MB app and a 788 KB command-line binary, with no dependencies, no launch daemon and no background service." },
+    a: "macOS 13 Ventura and later, Apple Silicon and Intel. The app is under 3 MB and the command-line binary under 1 MB, with no dependencies, no launch daemon and no background service." },
 ];
 
 function Section({ id, eyebrow, title, children }: {

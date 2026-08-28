@@ -89,5 +89,39 @@ if (CONFIG.brewLive) {
   ok("brewLive is false and no page tells anyone to run brew")
 }
 
+// ── the Finder menu the site NAMES must be the menu the app DRAWS ───────────────────────────
+// Every check above compares the site against a hand-maintained fact sheet, so it can only catch
+// a claim someone already thought to forbid. That is exactly how /changelog kept advertising
+// "copy files with contents", "paste an image from the clipboard" and "new markdown file" for a
+// day after all three were renamed — three false claims, zero gate failures.
+//
+// So read the ACTION TABLE ITSELF. `chute finder-actions --json` is the same list the extension
+// draws from, which makes this the only check here that cannot go stale on its own.
+import { execFileSync } from "node:child_process"
+const BIN = new URL("../../.build/release/chute", import.meta.url).pathname
+let actions = null
+try {
+  actions = JSON.parse(execFileSync(BIN, ["finder-actions", "--json"], { encoding: "utf8" }))
+} catch {
+  bad("the Finder action table could not be read",
+      `build it first: swift build -c release  (looked for ${BIN})`)
+}
+if (actions) {
+  // Titles the app no longer has. A page naming one is describing a product that shipped.
+  const live = new Set(actions.flatMap((a) => [a.title, a.parentTitle].filter(Boolean))
+                              .map((t) => t.replace(/\s*\(\{n\}\)/, "").toLowerCase()))
+  const RETIRED = ["copy files with contents", "write clipboard files here", "new file here",
+                   "new clean room for an agent", "new markdown file from clipboard",
+                   "paste image from clipboard", "new agent sandbox here"]
+  const stale = []
+  for (const [page, html] of HTML) {
+    const text = visible(html).toLowerCase()
+    for (const t of RETIRED) if (text.includes(t) && !live.has(t)) stale.push(`${page}: "${t}"`)
+  }
+  stale.length
+    ? bad(`${stale.length} page(s) name a Finder action that no longer exists`, stale.join("; "))
+    : ok(`no page names a retired Finder action (${live.size} live titles checked)`)
+}
+
 console.log(`\nclaims: ${failed ? `${failed} failed` : "every claim on the site is one the fact sheet stands behind"}`)
 process.exit(failed ? 1 : 0)

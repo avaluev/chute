@@ -2,7 +2,12 @@
 // Ed25519 keys for Chute licences. The PRIVATE key never enters the app, this repo, or a log.
 //
 //   node worker/keygen.mjs new                    → a fresh keypair (run once, ever)
-//   node worker/keygen.mjs mint <priv> <email>    → one licence key, for testing or a manual sale
+//   CHUTE_LICENSE_SEED=… node worker/keygen.mjs mint <email>   → one licence key, by hand
+//
+// The seed comes from the environment, never from argv. As an argument it was written to
+// ~/.zsh_history in plaintext and was readable by any local process through `ps` for the life of
+// the command — a new, permanent copy of the one secret this file's own header says must never
+// be persisted anywhere.
 //
 // The public half is embedded in Sources/ChuteCore/License.swift. The private half goes into a
 // Cloudflare Worker secret and a password manager, and nowhere else. Losing it means no new
@@ -38,11 +43,16 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     console.log("PUBLIC  (embed in Sources/ChuteCore/License.swift):\n  " + k.public);
     console.log("PRIVATE (Cloudflare Worker secret CHUTE_LICENSE_SEED — never commit):\n  " + k.private);
   } else if (cmd === "mint") {
-    const [privB64, email] = process.argv.slice(3);
-    if (!privB64 || !email) { console.error("usage: keygen.mjs mint <privateBase64> <email>"); process.exit(1); }
+    const privB64 = process.env.CHUTE_LICENSE_SEED;
+    const email = process.argv[3];
+    if (!privB64 || !email) {
+      console.error("usage: CHUTE_LICENSE_SEED=<privateBase64> node worker/keygen.mjs mint <email>");
+      console.error("       (the seed is read from the environment so it never enters shell history)");
+      process.exit(1);
+    }
     console.log(mint(privB64, email));
   } else {
-    console.error("usage: keygen.mjs new | keygen.mjs mint <privateBase64> <email>");
+    console.error("usage: keygen.mjs new | CHUTE_LICENSE_SEED=… keygen.mjs mint <email>");
     process.exit(1);
   }
 }

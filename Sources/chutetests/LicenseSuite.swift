@@ -11,6 +11,14 @@ private let testPublicKey = "DbB2zuunvYsr3xK4HKS2J8Duijd+aqhAaEN/IR9v/aM="
 private let validKey =
   "CHUTE-DwJikdIodhy2hAcsaLaEeP+ckcmwImsTV3YRb0uk9ynTmbEwOpkvDIgY4Z/k3c0JJAVuz0fIo4qFODqbzEkyCGJ1eWVyQGV4YW1wbGUuY29tfDE3NjcyMjU2MDA="
 
+/// The same test pair, for an email containing a pipe — pinned byte-for-byte in
+/// `worker/contract.test.mjs`. `|` is legal RFC 5322 atext and NEITHER minter escapes it: they
+/// concatenate `email|issuedAt`. The verifier used to split on every pipe, so this correctly
+/// signed, correctly minted key was rejected forever, with no message saying why — a permanent
+/// activation failure for a real paying customer.
+private let pipeEmailKey =
+  "CHUTE-NfKttpwNJOMd6dzlOfYKrLmqDnRgsih0vf0p6YwK8WjBvFMbyw90/knRQkbtIR1EJgnjrfZtF7NJpGhMaSILAGF8YkBleGFtcGxlLmNvbXwxNzY3MjI1NjAw"
+
 private func verifyTest(_ k: String) -> LicenseInfo? { License.verify(k, publicKey: testPublicKey) }
 
 func licenseSuite() {
@@ -19,6 +27,13 @@ func licenseSuite() {
         let info = verifyTest(validKey)
         T.eq(info?.email, "buyer@example.com", "a genuine key yields the buyer's email")
         T.eq(info?.issued, Date(timeIntervalSince1970: 1_767_225_600), "and the date it was issued")
+
+        // The pipe case, both directions: the email comes back WHOLE, and the separator that
+        // counts is the last one. Pinned in worker/contract.test.mjs against the same bytes.
+        let piped = verifyTest(pipeEmailKey)
+        T.eq(piped?.email, "a|b@example.com", "a pipe inside the email survives verification")
+        T.eq(piped?.issued, Date(timeIntervalSince1970: 1_767_225_600),
+             "and the issue date is still read from after the LAST pipe")
 
         // PERTURBATION 1 — a tampered payload. Done on the DECODED bytes, not by guessing at a
         // substring of the base64: the payload starts at byte 64, which is not a multiple of 3,

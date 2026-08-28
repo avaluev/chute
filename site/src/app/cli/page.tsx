@@ -36,7 +36,7 @@ export default function CliPage() {
           The command-line tool is free, MIT, and yours whatever happens to this page
         </h1>
         <p className="mt-5 text-lg text-muted-foreground">
-          25 commands. Zero dependencies, zero telemetry, no account, 788 KB. It does every job on
+          25 commands. Zero dependencies, zero telemetry, no account, under 1 MB. It does every job on
           this site — including the {PAID.length} that the paid app puts in your right-click menu.
         </p>
 

@@ -37,7 +37,23 @@ export default {
     const email = event.data?.customer?.email ?? event.data?.custom_data?.email;
     if (!email) return new Response("no email on the transaction", { status: 200 });
 
-    const key = await mint(email, env.CHUTE_LICENSE_SEED);
+    // IDEMPOTENCE, WITHOUT A DATABASE. Paddle retries a delivery on any 5xx, timeout or network
+    // blip, and a retry carries a fresh signature and timestamp — so it passes `verifyPaddle`
+    // again. With `issuedAt` taken from the clock, that minted a SECOND, DIFFERENT valid key for
+    // one $19 payment; a captured POST replayed inside the 300s window did the same.
+    //
+    // A KV store of seen event ids would fix it and was the obvious suggestion, but it adds a
+    // binding to provision, a failure mode of its own, and state to an architecture whose whole
+    // claim is that it holds none. Deriving `issuedAt` from the EVENT instead makes the
+    // operation idempotent by construction: the same transaction always produces the same bytes,
+    // so a retry re-mints the IDENTICAL key. The customer may get the mail twice; they can never
+    // get two different licences, and there is nothing to provision or to go stale.
+    const occurred = Date.parse(event.occurred_at ?? event.data?.billed_at ?? "");
+    const issuedAt = Number.isFinite(occurred)
+      ? Math.floor(occurred / 1000)
+      : Math.floor(Date.now() / 1000);   // no usable timestamp: fall back, still a valid key
+
+    const key = await mint(email, env.CHUTE_LICENSE_SEED, issuedAt);
     await email_(env, email, key);
     return new Response("issued", { status: 200 });
   },
@@ -79,8 +95,17 @@ const hex = (buf) =>
 
 /** `CHUTE-` + base64( signature(64) || "email|issuedAtEpoch" ) — the exact shape License.swift reads. */
 async function mint(email, seedB64, issuedAt = Math.floor(Date.now() / 1000)) {
+  // A missing secret used to reach `atob(undefined)`, which decodes the literal text "undefined",
+  // and the failure surfaced as `RangeError: Source is too large` from `pkcs8.set` — on every
+  // otherwise-valid purchase, with nothing in the message naming the cause. Say it plainly.
+  if (typeof seedB64 !== "string" || seedB64.length === 0) {
+    throw new Error("CHUTE_LICENSE_SEED is not set — run `npx wrangler secret put CHUTE_LICENSE_SEED`");
+  }
   // Web Crypto wants PKCS#8; the secret is stored as the bare 32-byte seed, so wrap it.
   const seed = Uint8Array.from(atob(seedB64), (c) => c.charCodeAt(0));
+  if (seed.length !== 32) {
+    throw new Error(`CHUTE_LICENSE_SEED must be 32 bytes of base64, got ${seed.length}`);
+  }
   const pkcs8 = new Uint8Array(48);
   pkcs8.set([0x30,0x2e,0x02,0x01,0x00,0x30,0x05,0x06,0x03,0x2b,0x65,0x70,0x04,0x22,0x04,0x20]);
   pkcs8.set(seed, 16);
@@ -119,8 +144,13 @@ async function email_(env, to, key) {
       ].join("\n"),
     }),
   });
-  // Loud in the log, quiet to Paddle: a 500 here makes Paddle retry and mint a SECOND key.
-  if (!res.ok) console.error("resend failed", res.status, await res.text());
+  // Loud in the log, quiet to Paddle: a 500 here makes Paddle retry (now harmless — the retry
+  // re-mints the identical key — but still a second email).
+  //
+  // The STATUS ONLY. Resend's validation errors echo the offending field back, so logging the
+  // body puts the customer's email address into Cloudflare's logs — the one thing this design
+  // set out not to keep anywhere.
+  if (!res.ok) console.error("resend failed", res.status);
 }
 
 export { mint, verifyPaddle };

@@ -40,6 +40,15 @@ func localServersSuite() {
 
         T.eq(table[90588]?.command, "next-server", "comm's path tail is the command name")
         T.eq(table[90549]?.command, "npm", "an argument tail is dropped — npm, not `npm exec next dev`")
+        T.eq(table[42501]?.command, "Google Chrome",
+             "a bundle whose name contains a space is not cut in half")
+        // REGRESSION. A macOS path with a space in it — Application Support, Google Drive,
+        // iCloud Drive, any app bundle with a two-word name. Cutting at the first space and
+        // taking the basename of the remainder gave "Sublime", the climb to the process-tree
+        // root stopped early, and Stop It left the supervisor running.
+        let spaced = LocalServers.parseProcessTable(
+            "4242 1 /Users/me/Google Drive/app/node_modules/.bin/next\n")
+        T.eq(spaced[4242]?.command, "next", "a path containing a space still yields the executable")
         T.eq(table[90587]?.ppid, 90549, "the middle of the chain keeps its parent")
 
         // THE BUG THIS FIXES. lsof hands back 90588 and only 90588; killing it
