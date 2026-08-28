@@ -34,10 +34,17 @@ public struct SessionLoad: Sendable, Equatable {
         self.processes = processes
     }
 
-    /// "12% CPU · 1.2 GB memory". Empty when the session is doing nothing worth reporting — a row
-    /// reading "0% CPU · 4 MB memory" for an idle shell is noise in a menu you scan for the busy one.
+    /// "12% CPU · 1.2 GB memory", for EVERY session that has a process in it.
+    ///
+    /// This used to go empty below 1% CPU and 200 MB, on the argument that "0% CPU · 4 MB memory"
+    /// was noise in a list you scan for the busy one. Owner's call, 2026-08-28: the numbers are
+    /// the useful part of the row. Someone running five agents is comparing them, and a blank
+    /// where a figure belongs reads as "not measured" rather than "small" — which is the one
+    /// reading that makes the whole column untrustworthy.
+    ///
+    /// Still empty when there is no process at all: that is genuinely nothing to report, not zero.
     public var label: String {
-        guard processes > 0, cpuPercent >= 1.0 || residentBytes >= 200 * 1024 * 1024 else { return "" }
+        guard processes > 0 else { return "" }
         // Neither number is allowed to make the reader guess: "2%" of what, "551 MB" of what.
         // Activity Monitor calls it Memory, so this does too — not RAM, not RSS.
         return "\(Int(cpuPercent.rounded()))% CPU · \(SystemVitals.bytes(residentBytes)) memory"

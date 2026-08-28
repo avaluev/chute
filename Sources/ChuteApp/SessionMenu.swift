@@ -2,11 +2,19 @@ import AppKit
 import ChuteCore
 
 enum SessionMenu {
-    // NO LIVE VITALS, AND NO TIMER. A `LiveVitals` struct used to hold every row so a
-    // two-second timer could retitle them with fresh CPU and memory figures while the menu was
-    // open. Every number it refreshed has been deleted, so the machinery that refreshed them
-    // went with it: the menu is already rebuilt from scratch on every open, which is the only
-    // moment anyone is looking at it.
+    /// The rows whose numbers change while the menu is open, so a two-second timer can retitle
+    /// them in place. Only the rows: the "This Mac" line this also used to maintain is gone, and
+    /// the description half of each row cannot change while a menu is being looked at, so the
+    /// prefix is captured once and only the suffix is rebuilt.
+    final class LiveVitals {
+        var rows: [(item: NSMenuItem, tty: String, prefix: String)] = []
+
+        func apply(samples: [ProcessSample]) {
+            for row in rows {
+                row.item.title = row.prefix + SessionMenu.suffix(SystemVitals.load(forTTY: row.tty, in: samples))
+            }
+        }
+    }
 
     /// THE ONLY MACHINE FACT WORTH A MENU ROW: this agent has gone wrong.
     ///
@@ -20,6 +28,20 @@ enum SessionMenu {
     /// which is exactly how the old "1% CPU · 974 MB memory" suffix earned its deletion.
     static let runawayCPUPercent = 250.0
     static let runawayBytes: UInt64 = 8 * 1_073_741_824   // 8 GB
+
+    /// What a row says about its own cost: the numbers, plus a ⚠ when they are alarming.
+    ///
+    /// The warning is not a substitute for the figures — it sits beside them. "8.4 GB" tells you
+    /// how much; "⚠" tells you that is the one to look at.
+    static func suffix(_ load: SessionLoad) -> String {
+        let label = load.label
+        guard !label.isEmpty else { return "" }
+        return "   \(label)\(isRunaway(load) ? "  ⚠" : "")"
+    }
+
+    static func isRunaway(_ load: SessionLoad) -> Bool {
+        load.cpuPercent >= runawayCPUPercent || load.residentBytes >= runawayBytes
+    }
 
     static func runawayNote(_ load: SessionLoad) -> String {
         if load.cpuPercent >= runawayCPUPercent {
@@ -98,7 +120,8 @@ enum SessionMenu {
     static func populate(_ menu: NSMenu, sessions: [Session], problem: String?,
                          transcripts: TranscriptStore,
                          target: AnyObject, action: Selector, openSettings: Selector,
-                         alternate: Selector) {
+                         alternate: Selector) -> LiveVitals {
+        let live = LiveVitals()
         // NOT cleared here — AppDelegate.populateBody does it, on every branch. See the note there.
 
         // One `ps` for the whole menu. Sampling per row would be thirteen process listings for a
@@ -121,7 +144,7 @@ enum SessionMenu {
         for (title, group) in [("Waiting for You", waiting), ("Working", working)] where !group.isEmpty {
             menu.addItem(header(title, count: group.count))
             for s in group { addRow(s, to: menu, samples: samples, transcripts: transcripts,
-                                    target: target, action: action, alternate: alternate) }
+                                    target: target, action: action, alternate: alternate, live: live) }
             menu.addItem(.separator())
         }
 
@@ -131,12 +154,12 @@ enum SessionMenu {
             menu.addItem(header("Idle", count: idle.count))
             if idle.count <= collapseIdleAbove {
                 for s in idle { addRow(s, to: menu, samples: samples, transcripts: transcripts,
-                                       target: target, action: action, alternate: alternate) }
+                                       target: target, action: action, alternate: alternate, live: live) }
             } else {
                 let holder = NSMenuItem(title: "\(idle.count) idle terminals", action: nil, keyEquivalent: "")
                 let sub = NSMenu()
                 for s in idle { addRow(s, to: sub, samples: samples, transcripts: transcripts,
-                                       target: target, action: action, alternate: alternate) }
+                                       target: target, action: action, alternate: alternate, live: live) }
                 holder.submenu = sub
                 menu.addItem(holder)
             }
@@ -149,13 +172,14 @@ enum SessionMenu {
             menu.addItem(empty)
             menu.addItem(.separator())
         }
+        return live
     }
 
     static let collapseIdleAbove = 3
 
     static func addRow(_ s: Session, to menu: NSMenu, samples: [ProcessSample],
                        transcripts: TranscriptStore, target: AnyObject,
-                       action: Selector, alternate: Selector) {
+                       action: Selector, alternate: Selector, live: LiveVitals?) {
         let transcript = transcripts.cached(s.sessionID)
         let detail = SessionPhrasing.detail(agent: s.agent, transcript: transcript)
         let elapsed: String = {
@@ -164,10 +188,13 @@ enum SessionMenu {
             default: return ""
             }
         }()
-        let warning = runawayNote(SystemVitals.load(forTTY: s.tty, in: samples))
-
-        let item = NSMenuItem(title: "\(s.project)   \(detail)\(elapsed)\(warning)",
-                              action: action, keyEquivalent: "")
+        // CPU AND MEMORY, ON EVERY ROW. Owner's call, 2026-08-28: this is the useful part. The
+        // prefix is kept so the two-second timer can retitle the row with a fresh figure without
+        // recomputing the description, which cannot change while the menu is open.
+        let load = SystemVitals.load(forTTY: s.tty, in: samples)
+        let prefix = "\(s.project)   \(detail)\(elapsed)"
+        let item = NSMenuItem(title: prefix + suffix(load), action: action, keyEquivalent: "")
+        live?.rows.append((item, s.tty, prefix))
         item.image = dot(SessionColor.hex(forProject: s.project))
         item.representedObject = s.key
         item.target = target

@@ -23,6 +23,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     /// Model, effort and cost, read from the agent's own transcript. Never read on the main
     /// thread and never read while a menu is drawing — see TranscriptStore.
     let transcripts = TranscriptStore()
+    /// The open menu's rows, so their CPU and memory figures stay live while it is on screen.
+    var liveVitals: SessionMenu.LiveVitals?
+    var vitalsTimer: Timer?
+    var vitalsSampling = false
     var watcher: DispatchSourceFileSystemObject?
     var requestWatcher: DispatchSourceFileSystemObject?
 
@@ -110,11 +114,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let (sessions, problem) = discoverSessionsForMenu()
         SessionMenu.applyBadge(to: statusItem.button, count: SessionMenu.attentionCount(sessions))
         lastSessions = sessions
-        SessionMenu.populate(menu, sessions: sessions, problem: problem,
-                             transcripts: transcripts,
-                             target: self, action: #selector(focusSession(_:)),
-                             openSettings: #selector(openAutomationSettings),
-                             alternate: #selector(runSessionCommand(_:)))
+        liveVitals = SessionMenu.populate(menu, sessions: sessions, problem: problem,
+                                          transcripts: transcripts,
+                                          target: self, action: #selector(focusSession(_:)),
+                                          openSettings: #selector(openAutomationSettings),
+                                          alternate: #selector(runSessionCommand(_:)))
         // Refresh what the rows just rendered from cache, so the NEXT open is current. The read
         // is 37 ms per transcript and must never happen while a menu is being drawn.
         let ids = sessions.compactMap(\.sessionID)
@@ -318,11 +322,39 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let trial = Trial.touch()
         populateBody(menu, trial: trial)
         appendStandardItems(to: menu, trial: trial)
+        // Nothing to re-sample when the rows are not there.
+        if trial.isUnlocked { startVitalsRefresh() }
     }
 
-    // startVitalsRefresh() and menuDidClose() are gone with the numbers they maintained. The
-    // timer woke twice a second-and-a-half to re-title rows with a CPU figure that is no longer
-    // drawn; there is nothing left on this menu that changes while it is open.
+    /// While the menu is open, every row's CPU and memory figure is re-sampled every two seconds
+    /// from ONE `ps` snapshot, so all of them describe the same instant — a row claiming 171%
+    /// beside a row sampled a second earlier is what "live" must not mean.
+    ///
+    /// The timer runs in .common modes because menu tracking blocks the default run loop mode,
+    /// and the sampling happens off the main thread so an open menu never stutters. It exists only
+    /// while the menu is on screen: nothing is polled when nobody is looking.
+    func startVitalsRefresh() {
+        vitalsTimer?.invalidate()
+        let timer = Timer(timeInterval: 2.0, repeats: true) { [weak self] _ in
+            guard let self, !self.vitalsSampling else { return }
+            self.vitalsSampling = true
+            DispatchQueue.global(qos: .userInteractive).async {
+                let samples = SystemVitals.sample()
+                DispatchQueue.main.async {
+                    self.liveVitals?.apply(samples: samples)
+                    self.vitalsSampling = false
+                }
+            }
+        }
+        RunLoop.main.add(timer, forMode: .common)
+        vitalsTimer = timer
+    }
+
+    func menuDidClose(_ menu: NSMenu) {
+        vitalsTimer?.invalidate()
+        vitalsTimer = nil
+        liveVitals = nil
+    }
 
     /// Badge updates are event-driven off the hook directory — no polling, no AppleScript.
     func startWatching() {
