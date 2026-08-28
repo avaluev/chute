@@ -17,7 +17,18 @@ APP="$ROOT/dist/Chute.app"
 mkdir -p "$HOME/Applications"
 rm -rf "$HOME/Applications/Chute.app"
 cp -R "$APP" "$HOME/Applications/Chute.app"
-# NO CLI SYMLINK. Homebrew owns the command-line tool — `brew install avaluev/tap/chute`, which
+# CLEAN UP THE ONE WE USED TO MAKE. Every install before this one wrote ~/.local/bin/chute, and
+# leaving it means the collision outlives the fix on every existing machine. Removed only when it
+# is a SYMLINK POINTING INTO Chute.app — ours, unambiguously. A real file there, or a link to
+# anywhere else, is the user's and is never touched: an installer that deletes something it did
+# not create is a worse bug than the one it is cleaning up.
+LEGACY="$HOME/.local/bin/chute"
+if [ -L "$LEGACY" ] && case "$(readlink "$LEGACY")" in */Chute.app/*) true ;; *) false ;; esac; then
+  rm -f "$LEGACY"
+  echo "removed the old ~/.local/bin/chute symlink — Homebrew owns the CLI now"
+fi
+
+# NO NEW CLI SYMLINK. Homebrew owns the command-line tool — `brew install avaluev/tap/chute`, which
 # is what the site and the README advertise. Writing one here too put `chute` on PATH twice at
 # the same version, and the app then reported that collision as a fault and offered to recreate
 # it. The app keeps its own copy inside the bundle for its own use and writes nothing to PATH.
