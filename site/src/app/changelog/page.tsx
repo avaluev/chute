@@ -9,15 +9,20 @@ export const metadata: Metadata = {
 
 /** Hand-maintained on purpose: a changelog generated from commit subjects is a commit log, and
  *  nobody has ever wanted to read one. Each entry says what changed for the person using it. */
+// SIZES ARE BOUNDS, NOT MEASUREMENTS. A byte count in marketing copy is a claim that goes false
+// on the next commit — this page said 2.5 MB for a CLI that is 809 KB, and two other pages said
+// 788 KB for the same binary. A bound stays true without anyone maintaining it.
 const RELEASES = [
   {
-    version: "0.1.0",
-    date: "Unreleased",
+    version: "0.2.0",
+    date: "2026-08-28",
     notes: [
-      "Finder right-click: copy full paths, copy files with contents (with a token count), copy a folder tree at three depths, paste an image from the clipboard, new markdown file, open in Terminal.",
+      "Finder right-click, renamed for clarity: Copy Full Paths, Copy Files as Context (every selected file's contents in one block, with a token count), Copy Folder Tree at three depths, Save Clipboard as Files (an agent's answer written back to disk, after you see the list), New File (empty markdown, from the clipboard, or an image), Set Up for an Agent (rules, a scratch folder, or a checkpoint), Move Junk to Trash, Open in Terminal.",
+      "Icons now carry meaning: blue reads, green creates, purple prepares a folder for an agent, red changes what is already there — and red always shows you the list before it acts.",
+      "Save a Checkpoint: a restore point for a folder before you let an agent run. Your worktree, index and HEAD are never touched.",
       "Menu bar: every terminal session grouped by whether it needs you, coloured per project, with per-session CPU and memory. Click a row to bring that terminal forward.",
       "Menu bar: every local server, what it is, which project it belongs to, and a way to stop it.",
-      "25 CLI commands, zero dependencies, 2.5 MB.",
+      "25 CLI commands, zero dependencies, under 1 MB.",
       `${CONFIG.trialDays}-day trial, then ${CONFIG.price} once. The CLI stays free and MIT forever.`,
     ],
   },

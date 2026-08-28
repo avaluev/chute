@@ -15,18 +15,32 @@ public enum FinderReveal {
             .replacingOccurrences(of: "\"", with: "\\\"")
     }
 
+    /// How long Finder gets to answer. AppleScript's own `with timeout of` is the bound, because
+    /// `osascript` has no flag for it and `Process` has no deadline — and without one this call
+    /// waits FOREVER. Measured 2026-08-28: with Finder busy tracking an open context menu, a
+    /// `chute new --rename` sat here past ten minutes with no output. That is not only a stuck
+    /// test suite; it is `chute new` hanging on a user whose Finder happens to be busy.
+    ///
+    /// Five seconds is far longer than a reveal ever takes and far shorter than a person waits
+    /// before assuming the command is broken.
+    public static let revealTimeoutSeconds = 5
+
     public static func revealScript(path: String) -> String {
         """
-        tell application "Finder"
-          reveal POSIX file "\(escape(path))"
-          activate
-        end tell
+        with timeout of \(revealTimeoutSeconds) seconds
+          tell application "Finder"
+            reveal POSIX file "\(escape(path))"
+            activate
+          end tell
+        end timeout
         """
     }
 
     /// key code 36 is Return. Finder turns that into inline rename for the selected item.
     public static let beginRenameScript = """
-    tell application "System Events" to key code 36
+    with timeout of \(revealTimeoutSeconds) seconds
+      tell application "System Events" to key code 36
+    end timeout
     """
 
     /// macOS reports a missing Accessibility permission in more than one dialect: `-1719` from
@@ -47,9 +61,15 @@ public enum FinderReveal {
     /// Reveals the file and starts renaming it. Returns nil on success, or a sentence explaining
     /// what to do — never throws, because a rename that could not start must not turn a
     /// successfully created file into a failed action.
+    /// Set by the smoke suite. `CHUTE_HEADLESS=1` is documented as making the suite runnable
+    /// without "a logged-in Mac with Finder", and this call was the one place that still reached
+    /// for Finder anyway — so the headless run hung exactly where a CI runner would.
+    static var isHeadless: Bool { ProcessInfo.processInfo.environment["CHUTE_HEADLESS"] == "1" }
+
     @discardableResult
     public static func revealAndBeginRename(_ path: String,
                                             settle: TimeInterval = 0.35) -> String? {
+        guard !isHeadless else { return nil }
         let reveal = Shell.run("osascript", ["-e", revealScript(path: path)])
         guard reveal.ok else {
             return "created, but Finder did not respond: \(reveal.err.trimmingCharacters(in: .whitespacesAndNewlines))"
