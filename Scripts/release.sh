@@ -60,12 +60,11 @@ codesign -dvv dist/Chute.app 2>&1 | grep -q "Developer ID Application" \
   || die "the bundle is not signed with a Developer ID — notarisation would reject it"
 
 # ---------------------------------------------------------------- dmg
+# One implementation of the layout, in package-dmg.sh, which also proves the image MOUNTS —
+# `hdiutil create` succeeding only says a file was written. It is a separate script because
+# packaging is not signing: it must stay runnable before the Developer ID exists.
 step "Packaging $DMG"
-STAGE="$(mktemp -d)"; trap 'rm -rf "$STAGE"' EXIT
-cp -R dist/Chute.app "$STAGE/"
-ln -s /Applications "$STAGE/Applications"          # the drag-to-install gesture people expect
-rm -f "$DMG"
-hdiutil create -volname "Chute $VERSION" -srcfolder "$STAGE" -ov -format UDZO -quiet "$DMG"
+./Scripts/package-dmg.sh
 
 # ---------------------------------------------------------------- notarise
 # Submit the DMG, not a zip: stapling the DMG is what makes the DOWNLOAD open cleanly. The app

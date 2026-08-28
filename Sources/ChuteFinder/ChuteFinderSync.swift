@@ -131,7 +131,21 @@ class ChuteFinderSync: FIFinderSync {
     /// SymbolConfiguration can be dropped — a plain bitmap cannot be. The colour is baked into
     /// the bitmap and `isTemplate` stays OFF: a template is tinted monochrome by the system,
     /// which is exactly what made the icons hard to tell apart.
+    /// Rendered once per symbol+colour, not once per right-click. There are fourteen actions and
+    /// the bitmap below is redrawn for each of them every time the menu is built — work repeated
+    /// on the one path where a delay is most visible, because the menu cannot appear until it is
+    /// done. The set of icons is fixed at fourteen, so this never grows.
+    nonisolated(unsafe) private static var iconCache: [String: NSImage] = [:]
+
     static func icon(_ symbol: String, tint: NSColor, label: String) -> NSImage? {
+        let cacheKey = "\(symbol)|\(tint.description)"
+        if let hit = iconCache[cacheKey] { return hit }
+        let made = render(symbol, tint: tint, label: label)
+        if let made { iconCache[cacheKey] = made }
+        return made
+    }
+
+    private static func render(_ symbol: String, tint: NSColor, label: String) -> NSImage? {
         let config = NSImage.SymbolConfiguration(pointSize: 14, weight: .semibold, scale: .large)
         guard let base = NSImage(systemSymbolName: symbol, accessibilityDescription: label)?
                 .withSymbolConfiguration(config) else { return nil }

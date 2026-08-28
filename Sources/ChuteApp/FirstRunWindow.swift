@@ -4,10 +4,14 @@ import ChuteCore
 /// An LSUIElement app has no Dock icon, so a first launch with no window is indistinguishable
 /// from a crash. Shown once, then only on request.
 enum FirstRunWindow {
-    static var statePath: String {
-        (NSHomeDirectory() as NSString).appendingPathComponent(".chute/state.json")
-    }
-
+    /// There is no "seen" flag any more, and there is no `~/.chute/state.json`.
+    ///
+    /// The original design showed this window once and remembered that it had. The design that
+    /// shipped shows it only while a check is FAILING, which answers the same question better and
+    /// needs no memory — so the flag became a file written on three paths and read on none. A
+    /// file in someone's home directory that nothing consults is not harmless; it is a thing the
+    /// next person has to work out the purpose of before they can be sure deleting it is safe.
+    ///
     /// Silence is the goal. A window that appears to say "everything is fine" is a window that
     /// teaches people to dismiss windows — and this one used to offer "Fix everything" over a list
     /// of ten green ticks.
@@ -19,40 +23,26 @@ enum FirstRunWindow {
         DispatchQueue.global(qos: .utility).async {
             let outcomes = Diagnostics.run(Diagnostics.liveEnv())
             let failing = outcomes.filter { !$0.passed }
-            guard !failing.isEmpty else {
-                markSeen()   // nothing to show, and nothing to show next time either
-                return
-            }
+            guard !failing.isEmpty else { return }   // nothing failing, nothing to show
             DispatchQueue.main.async { show(only: failing) }
-        }
-    }
-
-    @discardableResult
-    static func markSeen() -> Bool {
-        let dir = (statePath as NSString).deletingLastPathComponent
-        do {
-            try FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
-            try #"{"firstRunSeen":true}"#.write(toFile: statePath, atomically: true, encoding: .utf8)
-            return true
-        } catch {
-            NSLog("Chute: could not record first-run state at \(statePath): \(error.localizedDescription)")
-            return false
         }
     }
 
     nonisolated(unsafe) static var window: NSWindow?
 
     static func show(only failures: [CheckOutcome]? = nil) {
-        let w = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 480, height: 380),
-                         styleMask: [.titled, .closable], backing: .buffered, defer: false)
-        w.title = "Chute"
-        w.center()
+        // REUSE. This built a NEW NSWindow on every call and overwrote the static that held the
+        // last one — and with isReleasedWhenClosed off, the old window stayed alive and on
+        // screen. Two clicks of "Setup…" meant two identical windows and a leak, every time.
+        // 560, not 480. The `fix` line for the extension-container problem is a real shell
+        // command with two absolute paths in it, and a window too narrow to hold one forces the
+        // reader to guess at what they are supposed to run.
+        let w = window ?? Panel.make(title: "Chute", width: 560, height: 420)
         w.contentView = makeBody(outcomes: failures)   // failures if we have them, else "Checking…"
-        w.isReleasedWhenClosed = false
+        fitToContent(w)
         window = w
         NSApp.activate(ignoringOtherApps: true)
         w.makeKeyAndOrderFront(nil)
-        markSeen()
         if failures == nil { refresh() }
     }
 
@@ -63,16 +53,35 @@ enum FirstRunWindow {
             let outcomes = Diagnostics.run(Diagnostics.liveEnv())
             DispatchQueue.main.async {
                 window?.contentView = makeBody(outcomes: outcomes)
+                if let w = window { fitToContent(w) }
             }
         }
+    }
+
+    /// Everything inside is laid out against this, and every label that can hold a sentence
+    /// wraps to it. Without a wrap width a label's intrinsic width is its WHOLE string on one
+    /// line, so one long `why` pushed the stack wider than the window — the second row ended up
+    /// drawn outside the left margin and the fix command ran off the right edge unread.
+    static let contentWidth: CGFloat = 512
+
+    /// The window is as tall as what is in it, and no taller. It was a fixed 420pt regardless of
+    /// how many checks failed, so one failing check left most of the window empty and two left a
+    /// dead band under the buttons — a window whose size says nothing about its contents reads as
+    /// unfinished. The width is held: it is what the wrapped text was measured against.
+    static func fitToContent(_ w: NSWindow) {
+        guard let content = w.contentView else { return }
+        let height = max(content.fittingSize.height, 140)
+        w.setContentSize(NSSize(width: contentWidth + 48, height: height))
     }
 
     static func makeBody(outcomes: [CheckOutcome]?) -> NSView {
         let root = NSStackView()
         root.orientation = .vertical
         root.alignment = .leading
-        root.spacing = 10
-        root.edgeInsets = NSEdgeInsets(top: 20, left: 20, bottom: 20, right: 20)
+        root.spacing = 14
+        // Rows sit under the heading. The default gravity distribution spread two rows to
+        // opposite ends of the window with a screen of nothing between them.
+        root.distribution = .fill
 
         // Apple's wording rule for an alert: the title states what needs doing, not how the app
         // feels about it. "Chute is almost ready" over ten green ticks said nothing at all.
@@ -105,7 +114,7 @@ enum FirstRunWindow {
         buttons.addArrangedSubview(fix)
         buttons.addArrangedSubview(skip)
         root.addArrangedSubview(buttons)
-        return root
+        return UI.pad(root)
     }
 
     static func row(_ o: CheckOutcome) -> NSView {
@@ -114,25 +123,39 @@ enum FirstRunWindow {
         column.alignment = .leading
         column.spacing = 2
 
+        column.setHuggingPriority(.defaultHigh, for: .vertical)
+
         let top = NSStackView()
         top.orientation = .horizontal
+        top.alignment = .firstBaseline
         top.spacing = 8
-        let mark = NSTextField(labelWithString: o.passed ? "✓" : "⏳")
-        mark.textColor = o.passed ? .systemGreen : .systemOrange
+        // SF Symbols, not emoji: emoji render in whatever the system font falls back to, ignore
+        // the weight of the text beside them, and read out as their own name to VoiceOver.
+        let symbol = o.passed ? "checkmark.circle.fill" : "exclamationmark.triangle.fill"
+        let mark = NSImageView(image: NSImage(systemSymbolName: symbol,
+                                              accessibilityDescription: o.passed ? "ready" : "needs permission")
+                                        ?? NSImage())
+        mark.contentTintColor = o.passed ? .systemGreen : .systemOrange
         top.addArrangedSubview(mark)
         top.addArrangedSubview(NSTextField(labelWithString: o.check.title))
         column.addArrangedSubview(top)
 
         if !o.passed {
             // Visible, not a tooltip: a user who cannot SEE what to do closes the window.
-            let why = NSTextField(labelWithString: o.check.why)
+            // WRAPPING, both of them. As single-line labels their intrinsic width was the entire
+            // sentence, which is what dragged the whole window out of shape.
+            let why = NSTextField(wrappingLabelWithString: o.check.why)
             why.font = .systemFont(ofSize: 11)
             why.textColor = .secondaryLabelColor
+            why.preferredMaxLayoutWidth = contentWidth
             column.addArrangedSubview(why)
 
-            let fix = NSTextField(labelWithString: "→ \(o.check.fix)")
-            fix.font = .systemFont(ofSize: 11, weight: .medium)
+            // Monospaced, because it is a command: in a proportional face a reader cannot tell
+            // `rm -rf ~/Library` from prose, and this one begins with sudo.
+            let fix = NSTextField(wrappingLabelWithString: o.check.fix)
+            fix.font = .monospacedSystemFont(ofSize: 11, weight: .regular)
             fix.textColor = .labelColor
+            fix.preferredMaxLayoutWidth = contentWidth
             fix.isSelectable = true      // so a command can be copied
             column.addArrangedSubview(fix)
         }
@@ -154,9 +177,6 @@ enum FirstRunWindow {
             }
         }
 
-        @objc func skip() {
-            FirstRunWindow.markSeen()
-            FirstRunWindow.window?.close()
-        }
+        @objc func skip() { FirstRunWindow.window?.close() }
     }
 }
