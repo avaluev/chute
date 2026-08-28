@@ -22,5 +22,6 @@ onboardingSuite()
 agentTranscriptSuite()
 resumeCommandSuite()
 contextBufferSuite()
+processMetricsSuite()
 
 T.report()

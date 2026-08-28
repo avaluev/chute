@@ -15,6 +15,22 @@ public struct ProcessSample: Sendable, Equatable {
     public let tty: String        // normalised "ttys004", or "" for no controlling terminal
     public let cpuPercent: Double // as ps reports it: percent of ONE core
     public let residentKB: UInt64
+    /// The real one, from ProcessMetrics. `residentKB` is what `ps` said and is kept only so the
+    /// tree-attribution tests can work from a fixture string; every figure a user sees comes from
+    /// here. Falls back to rss when the process refused inspection.
+    public var footprintBytes: UInt64 = 0
+    /// The Unix session id, which every descendant of a login shell inherits and which
+    /// reparenting does not change. 0 means unknown — see `attribute`.
+    public var sid: Int = 0
+
+    /// The program a process belongs to, for grouping. "Google Chrome Helper (Renderer)" and
+    /// "Google Chrome Helper (GPU)" are Google Chrome; six of them are still one program, which is
+    /// how a person thinks about it and how they will act on it.
+    public var family: String { SystemVitals.commandFamily(command) }
+
+    /// What this process actually holds. `footprintBytes` when we could read it, and the `ps`
+    /// figure when the process refused us — a refusal must not read as zero bytes.
+    public var bytes: UInt64 { footprintBytes > 0 ? footprintBytes : residentKB * 1024 }
 
     public init(pid: Int, ppid: Int, command: String, tty: String,
                 cpuPercent: Double, residentKB: UInt64) {
@@ -27,27 +43,47 @@ public struct SessionLoad: Sendable, Equatable {
     public let cpuPercent: Double
     public let residentBytes: UInt64
     public let processes: Int
+    /// The program holding most of the memory, when one clearly does. This is the actionable
+    /// half: "5.0 GB" cannot tell you whether to restart a dev server or quit a browser, and
+    /// those are different problems with different fixes.
+    public let top: (command: String, bytes: UInt64)?
 
-    public init(cpuPercent: Double, residentBytes: UInt64, processes: Int) {
+    public init(cpuPercent: Double, residentBytes: UInt64, processes: Int,
+                top: (command: String, bytes: UInt64)? = nil) {
         self.cpuPercent = cpuPercent
         self.residentBytes = residentBytes
         self.processes = processes
+        self.top = top
     }
 
-    /// "12% CPU · 1.2 GB memory", for EVERY session that has a process in it.
+    public static func == (a: SessionLoad, b: SessionLoad) -> Bool {
+        a.cpuPercent == b.cpuPercent && a.residentBytes == b.residentBytes
+            && a.processes == b.processes && a.top?.command == b.top?.command
+            && a.top?.bytes == b.top?.bytes
+    }
+
+    /// Above this share of the session's memory, one program IS the story and gets named.
+    /// Below it, nothing dominates and naming the largest of five similar things points at
+    /// nothing — a menu row that always ends in a name is a name nobody reads.
+    public static let dominantShare = 0.5
+
+    /// "12% CPU · 1.2 GB memory", for EVERY session that has a process in it, plus what is
+    /// holding it when one program holds most of it.
     ///
     /// This used to go empty below 1% CPU and 200 MB, on the argument that "0% CPU · 4 MB memory"
     /// was noise in a list you scan for the busy one. Owner's call, 2026-08-28: the numbers are
-    /// the useful part of the row. Someone running five agents is comparing them, and a blank
-    /// where a figure belongs reads as "not measured" rather than "small" — which is the one
-    /// reading that makes the whole column untrustworthy.
+    /// the useful part. Someone running five agents is comparing them, and a blank where a figure
+    /// belongs reads as "not measured" rather than "small".
     ///
     /// Still empty when there is no process at all: that is genuinely nothing to report, not zero.
     public var label: String {
         guard processes > 0 else { return "" }
-        // Neither number is allowed to make the reader guess: "2%" of what, "551 MB" of what.
-        // Activity Monitor calls it Memory, so this does too — not RAM, not RSS.
-        return "\(Int(cpuPercent.rounded()))% CPU · \(SystemVitals.bytes(residentBytes)) memory"
+        var out = "\(Int(cpuPercent.rounded()))% CPU · \(SystemVitals.bytes(residentBytes)) memory"
+        if let top, residentBytes > 0,
+           Double(top.bytes) / Double(residentBytes) >= Self.dominantShare {
+            out += " · mostly \(top.command)"
+        }
+        return out
     }
 }
 
@@ -55,7 +91,7 @@ public enum SystemVitals {
     /// Parse `ps -Axo pid=,ppid=,tty=,pcpu=,rss=,comm=`. Pure, so the column handling is
     /// testable without ps. "??" — no controlling terminal — becomes an empty tty; the process
     /// is KEPT, because `attribute` may hand it to the session it descends from.
-    public static func parse(ps output: String) -> [ProcessSample] {
+    public static func parse(ps output: String, sids: [Int: Int] = [:]) -> [ProcessSample] {
         var out: [ProcessSample] = []
         for line in output.split(separator: "\n") {
             let cols = line.split(separator: " ", omittingEmptySubsequences: true).map(String.init)
@@ -69,23 +105,42 @@ public enum SystemVitals {
             // comm is a PATH, possibly with spaces ("next-server (v16.1.1)") — keep the tail
             // whole and take its basename.
             let command = (cols[5...].joined(separator: " ") as NSString).lastPathComponent
-            out.append(ProcessSample(pid: pid, ppid: ppid, command: command,
-                                     tty: attached ? Session.normalise(tty: rawTTY) : "",
-                                     cpuPercent: cpu, residentKB: rss))
+            var sample = ProcessSample(pid: pid, ppid: ppid, command: command,
+                                       tty: attached ? Session.normalise(tty: rawTTY) : "",
+                                       cpuPercent: cpu, residentKB: rss)
+            sample.sid = sids[pid] ?? 0
+            out.append(sample)
         }
         return out
     }
 
-    /// THE HOT-MAC FIX. An agent's real work happens in spawned children that DROP the tty —
-    /// claude (ttys004) → zsh (??) → npm (??) → chrome-headless-shell (??) at 120% — so summing
-    /// only tty-attached processes showed "0% CPU" on a session cooking the chassis. Every
-    /// detached process is walked up its parent chain and attributed to the first terminal
-    /// found there; a chain that reaches launchd without one belongs to nobody. Pure.
+    /// THE HOT-MAC FIX, and the reparenting fix on top of it.
+    ///
+    /// An agent's real work happens in spawned children that DROP the tty — claude (ttys004) →
+    /// zsh (??) → npm (??) → chrome-headless-shell (??) at 120% — so summing only tty-attached
+    /// processes showed "0% CPU" on a session cooking the chassis.
+    ///
+    /// TWO ROUTES, IN ORDER OF HOW MUCH THEY SURVIVE:
+    ///
+    ///   1. THE SESSION ID. Every descendant of a login shell inherits its sid, and being
+    ///      reparented to launchd does not change it. This is the route that keeps working when
+    ///      a process is double-forked or its parent exits first — the case a ppid walk cannot
+    ///      see, and the one `pstree` and htop's tree view also lose.
+    ///   2. THE PARENT CHAIN. Used when the sid is unknown (0) or its session owns no terminal.
+    ///
+    /// A session whose leader has no tty belongs to nobody: a launchd daemon must not be billed
+    /// to whichever terminal happens to sort first. Pure — the sids are read once by `sample()`,
+    /// because `ps -o sess=` cannot supply them (kp_eproc.e_sess is NULL for non-root, so ps
+    /// prints 0 for every process on the machine).
     public static func attribute(_ samples: [ProcessSample]) -> [ProcessSample] {
         var ttyByPid: [Int: String] = [:]
         var ppidByPid: [Int: Int] = [:]
+        var ttyBySID: [Int: String] = [:]
         for s in samples {
-            if !s.tty.isEmpty { ttyByPid[s.pid] = s.tty }
+            if !s.tty.isEmpty {
+                ttyByPid[s.pid] = s.tty
+                if s.sid != 0, ttyBySID[s.sid] == nil { ttyBySID[s.sid] = s.tty }
+            }
             ppidByPid[s.pid] = s.ppid
         }
         func owner(_ pid: Int) -> String? {
@@ -98,19 +153,46 @@ public enum SystemVitals {
             return nil
         }
         return samples.map { s in
-            guard s.tty.isEmpty, let tty = owner(s.pid) else { return s }
-            return ProcessSample(pid: s.pid, ppid: s.ppid, command: s.command, tty: tty,
-                                 cpuPercent: s.cpuPercent, residentKB: s.residentKB)
+            guard s.tty.isEmpty else { return s }
+            guard let tty = (s.sid != 0 ? ttyBySID[s.sid] : nil) ?? owner(s.pid) else { return s }
+            var out = ProcessSample(pid: s.pid, ppid: s.ppid, command: s.command, tty: tty,
+                                    cpuPercent: s.cpuPercent, residentKB: s.residentKB)
+            out.footprintBytes = s.footprintBytes
+            out.sid = s.sid
+            return out
         }
     }
 
+    /// The PROGRAM a process belongs to. A path becomes its last component; a Chrome helper
+    /// becomes Chrome. Six renderers are still one browser, which is how a person thinks about it
+    /// and, more to the point, how they will act on it.
+    public static func commandFamily(_ command: String) -> String {
+        var name = (command as NSString).lastPathComponent
+        // "Google Chrome Helper (Renderer)" / "…(GPU)" / "…(Plugin)" are all Chrome. So is
+        // "Google Chrome Helper" on its own.
+        if let r = name.range(of: " Helper") { name = String(name[..<r.lowerBound]) }
+        return name.isEmpty ? command : name
+    }
+
     /// Everything a terminal is running, added up: the agent, its node processes, and the
-    /// detached children `attribute` handed back to it.
+    /// detached children `attribute` handed back to it — plus WHICH program holds most of it.
+    ///
+    /// Memory is `footprintBytes`, not summed rss. Summing rss counts every shared page once per
+    /// process and a session is a tree of twenty-four of them; measured across four live sessions
+    /// on 2026-08-28 it overstated by ×1.78 to ×1.93. See ProcessMetrics.
     public static func load(forTTY tty: String, in samples: [ProcessSample]) -> SessionLoad {
         let mine = samples.filter { !$0.tty.isEmpty && $0.tty == Session.normalise(tty: tty) }
+        guard !mine.isEmpty else { return SessionLoad(cpuPercent: 0, residentBytes: 0, processes: 0) }
+
+        let bytes = mine.reduce(UInt64(0)) { $0 + $1.bytes }
+        var byFamily: [String: UInt64] = [:]
+        for p in mine { byFamily[p.family, default: 0] += p.bytes }
+        let top = byFamily.max { $0.value < $1.value }.map { (command: $0.key, bytes: $0.value) }
+
         return SessionLoad(cpuPercent: mine.reduce(0) { $0 + $1.cpuPercent },
-                           residentBytes: mine.reduce(0) { $0 + $1.residentKB } * 1024,
-                           processes: mine.count)
+                           residentBytes: bytes,
+                           processes: mine.count,
+                           top: top)
     }
 
     // DELETED 2026-08-28: busiest, machineLine, batteryCelsius, temperature, fahrenheit,
@@ -133,8 +215,60 @@ public enum SystemVitals {
     // saying — that is a fact about the agent you are running, not about the weather inside the
     // case. See SessionMenu for where that threshold lives.
 
+    /// The previous snapshot, so CPU can be a RATE rather than a lifetime average. Held here
+    /// because it is state about the machine, not about any one menu.
+    nonisolated(unsafe) private static var previous: (at: Date, samples: [Int32: ProcessMetrics.Sample])?
+
+    /// One `ps` for the process TREE — pid, ppid, tty and command, which libproc does not give
+    /// conveniently — then real numbers from `ProcessMetrics` for everything a user will read.
+    ///
+    /// CPU is the average since the LAST call to this function, which is every two seconds while
+    /// the menu is open. On the very first call there is no previous snapshot and therefore no
+    /// rate: the row shows memory and no CPU figure, which is the honest answer to "how busy has
+    /// this been since a moment ago" when there has not been a moment yet. It fills in two
+    /// seconds later. `ps -o pcpu`, which is what this replaced, always had an answer and it was
+    /// the average since the process started — it read Google Chrome at 21.4% while a real
+    /// measurement put it at 0.5%.
+    /// How long to wait for a first reading when there is no previous snapshot to diff against.
+    ///
+    /// A CPU rate needs two points in time. The menu-bar app has them for free — it re-samples
+    /// every two seconds while open — but `chute sessions` runs once and exits, so without this
+    /// it would print "0% CPU" for everything, every time. 150 ms is long enough for a real
+    /// reading and short against the AppleScript round-trip to Terminal that the same command
+    /// already pays for.
+    public static let settleSeconds = 0.15
+
     public static func sample() -> [ProcessSample] {
-        attribute(parse(ps: Shell.run("ps", ["-Axo", "pid=,ppid=,tty=,pcpu=,rss=,comm="]).out))
+        // The sids come from getsid(2), one call each, because `ps -o sess=` cannot supply them:
+        // kp_eproc.e_sess is NULL for a non-root reader, so ps prints 0 for every process.
+        let listing = Shell.run("ps", ["-Axo", "pid=,ppid=,tty=,pcpu=,rss=,comm="]).out
+        var sids: [Int: Int] = [:]
+        for p in parse(ps: listing) {
+            let sid = getsid(pid_t(p.pid))
+            if sid > 0 { sids[p.pid] = Int(sid) }
+        }
+        let tree = attribute(parse(ps: listing, sids: sids))
+        let pids = tree.map { Int32($0.pid) }
+        if previous == nil {
+            previous = (Date(), ProcessMetrics.snapshot(pids: pids))
+            Thread.sleep(forTimeInterval: settleSeconds)
+        }
+        let now = Date()
+        let live = ProcessMetrics.snapshot(pids: pids)
+        let last = previous
+        previous = (now, live)
+
+        let seconds = last.map { now.timeIntervalSince($0.at) } ?? 0
+        return tree.map { p in
+            let pid = Int32(p.pid)
+            let cpu = last.flatMap {
+                ProcessMetrics.cpuPercent(pid: pid, from: $0.samples, to: live, seconds: seconds)
+            }
+            var out = ProcessSample(pid: p.pid, ppid: p.ppid, command: p.command, tty: p.tty,
+                                    cpuPercent: cpu ?? 0, residentKB: p.residentKB)
+            out.footprintBytes = live[pid]?.footprintBytes ?? 0
+            return out
+        }
     }
 
     public static func bytes(_ count: UInt64) -> String {
