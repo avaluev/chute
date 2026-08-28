@@ -36,7 +36,7 @@ public enum MarkdownUnpack {
             while j < lines.count, !lines[j].trimmingCharacters(in: .whitespaces).hasPrefix("```") {
                 body.append(lines[j]); j += 1
             }
-            if let path = pathFrom(info: info) ?? pathFromContext(lines, before: i) {
+            if let path = pathFrom(info: info) ?? pathFromContext(lines, before: i) ?? pathFromBody(body) {
                 out.append(UnpackedFile(path: path, content: body.joined(separator: "\n")))
             }
             i = j + 1
@@ -72,6 +72,13 @@ public enum MarkdownUnpack {
 
     static func looksLikePath(_ s: String) -> Bool {
         guard !s.isEmpty, !s.contains(" "), s.count <= 200 else { return false }
+        // A SHEBANG IS NOT A FILENAME. Every caller strips a leading comment marker before asking
+        // this, so `#!/bin/bash` arrives here as `!/bin/bash` — no space, has slashes, and would
+        // otherwise pass, writing a real file into a directory literally named "!". A fenced
+        // shell script with no name is common; a file whose first path component is "!" is not.
+        // Fixed in the shared predicate rather than in pathFromBody, because pathFromContext
+        // strips "#" too and had the identical hole for a `#!/bin/bash` line above a fence.
+        guard !s.hasPrefix("!") else { return false }
         if s.contains("/") { return true }
         let ext = (s as NSString).pathExtension
         return !ext.isEmpty && ext.count <= 5 && s.count > ext.count + 1
@@ -102,5 +109,23 @@ public enum MarkdownUnpack {
             if looksLikePath(cleaned) { return cleaned }
         }
         return nil
+    }
+
+    /// Reads `body.first` ONLY — a path-shaped string further down is code, not a filename. This
+    /// is what agents actually emit most often: a fence with no info string, path named in a
+    /// leading comment. Strips ONE leading comment marker before testing the rest against the
+    /// same `looksLikePath` every other source uses. The marker is NOT stripped from the file
+    /// content that gets written — that comment is part of what the agent wrote.
+    static func pathFromBody(_ body: [String]) -> String? {
+        guard var s = body.first?.trimmingCharacters(in: .whitespaces) else { return nil }
+        let markers: [(open: String, close: String)] =
+            [("//", ""), ("#", ""), ("--", ""), (";", ""), ("/*", "*/"), ("<!--", "-->")]
+        for m in markers where s.hasPrefix(m.open) {
+            s.removeFirst(m.open.count)
+            if !m.close.isEmpty, s.hasSuffix(m.close) { s.removeLast(m.close.count) }
+            break
+        }
+        s = s.trimmingCharacters(in: .whitespaces)
+        return looksLikePath(s) ? s : nil
     }
 }
