@@ -350,6 +350,32 @@ scratch_editor() { # x y w h
        end tell"
 }
 
+# Open one file in the scratch editor. `open` is a machine-touching call like any other, so it
+# lives behind the PLAN guard here rather than raw in a tape: `make lint` bans `open` and
+# `killall` for the same reason it bans osascript — a dry run that reaches past the verbs drives
+# the real machine, and this one launched TextEdit and opened six files every time anyone ran
+# `make check` believing it was safe.
+#
+# The wait is the WINDOW ARRIVING, not a guessed 0.8s. LaunchServices returns immediately and the
+# document can take longer on a cold TextEdit; a blind pause is a bet on how fast the machine is
+# today, and losing it means ⌘A selects the previous file's text and the take copies it twice.
+open_in_editor() { # absolute-path
+  planned "open $(basename "$1") in TextEdit" && return 0
+  local name; name="$(basename "$1")"
+  open -a TextEdit "$1"
+  await "TextEdit to draw $name" 10 osascript -e \
+    "tell application \"System Events\" to tell process \"TextEdit\" to if (count of windows) is 0 or name of window 1 is not \"$name\" then error \"not yet\""
+}
+
+# The scratch editor's counterpart. `killall` and not a close-every-document AppleScript: the
+# documents are scratch, nothing in them is worth a save sheet, and a save sheet appearing mid-take
+# is a modal that the next tape's keystrokes would type into.
+close_editor() {
+  planned "close the scratch editor" && return 0
+  killall TextEdit 2>/dev/null || true
+  await "TextEdit to exit" 5 sh -c '! pgrep -x TextEdit >/dev/null' || say "TextEdit did not exit"
+}
+
 right_click_selection() {
   planned "right-click the selection" && return 0
   local pt; pt="$(selection_point | tr -d ' ')"

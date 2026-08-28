@@ -54,8 +54,7 @@ stopwatch_start          # after the recorder is writing, so it times the WORK, 
 scratch_editor 1420 120 580 800
 
 for f in "${RITUAL[@]}"; do
-  open -a TextEdit "$FIXTURE/$f"
-  pause 0.8                      # LaunchServices open is asynchronous; let the window arrive
+  open_in_editor "$FIXTURE/$f"   # waits for the window, rather than betting 0.8s on the machine
   key kd:cmd t:a ku:cmd          # select all
   key kd:cmd t:c ku:cmd          # copy
   key kd:cmd t:w ku:cmd          # close it again
@@ -66,7 +65,7 @@ for f in "${RITUAL[@]}"; do
 done
 MANUAL="$(stopwatch_read)"
 take_wait
-killall TextEdit 2>/dev/null || true   # scratch only; nothing in it is worth a save sheet
+close_editor                     # scratch only; nothing in it is worth a save sheet
 verify_take "$SLUG-manual" 95
 
 # ── Take B — the same job ───────────────────────────────────────────────────────────────────
