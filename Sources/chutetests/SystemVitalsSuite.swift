@@ -135,6 +135,33 @@ func systemVitalsSuite() {
              "and so does a helper")
         T.eq(SystemVitals.commandFamily("/opt/homebrew/bin/node"), "node", "a plain binary is itself")
 
+        // ── AND WHICH CHROME, WHEN WE KNOW ──────────────────────────────────────────────────
+        //
+        // Collapsing every Chromium process to "Google Chrome" put the user's own browser, a
+        // Playwright shell and an anti-detect browser in one bucket, so `mostly Google Chrome`
+        // named a thing you could not act on. When ProcessIdentity has resolved the instance from
+        // --user-data-dir, that IS the family: two Chromes with different profiles are two
+        // programs as far as any decision the reader makes goes.
+        //
+        // Verified live on this machine 2026-08-28 through the real code path, with four
+        // Chromium trees running at once: "Google Chrome" (the default profile, no flag, so
+        // correctly unlabelled), "Google Chrome (mcp-chrome-9ebcc11)",
+        // "chrome-headless-shell (playwright_chromiumdev_profile-CZ2GLT)" and one launched by
+        // hand — four rows that used to be one.
+        var helper = ProcessSample(pid: 42, ppid: 7, command: "Google Chrome Helper (Renderer)",
+                                   tty: "", cpuPercent: 0, residentKB: 0)
+        T.eq(helper.family, "Google Chrome",
+             "with no instance resolved, a helper still collapses to its browser")
+        helper.instance = "Google Chrome (mcp-chrome-9ebcc11)"
+        T.eq(helper.family, "Google Chrome (mcp-chrome-9ebcc11)",
+             "and once the instance is known, the instance is the family")
+
+        var plain = ProcessSample(pid: 43, ppid: 7, command: "node", tty: "",
+                                  cpuPercent: 0, residentKB: 0)
+        T.eq(plain.family, "node", "everything that is not a browser is untouched by any of this")
+        plain.instance = nil
+        T.eq(plain.family, "node", "and a nil instance never blanks a name that was already good")
+
         // ── ATTRIBUTION SURVIVES REPARENTING ────────────────────────────────────────────────
         //
         // Walking ppid until a tty turns up loses the branch the moment anything is reparented to

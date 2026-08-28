@@ -23,5 +23,6 @@ agentTranscriptSuite()
 resumeCommandSuite()
 contextBufferSuite()
 processMetricsSuite()
+processIdentitySuite()
 
 T.report()
