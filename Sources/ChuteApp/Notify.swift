@@ -33,11 +33,9 @@ enum Notify {
         URL(string: "x-apple.systempreferences:com.apple.Notifications-Settings.extension?id=dev.valuev.chute")!
     }
 
-    static func requestAuthorization() {
-        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { _, error in
-            if let error { NSLog("ChuteApp: notification authorization failed: %@", error.localizedDescription) }
-        }
-    }
+    // No `requestAuthorization()` wrapper here any more. It existed for the launch-time prompt,
+    // which is gone — the `.notDetermined` branch below asks directly, at the only moment a
+    // notification is actually about to be posted.
 
     /// Authorization is read fresh every time, never cached: the user may grant it in System
     /// Settings long after launch, and a cached "denied" would pin every banner to the ugly
@@ -76,19 +74,6 @@ enum Notify {
             @unknown default:
                 fallback(title: title, body: body)
             }
-        }
-    }
-
-    /// What the notification system currently thinks, for diagnostics — a banner arriving with the
-    /// wrong icon is otherwise unexplainable from the outside.
-    static func statusDescription(_ status: UNAuthorizationStatus) -> String {
-        switch status {
-        case .authorized:   return "allowed"
-        case .provisional:  return "allowed quietly"
-        case .ephemeral:    return "allowed for now"
-        case .denied:       return "turned off in System Settings → Notifications → Chute"
-        case .notDetermined: return "never asked"
-        @unknown default:   return "unknown"
         }
     }
 

@@ -4,12 +4,6 @@ import ChuteCore
 import UserNotifications
 
 /// Every action is the CLI. The app is a surface, never a second implementation.
-struct Action {
-    let title: String
-    let key: String
-    let run: () -> Void
-}
-
 let chuteBinary: String = {
     let bundled = Bundle.main.bundlePath + "/Contents/MacOS/chute"
     if FileManager.default.isExecutableFile(atPath: bundled) { return bundled }

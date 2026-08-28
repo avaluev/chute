@@ -86,6 +86,24 @@ func coreSuites() {
     }
 
     // MARK: - FR-19 redaction
+    T.suite("FileScan.absolute") {
+        // A path a human is going to read and paste. `.` used to survive into the middle of
+        // every path `clean`, `seed`, `note`, `latest` and `unpack` printed.
+        let cwd = FileManager.default.currentDirectoryPath
+        T.eq(FileScan.absolute("."), cwd, "'.' is the directory itself, not '<dir>/.'")
+        // REGRESSION. `standardizingPath` was the tidy-looking way to do this and it also
+        // resolves symlinks, which silently broke `bundle`: it renders paths relative to the
+        // working directory, and resolving one side and not the other collapsed every file in a
+        // bundle to its bare name. Whatever this does to dots, it must not move the prefix.
+        T.eq(FileScan.absolute("/var/folders/x/./y.txt"), "/var/folders/x/y.txt",
+             "a dot goes without /var being resolved to /private/var")
+        T.no(FileScan.absolute("./x.txt").contains("/./"), "and no './' survives into a joined path")
+        T.no(FileScan.absolute(".").hasSuffix("/."), "nor a trailing one")
+        T.ok(FileScan.absolute("/already/absolute.txt") == "/already/absolute.txt",
+             "an absolute path is left exactly as it is")
+        T.ok(FileScan.absolute("~").hasPrefix("/"), "a tilde still expands")
+    }
+
     T.suite("Redact") {
         T.no(Redact.apply("key: sk-ant-api03-AbCdEfGhIjKlMnOpQrStUvWxYz012345").contains("AbCdEfGh"), "anthropic key gone")
         T.ok(Redact.apply("key: sk-ant-api03-AbCdEfGhIjKlMnOpQrStUvWxYz012345").contains("[REDACTED]"), "marker present")

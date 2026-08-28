@@ -51,10 +51,25 @@ public enum FileScan {
         return out
     }
 
+    /// The one place a path becomes absolute — so it is the one place to make it PRESENTABLE.
+    ///
+    /// `chute clean .` printed `/Users/me/proj/./debug.log`, and `seed`, `note`, `latest` and
+    /// `unpack` all did the same: `appendingPathComponent(".")` keeps the dot, and every join
+    /// after it carries the `./` into the output. On a tool whose entire product is printing
+    /// paths for someone to paste, that is the wrong detail to leave lying around.
+    /// DOT COMPONENTS ONLY — deliberately not `standardizingPath`, which also RESOLVES SYMLINKS.
+    /// That looked like the tidy stdlib answer and quietly broke `bundle`: it renders each file
+    /// relative to the working directory, `/var` is a symlink to `/private/var`, and resolving
+    /// one side and not the other left no shared prefix, so every path in a bundle collapsed to
+    /// its bare filename. Caught by `smoke.sh` step 2 ("md fence"). The `.` is the whole
+    /// complaint; nothing here needs a symlink resolved.
     public static func absolute(_ p: String) -> String {
         let expanded = (p as NSString).expandingTildeInPath
-        if expanded.hasPrefix("/") { return expanded }
-        return (fm.currentDirectoryPath as NSString).appendingPathComponent(expanded)
+        let joined = expanded.hasPrefix("/")
+            ? expanded
+            : (fm.currentDirectoryPath as NSString).appendingPathComponent(expanded)
+        let flattened = joined.replacingOccurrences(of: "/./", with: "/")
+        return flattened.hasSuffix("/.") ? String(flattened.dropLast(2)) : flattened
     }
 
     /// NFR-12 — binaries are skipped, never corrupted into the context.
