@@ -32,6 +32,7 @@ GIT SAFETY
 AGENT SESSIONS
   sessions              Every terminal session, grouped by state     --json
   focus <key|project|N> Bring that session to the front
+  resume [key|N]        The command to pick that conversation up again  --tmux
   hooks snippet|uninstall|status  Never edits your settings itself   --settings PATH
 
 SHARING
@@ -92,6 +93,7 @@ case "sessions":   cmdSessions(args)
 case "focus":      cmdFocus(args)
 case "hooks":      cmdHooks(args)
 case "doctor":     cmdDoctor(args)
+case "resume":     cmdResume(args)
 case "onboard":    cmdOnboard(args)
 case "finder-actions": cmdFinderActions(args)
 case "paste-image":    cmdPasteImage(args)

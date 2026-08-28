@@ -33,12 +33,27 @@ func cmdSessions(_ a: Args) {
         let jsonSamples = SystemVitals.sample()
         let rows = sessions.map { s -> [String: Any] in
             let load = SystemVitals.load(forTTY: s.tty, in: jsonSamples)
-            return ["key": s.key, "project": s.project, "title": s.title, "tty": s.tty,
-                    "state": HookState.stateName(s.state), "isAgent": s.isAgent,
-                    "windowID": s.windowID, "tabIndex": s.tabIndex,
-                    "color": SessionColor.hex(forProject: s.project),
-                    "cpuPercent": load.cpuPercent, "memoryBytes": load.residentBytes,
-                    "processes": load.processes]
+            // Anything the paid menu bar can show, the free CLI can print. That is the open-core
+            // promise, and it is also where discoverability lives for the ⌥ commands.
+            let t = s.sessionID.flatMap { AgentTranscript.read(sessionID: $0) }
+            var row: [String: Any] = [
+                "key": s.key, "project": s.project, "title": s.title, "tty": s.tty,
+                "state": HookState.stateName(s.state), "isAgent": s.isAgent,
+                "windowID": s.windowID, "tabIndex": s.tabIndex,
+                "color": SessionColor.hex(forProject: s.project),
+                "cpuPercent": load.cpuPercent, "memoryBytes": load.residentBytes,
+                "processes": load.processes]
+            // Absent rather than null: a consumer that checks for the key gets a straight answer,
+            // and every one of these is genuinely unknown when the hook has not been updated.
+            if let a = s.agent { row["agent"] = a }
+            if let c = s.cwd { row["cwd"] = c }
+            if let id = s.sessionID { row["sessionId"] = id }
+            if let m = t?.model { row["model"] = m }
+            if let e = t?.effort { row["effort"] = e }
+            if let v = t?.version { row["agentVersion"] = v }
+            if let b = t?.branch { row["gitBranch"] = b }
+            if let t { row["outputTokens"] = t.outputTokens; row["cacheReadTokens"] = t.cacheReadTokens }
+            return row
         }
         let data = try? JSONSerialization.data(withJSONObject: rows, options: [.prettyPrinted])
         Out.line(String(decoding: data ?? Data("[]".utf8), as: UTF8.self))
@@ -52,13 +67,78 @@ func cmdSessions(_ a: Args) {
     let samples = SystemVitals.sample()
     for s in sessions {
         let load = SystemVitals.load(forTTY: s.tty, in: samples)
-        Out.line(pad(s.state.label, 9) + pad(s.project, 18) + pad(s.title, 34)
+        let detail = SessionPhrasing.detail(agent: s.agent,
+                                            transcript: s.sessionID.flatMap { AgentTranscript.read(sessionID: $0) })
+        Out.line(pad(s.state.label, 9) + pad(s.project, 18) + pad(detail, 34)
                  + " " + pad(s.tty, 9) + load.label)
     }
     let needs = sessions.filter { $0.state == .blocked || $0.state == .waiting }.count
     // The machine summary that used to close this line is gone — see the note in SystemVitals.
     // The count is the fact worth printing; "using 0.4 of 16 cores · battery at 31 °C" was not.
     Out.info("→ \(sessions.count) session(s), \(needs) need you")
+}
+
+/// `chute resume [key|project|N]` — the command that picks a conversation up somewhere else.
+///
+/// The menu bar's ⌥ items and this print the same string from the same place (ResumeCommand), so
+/// the paid surface and the free one cannot drift. It is the free half of "make a session
+/// portable": the app finds the session for you, the CLI is where you learn the commands exist.
+func cmdResume(_ a: Args) {
+    let (sessions, _) = discoverSessions()
+    let target = a.positional.first
+
+    // No argument: the one session that is waiting for you, if exactly one is.
+    let candidates = sessions.filter { $0.sessionID != nil }
+    guard !candidates.isEmpty else {
+        Out.fail("""
+        no session carries an id yet.
+          Chute learns it from the hook snippet, which has to be pasted into your own
+          Claude Code settings — run `chute hooks snippet` and follow it. Until then the
+          menu can tell you a session is waiting, but not which conversation it is.
+        """)
+    }
+
+    let hit: Session?
+    if let target {
+        hit = candidates.first { $0.key == target }
+            ?? candidates.first { $0.project == target }
+            ?? Int(target).flatMap { n in n >= 1 && n <= candidates.count ? candidates[n - 1] : nil }
+    } else {
+        let waiting = candidates.filter { $0.state == .blocked || $0.state == .waiting }
+        if waiting.count == 1 { hit = waiting[0] }
+        else if candidates.count == 1 { hit = candidates[0] }
+        else {
+            Out.info("\(candidates.count) sessions can be resumed — name one:")
+            for (i, s) in candidates.enumerated() {
+                Out.info("  \(i + 1). \(s.project)  \(SessionPhrasing.detail(agent: s.agent, transcript: nil))  (\(s.tty))")
+            }
+            Out.fail("ambiguous — re-run with a number, e.g. `chute resume 1`")
+        }
+    }
+
+    guard let s = hit, let id = s.sessionID else {
+        Out.fail("no session matches '\(target ?? "")' — see `chute sessions`")
+    }
+
+    let command: String?
+    if a.has("tmux") {
+        command = ResumeCommand.tmux(project: s.project, cwd: s.cwd, agent: s.agent, sessionID: id)
+        if command == nil, Shell.which("tmux") == nil { Out.info("note: tmux is not installed") }
+    } else {
+        command = ResumeCommand.resume(agent: s.agent, sessionID: id)
+    }
+
+    guard let command else {
+        Out.fail("""
+        no resume command is known for \(s.agent.map(SessionPhrasing.agentLabel) ?? "this session").
+          Only Claude Code's resume syntax is implemented. Guessing at another agent's would put a
+          command on your clipboard that fails when you run it. The session id is \(id).
+        """)
+    }
+
+    // tmux CONTINUES a session, it does not move one: macOS cannot transplant a running process
+    // onto a new tty. The old window keeps running until you close it.
+    Out.deliver(command, a, badge: a.has("tmux") ? "the old window keeps running" : nil)
 }
 
 func cmdFocus(_ a: Args) {
@@ -108,9 +188,22 @@ func cmdHooks(_ a: Args) {
             Out.line("removed: \(r.changed.sorted().joined(separator: ", "))")
         } catch { Out.fail("\(error)") }
     default:
+        let outdated = Set(HookInstaller.outdatedEvents(settingsPath: path))
         for (event, wired) in HookInstaller.status(settingsPath: path).sorted(by: { $0.key < $1.key }) {
-            Out.line("\(wired ? "✓" : "·") \(event)")
+            let mark = !wired ? "·" : (outdated.contains(event) ? "!" : "✓")
+            Out.line("\(mark) \(event)")
         }
         Out.info("→ settings: \(path)")
+        // An older snippet is installed, not broken: the badges and the waiting times work. What
+        // it cannot do is say WHICH conversation a session is, so the model, the cost and the
+        // resume command are all missing — and nothing on screen would otherwise explain why.
+        if !outdated.isEmpty {
+            Out.info("""
+            → \(outdated.count) hook(s) are an older version of the snippet.
+              They still report state, so the badge and the waiting times are correct — but they
+              do not record the session id, so the menu cannot show the model, the cost, or
+              `chute resume`. Run `chute hooks snippet` and paste it again to fix that.
+            """)
+        }
     }
 }
