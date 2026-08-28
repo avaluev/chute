@@ -21,7 +21,7 @@ take_start "$SLUG" 12
 stopwatch_start
 
 right_click_selection
-menu_pick_sub "New File Here" "New Markdown File from Clipboard"
+menu_pick_sub "New File" "Markdown File from Clipboard"
 await_inbox_drained
 await_file "$FIXTURE/src/Session_Refresh_Notes.md" 8
 CHUTE_SECS="$(stopwatch_read)"

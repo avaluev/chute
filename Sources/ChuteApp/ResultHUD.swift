@@ -14,8 +14,10 @@ import ChuteCore
 /// system at all. This panel appears in the same run loop turn as the result, obeys no
 /// notification policy, needs no permission, and cannot be batched into a summary.
 ///
-/// The notification is still posted. It is the durable record — scrollback for a glance you
-/// missed. This is the feedback.
+/// THIS IS THE ONLY SURFACE. It used to be one of two — the panel AND a Notification Centre
+/// banner for the same event — which is exactly what a user sees as the same message arriving
+/// twice. `notify` now picks one: this panel whenever there is a screen to draw on, a
+/// notification only when there is not. Never post both for one action.
 enum ResultHUD {
     nonisolated(unsafe) private static var panel: NSPanel?
     nonisolated(unsafe) private static var dismissAt: Date?
@@ -28,9 +30,14 @@ enum ResultHUD {
     /// `anchor` is the status item's frame in screen coordinates when it is known, so the HUD
     /// appears under the ⤓ that did the work. Falling back to the top-right of the main screen
     /// keeps it in the same place rather than jumping to wherever the pointer happens to be.
-    static func show(_ text: String, anchor: NSRect? = nil) {
+    ///
+    /// Returns whether the user was actually shown something. `notify` relies on this to pick
+    /// ONE surface: false here — and only false here — is what lets a notification be posted
+    /// instead. Never return true on a path that draws nothing, or an action goes unreported.
+    @discardableResult
+    static func show(_ text: String, anchor: NSRect? = nil) -> Bool {
         // Tests and CI have no window server. Drawing there is a crash, not a feature.
-        guard NSApp != nil, !isHeadless else { return }
+        guard NSApp != nil, !isHeadless else { return false }
         precondition(Thread.isMainThread, "ResultHUD must be shown on the main thread")
 
         let body = NSTextField(labelWithString: text)
@@ -91,6 +98,7 @@ enum ResultHUD {
             panel?.orderOut(nil)
             dismissAt = nil
         }
+        return true
     }
 
     private static var isHeadless: Bool {

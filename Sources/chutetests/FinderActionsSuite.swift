@@ -75,9 +75,9 @@ func finderActionsSuite() {
         // then create / set up / clean up / leave. Change this number on purpose or not at all.
         let rows = ChuteActions.rows()
         T.eq(rows.count, 8, "the right-click adds eight rows to Finder's menu")
-        T.eq(rows.map(\.title), ["Copy Full Paths", "Copy Files with Contents", "Copy Folder Tree",
-                                 "Write Clipboard Files Here", "New File Here", "Set Up for an Agent",
-                                 "Move Junk to Trash", "Open in Terminal"],
+        T.eq(rows.map(\.title), ["Copy Full Paths", "Copy Files as Context", "Copy Folder Tree",
+                                 "Save Clipboard as Files…", "New File", "Set Up for an Agent",
+                                 "Move Junk to Trash…", "Open in Terminal"],
              "and they read in that order — context out, answer in, make, set up, tidy, leave")
         T.eq(Set(rows.map(\.symbol)).count, rows.count,
              "no two DRAWN rows share an icon, submenu holders included")
@@ -91,6 +91,30 @@ func finderActionsSuite() {
         // With nothing selected the selection-scoped rows drop out; nothing may be left orphaned.
         T.ok(ChuteActions.rows(hasSelection: false, targetIsFolder: true).count < rows.count,
              "an empty selection draws fewer rows, not the same ones greyed out")
+
+        // COLOUR IS A SAFETY SIGNAL, so it may never disagree with the confirmation. `kind` is
+        // what ChuteFinderSync draws the icon in; `confirmButton` is what makes the app ask before
+        // writing. An action that asks but is drawn green, or one drawn red that writes without
+        // asking, is worse than no colour at all — it is a promise the code does not keep.
+        for a in ChuteActions.all {
+            T.eq(a.isDestructive, a.kind == .destructive,
+                 "'\(a.id)' is coloured for what it actually does to your disk")
+        }
+        // The tint switch is exhaustive over Kind, so this only has to prove no action was left
+        // in a catch-all bucket that means nothing.
+        T.ok(ChuteActions.all.contains { $0.kind == .copy } && ChuteActions.all.contains { $0.kind == .create }
+             && ChuteActions.all.contains { $0.kind == .setup } && ChuteActions.all.contains { $0.kind == .open },
+             "every safety class is actually used — a class with no members is a class nobody learns")
+
+        // THE ELLIPSIS, which is Apple's rule and not decoration: an item that opens a dialog
+        // before it acts ends in one, so "does it now" and "asks first" are distinguishable
+        // without clicking to find out.
+        for a in ChuteActions.all {
+            T.eq(a.menuTitle.hasSuffix("…"), a.isDestructive,
+                 "'\(a.id)' ends in an ellipsis if and only if it asks first")
+            T.ok(!a.plainTitle.hasSuffix("…"),
+                 "'\(a.id)' keeps the ellipsis out of the notification subtitle")
+        }
 
         // DESTRUCTIVE ACTIONS. A right-click that silently writes into a repo is the one thing
         // that would destroy the trust everything else here is sold on. Both of these preview by

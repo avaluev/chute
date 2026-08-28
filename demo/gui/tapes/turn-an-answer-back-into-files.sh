@@ -23,7 +23,7 @@ take_start "$SLUG" 14
 stopwatch_start
 
 right_click_selection
-menu_pick "Write Clipboard Files Here"
+menu_pick "Save Clipboard as Files…"
 await_inbox_drained
 # The preview names the files it WOULD write and nothing exists yet. Assert both, or a take that
 # silently wrote them would pass every check and prove the opposite of the point.

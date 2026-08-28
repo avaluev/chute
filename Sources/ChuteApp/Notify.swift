@@ -133,22 +133,28 @@ enum Notify {
     }
 }
 
-/// Tell the user something finished.
+/// Tell the user something finished — on EXACTLY ONE surface.
 ///
-/// TWO SURFACES, ON PURPOSE, and they answer different questions.
+/// It used to be two, deliberately: the HUD for "did that work?" and a Notification Centre banner
+/// as the durable record. In practice that is one action reported twice, seconds apart, and the
+/// second arrival reads as a bug rather than as scrollback. Reported 2026-08-28: "full duplicated
+/// notification: old and new one."
 ///
-/// The HUD answers "did that work?" in the same run loop turn. It is a borderless panel this app
-/// draws itself, so no notification policy applies to it: not Focus, not a Scheduled Summary, not
-/// an alert style of "None". That matters because the delay reported on 2026-08-28 was never in
-/// this code — measured against the unified log, handing a request to UNUserNotificationCenter
-/// takes 4 ms, and the banner still arrived minutes later. macOS was holding it.
+/// So the panel wins, because it is the one that cannot be delayed. Measured against the unified
+/// log, handing a request to UNUserNotificationCenter takes 4 ms — but delivery is not display,
+/// and a Focus mode, a Scheduled Summary or an alert style of "None" can hold the banner for
+/// minutes. The HUD obeys none of those, needs no permission, and appears in the same run loop
+/// turn as the result.
 ///
-/// The notification answers "what happened while I was looking elsewhere?" It is the durable
-/// record in Notification Centre, and it is allowed to be late.
+/// The notification is now the FALLBACK and nothing else: it is posted only where the HUD cannot
+/// draw — no window server, no `NSApp`, `CHUTE_HEADLESS=1`. `ResultHUD.show` returning false is
+/// the single condition, so there is one code path and no way for both to fire.
 ///
-/// Called from background queues, so the HUD hops to the main thread; AppKit windows are
-/// main-thread-only and this used to be reached straight off a global queue.
+/// Called from background queues; AppKit windows are main-thread-only, so the whole decision hops
+/// to the main thread rather than only the drawing.
 func notify(_ title: String, _ body: String) {
-    DispatchQueue.main.async { ResultHUD.show(body) }
-    Notify.post(title: "Chute", subtitle: title == "Chute" ? nil : title, body: body)
+    DispatchQueue.main.async {
+        if ResultHUD.show(body) { return }
+        Notify.post(title: "Chute", subtitle: title == "Chute" ? nil : title, body: body)
+    }
 }

@@ -16,8 +16,30 @@ public struct ChuteAction: Sendable, Equatable {
         case folder      // the folder in view, or the folder that is selected
     }
 
+    /// What the action DOES to your disk — and therefore what colour it is drawn in.
+    ///
+    /// Colour carries meaning here, never identity. Identity is the icon and the word beside it,
+    /// which is why no two drawn rows share a symbol. Colour answers the only question worth
+    /// answering before you let go of the mouse: is this safe?
+    ///
+    /// It used to be one colour per SF Symbol, in a table in `ChuteFinderSync`, and four of the
+    /// thirteen symbols were simply missing from it — so they all fell through to blue, including
+    /// `trash.fill`. "Move Junk to Trash" drawn the same colour as "Copy Full Paths" is the one
+    /// miss that actually costs a user something. Keying on this instead makes the mapping total:
+    /// every action declares a kind, so no action can fall through to a default.
+    public enum Kind: String, Sendable {
+        case copy         // reads, and writes only to the clipboard
+        case create       // makes something new, never touches what is there
+        case setup        // prepares a folder for an agent, additively
+        case destructive  // changes or removes files that already exist — always asks first
+        case open         // leaves Finder for another app
+    }
+
     public let id: String
     public let title: String
+    /// Safety class, and the colour that follows from it. `isDestructive` and `kind ==
+    /// .destructive` must always agree; `FinderActionsSuite` fails the build if they drift.
+    public let kind: Kind
     /// One line for a tooltip: what happens and where it lands.
     public let detail: String
     public let scope: Scope
@@ -41,11 +63,12 @@ public struct ChuteAction: Sendable, Equatable {
     /// (NFR-05) — this carries that guarantee across the Finder boundary instead of restating it.
     public let confirmButton: String?
 
-    public init(id: String, title: String, detail: String, scope: Scope,
+    public init(id: String, title: String, detail: String, scope: Scope, kind: Kind,
                 foldersOnly: Bool = false, parentTitle: String? = nil,
                 symbol: String, template: [String], doneMessage: String,
                 confirmButton: String? = nil) {
         self.id = id; self.title = title; self.detail = detail; self.scope = scope
+        self.kind = kind
         self.foldersOnly = foldersOnly; self.parentTitle = parentTitle
         self.symbol = symbol
         self.template = template; self.doneMessage = doneMessage
@@ -55,13 +78,23 @@ public struct ChuteAction: Sendable, Equatable {
     /// True for anything that writes or deletes. Reads as a question at the call site.
     public var isDestructive: Bool { confirmButton != nil }
 
+    /// The row as Finder draws it, for a known selection.
     public func title(count: Int) -> String {
-        title.replacingOccurrences(of: "{n}", with: "\(count)")
+        ellipsised(title.replacingOccurrences(of: "{n}", with: "\(count)"))
     }
 
     /// The title with the count dropped — for surfaces that draw the menu before they know the
-    /// selection, and for notification subtitles.
+    /// selection, and for notification subtitles. NO ellipsis: "Move Junk to Trash…" as the
+    /// subtitle of a banner that says the junk is already in the Trash reads as still in progress.
     public var plainTitle: String { title.replacingOccurrences(of: " ({n})", with: "") }
+
+    /// The row as Finder draws it when the selection count is not yet known. Apple's rule, and
+    /// the reason this is not just `plainTitle`: an item that opens a dialog before it acts ends
+    /// in an ellipsis, so a user can tell "does it now" from "asks first" without clicking to
+    /// find out. Both destructive actions preview before they write; both must say so.
+    public var menuTitle: String { ellipsised(plainTitle) }
+
+    private func ellipsised(_ text: String) -> String { isDestructive ? text + "…" : text }
 }
 
 public enum ChuteActions {
@@ -69,7 +102,7 @@ public enum ChuteActions {
         ChuteAction(id: "copy-paths",
                     title: "Copy Full Paths ({n})",
                     detail: "Every selected file and folder, as full paths, on the clipboard.",
-                    scope: .selection,
+                    scope: .selection, kind: .copy,
                     symbol: "list.clipboard.fill",
                     template: ["paths", "{files}"],
                     doneMessage: "Full paths copied."),
@@ -80,10 +113,15 @@ public enum ChuteActions {
         // supposed to carry it. XML only: the format is the default everywhere else, and a menu
         // that asks "which format?" before the most-used action taxes every use to serve a few.
         // `chute bundle --format md` still exists for the people who want it.
+        // NAME. "Copy Files with Contents" was the one row that could be read as Finder's own
+        // Copy — "with contents" is what an ordinary file copy already does. It is not a copy of
+        // the files, it is a copy of what is IN them, formatted for an agent and counted in
+        // tokens. "as Context" says that in two words, and it is the product's own vocabulary:
+        // the site sells "drop context into your agent", so the menu should use the same noun.
         ChuteAction(id: "bundle-xml",
-                    title: "Copy Files with Contents ({n})",
-                    detail: "Every selected file and everything in it, in one blob, with a token count.",
-                    scope: .selection,
+                    title: "Copy Files as Context ({n})",
+                    detail: "Everything inside the selected files, as one block with a token count, ready to paste into an agent.",
+                    scope: .selection, kind: .copy,
                     symbol: "shippingbox.fill",
                     template: ["bundle", "{files}"],
                     doneMessage: "Files and contents copied."),
@@ -95,7 +133,7 @@ public enum ChuteActions {
         ChuteAction(id: "tree-2",
                     title: "2 Levels",
                     detail: "The folder here (or around your selection) and one level inside it.",
-                    scope: .folder, parentTitle: "Copy Folder Tree",
+                    scope: .folder, kind: .copy, parentTitle: "Copy Folder Tree",
                     symbol: "folder.fill",
                     template: ["tree", "{dir}", "--depth", "2"],
                     doneMessage: "Folder tree copied."),
@@ -103,15 +141,15 @@ public enum ChuteActions {
         ChuteAction(id: "tree-4",
                     title: "4 Levels",
                     detail: "Deep enough for most projects.",
-                    scope: .folder, parentTitle: "Copy Folder Tree",
+                    scope: .folder, kind: .copy, parentTitle: "Copy Folder Tree",
                     symbol: "folder.fill",
                     template: ["tree", "{dir}", "--depth", "4"],
                     doneMessage: "Folder tree copied."),
 
         ChuteAction(id: "tree-all",
-                    title: "Everything",
+                    title: "All Levels",
                     detail: "The entire tree, with build and dependency folders left out.",
-                    scope: .folder, parentTitle: "Copy Folder Tree",
+                    scope: .folder, kind: .copy, parentTitle: "Copy Folder Tree",
                     symbol: "folder.fill",
                     template: ["tree", "{dir}", "--depth", "99"],
                     doneMessage: "Folder tree copied."),
@@ -119,27 +157,30 @@ public enum ChuteActions {
         // The other direction, and the second-largest saving in the ledger (JTBD #9, 28.5 min/day).
         // It was CLI-only, which meant the buyer never saw the half of the loop that gets the
         // agent's answer back onto disk. Destructive, so it previews first — see `confirmButton`.
+        // NAME. "Write Clipboard Files Here" named a thing that does not exist — there is no such
+        // object as a "clipboard file". The clipboard holds an agent's answer; this saves the
+        // files inside it. `menuTitle` appends the ellipsis, because it previews first.
         ChuteAction(id: "unpack-here",
-                    title: "Write Clipboard Files Here",
+                    title: "Save Clipboard as Files",
                     detail: "The files in a copied answer, written into this folder — after you see the list.",
-                    scope: .folder,
+                    scope: .folder, kind: .destructive,
                     symbol: "arrow.down.doc.fill",
                     template: ["unpack", "--dir", "{dir}"],
                     doneMessage: "Files written.",
                     confirmButton: "Write Files"),
 
         ChuteAction(id: "new-markdown",
-                    title: "New Markdown File",
+                    title: "Empty Markdown File",
                     detail: "An empty Untitled.md in this folder, with its name ready to type over.",
-                    scope: .folder, parentTitle: "New File Here",
+                    scope: .folder, kind: .create, parentTitle: "New File",
                     symbol: "square.and.pencil",
                     template: ["new", "--blank", "--rename", "--dir", "{dir}"],
                     doneMessage: "Markdown file created."),
 
         ChuteAction(id: "new-markdown-clipboard",
-                    title: "New Markdown File from Clipboard",
+                    title: "Markdown File from Clipboard",
                     detail: "The clipboard saved here, named after its first line, ready to rename.",
-                    scope: .folder, parentTitle: "New File Here",
+                    scope: .folder, kind: .create, parentTitle: "New File",
                     symbol: "doc.on.clipboard.fill",
                     template: ["new", "--naming", "underscore", "--ext", "md", "--rename", "--dir", "{dir}"],
                     doneMessage: "Markdown file created."),
@@ -148,9 +189,9 @@ public enum ChuteActions {
         // the issue you are writing. Saving the image was never the hard part; getting its path
         // out of Finder and into a prompt was.
         ChuteAction(id: "paste-image",
-                    title: "Paste Image from Clipboard",
+                    title: "Image from Clipboard",
                     detail: "Saves the clipboard image here as a PNG and copies its full path.",
-                    scope: .folder, parentTitle: "New File Here",
+                    scope: .folder, kind: .create, parentTitle: "New File",
                     symbol: "photo.fill",
                     template: ["paste-image", "--dir", "{dir}"],
                     doneMessage: "Image saved, path copied."),
@@ -160,7 +201,7 @@ public enum ChuteActions {
         ChuteAction(id: "seed-rules",
                     title: "Add Agent Rules",
                     detail: "CLAUDE.md, .cursorrules and SCRATCHPAD.md here, without touching any that exist.",
-                    scope: .folder, parentTitle: "Set Up for an Agent",
+                    scope: .folder, kind: .setup, parentTitle: "Set Up for an Agent",
                     symbol: "doc.badge.gearshape.fill",
                     template: ["seed", "{dir}"],
                     doneMessage: "Agent rules added."),
@@ -168,11 +209,19 @@ public enum ChuteActions {
         // JTBD #6, 7.3 min/day. Creates a NEW folder beside this one and launches the agent there,
         // so an agent told to go wild does it somewhere that is not your repo. Additive: nothing
         // existing is touched, so no confirmation.
+        // NAME. "Clean Room" appears nowhere else in this product, its docs or its CLI — a term
+        // invented for one menu row is a term nobody can look up. "Scratch" is already the word
+        // used for the files `clean` removes, and the row sits under "Set Up for an Agent", so it
+        // does not have to repeat "for an Agent" either.
+        //
+        // ICON. `shippingbox.and.arrow.backward.fill` was a near-twin of the bundle action's
+        // `shippingbox.fill` at 18pt — two boxes in a thirteen-row menu. This makes a folder,
+        // so it is drawn as one.
         ChuteAction(id: "sandbox-here",
-                    title: "New Clean Room for an Agent",
+                    title: "New Scratch Folder",
                     detail: "A fresh folder here with git and rules ready, and the agent already running in it.",
-                    scope: .folder, parentTitle: "Set Up for an Agent",
-                    symbol: "shippingbox.and.arrow.backward.fill",
+                    scope: .folder, kind: .setup, parentTitle: "Set Up for an Agent",
+                    symbol: "folder.badge.plus",
                     template: ["sandbox", "--dir", "{dir}"],
                     doneMessage: "Clean room ready."),
 
@@ -181,7 +230,7 @@ public enum ChuteActions {
         ChuteAction(id: "clean-junk",
                     title: "Move Junk to Trash",
                     detail: "The scratch files an agent left behind, moved to the Trash — after you see the list.",
-                    scope: .folder,
+                    scope: .folder, kind: .destructive,
                     symbol: "trash.fill",
                     template: ["clean", "{dir}"],
                     doneMessage: "Junk moved to Trash.",
@@ -190,7 +239,7 @@ public enum ChuteActions {
         ChuteAction(id: "terminal",
                     title: "Open in Terminal",
                     detail: "A terminal window already sitting in this folder.",
-                    scope: .folder,
+                    scope: .folder, kind: .open,
                     symbol: "terminal.fill",
                     template: ["open", "{dir}"],
                     doneMessage: "Terminal opened."),
@@ -217,7 +266,7 @@ public enum ChuteActions {
         var index: [String: Int] = [:]
         for action in visible(hasSelection: hasSelection, targetIsFolder: targetIsFolder) {
             guard let parent = action.parentTitle else {
-                out.append(Row(title: action.plainTitle, symbol: action.symbol, children: []))
+                out.append(Row(title: action.menuTitle, symbol: action.symbol, children: []))
                 continue
             }
             if let i = index[parent] {
