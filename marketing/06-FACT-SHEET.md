@@ -58,8 +58,8 @@ more credible than the absolute one, and it survives someone reading the source.
 
 | Gate | Result | Command |
 |---|---|---|
-| Unit assertions | **583 passed** | `swift run chutetests` |
-| End-to-end | **125 passed** headless | `CHUTE_HEADLESS=1 ./Scripts/smoke.sh` |
+| Unit assertions | **751 passed** | `swift run chutetests` |
+| End-to-end | **128 passed** headless, **152** full | `CHUTE_HEADLESS=1 ./Scripts/smoke.sh` |
 | Demo tapes | **17** (13 hand-written, 4 generated from cases.ts) | `ls demo/tapes/*.tape \| wc -l` |
 | Demo delivery pipeline | **12 checks** | `./demo/gui/selftest.sh` |
 | Case data | **25 cases** | `cd site && npm run check:cases` |

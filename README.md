@@ -195,7 +195,7 @@ Chute is built to be trusted with a repo an agent is about to rampage through.
 
 ```bash
 cd /Users/sxope/Documents/2026/Development/37.chute && swift build -c release   # build
-cd /Users/sxope/Documents/2026/Development/37.chute && swift run chutetests      # 637 assertions
+cd /Users/sxope/Documents/2026/Development/37.chute && swift run chutetests      # 751 assertions
 cd /Users/sxope/Documents/2026/Development/37.chute && CHUTE_HEADLESS=1 ./Scripts/smoke.sh  # 128 passed
 cd /Users/sxope/Documents/2026/Development/37.chute && ./Scripts/smoke.sh        # + the Finder/Terminal sections
 cd /Users/sxope/Documents/2026/Development/37.chute && ./Scripts/build-app.sh    # assemble Chute.app

@@ -1,17 +1,19 @@
 # HANDOFF — Chute — 2026-08-28
 
-STATE: `main` · tree clean · **not pushed**
-       unit **637/637** (`swift run chutetests`) ·
-       headless e2e **128/128** (`CHUTE_HEADLESS=1 ./Scripts/smoke.sh`) ·
-       full e2e **152/152** (`./Scripts/smoke.sh` — build `-c release` FIRST, it runs the
-       release binary and will pass against a stale one) ·
-       cases **25/25** (`cd site && npm run check:cases`) ·
-       site **38 routes** (`cd site && npx next build`) · Paddle gate passes ·
-       extension `14 actions · 8 drawn rows` · signed `Authority=Chute Local Dev` · zero dependencies
+STATE: `main` · tree clean · pushed
+       **Counts live in ONE place: `marketing/06-FACT-SHEET.md` §Verification.** Three files used
+       to restate them and all three disagreed — 466 / 519 / 583 / 637 unit assertions, in a repo
+       whose whole argument is that its numbers are checkable. A count copied forward is a count
+       nobody re-derived. Run the gate, read the tally, and if it differs from the fact sheet fix
+       the fact sheet; do not add a fourth copy here.
 
-> The old header claimed 466 unit / 133 e2e and README.md:197 claimed 519 / 140. Both were stale
-> and they disagreed with each other. The numbers above were measured on 2026-08-28. **Re-measure
-> before quoting; do not copy a count forward.**
+```bash
+swift build -c release && swift run chutetests
+cd /Users/sxope/Documents/2026/Development/37.chute && ./Scripts/smoke.sh
+cd /Users/sxope/Documents/2026/Development/37.chute && CHUTE_HEADLESS=1 ./Scripts/smoke.sh
+cd /Users/sxope/Documents/2026/Development/37.chute && make -C demo/gui check && ./demo/verify.sh
+cd /Users/sxope/Documents/2026/Development/37.chute/site && npm run build && npm run check:cases && npm run check:claims && npm run check:paddle
+```
 
 ## ONE-LINE GOAL
 Your agents should not cost you attention: turn a Finder selection into agent-ready context, and
@@ -26,7 +28,7 @@ swift run chutetests && ./Scripts/smoke.sh
 cd /Users/sxope/Documents/2026/Development/37.chute && ./Scripts/build-app.sh && ./Scripts/install.sh
 cd /Users/sxope/Documents/2026/Development/37.chute && ~/.local/bin/chute doctor
 ```
-Expect: `✅ 466 assertions passed`, `smoke: 133 passed, 0 failed`, `→ all 9 checks passed`.
+Expect the tallies in `marketing/06-FACT-SHEET.md` §Verification, and `→ all 9 checks passed`.
 `build-app.sh` may ask the keychain for the signing key — click **Always Allow** once.
 
 ---

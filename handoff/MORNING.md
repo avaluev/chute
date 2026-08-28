@@ -13,7 +13,8 @@ Total hands-on time: about 50 minutes, plus a wait on Apple.
 swift run chutetests && ./Scripts/smoke.sh
 ```
 
-Expect the last two lines to be `✅ 583 assertions passed` and `smoke: … 0 failed`.
+Expect `0 failed`. The exact tallies live in `marketing/06-FACT-SHEET.md` §Verification —
+that is the only file that carries them, because four copies disagreed once already.
 Numbers may be higher — that is fine. **Any failure: stop and paste it to me.**
 
 Then look at the menu you are selling:

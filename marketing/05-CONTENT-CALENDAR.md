@@ -33,17 +33,17 @@ before an app launch is how you arrive at App+0 having already spent the audienc
 | Day | Channel | Asset | Job | Worked if |
 |---|---|---|---|---|
 | App-1 | Gate day, no post | — | Cold-install on a second Mac: download the DMG, drag, launch, right-click, see the menu. Buy with a real card, receive the key, activate, refund yourself. | Both work first time, on a machine that has never seen this project |
-| App+0 | X — launch thread, 6 posts | `demo/out/gui/paste-a-whole-folder-into-your-agent.mov`, reframed | The app, $19, 14-day trial. The CLI is named once, in post 4. | Click-throughs to chutedev.com; first paid conversions |
+| App+0 | X — launch thread, 6 posts | `site/public/media/paste-a-whole-folder-into-your-agent.mp4`, through `demo/reframe.sh` | The app, $19, 14-day trial. The CLI is named once, in post 4. | Click-throughs to chutedev.com; first paid conversions |
 | App+1 | Show HN | site hero | Title and body reused verbatim from `03-LAUNCH-POSTS.md:18-45` — the two implementation notes are the whole reason the post works. Founder's first comment names the price and the free CLI. | Front page, not flagged; comments engage the implementation notes specifically |
-| App+2 | Reddit r/ClaudeAI | `turn-an-answer-back-into-files` demo | Workflow share. Ownership disclosed once, plainly, up front. | Comments describe their own workaround, not just "cool" |
-| App+3 | Reddit r/macapps | `which-agent-is-waiting-for-you` demo | A tools post. Price in one line, never the headline. | Net-positive; no unanswered "why should I pay" |
+| App+2 | Reddit r/ClaudeAI | `site/public/media/turn-an-answer-back-into-files.mp4` | Workflow share. Ownership disclosed once, plainly, up front. | Comments describe their own workaround, not just "cool" |
+| App+3 | Reddit r/macapps | `site/public/media/which-agent-is-waiting-for-you.mp4` | A tools post. Price in one line, never the headline. | Net-positive; no unanswered "why should I pay" |
 | App+4 | Write-up #1 + X | — | *"Your context menu is drawn by someone else's process"* — the FinderSync/appex boundary | A commenter who ships their own extension recognises it |
 | App+5 | Newsletter — TLDR | `brand/out/og.png` | Pitch now the app is real and signed | Editor replies within 7 days |
-| App+6 | X | `demo/out/gui/menubar.mov` | The live badge, not a mock | Replies describing their own multi-terminal chaos |
-| App+7 | Reddit r/ChatGPTCoding | `unpack` demo | Secondary audience; tests expansion wave 2 | A "does this work with Codex/Cursor" comment |
+| App+6 | X | `site/public/media/which-agent-is-waiting-for-you.mp4` | The live badge, not a mock | Replies describing their own multi-terminal chaos |
+| App+7 | Reddit r/ChatGPTCoding | `site/public/media/turn-an-answer-back-into-files.mp4` | Secondary audience; tests expansion wave 2 | A "does this work with Codex/Cursor" comment |
 | App+8 | Write-up #2 + X | — | *"The sandbox container that remembers your old face"* — the appex code-identity trap | Someone quotes the exact error string back |
 | App+9 | Newsletter — Ben's Bites | `brand/out/card-sessions.png` | "Your agents shouldn't cost you attention" | Editor replies within 7 days |
-| App+10 | YouTube, 4 min | edit of `demo/out/gui/*.mov` | One linkable explainer for the "is there a video" replies | Watch-through past 60 s |
+| App+10 | YouTube, 4 min | edit of `site/public/media/*.mp4` | One linkable explainer for the "is there a video" replies | Watch-through past 60 s |
 | App+11 | Write-up #3 + X | — | *"The git command that lies about being complete"* — the `checkpoint` bug | A commenter repeats the bug back correctly |
 | App+12 | X, 4-card series | `brand/out/quote-1..4.png` | One fact per card, zero adjectives | Each stands alone as a retweet |
 | App+13–14 | Buffer, no post | — | Answer every open thread. Confirm PH gallery uploads. | Every top-level objection answered within 24 h |
@@ -58,7 +58,7 @@ demos are the first thing to look at, because they are what the argument rests o
 
 ## 3. Ready-to-post copy
 
-### A — X/Twitter, Wave 0 launch (day 2)
+### A — X/Twitter (RETIRED with the two-wave plan; kept for the phrasing only)
 > The Chute CLI is free, MIT, forever:
 >
 > `brew install avaluev/tap/chute`
@@ -72,7 +72,7 @@ demos are the first thing to look at, because they are what the argument rests o
 >
 > [attach: bundle.gif]
 
-### B — Reddit r/commandline (day 3)
+### B — Reddit r/commandline (moved to App+16 — the CLI is retention, not the launch)
 **Title:** Wrote a 28-command CLI for people who bundle files for an LLM by hand every day (free, MIT, `brew` tap)
 > I run coding agents most of the day and kept doing the same four things by hand: copying paths
 > into a prompt, bundling several files into one message, unpacking a multi-file answer back onto
@@ -90,7 +90,7 @@ demos are the first thing to look at, because they are what the argument rests o
 > `brew install avaluev/tap/chute` — MIT, free forever. Repo: github.com/avaluev/chute. Happy to
 > answer questions about any of the commands.
 
-### C — X/Twitter, Wave 1 launch thread (day 9 / App+0), 6 posts
+### C — X/Twitter launch thread (App+0), 6 posts
 **1/6** — reuse `/Users/sxope/Documents/2026/Development/37.chute/marketing/03-LAUNCH-POSTS.md:4-16`
 verbatim (the "I run coding agents ~10h/day" post). Do not rewrite it.
 > **2/6** Claude Code already reads your files. It cannot see your Finder selection, your
@@ -111,7 +111,7 @@ verbatim (the "I run coding agents ~10h/day" post). Do not rewrite it.
 > **6/6** macOS 13+. 2.5 MB. Zero telemetry — the only network code is the gist command, and only
 > when you run it yourself. chutedev.com
 
-### D — Show HN (day 10 / App+1)
+### D — Show HN (App+1)
 **Title (verbatim, reuse):** Show HN: Chute – Turn a Finder selection into agent-ready context
 **Body:** reuse `/Users/sxope/Documents/2026/Development/37.chute/marketing/03-LAUNCH-POSTS.md:18-45`
 verbatim — do not rewrite the two implementation notes; they are the whole reason this post works
