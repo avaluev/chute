@@ -43,6 +43,41 @@ import Foundation
 /// `listing()` for the three calls that replace it and the two traps that make it three.
 ///
 /// A refusal returns nil and is treated as "not ours", never as zero.
+///
+/// ── HOW TO EXTRACT A MEANINGFUL NUMBER: SEVEN RULES ─────────────────────────────────────────
+///
+/// Each one was earned by a bug in this file, not read in a book. They are here rather than in a
+/// document because the next person to touch this code is the person who needs them.
+///
+///   1. PREFER A COUNTER YOU DIFF OVER A GAUGE SOMEBODY ELSE AVERAGED. `pcpu` is an average whose
+///      window you did not choose — a lifetime average, as it turned out, which reads a browser
+///      that was busy an hour ago as busy forever. Two samples and a measured interval is a
+///      number you own.
+///
+///   2. MEASURE THE INTERVAL; NEVER ASSUME IT. A sleeping menu-bar timer drifts, and a nominal
+///      two seconds used as a divisor prints spikes that never happened. `cpuPercent` takes the
+///      seconds as an argument for exactly this reason.
+///
+///   3. PREFER THE NUMBER THE OS USES FOR THE SAME DECISION. `phys_footprint` is what jetsam
+///      kills on and what Activity Monitor displays, so a user checking your work sees the same
+///      figure. Validated by hand against `footprint(1)` on 2026-08-28 — 383 MB against 384 MB,
+///      and the peak matched exactly. See docs/12-CAPABILITY-MAP.md section F.
+///
+///   4. A REFUSAL IS NOT A ZERO. Every accessor here returns nil for a process it may not read.
+///      A gap is visible; a zero is a wrong number wearing the right shape.
+///
+///   5. EVERY UNIT CONVERSION GETS A TEST THAT FAILS ON A WRONG FACTOR. The 24× mach-tick bug is
+///      invisible to review and obvious to a busy loop. `ProcessMetricsSuite` burns a core and
+///      asserts the band; `Scripts/check-metrics.sh` does it again against the whole product.
+///
+///   6. VALIDATE ONCE AGAINST AN INDEPENDENT TOOL, BY HAND, AND WRITE DOWN THE DATE AND DELTA.
+///      Done, dated, and reproducible in docs/12-CAPABILITY-MAP.md. A number that agrees with
+///      itself proves nothing.
+///
+///   7. A NUMBER WITH NO DECISION ATTACHED DOES NOT SHIP. This is what killed the battery
+///      temperature and the "0.4 of 16 cores" line, and what let the peak in — "826 MB (peaked
+///      6.1 GB)" answers "why did my Mac stall an hour ago", which nothing else could. State the
+///      decision in the doc comment or delete the number.
 public enum ProcessMetrics {
     /// Physical footprint in bytes, or nil when the process is gone or not ours to inspect.
     public static func footprint(_ pid: Int32) -> UInt64? { usage(pid)?.ri_phys_footprint }
