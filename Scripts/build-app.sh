@@ -8,6 +8,16 @@ APP="$ROOT/dist/Chute.app"
 VERSION="$(sed -n 's/.*static let current = "\([^"]*\)".*/\1/p' "$ROOT/Sources/ChuteCore/Version.swift")"
 [ -n "$VERSION" ] || { echo "build-app: cannot read the version from Sources/ChuteCore/Version.swift" >&2; exit 1; }
 
+# WHICH BUILD THIS IS, stamped at build time. `VERSION` is hand-bumped and stayed "0.2.0" across
+# every commit of 2026-08-28 — so it cannot tell you the app in ~/Applications is ninety minutes
+# older than the tree it came from. That gap cost a session: Recent Copies was fixed in 0d23f86 at
+# 21:09 and the running app had been built at 20:14, so a bug with a passing test and a shipped fix
+# still looked broken. `chute doctor` reads this back, and `--report` carries it into every bug
+# report, which is the same question a stranger's report has to answer.
+BUILD="$(git -C "$ROOT" rev-parse --short HEAD 2>/dev/null || echo unknown)"
+git -C "$ROOT" diff --quiet HEAD 2>/dev/null || BUILD="$BUILD-dirty"
+BUILT_AT="$(date -u +%Y-%m-%dT%H:%MZ)"
+
 cd "$ROOT"
 swift build -c release
 rm -rf "$APP"
@@ -48,6 +58,7 @@ cat > "$APPEX/Contents/Info.plist" <<APPEXPLIST
   <key>CFBundlePackageType</key><string>XPC!</string>
   <key>CFBundleShortVersionString</key><string>$VERSION</string>
   <key>CFBundleVersion</key><string>$VERSION</string>
+  <key>ChuteBuild</key><string>$BUILD $BUILT_AT</string>
   <key>LSMinimumSystemVersion</key><string>13.0</string>
   <!-- LSUIElement, NSPrincipalClass and the empty NSExtensionAttributes are all present in Google
        Drive's shipping extension and were all missing here; without them it does not register. -->
@@ -76,6 +87,7 @@ cat > "$APP/Contents/Info.plist" <<PLIST
   <key>CFBundlePackageType</key><string>APPL</string>
   <key>CFBundleShortVersionString</key><string>$VERSION</string>
   <key>CFBundleVersion</key><string>$VERSION</string>
+  <key>ChuteBuild</key><string>$BUILD $BUILT_AT</string>
   <key>LSMinimumSystemVersion</key><string>13.0</string>
   <key>LSUIElement</key><true/>
   <key>CFBundleIconFile</key><string>Chute</string>
@@ -191,4 +203,5 @@ if [ "$SIGNED_ADHOC" = "1" ]; then
 else
   echo "built $APP  (signed: $IDENTITY)"
 fi
+echo "build: $BUILD $BUILT_AT"
 du -sh "$APP" | awk '{print "size: " $1}'

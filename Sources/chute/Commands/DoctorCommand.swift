@@ -14,12 +14,22 @@ func cmdDoctor(_ a: Args) {
             outcomes: outcomes,
             version: ChuteVersion.current,
             osVersion: "\(v.majorVersion).\(v.minorVersion).\(v.patchVersion)",
-            extras: ["finder extension": marker ?? "never loaded",
+            extras: ["build": Diagnostics.installedBuild()
+                        ?? "not stamped — built before the stamp existed, or run from source",
+                     "finder extension": marker ?? "never loaded",
                      "notifications": (try? String(contentsOfFile:
                         (NSHomeDirectory() as NSString).appendingPathComponent(".chute/notifications.txt"),
                         encoding: .utf8))?.trimmingCharacters(in: .whitespacesAndNewlines)
                         ?? "unknown"]))
         return
+    }
+
+    // WHICH BUILD IS ANSWERING. Nine checks can all pass on an app that is older than the fix the
+    // user is asking about — that is exactly how "Recent Copies never works" survived a shipped
+    // fix and a passing test for ninety minutes. One line, printed before any of them.
+    if !a.has("json") {
+        Out.info("chute \(ChuteVersion.current) · app build "
+                 + (Diagnostics.installedBuild() ?? "not stamped — rebuild with ./Scripts/build-app.sh"))
     }
 
     var outcomes = Diagnostics.run(Diagnostics.liveEnv())
