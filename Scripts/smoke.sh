@@ -97,6 +97,26 @@ check "HEAD unmoved" "$(git rev-parse HEAD)" "$HEAD_BEFORE"
 check "still on original branch" "$(git rev-parse --abbrev-ref HEAD)" "$REF_BEFORE"
 has "checkpoint holds untracked wip" "$(git show --stat "$BRANCH" 2>/dev/null)" "wip.ts"
 if git rev-parse --verify -q "$BRANCH" >/dev/null; then ok "checkpoint branch exists"; else bad "checkpoint branch exists" "$BRANCH missing"; fi
+# REGRESSION. `git add -A` is fatal on a nested repo with no commit, and "New Scratch Folder"
+# creates exactly that one right-click before someone reaches for a checkpoint. Found by the
+# section-15 sweep running the menu in declared order against one folder.
+mkdir -p nested-empty && git -C nested-empty init -q
+if "$CHUTE" checkpoint . >/dev/null 2>/tmp/chute-ck.err; then
+  ok "checkpoint survives a nested repo with no commit"
+else
+  bad "checkpoint survives a nested repo with no commit" "$(tail -1 /tmp/chute-ck.err)"
+fi
+rm -rf nested-empty
+# REGRESSION. `git write-tree` on an index that staged nothing emits git's empty tree and exits
+# 0, so a folder where NOTHING can be indexed used to mint a branch and print a restore command
+# for a snapshot holding no files. A safety net is discovered empty on the day it is needed.
+mkdir -p unindexable && (cd unindexable && git init -q && echo secret > only.txt && chmod 000 only.txt)
+if (cd unindexable && "$CHUTE" checkpoint . >/dev/null 2>/tmp/chute-ck2.err); then
+  bad "a checkpoint that would hold nothing is refused" "exited 0 and minted a branch"
+else
+  has "a checkpoint that would hold nothing is refused" "$(cat /tmp/chute-ck2.err)" "would be empty"
+fi
+chmod 644 unindexable/only.txt 2>/dev/null; rm -rf unindexable
 
 echo "9. redact"
 OUT="$("$CHUTE" redact --no-copy <<< "" 2>/dev/null; printf 'sk-ant-api03-SECRETVALUE1234567890\nOPENAI_API_KEY=leakme-now\n' | pbcopy; "$CHUTE" redact --no-copy)"
@@ -216,6 +236,13 @@ for id in $ALL_IDS; do
     sandbox-here)
       if ! command -v claude >/dev/null 2>&1; then skip "sandbox-here — claude is not on PATH"; continue; fi
       run_action "$id" --no-launch >/dev/null 2>&1;;
+    # `checkpoint` refuses outside a git repository, which is correct and is asserted in section
+    # 8. The sweep fixture is a plain folder, so give it the state a user right-clicking this
+    # action is actually in. Declared LAST in the submenu, so this runs after the other agent
+    # actions have already seen the plain folder.
+    checkpoint-here)
+      git -C "$FX" rev-parse --is-inside-work-tree >/dev/null 2>&1 || git -C "$FX" init -q
+      run_action "$id" >/dev/null 2>&1;;
     # The sweep's clipboard is plain prose, and `unpack` correctly refuses prose. Give it the
     # thing it is for — a fenced block with a path — or this asserts the refusal, not the feature.
     unpack-here)
@@ -351,10 +378,11 @@ else
   check "and nothing is written" "$(ls "$FX"/Screenshot*.png 2>/dev/null | wc -l | tr -d ' ')" "$BEFORE_COUNT"
 fi
 
-# 13 = the 9 original actions plus the four that moved out of the CLI so the paid surface can
-# demonstrate the four highest-value jobs in the ledger (unpack, seed, sandbox, clean). Change
-# this number only when the menu changes, never to make this file pass.
-check "the menu table and this test agree" "$(printf '%s' "$ALL_IDS" | wc -w | tr -d ' ')" "13"
+# 14 = the 9 original actions, the four that moved out of the CLI so the paid surface can
+# demonstrate the four highest-value jobs in the ledger (unpack, seed, sandbox, clean), and
+# checkpoint — the last T1 job in the ledger that had no Finder surface. Change this number only
+# when the menu changes, never to make this file pass.
+check "the menu table and this test agree" "$(printf '%s' "$ALL_IDS" | wc -w | tr -d ' ')" "14"
 
 echo "16. the Finder extension's request inbox (needs Chute.app running)"
 # The extension is sandboxed: it cannot run git, launch Terminal or drive AppleScript. It writes a

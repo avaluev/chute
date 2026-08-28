@@ -1,11 +1,13 @@
 # HANDOFF — Chute — 2026-08-28
 
 STATE: `main` · tree clean · **not pushed**
-       unit **583/583** (`swift run chutetests`) ·
-       headless e2e **125/125** (`CHUTE_HEADLESS=1 ./Scripts/smoke.sh`) ·
+       unit **637/637** (`swift run chutetests`) ·
+       headless e2e **128/128** (`CHUTE_HEADLESS=1 ./Scripts/smoke.sh`) ·
+       full e2e **152/152** (`./Scripts/smoke.sh` — build `-c release` FIRST, it runs the
+       release binary and will pass against a stale one) ·
        cases **25/25** (`cd site && npm run check:cases`) ·
        site **38 routes** (`cd site && npx next build`) · Paddle gate passes ·
-       extension `13 actions · 8 drawn rows` · signed `Authority=Chute Local Dev` · zero dependencies
+       extension `14 actions · 8 drawn rows` · signed `Authority=Chute Local Dev` · zero dependencies
 
 > The old header claimed 466 unit / 133 e2e and README.md:197 claimed 519 / 140. Both were stale
 > and they disagreed with each other. The numbers above were measured on 2026-08-28. **Re-measure

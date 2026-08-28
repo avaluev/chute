@@ -23,7 +23,7 @@ public struct ChuteAction: Sendable, Equatable {
     /// answering before you let go of the mouse: is this safe?
     ///
     /// It used to be one colour per SF Symbol, in a table in `ChuteFinderSync`, and four of the
-    /// thirteen symbols were simply missing from it — so they all fell through to blue, including
+    /// symbols were simply missing from it — so they all fell through to blue, including
     /// `trash.fill`. "Move Junk to Trash" drawn the same colour as "Copy Full Paths" is the one
     /// miss that actually costs a user something. Keying on this instead makes the mapping total:
     /// every action declares a kind, so no action can fall through to a default.
@@ -215,7 +215,7 @@ public enum ChuteActions {
         // does not have to repeat "for an Agent" either.
         //
         // ICON. `shippingbox.and.arrow.backward.fill` was a near-twin of the bundle action's
-        // `shippingbox.fill` at 18pt — two boxes in a thirteen-row menu. This makes a folder,
+        // `shippingbox.fill` at 18pt — two boxes in one menu. This makes a folder,
         // so it is drawn as one.
         ChuteAction(id: "sandbox-here",
                     title: "New Scratch Folder",
@@ -224,6 +224,27 @@ public enum ChuteActions {
                     symbol: "folder.badge.plus",
                     template: ["sandbox", "--dir", "{dir}"],
                     doneMessage: "Clean room ready."),
+
+        // JTBD #12, T1: 3.3 min/day on the clock and ~20 min/day risk-adjusted — the largest
+        // number in the ledger that had no Finder surface at all. It is also the job that makes
+        // every OTHER agent action psychologically affordable: the reason people hesitate before
+        // letting an agent loose is that they cannot cheaply undo it.
+        //
+        // NOT destructive, despite being a git command. `checkpoint` uses `git add -A` against a
+        // PRIVATE index and `commit-tree` (NFR-08), so it never touches the worktree, the index
+        // or HEAD — it can only add a branch. Nothing to preview, nothing to confirm, no ellipsis.
+        //
+        // Third child rather than a ninth row: eight rows added to Finder's own menu is the
+        // budget, and this sits with the other two things you do to a folder before an agent
+        // runs. Declared LAST so the submenu holder keeps `seed-rules`' icon and the drawn menu
+        // is unchanged.
+        ChuteAction(id: "checkpoint-here",
+                    title: "Save a Checkpoint",
+                    detail: "A restore point for this folder before an agent runs — your own files are never touched.",
+                    scope: .folder, kind: .setup, parentTitle: "Set Up for an Agent",
+                    symbol: "clock.arrow.circlepath",
+                    template: ["checkpoint", "{dir}"],
+                    doneMessage: "Checkpoint saved."),
 
         // JTBD #13, 6.6 min/day. Moves to the Trash, never `rm` — but it still removes files from
         // where the user put them, so it shows the list first.
@@ -257,7 +278,7 @@ public enum ChuteActions {
         public let children: [String]   // action ids, empty for a plain row
     }
 
-    /// What the user sees. Thirteen actions, but a context menu is judged on how many rows it
+    /// What the user sees. Fourteen actions, but a context menu is judged on how many rows it
     /// adds to Finder's own — and Finder's own is already long. This is the one implementation;
     /// the test and `chute finder-actions --menu` both read it rather than keeping a second copy,
     /// which is how the menu drifted the first time.
