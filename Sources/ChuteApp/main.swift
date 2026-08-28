@@ -20,6 +20,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     var statusItem: NSStatusItem!
     var hotKeyRef: EventHotKeyRef?
     var lastSessions: [Session] = []
+    /// Model, effort and cost, read from the agent's own transcript. Never read on the main
+    /// thread and never read while a menu is drawing — see TranscriptStore.
+    let transcripts = TranscriptStore()
     var watcher: DispatchSourceFileSystemObject?
     var requestWatcher: DispatchSourceFileSystemObject?
 
@@ -86,7 +89,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         // in front of the one person who was deciding whether to pay.
         menu.removeAllItems()
         guard trial.isUnlocked else {
-            statusItem.button?.title = "⤓"      // no count: the count is part of what is bought
+            // No count: the count is part of what is bought.
+            SessionMenu.applyBadge(to: statusItem.button, count: 0)
             lastSessions = []
 
             let headline = NSMenuItem(title: "Trial ended — Buy Chute, $19 once",
@@ -104,15 +108,28 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             return
         }
         let (sessions, problem) = discoverSessionsForMenu()
-        statusItem.button?.title = SessionMenu.badge(for: sessions)
+        SessionMenu.applyBadge(to: statusItem.button, count: SessionMenu.attentionCount(sessions))
         lastSessions = sessions
         SessionMenu.populate(menu, sessions: sessions, problem: problem,
+                             transcripts: transcripts,
                              target: self, action: #selector(focusSession(_:)),
-                             openSettings: #selector(openAutomationSettings))
+                             openSettings: #selector(openAutomationSettings),
+                             alternate: #selector(runSessionCommand(_:)))
+        // Refresh what the rows just rendered from cache, so the NEXT open is current. The read
+        // is 37 ms per transcript and must never happen while a menu is being drawn.
+        let ids = sessions.compactMap(\.sessionID)
+        if !ids.isEmpty {
+            DispatchQueue.global(qos: .utility).async { [transcripts] in
+                transcripts.refresh(sessionIDs: ids)
+            }
+        }
     }
 
     func appendStandardItems(to menu: NSMenu, trial: TrialState) {
-        if trial.isUnlocked { appendLocalServers(to: menu) }
+        if trial.isUnlocked {
+            appendLocalServers(to: menu)
+            BufferMenu.append(to: menu, target: self)
+        }
         menu.addItem(.separator())
         // No file actions here on purpose. They act on a Finder selection, so they live in the
         // Finder right-click menu where the files are; in the menu bar they had nothing to act on.
@@ -173,6 +190,52 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         return menu
     }
 
+    // MARK: - Clipboard buffer
+    //
+    // Every one of these is user-initiated. Nothing on this path runs unless a menu item is
+    // clicked — Chute does not observe the pasteboard, and this is the whole of its involvement
+    // with it.
+
+    @objc func bufferAdd() {
+        let text = Clipboard.read()
+        guard !text.isEmpty else { say("Clipboard is empty — nothing to buffer"); return }
+        guard ContextBuffer().add(text) != nil else { say("Could not write to the buffer"); return }
+        let n = ContextBuffer().entries().count
+        say(n == 1 ? "Buffered — 1 waiting" : "Buffered — \(n) waiting")
+    }
+
+    @objc func bufferCopyOne(_ sender: NSMenuItem) {
+        guard let name = sender.representedObject as? String,
+              let entry = ContextBuffer().entries().first(where: { $0.name == name }) else { return }
+        deliver(entry.text, "Copied")
+    }
+
+    @objc func bufferFlush() {
+        let buf = ContextBuffer()
+        guard let joined = buf.flushText() else { return }
+        let n = buf.entries().count
+        buf.clear()
+        deliver(joined, "\(n) copied as one — buffer emptied")
+    }
+
+    @objc func bufferClear() {
+        let buf = ContextBuffer()
+        let n = buf.entries().count
+        guard n > 0 else { return }
+        // Confirm, because this is the only path here that destroys something the user assembled
+        // by hand and cannot get back.
+        let alert = NSAlert()
+        alert.messageText = n == 1 ? "Empty the buffer?" : "Empty the buffer of \(n) items?"
+        alert.informativeText = "They are not copied anywhere first. This cannot be undone."
+        alert.addButton(withTitle: "Empty")
+        alert.addButton(withTitle: "Cancel")
+        alert.alertStyle = .warning
+        NSApp.activate(ignoringOtherApps: true)
+        guard alert.runModal() == .alertFirstButtonReturn else { return }
+        buf.clear()
+        say("Buffer emptied")
+    }
+
     @objc func openSetup() { FirstRunWindow.show() }
 
     /// Support, without an inbox: the diagnostics go to the clipboard and a prefilled issue opens
@@ -197,6 +260,44 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     @objc func openAutomationSettings() {
         NSWorkspace.shared.open(URL(string:
             "x-apple.systempreferences:com.apple.preference.security?Privacy_Automation")!)
+    }
+
+    /// The ⌥ face of a session row. Four commands, all of which put text on the clipboard and
+    /// none of which start anything — see `tmuxCommand` for why that matters.
+    @objc func runSessionCommand(_ sender: NSMenuItem) {
+        guard let payload = sender.representedObject as? SessionCommand.Payload,
+              let s = lastSessions.first(where: { $0.key == payload.key }),
+              let sessionID = s.sessionID else { return }
+
+        switch payload.kind {
+        case .copyID:
+            deliver(sessionID, "Session ID copied")
+        case .copyResume:
+            guard let cmd = ResumeCommand.resume(agent: s.agent, sessionID: sessionID) else { return }
+            deliver(cmd, "Resume command copied")
+        case .tmux:
+            guard let cmd = ResumeCommand.tmux(project: s.project, cwd: s.cwd,
+                                               agent: s.agent, sessionID: sessionID) else { return }
+            deliver(cmd, "tmux command copied — the conversation resumes; the old window keeps running")
+        case .copyCost:
+            guard let t = transcripts.cached(sessionID),
+                  let label = AgentTranscript.costLabel(output: t.outputTokens,
+                                                        cacheRead: t.cacheReadTokens) else { return }
+            deliver(label, "Cost copied")
+        }
+    }
+
+    /// Put something on the clipboard and say so. NEVER writes an empty string: `deliver("", …)`
+    /// would silently destroy whatever the user had copied, which is the opposite of this app's
+    /// job. Use `say` for a message with nothing to hand over.
+    func deliver(_ text: String, _ message: String) {
+        guard !text.isEmpty else { say(message); return }
+        Clipboard.write(text)
+        say(message)
+    }
+
+    func say(_ message: String) {
+        if !ResultHUD.show(message) { notify("Chute", message) }
     }
 
     @objc func focusSession(_ sender: NSMenuItem) {
@@ -241,7 +342,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let n = HookState.attention(HookState.readAll(),
                                     live: HookState.liveTTYs(),
                                     now: Date()).count
-        statusItem.button?.title = n == 0 ? "⤓" : "⤓ \(n)"
+        SessionMenu.applyBadge(to: statusItem.button, count: n)
     }
 
     /// FE-02 — ⌥⌘N pops the session switcher at the pointer, wherever you are. It used to pop

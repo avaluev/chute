@@ -86,40 +86,36 @@ func cmdDataURL(_ a: Args) {
 // MARK: - FR-22 context buffer
 
 func cmdBuf(_ a: Args) {
-    let dir = (NSHomeDirectory() as NSString).appendingPathComponent(".chute/buffer")
-    try? FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
+    // The store is ChuteCore.ContextBuffer, shared with the menu bar's Clipboard Buffer submenu.
+    // It used to live here, and naming entries after the CURRENT COUNT meant removing one made the
+    // next add overwrite a surviving entry — in the one feature whose entire purpose is not losing
+    // a copy. See ContextBuffer.add.
+    let buf = ContextBuffer()
     let action = a.positional.first ?? "list"
-    let entries = ((try? FileManager.default.contentsOfDirectory(atPath: dir)) ?? []).sorted()
 
     switch action {
     case "add":
         let text = a.positional.count > 1 ? a.positional.dropFirst().joined(separator: " ") : Clipboard.read()
         guard !text.isEmpty else { Out.fail("clipboard is empty") }
-        let name = String(format: "%03d.txt", entries.count + 1)
-        do {
-            try text.write(toFile: (dir as NSString).appendingPathComponent(name),
-                           atomically: true, encoding: .utf8)
-        } catch { Out.fail("cannot buffer: \(error.localizedDescription)") }
-        Out.info("→ buffered entry \(entries.count + 1) (\(TokenEstimate.badge(TokenEstimate.tokens(in: text))))")
+        guard buf.add(text) != nil else { Out.fail("cannot buffer: could not write to \(buf.directory)") }
+        Out.info("→ buffered entry \(buf.entries().count) (\(TokenEstimate.badge(TokenEstimate.tokens(in: text))))")
     case "list":
+        let entries = buf.entries()
         guard !entries.isEmpty else { Out.info("buffer is empty"); return }
         for (i, e) in entries.enumerated() {
-            let text = (try? String(contentsOfFile: (dir as NSString).appendingPathComponent(e), encoding: .utf8)) ?? ""
-            let head = text.prefix(70).replacingOccurrences(of: "\n", with: " ")
-            Out.line("\(i + 1). \(head)…  [\(TokenEstimate.badge(TokenEstimate.tokens(in: text)))]")
+            Out.line("\(i + 1). \(e.preview)  [\(TokenEstimate.badge(TokenEstimate.tokens(in: e.text)))]")
         }
     case "flush":
-        guard !entries.isEmpty else { Out.fail("buffer is empty") }
-        let joined = entries.enumerated().map { i, e -> String in
-            let text = (try? String(contentsOfFile: (dir as NSString).appendingPathComponent(e), encoding: .utf8)) ?? ""
-            return "--- context \(i + 1) ---\n\(text)"
-        }.joined(separator: "\n\n")
-        Out.deliver(joined, a, badge: "\(entries.count) entries · \(TokenEstimate.badge(TokenEstimate.tokens(in: joined)))")
-        if !a.has("keep") { entries.forEach { try? FileManager.default.removeItem(atPath: (dir as NSString).appendingPathComponent($0)) } }
+        guard let joined = buf.flushText() else { Out.fail("buffer is empty") }
+        let n = buf.entries().count
+        Out.deliver(joined, a, badge: "\(n) entries · \(TokenEstimate.badge(TokenEstimate.tokens(in: joined)))")
+        if !a.has("keep") { buf.clear() }
     case "clear":
-        entries.forEach { try? FileManager.default.removeItem(atPath: (dir as NSString).appendingPathComponent($0)) }
-        Out.info("→ buffer cleared (\(entries.count) entries)")
+        let n = buf.entries().count
+        buf.clear()
+        Out.info("→ buffer cleared (\(n) entries)")
     default:
         Out.fail("usage: chute buf add|list|flush|clear")
     }
 }
+
