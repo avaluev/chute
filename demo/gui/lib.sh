@@ -530,6 +530,40 @@ take_menubar() { # name seconds
   say "recording $1 (menu bar, ${MENUBAR_W}x${MENUBAR_H} at ${x},0)"
 }
 
+# AN OPEN-ENDED TAKE, ended by the performer rather than by a timer.
+#
+# take_start caps the recording with `-V <secs>`, which is right for a scripted tape whose length
+# is known. It is wrong for a human: the wedge's manual ritual was capped at 95s, the script
+# finished in 6.5s, and frames 8s to 90s of that take are one frozen image. A person takes as
+# long as they take, and a take that outlives the performance is padding the evidence.
+#
+# `screencapture -v` with no -V stops on ANY CHARACTER ARRIVING ON ITS STDIN (it says so when it
+# starts). Handing it a FIFO we hold open means the recording lasts exactly as long as the work,
+# and stops the instant the performer says it is done. Measured: 4.0s of wall clock produced a
+# 3.82s file.
+TAKE_FIFO=""
+take_open() { # name
+  TAKE_NAME="$1"
+  planned "record $1 until you say stop" && return 0
+  rm -f "$OUT/$1.mov"
+  TAKE_FIFO="$(mktemp -u "${TMPDIR:-/tmp}/chute-take-XXXXXX")"
+  mkfifo "$TAKE_FIFO"
+  screencapture -v -R"$WIN_X,$WIN_Y,$WIN_W,$WIN_H" "$OUT/$1.mov" < "$TAKE_FIFO" &
+  TAKE_PID=$!
+  exec 3>"$TAKE_FIFO"          # held open, or screencapture reads EOF and stops at once
+  take_started "$1"
+  say "recording $1 — open ended"
+}
+
+take_close() {
+  planned "stop the recording" && return 0
+  printf 'x' >&3 2>/dev/null || true
+  exec 3>&- 2>/dev/null || true
+  wait "$TAKE_PID" 2>/dev/null || true
+  rm -f "$TAKE_FIFO"; TAKE_FIFO=""
+  say "stopped — $(ffprobe -v error -show_entries format=duration -of csv=p=0 "$OUT/$TAKE_NAME.mov" 2>/dev/null | cut -d. -f1)s recorded"
+}
+
 take_wait() {
   planned "wait for the recording to finish" && return 0
   wait "$TAKE_PID" 2>/dev/null || true
