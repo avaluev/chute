@@ -15,7 +15,7 @@ GIFS    := $(patsubst tapes/%.tape,out/%.gif,$(TAPES))
 export CHUTE_REPO    := $(REPO)
 export CHUTE_FIXTURE := $(FIXTURE)
 
-.PHONY: all demos clean check tools verify shorts publish
+.PHONY: shots all demos clean check tools verify shorts publish
 all: demos
 
 # A tape per free-CLI case, generated from site/src/lib/cases.ts so a demo can never run a
@@ -44,6 +44,35 @@ out/%.gif: tapes/%.tape common.tape setup.tape fixtures/make.sh
 # Recorded GIFs are not source, so out/ is gitignored — but the site needs them committed. This
 # copies exactly the ones a case refers to, and check-paddle.mjs then proves every referenced
 # asset resolves in the built site.
+# STILLS AND ANIMATIONS FOR THE CLI, DRAWN RATHER THAN PHOTOGRAPHED.
+#
+# demo/termshot.py runs each command for real and renders its actual output with JetBrains Mono
+# and brand/tokens.json — no screen, no Screen Recording grant, no human, and pixel-identical for
+# identical input. The frames are then assembled by ffmpeg, which is the "animation from static
+# images" half: nothing here records anything.
+#
+# Use it for the free CLI. The paid app still needs demo/gui, because a Finder menu cannot be
+# drawn from a string.
+SHOT_CMDS := "chute tokens src/auth/session.ts src/api/client.ts" \
+             "chute paths src/auth/session.ts src/auth/token.ts" \
+             "chute tree . --depth 2" \
+             "chute bundle src/auth --format xml"
+
+shots:
+	@mkdir -p out/still
+	@for c in $(SHOT_CMDS); do \
+	  slug=$$(printf '%s' "$$c" | awk '{print $$2}'); \
+	  python3 termshot.py still --cmd "$$c" --out "out/still/$$slug.png"; \
+	  python3 termshot.py frames --cmd "$$c" --outdir "out/frames/$$slug" >/dev/null; \
+	  ffmpeg -v error -framerate 20 -i "out/frames/$$slug/%04d.png" \
+	    -vf "scale=1280:-2:flags=lanczos" -c:v libx264 -pix_fmt yuv420p \
+	    -movflags +faststart "out/still/$$slug.mp4" -y; \
+	  ffmpeg -v error -i "out/still/$$slug.mp4" \
+	    -vf "fps=12,scale=900:-1:flags=lanczos,split[a][b];[a]palettegen[p];[b][p]paletteuse" \
+	    "out/still/$$slug.gif" -y; \
+	  echo "  out/still/$$slug.{png,mp4,gif}"; \
+	done
+
 # THE ONLY PLACE A RECORDING BECOMES DURABLE. demo/out/ is gitignored (see demo/.gitignore) —
 # footage that has not been published lives in exactly one untracked directory and dies with the
 # working tree. Run this after EVERY take, not once at the end of a batch.
