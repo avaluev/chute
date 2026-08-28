@@ -19,14 +19,26 @@ public struct ProcessSample: Sendable, Equatable {
     /// tree-attribution tests can work from a fixture string; every figure a user sees comes from
     /// here. Falls back to rss when the process refused inspection.
     public var footprintBytes: UInt64 = 0
+    /// The worst this process ever held. 0 when unknown — see `ProcessMetrics.peakFootprint`.
+    public var peakFootprintBytes: UInt64 = 0
     /// The Unix session id, which every descendant of a login shell inherits and which
     /// reparenting does not change. 0 means unknown — see `attribute`.
     public var sid: Int = 0
 
+    /// WHICH browser instance this belongs to, when it is a browser and we could tell.
+    /// "Chrome (mcp-chrome-9ebcc11)". nil for everything else — see `ProcessIdentity`.
+    public var instance: String?
+
     /// The program a process belongs to, for grouping. "Google Chrome Helper (Renderer)" and
     /// "Google Chrome Helper (GPU)" are Google Chrome; six of them are still one program, which is
     /// how a person thinks about it and how they will act on it.
-    public var family: String { SystemVitals.commandFamily(command) }
+    ///
+    /// AND WHICH ONE, for browsers. Grouping every Chromium process under "Google Chrome" put the
+    /// user's own browser, a Playwright shell and an anti-detect browser in one bucket, so the row
+    /// said `mostly Google Chrome` and pointed at nothing you could act on. When the instance is
+    /// known it IS the family: two Chromes with different `--user-data-dir` are two programs as
+    /// far as any decision the reader makes is concerned.
+    public var family: String { instance ?? SystemVitals.commandFamily(command) }
 
     /// What this process actually holds. `footprintBytes` when we could read it, and the `ps`
     /// figure when the process refused us — a refusal must not read as zero bytes.
@@ -42,6 +54,8 @@ public struct ProcessSample: Sendable, Equatable {
 public struct SessionLoad: Sendable, Equatable {
     public let cpuPercent: Double
     public let residentBytes: UInt64
+    /// The sum of every process's high-water mark. See `peakNote` for when it is worth saying.
+    public let peakBytes: UInt64
     public let processes: Int
     /// The program holding most of the memory, when one clearly does. This is the actionable
     /// half: "5.0 GB" cannot tell you whether to restart a dev server or quit a browser, and
@@ -49,15 +63,17 @@ public struct SessionLoad: Sendable, Equatable {
     public let top: (command: String, bytes: UInt64)?
 
     public init(cpuPercent: Double, residentBytes: UInt64, processes: Int,
-                top: (command: String, bytes: UInt64)? = nil) {
+                top: (command: String, bytes: UInt64)? = nil, peakBytes: UInt64 = 0) {
         self.cpuPercent = cpuPercent
         self.residentBytes = residentBytes
+        self.peakBytes = peakBytes
         self.processes = processes
         self.top = top
     }
 
     public static func == (a: SessionLoad, b: SessionLoad) -> Bool {
         a.cpuPercent == b.cpuPercent && a.residentBytes == b.residentBytes
+            && a.peakBytes == b.peakBytes
             && a.processes == b.processes && a.top?.command == b.top?.command
             && a.top?.bytes == b.top?.bytes
     }
@@ -66,6 +82,29 @@ public struct SessionLoad: Sendable, Equatable {
     /// Below it, nothing dominates and naming the largest of five similar things points at
     /// nothing — a menu row that always ends in a name is a name nobody reads.
     public static let dominantShare = 0.5
+
+    /// A PEAK EQUAL TO THE PRESENT IS NOT INFORMATION. Every process's high-water mark is at
+    /// least its current size, so a naive "(peaked …)" would appear on every row, always, saying
+    /// nothing — which is precisely how the old "1% CPU · 974 MB" suffix earned its deletion.
+    ///
+    /// Two conditions, and both are needed. The RATIO catches the shape that matters: something
+    /// held far more than it holds now. The FLOOR stops the ratio firing on trivia — a 4 MB shell
+    /// that once touched 8 MB doubles, and nobody has ever cared. Below half a gigabyte a spike
+    /// is not the reason anything on this machine was slow.
+    public static let peakWorthShowing = 1.5
+    public static let peakFloorBytes: UInt64 = 512 * 1_048_576
+
+    /// "(peaked 6.1 GB)", or nothing at all.
+    ///
+    /// THIS IS THE ANSWER TO "why did you eat 9 GB?" — a question the owner asked about a session
+    /// that, by the time anyone looked, held 800 MB. `ri_phys_footprint` is an instant; the spike
+    /// that made someone open the menu is already over, and every other tool on the machine
+    /// agrees nothing happened. The kernel kept the record. This shows it.
+    public var peakNote: String? {
+        guard peakBytes >= Self.peakFloorBytes, residentBytes > 0,
+              Double(peakBytes) / Double(residentBytes) >= Self.peakWorthShowing else { return nil }
+        return " (peaked \(SystemVitals.bytes(peakBytes)))"
+    }
 
     /// "12% CPU · 1.2 GB memory", for EVERY session that has a process in it, plus what is
     /// holding it when one program holds most of it.
@@ -79,6 +118,7 @@ public struct SessionLoad: Sendable, Equatable {
     public var label: String {
         guard processes > 0 else { return "" }
         var out = "\(Int(cpuPercent.rounded()))% CPU · \(SystemVitals.bytes(residentBytes)) memory"
+        if let peakNote { out += peakNote }
         if let top, residentBytes > 0,
            Double(top.bytes) / Double(residentBytes) >= Self.dominantShare {
             out += " · mostly \(top.command)"
@@ -158,6 +198,8 @@ public enum SystemVitals {
             var out = ProcessSample(pid: s.pid, ppid: s.ppid, command: s.command, tty: tty,
                                     cpuPercent: s.cpuPercent, residentKB: s.residentKB)
             out.footprintBytes = s.footprintBytes
+            out.peakFootprintBytes = s.peakFootprintBytes
+            out.instance = s.instance
             out.sid = s.sid
             return out
         }
@@ -189,10 +231,16 @@ public enum SystemVitals {
         for p in mine { byFamily[p.family, default: 0] += p.bytes }
         let top = byFamily.max { $0.value < $1.value }.map { (command: $0.key, bytes: $0.value) }
 
+        // Peaks are SUMMED, not maxed, for the same reason the footprints are: a session is a
+        // tree, and what the reader wants to know is what the tree cost at its worst. It is an
+        // upper bound — the twenty-four processes did not necessarily peak at the same instant —
+        // and that is the honest direction to be wrong in for a "this is why your Mac stalled"
+        // figure, which is also why `peakNote` refuses to print it unless it dwarfs the present.
         return SessionLoad(cpuPercent: mine.reduce(0) { $0 + $1.cpuPercent },
                            residentBytes: bytes,
                            processes: mine.count,
-                           top: top)
+                           top: top,
+                           peakBytes: mine.reduce(UInt64(0)) { $0 &+ $1.peakFootprintBytes })
     }
 
     // DELETED 2026-08-28: busiest, machineLine, batteryCelsius, temperature, fahrenheit,
@@ -238,16 +286,27 @@ public enum SystemVitals {
     /// already pays for.
     public static let settleSeconds = 0.15
 
+    /// NO SUBPROCESS. This used to fork `ps` — measured at **117 ms**, on the path a user is
+    /// waiting on, every time the menu opened. `ProcessMetrics.listing()` gets the same tree from
+    /// the kernel in about 1.5 ms; see the note there for why it takes three calls and why
+    /// `p_comm` is not one of them.
+    ///
+    /// `parse(ps:)` is deliberately kept. It is pure, it is what the fixture tests in
+    /// `SystemVitalsSuite` exercise, and a pure column parser costs nothing to leave standing.
     public static func sample() -> [ProcessSample] {
-        // The sids come from getsid(2), one call each, because `ps -o sess=` cannot supply them:
-        // kp_eproc.e_sess is NULL for a non-root reader, so ps prints 0 for every process.
-        let listing = Shell.run("ps", ["-Axo", "pid=,ppid=,tty=,pcpu=,rss=,comm="]).out
-        var sids: [Int: Int] = [:]
-        for p in parse(ps: listing) {
-            let sid = getsid(pid_t(p.pid))
-            if sid > 0 { sids[p.pid] = Int(sid) }
+        // The sids come from getsid(2), one call each, because `ps -o sess=` could not supply
+        // them either: kp_eproc.e_sess is NULL for a non-root reader, so ps prints 0 for every
+        // process on the machine. That is a hole in ps, not in us, and it survives the rewrite.
+        var rows: [ProcessSample] = []
+        rows.reserveCapacity(64)
+        for row in ProcessMetrics.listing() {
+            var s = ProcessSample(pid: Int(row.pid), ppid: Int(row.ppid), command: row.command,
+                                  tty: row.tty, cpuPercent: 0, residentKB: 0)
+            let sid = getsid(pid_t(row.pid))
+            if sid > 0 { s.sid = Int(sid) }
+            rows.append(s)
         }
-        let tree = attribute(parse(ps: listing, sids: sids))
+        let tree = attribute(rows)
         let pids = tree.map { Int32($0.pid) }
         if previous == nil {
             previous = (Date(), ProcessMetrics.snapshot(pids: pids))
@@ -259,6 +318,12 @@ public enum SystemVitals {
         previous = (now, live)
 
         let seconds = last.map { now.timeIntervalSince($0.at) } ?? 0
+        // Built once, not per process: a browser helper has to be walked up its parent chain to
+        // find the process that carries --user-data-dir, and rebuilding the map for each of three
+        // hundred processes would be quadratic on the path a user is waiting on.
+        var ppidByPid: [Int: Int] = [:]
+        for p in tree { ppidByPid[p.pid] = p.ppid }
+
         return tree.map { p in
             let pid = Int32(p.pid)
             let cpu = last.flatMap {
@@ -267,8 +332,35 @@ public enum SystemVitals {
             var out = ProcessSample(pid: p.pid, ppid: p.ppid, command: p.command, tty: p.tty,
                                     cpuPercent: cpu ?? 0, residentKB: p.residentKB)
             out.footprintBytes = live[pid]?.footprintBytes ?? 0
+            out.peakFootprintBytes = live[pid]?.peakFootprintBytes ?? 0
+            out.sid = p.sid
+            out.instance = browserInstance(pid: pid, named: p.command, ppid: ppidByPid)
             return out
         }
+    }
+
+    /// Names the browser INSTANCE a process belongs to, and only for processes that could have
+    /// one. See `ProcessIdentity` for how, and for what it deliberately will not claim.
+    ///
+    /// GATED ON THE NAME FIRST, because the answer is not free: reading argv costs 0.371 ms per
+    /// process the first time (it is cached afterwards, and argv cannot change). Paying that
+    /// across a three-hundred-process tree to discover that `zsh` is not a browser would put back
+    /// most of the 117 ms this file just finished removing. A handful of Chromium processes is
+    /// worth it; everything else is not asked.
+    ///
+    /// ponytail: substring match on the program name rather than a registry of browsers. Add the
+    /// name when someone runs a Chromium fork this misses — a list of every Electron app on earth
+    /// is not the cheaper thing.
+    private static func browserInstance(pid: Int32, named name: String,
+                                        ppid: [Int: Int]) -> String? {
+        let lower = name.lowercased()
+        guard lower.contains("chrome") || lower.contains("chromium") || lower.contains("brave")
+                || lower.contains("edge") else { return nil }
+        return ProcessIdentity.label(
+            forPID: pid,
+            ppidOf: { ppid[Int($0)].map(Int32.init) },
+            argvOf: { ProcessIdentity.arguments($0) },
+            pathOf: { ProcessIdentity.executablePath($0) })
     }
 
     public static func bytes(_ count: UInt64) -> String {
