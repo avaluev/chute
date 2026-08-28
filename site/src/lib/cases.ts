@@ -66,7 +66,8 @@ export const CASES: Case[] = [
     ritual: "Find the first fence, select exactly it, copy, new file, paste, save, remember where it was supposed to go. Then the next three.",
     fix: "Right-click the folder. You get the list of what it would write, and it writes only after you say so — and never outside that folder.",
     seconds: { manual: 120, chute: 6 }, perDay: 15, savedMinutes: 28.5,
-    demo: "/media/unpack.gif",
+    demo: "/media/turn-an-answer-back-into-files.mp4",
+    poster: "/media/turn-an-answer-back-into-files.jpg",
     command: "chute unpack --dir .",
   },
   {
@@ -89,6 +90,8 @@ export const CASES: Case[] = [
     ritual: "A new editor tab, a paste, a save dialog, and a filename you invent on the spot.",
     fix: "Right-click where it belongs. The file is named from its own first heading and its extension comes from the code inside it.",
     seconds: { manual: 35, chute: 4 }, perDay: 25, savedMinutes: 12.9,
+    demo: "/media/clipboard-straight-into-a-file.mp4",
+    poster: "/media/clipboard-straight-into-a-file.jpg",
     command: "chute new",
   },
   {

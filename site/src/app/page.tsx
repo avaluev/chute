@@ -9,7 +9,7 @@ import { CopyLine } from "@/components/copy-line";
 import { InstallCli } from "@/components/install-cli";
 import { asset } from "@/lib/asset";
 import { Header, Footer } from "@/components/chrome";
-import { CaseCard, DailyCost } from "@/components/case-bits";
+import { CaseCard, DailyCost, Demo } from "@/components/case-bits";
 import { CASES, PAID, FREE, HEROES, minutesPerDay, bySlug } from "@/lib/cases";
 import { CONFIG } from "@/lib/config";
 
@@ -156,11 +156,12 @@ export default function Home() {
         </p>
 
         {/* The hero shot is the APP, not a terminal. The old one was a terminal GIF on a page
-            asking for $19 for something the visitor had never seen. */}
+            asking for $19 for something the visitor had never seen.
+            It reads the case's OWN recording rather than naming a file: the hero and the case
+            page can then never drift, and the day demo/gui films this job for real the hero
+            upgrades from a GIF to the video with no edit here. */}
         <div className="mt-16 overflow-hidden rounded-[var(--radius)] border border-border shadow-hero">
-          <Image src={asset("/media/sessions.gif")}
-                 alt="The Chute menu bar, grouping agent sessions by which one is waiting for you"
-                 width={1200} height={720} unoptimized priority className="w-full" />
+          <Demo c={bySlug("which-agent-is-waiting-for-you")!} />
         </div>
       </section>
 

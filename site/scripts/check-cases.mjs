@@ -146,8 +146,12 @@ if (measured) {
 const MEDIA = resolve(here, "../public/media")
 try {
   const referenced = new Set(CASES.map((c) => c.demo).filter(Boolean).map((d) => d.replace("/media/", "")))
+  // A .webm is never named by a case: `demo` points at the mp4 and components/case-bits.tsx
+  // derives the webm as the first <source>. Counting it as unreferenced prints a note that can
+  // never be actioned, and a check that always complains is a check nobody reads.
   const orphans = readdirSync(MEDIA)
-    .filter((f) => /\.(gif|mp4|webm)$/.test(f) && !referenced.has(f) && !f.startsWith("card-") && f !== "og.png")
+    .filter((f) => /\.(gif|mp4|webm)$/.test(f) && !f.startsWith("card-") && f !== "og.png")
+    .filter((f) => !referenced.has(f) && !referenced.has(f.replace(/\.webm$/, ".mp4")))
   if (orphans.length) {
     console.log(`  note ${orphans.length} recording(s) in public/media that no case refers to:`)
     console.log(`       ${orphans.join(", ")}`)

@@ -50,9 +50,42 @@ export function DailyCost({ c }: { c: Case }) {
 }
 
 /** A recorded demo, or nothing at all. Never a placeholder: a fake screenshot is a lie with a
- *  border around it, and every image on this site is real recorded output. */
+ *  border around it, and every image on this site is real recorded output.
+ *
+ *  Two shapes, one branch. The free CLI shorts are GIFs from VHS; the paid app is filmed off a
+ *  real screen by demo/gui and arrives as mp4 + webm + a poster frame. Which one a case gets is
+ *  decided by its own file extension, so publishing a recording is the only step — nothing here
+ *  has to be told that a case graduated from a GIF to a video.
+ *
+ *  The video carries no controls and no sound: it is an illustration, not a player, and a
+ *  play button on a landing page is a decision the reader did not ask to make. `poster` is the
+ *  first frame, so the block never renders as a hole while the video loads. */
+const FRAME = "w-full rounded-[4px] border border-border";
+
 export function Demo({ c }: { c: Case }) {
   if (!c.demo) return null;
+
+  if (c.demo.endsWith(".mp4")) {
+    const webm = c.demo.replace(/\.mp4$/, ".webm");
+    return (
+      <video
+        aria-label={c.fix}
+        poster={c.poster ? asset(c.poster) : undefined}
+        width={1200}
+        height={750}
+        autoPlay
+        muted
+        loop
+        playsInline
+        preload="metadata"
+        className={FRAME}
+      >
+        <source src={asset(webm)} type="video/webm" />
+        <source src={asset(c.demo)} type="video/mp4" />
+      </video>
+    );
+  }
+
   return (
     <Image
       src={asset(c.demo)}
@@ -60,7 +93,7 @@ export function Demo({ c }: { c: Case }) {
       width={1200}
       height={750}
       unoptimized
-      className="w-full rounded-[4px] border border-border"
+      className={FRAME}
     />
   );
 }
