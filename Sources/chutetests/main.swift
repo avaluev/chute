@@ -20,5 +20,7 @@ pastedImageSuite()
 systemVitalsSuite()
 onboardingSuite()
 agentTranscriptSuite()
+resumeCommandSuite()
+contextBufferSuite()
 
 T.report()

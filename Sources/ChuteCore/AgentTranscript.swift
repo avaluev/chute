@@ -175,3 +175,52 @@ public struct AgentTranscript: Sendable, Equatable {
         }
     }
 }
+
+/// A read-through cache, because the menu must never wait on a file.
+///
+/// `AgentTranscript.readFile` takes about 37 ms on the largest transcript here. That is fine on a
+/// background queue and it is not fine inside `menuWillOpen`, which runs while the user is looking
+/// at a menu that has not drawn yet — with eleven sessions it would be most of a second of nothing.
+///
+/// So the menu only ever asks for what is already known (`cached`, which never touches the disk),
+/// and refreshing happens on the event that means a session changed: the DispatchSource watching
+/// ~/.chute/sessions. By the time anyone opens the menu the answer is usually already here, and
+/// when it is not, the row simply renders without a model and has one on the next open. A row that
+/// is one open late is fine; a menu that stalls is a bug.
+///
+/// Entries are invalidated on (mtime, size) rather than on a timer: a transcript that has not been
+/// written to cannot have changed, and re-parsing 12 MB to learn that is work for nothing.
+public final class TranscriptStore: @unchecked Sendable {
+    private struct Entry { let stamp: Date; let size: UInt64; let transcript: AgentTranscript? }
+    private var entries: [String: Entry] = [:]
+    private let lock = NSLock()
+
+    public init() {}
+
+    /// Cache only. Never reads the disk, never blocks, safe from the main thread.
+    public func cached(_ sessionID: String?) -> AgentTranscript? {
+        guard let sessionID else { return nil }
+        lock.lock(); defer { lock.unlock() }
+        return entries[sessionID]?.transcript
+    }
+
+    /// Re-read anything whose file has changed. Call from a background queue.
+    public func refresh(sessionIDs: [String]) {
+        for id in sessionIDs {
+            guard let path = AgentTranscript.find(sessionID: id) else { continue }
+            let attrs = try? FileManager.default.attributesOfItem(atPath: path)
+            let stamp = (attrs?[.modificationDate] as? Date) ?? .distantPast
+            let size  = (attrs?[.size] as? NSNumber)?.uint64Value ?? 0
+
+            lock.lock()
+            let known = entries[id]
+            lock.unlock()
+            if let known, known.stamp == stamp, known.size == size { continue }
+
+            let parsed = AgentTranscript.readFile(path)
+            lock.lock()
+            entries[id] = Entry(stamp: stamp, size: size, transcript: parsed)
+            lock.unlock()
+        }
+    }
+}
