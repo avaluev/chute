@@ -1,7 +1,11 @@
-# HANDOFF — Chute — 2026-08-28
+# HANDOFF — Chute — standing product reference
 
-> **START HERE:** `handoff/HANDOFF-2026-08-28-measurement.md` is the current entry point. The
-> measurement work in it is DONE and pushed — true numbers, a gate that checks magnitude rather
+> **START HERE:** `handoff/HANDOFF-2026-08-29-surfaces.md` is the current entry point — Moves 0-4
+> of the strategic redesign are DONE and pushed, along with the reported Recent Copies bug and
+> three defects nobody had reported. `handoff/HANDOFF-2026-08-28-measurement.md` is the session
+> before it and remains the record of the measurement work.
+>
+> The measurement work in it is DONE and pushed — true numbers, a gate that checks magnitude rather
 > than shape, and a menu model a headless test can read. It carries what shipped, the traps paid
 > for once, and the five things left that only a human can do. This file remains the standing
 > product reference.
