@@ -105,13 +105,24 @@ public enum Trial {
         return info
     }
 
-    /// One line for the menu. Silent when licensed: a paid app that keeps mentioning payment is
-    /// nagging its own customer.
+    /// How many days are left before the trial line is worth a menu row at all.
+    ///
+    /// The rule this file already stated — a paid app that keeps mentioning payment is nagging its
+    /// own customer — does not start applying on the day someone pays. Fourteen reminders over
+    /// fourteen days is fourteen chances to find the menu slightly annoying, and the first eleven
+    /// of them cannot change a decision nobody is making yet. The last few can.
+    ///
+    /// Settings → License always shows the real state, on every day, for anyone who wants to look.
+    public static let menuWarningDays = 3
+
+    /// One line for the menu, or nil for the days it should stay quiet. Silent when licensed;
+    /// silent for most of the trial; never silent once it has actually run out.
     public static func menuLabel(_ state: TrialState) -> String? {
         switch state {
         case .licensed: return nil
         case .expired: return "Buy Chute — $19 one-time"
         case .trial(let days):
+            guard days <= menuWarningDays else { return nil }
             return days == 1 ? "Trial — last day" : "Trial — \(days) days left"
         }
     }

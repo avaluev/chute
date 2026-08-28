@@ -2,25 +2,33 @@ import AppKit
 import ChuteCore
 
 enum SessionMenu {
-    /// The menu's numbers, updatable IN PLACE while the menu is open. Rows and the This-Mac
-    /// line are refreshed from one shared snapshot, so every number on screen is from the same
-    /// instant — a row claiming 171% while the summary shows a different moment is what
-    /// "realtime sync" means here.
-    struct LiveVitals {
-        let rows: [(item: NSMenuItem, tty: String, prefix: String)]
-        let machine: NSMenuItem
+    // NO LIVE VITALS, AND NO TIMER. A `LiveVitals` struct used to hold every row so a
+    // two-second timer could retitle them with fresh CPU and memory figures while the menu was
+    // open. Every number it refreshed has been deleted, so the machinery that refreshed them
+    // went with it: the menu is already rebuilt from scratch on every open, which is the only
+    // moment anyone is looking at it.
 
-        func apply(samples: [ProcessSample], batteryCelsius: Double?) {
-            for row in rows {
-                let load = SystemVitals.load(forTTY: row.tty, in: samples).label
-                row.item.title = row.prefix + (load.isEmpty ? "" : "   \(load)")
-            }
-            machine.title = SystemVitals.machineLine(
-                samples: samples,
-                cores: ProcessInfo.processInfo.activeProcessorCount,
-                thermal: ProcessInfo.processInfo.thermalState,
-                batteryCelsius: batteryCelsius)
+    /// THE ONLY MACHINE FACT WORTH A MENU ROW: this agent has gone wrong.
+    ///
+    /// Both thresholds live here and nowhere else. `cpuPercent` is percent of ONE core, the way
+    /// `ps` and Activity Monitor report it, so 300 means three cores pinned — a coding agent
+    /// doing that for as long as it takes you to open a menu is stuck in a loop, not thinking.
+    /// The memory figure catches the other failure: an agent that has been running for hours and
+    /// is now the reason everything else is swapping.
+    ///
+    /// Deliberately silent below these. A row that always carries a number is a row nobody reads,
+    /// which is exactly how the old "1% CPU · 974 MB memory" suffix earned its deletion.
+    static let runawayCPUPercent = 250.0
+    static let runawayBytes: UInt64 = 8 * 1_073_741_824   // 8 GB
+
+    static func runawayNote(_ load: SessionLoad) -> String {
+        if load.cpuPercent >= runawayCPUPercent {
+            return "   ⚠ \(Int(load.cpuPercent.rounded()))% CPU"
         }
+        if load.residentBytes >= runawayBytes {
+            return "   ⚠ \(SystemVitals.bytes(load.residentBytes))"
+        }
+        return ""
     }
 
     static func badge(for sessions: [Session]) -> String {
@@ -49,11 +57,8 @@ enum SessionMenu {
     /// produces "¡", not "1". The rows advertised a shortcut that did nothing on every keyboard
     /// layout. A menu that promises a shortcut it does not honour is worse than one that promises
     /// nothing, so the promise is gone. `chute focus <n>` still does this from the terminal.
-    @discardableResult
     static func populate(_ menu: NSMenu, sessions: [Session], problem: String?,
-                         target: AnyObject, action: Selector, openSettings: Selector) -> LiveVitals {
-        menu.removeAllItems()
-        var liveRows: [(item: NSMenuItem, tty: String, prefix: String)] = []
+                         target: AnyObject, action: Selector, openSettings: Selector) {
         // One `ps` for the whole menu. Sampling per row would be thirteen process listings for a
         // menu the user is already waiting on.
         let samples = SystemVitals.sample()
@@ -90,39 +95,23 @@ enum SessionMenu {
                 default:
                     detail = SessionPhrasing.elide(s.title)
                 }
-                // The cost of the session, appended only when it is worth reading: an idle shell
-                // showing "0% · 4 MB" is noise in a list you scan to find the busy one.
-                let load = SystemVitals.load(forTTY: s.tty, in: samples).label
-                let prefix = "\(s.project)   \(detail)"
-                let item = NSMenuItem(title: "\(prefix)\(load.isEmpty ? "" : "   \(load)")",
+                // A RUNAWAY IS WORTH SAYING; A NUMBER IS NOT. Every row used to end in
+                // "1% CPU · 974 MB memory", which changed every two seconds and answered no
+                // question anyone had. What an AI builder actually needs to know is that one of
+                // their agents has gone wrong — so nothing is drawn unless it crosses the line.
+                let load = SystemVitals.load(forTTY: s.tty, in: samples)
+                let warning = SessionMenu.runawayNote(load)
+                let item = NSMenuItem(title: "\(s.project)   \(detail)\(warning)",
                                       action: action,
                                       keyEquivalent: "")
-                liveRows.append((item, s.tty, prefix))
                 item.image = dot(SessionColor.hex(forProject: s.project))
                 item.representedObject = s.key
                 item.target = target
-                item.toolTip = "\(s.title)\n\(load.isEmpty ? "Using almost no CPU or memory" : load)"
-                             + " · terminal \(s.tty) · click to bring it forward"
+                item.toolTip = "\(s.title) · terminal \(s.tty) · click to bring it forward"
                 menu.addItem(item)
             }
             menu.addItem(.separator())
         }
-
-        // How the machine itself is doing — measurements only, from the SAME snapshot as the
-        // rows above, so the numbers reconcile. See `SystemVitals.machineLine`.
-        let vitals = NSMenuItem(title: SystemVitals.machineLine(
-                                    samples: samples,
-                                    cores: ProcessInfo.processInfo.activeProcessorCount,
-                                    thermal: ProcessInfo.processInfo.thermalState,
-                                    batteryCelsius: SystemVitals.temperature()),
-                                action: nil, keyEquivalent: "")
-        vitals.isEnabled = false
-        vitals.toolTip = "Temperature comes from the battery sensor. The CPU sensors need "
-                       + "administrator access, which Chute does not ask for. "
-                       + "100% CPU means one full core, as in Activity Monitor. "
-                       + "Updates every 2 seconds while the menu is open."
-        menu.addItem(vitals)
-        menu.addItem(.separator())
 
         if sessions.isEmpty && problem == nil {
             let empty = NSMenuItem(title: "No terminal sessions", action: nil, keyEquivalent: "")
@@ -130,7 +119,6 @@ enum SessionMenu {
             menu.addItem(empty)
             menu.addItem(.separator())
         }
-        return LiveVitals(rows: liveRows, machine: vitals)
     }
 }
 

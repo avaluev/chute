@@ -56,11 +56,9 @@ func cmdSessions(_ a: Args) {
                  + " " + pad(s.tty, 9) + load.label)
     }
     let needs = sessions.filter { $0.state == .blocked || $0.state == .waiting }.count
-    Out.info("→ \(sessions.count) session(s), \(needs) need you · "
-             + SystemVitals.machineLine(samples: samples,
-                                        cores: ProcessInfo.processInfo.activeProcessorCount,
-                                        thermal: ProcessInfo.processInfo.thermalState,
-                                        batteryCelsius: SystemVitals.temperature()))
+    // The machine summary that used to close this line is gone — see the note in SystemVitals.
+    // The count is the fact worth printing; "using 0.4 of 16 cores · battery at 31 °C" was not.
+    Out.info("→ \(sessions.count) session(s), \(needs) need you")
 }
 
 func cmdFocus(_ a: Args) {

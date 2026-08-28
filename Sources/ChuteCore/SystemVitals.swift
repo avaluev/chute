@@ -106,70 +106,28 @@ public enum SystemVitals {
                            processes: mine.count)
     }
 
-    /// The single hungriest process on the machine — the answer to "why is my Mac hot", which
-    /// no thermal average can give.
-    public static func busiest(_ samples: [ProcessSample]) -> ProcessSample? {
-        samples.max { $0.cpuPercent < $1.cpuPercent }
-    }
+    // DELETED 2026-08-28: busiest, machineLine, batteryCelsius, temperature, fahrenheit,
+    // temperatureLabel, thermalPressure.
+    //
+    // The menu carried "This Mac — using 0.4 of 16 cores · battery at 31 °C · 87 °F". Two of
+    // those three claims were worthless to the person reading them:
+    //
+    //   · The BATTERY temperature is not the machine's temperature. It is a sensor in the battery
+    //     pack, and on a laptop under an agent workload it does not track how hot the chassis
+    //     actually gets — the owner of this Mac bought a cooling pad while this line said
+    //     "running cool". A number that disagrees with the hand on the keyboard teaches the reader
+    //     to disbelieve the whole menu. The real CPU die sensors need administrator access, which
+    //     Chute will not ask for, so the honest move is to say nothing rather than to say the one
+    //     number we can get for free.
+    //   · "using 0.4 of 16 cores" is a whole-machine instantaneous average. It moved every two
+    //     seconds, it was never the reason anything was slow, and no decision followed from it.
+    //
+    // `load(forTTY:in:)` survives because a SINGLE session that has gone runaway is still worth
+    // saying — that is a fact about the agent you are running, not about the weather inside the
+    // case. See SessionMenu for where that threshold lives.
 
     public static func sample() -> [ProcessSample] {
         attribute(parse(ps: Shell.run("ps", ["-Axo", "pid=,ppid=,tty=,pcpu=,rss=,comm="]).out))
-    }
-
-    /// The This-Mac line. Every claim on it is a measurement from the SAME snapshot the session
-    /// rows were computed from, so the numbers reconcile: the busiest process is inside some
-    /// row's total, and the core count is the sum of them all. No adjectives — "running cool"
-    /// beside a 171% row on a hot chassis is how this line lost the user's trust. The thermal
-    /// state speaks only when it is elevated, because that is the only time it says anything.
-    public static func machineLine(samples: [ProcessSample], cores: Int,
-                                   thermal: ProcessInfo.ThermalState,
-                                   batteryCelsius: Double?) -> String {
-        let total = samples.reduce(0.0) { $0 + $1.cpuPercent }
-        var parts = ["using \(String(format: "%.1f", total / 100)) of \(cores) cores"]
-        if let hog = busiest(samples), hog.cpuPercent >= 50 {
-            parts.append("busiest: \(hog.command) at \(Int(hog.cpuPercent.rounded()))% CPU")
-        }
-        if let c = batteryCelsius { parts.append("battery at \(temperatureLabel(c))") }
-        if thermal != .nominal { parts.append(thermalPressure(thermal)) }
-        return "This Mac — " + parts.joined(separator: " · ")
-    }
-
-    // MARK: - Temperature
-
-    /// `ioreg -c AppleSmartBattery -r` reports `"Temperature" = 3072` — centi-degrees Celsius.
-    /// Values outside 0–80 °C are a misread, not a hot Mac, so they are refused.
-    public static func batteryCelsius(fromIOReg output: String) -> Double? {
-        guard let line = output.split(separator: "\n").first(where: {
-            $0.contains("\"Temperature\"") && $0.contains("=")
-        }) else { return nil }
-        let digits = line.split(separator: "=").last?.trimmingCharacters(in: .whitespaces)
-            .trimmingCharacters(in: CharacterSet(charactersIn: "\"; "))
-        guard let raw = digits.flatMap({ Double($0) }) else { return nil }
-        let celsius = raw / 100
-        return (0...80).contains(celsius) ? celsius : nil
-    }
-
-    public static func temperature() -> Double? {
-        batteryCelsius(fromIOReg: Shell.run("ioreg", ["-c", "AppleSmartBattery", "-r"]).out)
-    }
-
-    public static func fahrenheit(_ celsius: Double) -> Double { celsius * 9 / 5 + 32 }
-
-    /// "31 °C · 88 °F". Both, because you asked for both.
-    public static func temperatureLabel(_ celsius: Double) -> String {
-        String(format: "%.0f °C · %.0f °F", celsius, fahrenheit(celsius))
-    }
-
-    /// The system's own view of how hard it is being pushed. A native API, no privileges, and the
-    /// only honest answer to "is my Mac struggling" that does not need root.
-    public static func thermalPressure(_ state: ProcessInfo.ThermalState) -> String {
-        switch state {
-        case .nominal:  return "running cool"
-        case .fair:     return "running warm"
-        case .serious:  return "running hot, about to slow down"
-        case .critical: return "too hot, slowing down now"
-        @unknown default: return "unknown"
-        }
     }
 
     public static func bytes(_ count: UInt64) -> String {
