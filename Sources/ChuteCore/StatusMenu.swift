@@ -46,7 +46,7 @@ public enum StatusMenu {
         case bufferClear
     }
 
-    public indirect enum Kind: Sendable, Equatable {
+    public enum Kind: Sendable, Equatable {
         case separator
         /// A macOS section header. Carries its own count, which is part of what it says.
         case header(count: Int)
