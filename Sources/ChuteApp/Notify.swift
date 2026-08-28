@@ -154,7 +154,13 @@ enum Notify {
 /// to the main thread rather than only the drawing.
 func notify(_ title: String, _ body: String) {
     DispatchQueue.main.async {
-        if ResultHUD.show(body) { return }
+        if ResultHUD.show(body) {
+            // `chute doctor --report` reads this file. Without the write it would keep reporting
+            // whatever the last pre-HUD build left there, and a stale diagnostic is worse than
+            // none — it is the file someone consults when a user says "nothing tells me anything".
+            Notify.record("on-screen")
+            return
+        }
         Notify.post(title: "Chute", subtitle: title == "Chute" ? nil : title, body: body)
     }
 }

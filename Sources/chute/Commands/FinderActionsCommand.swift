@@ -30,7 +30,7 @@ func cmdFinderActions(_ a: Args) {
         return
     }
 
-    // --menu draws the tree as Finder will draw it. Thirteen actions become eight rows, and the
+    // --menu draws the tree as Finder will draw it. Fourteen actions become eight rows, and the
     // only honest way to judge eight rows is to look at them — so this prints what a right-click
     // will show without needing a right-click, a build, or a human at the machine.
     if a.has("menu") {
