@@ -91,20 +91,37 @@ Everything below the line is done. **Everything blocking revenue is manual and y
 | 4 | `hello@` and `keys@chutedev.com` | the only stated support channel, and the licence email's sender | Cloudflare Email Routing + verify in Resend |
 | 5 | Paddle account, product, `pri_…` | checkout degrades to trial-download while the env vars are empty | `site/src/lib/config.ts:25` |
 | 6 | Worker deploy + 3 secrets | no key is minted without it | `cd worker && npx wrangler deploy` |
-| 7 | Homebrew tap | `chute.rb` has a 64-zero sha256; needs a real `v0.1.0` tag first, which needs (2) | `packaging/homebrew/README.md` |
+| ~~7~~ | ~~Homebrew tap~~ | **DONE 2026-08-28** — `brew info avaluev/tap/chute` → 0.2.0, real sha256 `e7c3ea3a…`. `chute doctor` finds it at `/opt/homebrew/bin/chute`. | — |
 
-Order matters: **(2) → `release.sh` → tag → sha256 → (7).** (1), (4) and (6) can run in parallel.
+Order matters: **(2) → `release.sh` → tag → sha256 → bump the tap.** (1), (4) and (6) run in parallel.
+Bump `Sources/ChuteCore/Version.swift:12` to `0.3.0` first — `release.sh` refuses a tag that exists
+and `v0.2.0` is pushed. Never delete that tag: the tap's sha256 is computed from its tarball.
 
-### 2. Record the demos — needs you at the machine
-19 of 25 cases have no recording. `demo/gui/` is built and dry-runs clean:
+### 2. ~~Record the demos~~ — DONE 2026-08-28
 
-```bash
-make -C demo/gui plan   # safe anywhere
-cd /Users/sxope/Documents/2026/Development/37.chute && make -C demo/gui all    # real screen
-```
-Grant Screen Recording **and** Accessibility to your TERMINAL, not to Chute, and relaunch the
-terminal afterwards — macOS only re-reads that permission on launch. One tape exists as the
-worked example; 24 to write, and each one is ~30 lines of verbs.
+All eight hero cases are recorded off a real screen and committed under
+`site/public/media/` as mp4 + webm + poster. `demo/out/` is gitignored, so
+**`make -C demo publish` is what makes a recording durable — run it after every take.**
+
+What the first real recording run found, all fixed and all in git:
+
+- `make -C demo/gui plan`, documented as safe and screenless, launched TextEdit and opened six
+  files: the lint banned `osascript|cliclick|sleep|screencapture` but not `open|killall`.
+- `take_menubar` and `menubar_open` both died on AppleScript list-vs-value (`item 3 of (bounds …)`
+  and `number & "," & number`). Third and fourth instances in that file. If a value leaves
+  AppleScript, it leaves as text.
+- `select_files` asked Finder for four files in two folders, got the two that shared a parent, and
+  announced all four. It counts the selection now and dies with the reason.
+
+**The finding that matters: a script cannot measure a human ritual.** The wedge tape timed the
+manual ritual at **6.5 seconds** — a robot typing ⌘A at machine speed — against a ledger that says
+150 s because 150 s is what a person takes. Frames 8 s to 90 s of that 95-second take are one
+static image. 6.5 s beside Chute's 5.6 s argues *against* the product, and it would have shipped
+under "backed by a stopwatch, not an estimate". The manual side is `null`; the side-by-side race
+is switched off in `demo/gui/tapes/paste-a-whole-folder.sh` with a one-line note saying how to
+re-enable it. `compose_race`, `overlay.py clock` and six of selftest's twelve assertions are all
+still there and all still pass — **the only missing piece is a manual take performed by a human.**
+That is the one open demo decision, and it is yours.
 
 ### 3. Hand-verify the one thing no test covers
 The menu-bar gate wiring. ChuteApp is AppKit and outside the test target, so `trial.isUnlocked`
@@ -128,6 +145,20 @@ cd /Users/sxope/Documents/2026/Development/37.chute && .build/release/chute find
 ```
 That prints it without a right-click. Then right-click for real and judge it. The grouping was
 reasoned, not seen — the one part of this that has not met a human eye.
+
+## DONE 2026-08-28, LATE — do not redo
+
+| What | Where | Proof |
+|---|---|---|
+| 8 hero recordings of the paid surface, published | `site/public/media/*.mp4` | `npm run check:cases` → 25/25 |
+| The site renders app video, not terminal GIFs | `site/src/components/case-bits.tsx` — branches on the file extension | `<video>` + two `<source>` in the built HTML |
+| `make -C demo publish` carries mp4/webm/jpg | `demo/Makefile` | 25 files published |
+| Onboarding — five beats, beat 3 waits for a real right-click | `Sources/ChuteCore/OnboardingSteps.swift`, `ChuteApp/Onboarding.swift`, `chute onboard` | 751 unit (was 637) |
+| Homebrew owns the CLI; the app writes nothing to PATH | `install.sh`, `Diagnostics.cliCandidates`, `DoctorCommand` | `which -a chute` → one line |
+| No fix string asks for `sudo` or a one-machine path | test in `DiagnosticsSuite.swift` | perturbed red, restored |
+| 10 merged worktrees removed | — | 1.7 GB reclaimed |
+
+**The fix string that shipped and should not have:** `sudo rm -rf ~/Library/Containers/… && ~/Documents/2026/Development/37.chute/Scripts/install.sh` — a root delete followed by a path that exists on one Mac in the world. The repair never needed root; `install.sh` always asked Finder to move that container to the Trash. It is a `doctor --fix` case now.
 
 ## DECISIONS (do not re-litigate)
 
