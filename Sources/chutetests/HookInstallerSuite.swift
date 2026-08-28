@@ -126,5 +126,16 @@ func hookInstallerSuite() {
         // The snippet is deterministic — the docs can quote it verbatim.
         T.eq(HookInstaller.manualSnippet(), HookInstaller.manualSnippet(),
              "two snippets are byte-identical")
+
+        // AN OLD SNIPPET IS INSTALLED, NOT BROKEN. The command gained $CLAUDE_CODE_SESSION_ID on
+        // 2026-08-28. Anyone who pasted the earlier one still gets working state badges — they
+        // just get no model, no cost and no resume command, and nothing on screen explains why.
+        // `hooks status` has to say so, or the answer to "why is the model missing" is a support
+        // conversation instead of a line of output.
+        let old = "# chute-session-state\nS=\"$HOME/.chute/sessions\"; printf '{}'; exit 0"
+        T.ok(HookInstaller.isChuteCommand(old), "an older snippet is still recognised as ours")
+        T.no(HookInstaller.isCurrent(old), "but it is not the current one")
+        T.ok(HookInstaller.isCurrent(HookInstaller.command(for: .waiting)),
+             "and what we generate today is")
     }
 }

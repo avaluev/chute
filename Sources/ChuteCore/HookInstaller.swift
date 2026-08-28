@@ -75,6 +75,34 @@ public enum HookInstaller {
         command.hasPrefix("# \(marker)\n")
     }
 
+    /// Is this OUR command, and is it the CURRENT one?
+    ///
+    /// The snippet gained `$CLAUDE_CODE_SESSION_ID` on 2026-08-28. An earlier one still works —
+    /// the badges and the waiting times are unaffected — but it carries no session id, so the
+    /// model, the cost and the resume command are all silently missing and nothing on screen
+    /// explains why. `hooks status` reports it rather than leaving that to be discovered.
+    ///
+    /// Matched on the marker the current command actually contains, not on a version number we
+    /// would have to remember to bump.
+    public static func isCurrent(_ command: String) -> Bool {
+        isChuteCommand(command) && command.contains("CLAUDE_CODE_SESSION_ID")
+    }
+
+    /// Which of our installed hook commands are out of date, by event name.
+    public static func outdatedEvents(settingsPath: String) -> [String] {
+        guard let obj = try? loadObject(settingsPath),
+              let hooks = obj["hooks"] as? [String: Any] else { return [] }
+        return events.keys.filter { event in
+            let blocks = (hooks[event] as? [[String: Any]]) ?? []
+            return blocks.contains { block in
+                ((block["hooks"] as? [[String: Any]]) ?? []).contains { entry in
+                    let c = (entry["command"] as? String) ?? ""
+                    return isChuteCommand(c) && !isCurrent(c)
+                }
+            }
+        }.sorted()
+    }
+
     static func loadObject(_ path: String) throws -> [String: Any] {
         guard let data = FileManager.default.contents(atPath: path) else {
             throw HookInstallError.unreadable(path)
