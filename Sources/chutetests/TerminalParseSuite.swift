@@ -28,6 +28,26 @@ func terminalParseSuite() {
         T.eq(sessions[0].tty, "ttys000", "tty normalised")
         T.eq(sessions[0].windowID, 207250, "window id parsed")
         T.ok(sessions[0].isAgent, "claude in the process list means agent")
+
+        // WHICH AGENT, NOT WHETHER. The adapter matched the name out of the process list and then
+        // collapsed it to a Bool, so the menu could say a session was an agent but never which
+        // one — and the "Claude Code" a user sees today is the terminal WINDOW TITLE leaking
+        // through, a string Chute neither derived nor can rely on.
+        T.eq(sessions[0].agent, "claude", "the matched agent's name survives")
+        T.eq(sessions[1].agent, nil, "a plain shell has no agent")
+        T.eq(sessions[0].isAgent, sessions[0].agent != nil, "isAgent still agrees with agent")
+        T.eq(sessions[1].isAgent, sessions[1].agent != nil, "on both branches")
+
+        // cursor was missing from the list entirely, so a Cursor terminal read as a plain shell
+        // and never appeared under "Agents Working".
+        let cursorRaw = rec(["1", "app — cursor", "1", "/dev/ttys009", "true", "true",
+                             "login-zsh, cursor-agent, node", "editing"])
+        T.eq(TerminalAppAdapter.parse(cursorRaw, hooks: [:], now: now).first?.agent, "cursor",
+             "cursor is recognised")
+
+        // The longest match wins, so "claude" inside "claude-code" cannot mask a different agent
+        // and the order of the table cannot change the answer.
+        T.eq(TerminalAppAdapter.agentName(in: "login-zsh, node"), nil, "no agent is nil, not \"\"")
         T.no(sessions[1].isAgent, "a plain shell is not an agent")
         T.eq(sessions[1].state, .idle, "plain idle shell")
         T.eq(sessions[2].state, .blocked, "the hook for ttys004 wins")

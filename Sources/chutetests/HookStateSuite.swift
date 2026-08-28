@@ -66,5 +66,19 @@ func hookStateSuite() {
         T.ok(!realLive.contains("??"), "a process with no controlling terminal is not a tty")
         T.ok(realLive.allSatisfy { !$0.isEmpty && $0.allSatisfy { c in c.isLetter || c.isNumber } },
              "every live tty is a bare alphanumeric name")
+
+        // EMPTY IS ABSENT. The hook writes "session_id":"" for anything that is not Claude Code,
+        // and for a Claude Code old enough not to export CLAUDE_CODE_SESSION_ID. An empty string
+        // must read as nil, or every such session looks like one whose id is the empty string —
+        // and a resume command built from it would be silently wrong.
+        let blank = HookState.parse(Data(#"{"tty":"ttys004","state":"working","cwd":"/p","session_id":"","ts":1}"#.utf8))
+        T.eq(blank?.sessionID, nil, "an empty session_id is absent, not empty")
+        T.eq(blank?.cwd, "/p", "and the rest of the record still parses")
+
+        let real = HookState.parse(Data(#"{"tty":"ttys004","state":"working","session_id":"14e46ac7-12b2","ts":1}"#.utf8))
+        T.eq(real?.sessionID, "14e46ac7-12b2", "a real one comes through")
+
+        let missing = HookState.parse(Data(#"{"tty":"ttys004","state":"working","ts":1}"#.utf8))
+        T.eq(missing?.sessionID, nil, "an older snippet that omits the field still parses")
     }
 }

@@ -19,5 +19,6 @@ supportReportSuite()
 pastedImageSuite()
 systemVitalsSuite()
 onboardingSuite()
+agentTranscriptSuite()
 
 T.report()

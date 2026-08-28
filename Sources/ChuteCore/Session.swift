@@ -53,18 +53,34 @@ public struct Session: Sendable, Equatable {
     public let tty: String          // "ttys004", normalised without /dev
     public let project: String      // "36.macai"
     public let title: String        // "◑ Chut"
-    public let isAgent: Bool
+    /// WHICH agent, when one is running: "claude", "codex", "cursor", "gemini", "aider".
+    /// nil is a plain shell. This used to be a Bool — the adapter matched the name out of the
+    /// process list and then threw it away, so the menu could say a session was an agent but
+    /// never which one, and the "Claude Code" on screen was the terminal window TITLE leaking
+    /// through: a string Chute did not derive and cannot rely on.
+    public let agent: String?
     public let busy: Bool
     public let state: SessionState
     public let since: Date?
+    /// The agent's own session id, when the hook has been updated to emit it. nil is the normal
+    /// case for anyone still running an older snippet, and every reader must cope with that.
+    public let sessionID: String?
+    /// Where the session is working. From the hook, never guessed from the window title.
+    public let cwd: String?
+
+    /// Whether ANY agent is running. Kept so every existing call site reads the same, and so the
+    /// two can never disagree with each other.
+    public var isAgent: Bool { agent != nil }
 
     public init(key: String, kind: TerminalKind, windowID: Int, tabIndex: Int,
-                tty: String, project: String, title: String, isAgent: Bool,
-                busy: Bool, state: SessionState, since: Date?) {
+                tty: String, project: String, title: String, agent: String?,
+                busy: Bool, state: SessionState, since: Date?,
+                sessionID: String? = nil, cwd: String? = nil) {
         self.key = key; self.kind = kind; self.windowID = windowID
         self.tabIndex = tabIndex; self.tty = tty; self.project = project
-        self.title = title; self.isAgent = isAgent; self.busy = busy
+        self.title = title; self.agent = agent; self.busy = busy
         self.state = state; self.since = since
+        self.sessionID = sessionID; self.cwd = cwd
     }
 
     /// "/dev/ttys004" and "ttys004" both normalise to "ttys004".
