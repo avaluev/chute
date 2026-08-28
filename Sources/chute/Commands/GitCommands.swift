@@ -145,7 +145,14 @@ func cmdGist(_ a: Args) {
     // and this is the one command that uploads — the help text says so and promises this step.
     // Staged copies keep their basenames so the gist reads the same as the originals.
     let stage = NSTemporaryDirectory() + "chute-gist-\(UUID().uuidString)"
-    do { try FileManager.default.createDirectory(atPath: stage, withIntermediateDirectories: true) }
+    // 0700. Non-text files are staged UNREDACTED ("upload as-is" below), and staging happens even
+    // on the dry-run path, so for the life of this command the user's files sit in a directory the
+    // umask would otherwise leave at 755. Not exploitable under the default $TMPDIR — /var/folders
+    // is already 700 and owner-only — but that is macOS's doing, not this code's, and every other
+    // sensitive path here already sets its own mode (ContextBuffer 0700, RequestInbox 0600, .env
+    // 0600). Depending on someone else's default is not the same as being right.
+    do { try FileManager.default.createDirectory(atPath: stage, withIntermediateDirectories: true,
+                                                 attributes: [.posixPermissions: NSNumber(value: 0o700)]) }
     catch { Out.fail("cannot stage gist: \(error.localizedDescription)") }
     defer { try? FileManager.default.removeItem(atPath: stage) }
     var staged: [String] = []

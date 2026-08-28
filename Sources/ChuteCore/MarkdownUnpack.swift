@@ -61,11 +61,30 @@ public enum MarkdownUnpack {
     /// target folder: with `src -> /etc`, the innocent-looking `src/passwd` writes to /etc/passwd.
     /// Resolving both sides and comparing is the only check that survives that.
     public static func staysInside(dir: String, path: String) -> Bool {
+        let fm = FileManager.default
         let root = URL(fileURLWithPath: dir).resolvingSymlinksInPath().standardizedFileURL
         let full = URL(fileURLWithPath: (dir as NSString).appendingPathComponent(path))
         // Resolve the PARENT: the file itself does not exist yet, and a non-existent leaf resolves
         // to itself, which would hide an escaping parent.
-        let parent = full.deletingLastPathComponent().resolvingSymlinksInPath().standardizedFileURL
+        //
+        // AND RESOLVE THE DEEPEST ANCESTOR THAT ACTUALLY EXISTS. `resolvingSymlinksInPath()` only
+        // rewrites components that are really on disk, so a parent directory that does not exist
+        // yet came back verbatim while `root` — which does exist — came back normalised. On macOS
+        // that is not hypothetical: Foundation collapses `/private/tmp` to `/tmp`, so `chute
+        // unpack` run from inside /tmp compared root `/tmp/x` against parent
+        // `/private/tmp/x/notes`, found no shared prefix, and refused EVERY nested file in the
+        // answer — silently, one `continue` per file, under this function's own escape message.
+        // A guard that cries wolf on the ordinary case is one people work around before the day
+        // it is finally right.
+        //
+        // A path component that does not exist cannot be a symlink, so the deepest EXISTING
+        // ancestor is the whole of the question — and resolving it runs the same Foundation path
+        // `root` does, which is what makes the two comparable at all.
+        var probe = full.deletingLastPathComponent().standardizedFileURL
+        while !fm.fileExists(atPath: probe.path), probe.pathComponents.count > 1 {
+            probe = probe.deletingLastPathComponent()
+        }
+        let parent = probe.resolvingSymlinksInPath().standardizedFileURL
         let rootPath = root.path.hasSuffix("/") ? root.path : root.path + "/"
         return parent.path == root.path || parent.path.hasPrefix(rootPath)
     }
