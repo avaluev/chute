@@ -90,12 +90,34 @@ private func applyFixes(_ outcomes: [CheckOutcome]) {
     for o in outcomes where !o.passed {
         switch o.check.id {
         case "cli":
-            let target = (NSHomeDirectory() as NSString).appendingPathComponent(".local/bin")
-            try? FileManager.default.createDirectory(atPath: target, withIntermediateDirectories: true)
-            let src = Bundle.main.bundlePath + "/Contents/MacOS/chute"
-            try? FileManager.default.createSymbolicLink(
-                atPath: (target as NSString).appendingPathComponent("chute"), withDestinationPath: src)
-            Out.info("→ linked chute into ~/.local/bin")
+            // NOT FIXED FROM HERE ANY MORE. This used to symlink the bundled binary into
+            // ~/.local/bin, which put `chute` on PATH twice at the same version — a collision
+            // the app created and then diagnosed, offering to recreate it as the remedy.
+            // Homebrew owns the CLI; installing it is a decision for the user's package manager,
+            // not something an app writes into their home directory behind a --fix flag.
+            Out.info("→ the CLI comes from Homebrew: brew install avaluev/tap/chute")
+        case "ext-started":
+            // A sandboxed extension's container pins the code identity that created it, so after
+            // a rebuild macOS silently refuses to start the new one. The remedy is the sequence
+            // Scripts/install.sh has always run, and it needs NO PASSWORD: Finder moves the
+            // container to the Trash on request. The old advice was `sudo rm -rf`, which is a
+            // root delete a customer cannot verify, for a fault the product caused.
+            //
+            // Order matters, and it was measured: drop the container, DEREGISTER (macOS will not
+            // recreate a container for a registration it still holds), relaunch the host app —
+            // which is what actually registers an appex — then restart Finder.
+            let app = Diagnostics.resolvedAppPath(Bundle.main.bundlePath)
+            let container = (NSHomeDirectory() as NSString)
+                .appendingPathComponent("Library/Containers/dev.valuev.chute.finder")
+            _ = Shell.run("osascript", ["-e",
+                "tell application \"Finder\" to delete POSIX file \"\(container)\""])
+            _ = Shell.run("pluginkit", ["-r", app + "/Contents/PlugIns/ChuteFinder.appex"])
+            _ = Shell.run("pkill", ["-x", "ChuteApp"])
+            _ = Shell.run("open", [app])
+            _ = Shell.run("pluginkit", ["-a", app + "/Contents/PlugIns/ChuteFinder.appex"])
+            _ = Shell.run("pluginkit", ["-e", "use", "-i", "dev.valuev.chute.finder"])
+            _ = Shell.run("killall", ["Finder"])
+            Out.info("→ cleared the stale extension container and restarted Finder")
         case "ext-registered":
             let appex = Bundle.main.bundlePath + "/Contents/PlugIns/ChuteFinder.appex"
             _ = Shell.run("pluginkit", ["-a", appex])

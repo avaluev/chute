@@ -62,7 +62,7 @@ public enum Diagnostics {
               fix: "Move Chute.app to ~/Applications, then run this again."),
         Check(id: "cli", title: "Command line tool",
               why: "Every menu item and Finder action runs through the chute binary.",
-              fix: "chute doctor --fix   (symlinks it into ~/.local/bin)"),
+              fix: "brew install avaluev/tap/chute"),
         Check(id: "ext-registered", title: "Finder extension registered",
               why: "macOS cannot show the right-click menu for an extension it does not know about.",
               fix: "chute doctor --fix   (runs pluginkit -a on the bundled extension)"),
@@ -71,7 +71,7 @@ public enum Diagnostics {
               fix: "chute doctor --fix   (or System Settings → Privacy & Security → Extensions → Finder)"),
         Check(id: "ext-started", title: "Finder extension actually starts",
               why: "Registered and enabled is not the same as running. A sandboxed extension's container remembers the exact build that created it, so after a rebuild macOS silently refuses to start the new one and the Chute menu simply stops appearing.",
-              fix: "sudo rm -rf ~/Library/Containers/dev.valuev.chute.finder && ~/Documents/2026/Development/37.chute/Scripts/install.sh   ·   to stop it recurring: Scripts/sign-identity.sh"),
+              fix: "chute doctor --fix   (moves the stale container to the Trash and restarts Finder — no password needed)"),
         Check(id: "automation", title: "Automation permission",
               why: "Chute asks Finder and Terminal what you have selected. Without this the session list is empty.",
               fix: "chute doctor --fix triggers the prompt. If you denied it: System Settings → Privacy & Security → Automation."),
@@ -152,12 +152,25 @@ public enum Diagnostics {
         return (NSHomeDirectory() as NSString).appendingPathComponent("Applications/Chute.app")
     }
 
+    /// Where the CLI is looked for, in order. Homebrew owns it: `brew install avaluev/tap/chute`
+    /// is the free top of funnel and what the site advertises, and the app no longer writes
+    /// `~/.local/bin/chute`. It used to — and then diagnosed the resulting two-copies-on-PATH
+    /// collision it had created itself, offering to recreate it as the fix.
+    ///
+    /// Both Homebrew prefixes are named because there is no one answer: `/opt/homebrew` on Apple
+    /// Silicon, `/usr/local` on Intel. `~/.local/bin` is LAST rather than absent, so anyone who
+    /// installed before this change keeps a working `chute` until they run `uninstall.sh`.
+    public static var cliCandidates: [String] {
+        ["/opt/homebrew/bin/chute",
+         "/usr/local/bin/chute",
+         "\(NSHomeDirectory())/.local/bin/chute"]
+    }
+
     public static func liveEnv(extensionID: String = "dev.valuev.chute.finder",
                                appPath: String = Bundle.main.bundlePath) -> DiagnosticsEnv {
         let appPath = resolvedAppPath(appPath)
         let v = ProcessInfo.processInfo.operatingSystemVersion
-        let cli = ["\(NSHomeDirectory())/.local/bin/chute", "/usr/local/bin/chute"]
-            .first { FileManager.default.isExecutableFile(atPath: $0) }
+        let cli = cliCandidates.first { FileManager.default.isExecutableFile(atPath: $0) }
         let probe = Shell.run("osascript", ["-e", "tell application \"Finder\" to return 1"])
         return DiagnosticsEnv(
             osMajor: v.majorVersion,
