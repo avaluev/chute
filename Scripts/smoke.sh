@@ -543,6 +543,46 @@ echo "13. help and unknown command"
 has "help lists bundle" "$("$CHUTE" help)" "bundle"
 "$CHUTE" definitelynotacommand >/dev/null 2>&1 && bad "unknown exits non-zero" "exit 0" || ok "unknown exits non-zero"
 
+echo "20. onboard — the terminal half of first-run, run for real"
+# SAFETY: cmdOnboard only reads Diagnostics.liveEnv() (Finder/pluginkit/ps probes) and prints —
+# it never writes to the owner's home directory or config. Its one write (endToEndProbe) lands
+# in NSTemporaryDirectory and is removed before the function returns, so real HOME is safe here.
+if [ "$HEADLESS" = "1" ]; then skip "onboard — its diagnostics probe Finder over AppleScript"; else
+OUT="$("$CHUTE" onboard 2>&1)"
+if [ $? -eq 0 ]; then ok "onboard runs clean"; else bad "onboard runs clean" "$OUT"; fi
+has "onboard names the first real win"  "$OUT" "Copy Files as Context"
+has "onboard tells you what to do next" "$OUT" "Next:"
+fi
+
+echo "21. resume — no live session fails gracefully, never crashes or hangs"
+# Isolated HOME: chute reads hook state from ~/.chute/sessions, and the owner may have a real
+# agent session running right now. Redirecting HOME is the only way to get a deterministic
+# "nothing to resume" case without depending on — or disturbing — their actual session state.
+if HOME="$T" "$CHUTE" resume >/dev/null 2>/tmp/chute-rs.err; then
+  bad "resume with no live session fails gracefully" "exited 0"
+else
+  ok "resume with no live session fails gracefully"
+fi
+has "and explains why" "$(cat /tmp/chute-rs.err)" "no session"
+
+echo "22. the numbers are the right SIZE, not just the right shape"
+# THE POINT OF check-metrics.sh. Everything above this line — including section 19's
+# "sessions --json carries the vitals" — asserts that keys EXIST. They always did, through all
+# three of the wrong numbers that shipped: CPU 40x high from a lifetime average, memory ~1.9x
+# high from summed rss, then CPU 24x low from mach ticks read as nanoseconds. Shape checks
+# cannot see any of that. check-metrics.sh compares against the RAM and the cores in the
+# machine, and against a load and an allocation of known size.
+#
+# Skipped headless: it needs real terminal sessions to measure, and over zero sessions it would
+# be a false green — which is the exact failure mode it exists to prevent.
+if [ "$HEADLESS" = "1" ]; then skip "metrics are plausible in magnitude"; else
+  if "$ROOT/Scripts/check-metrics.sh" >/tmp/chute-metrics.out 2>&1; then
+    ok "metrics are plausible in magnitude ($(grep -c '^  ok' /tmp/chute-metrics.out) checks)"
+  else
+    bad "metrics are plausible in magnitude" "$(grep -A1 '^  FAIL' /tmp/chute-metrics.out | head -4)"
+  fi
+fi
+
 cd /; rm -rf "$T"
 echo
 echo "smoke: $PASS passed, $FAIL failed"
