@@ -1,5 +1,11 @@
 # HANDOFF — Chute — 2026-08-28
 
+> **START HERE:** `handoff/HANDOFF-2026-08-28-measurement.md` is the current entry point. The
+> measurement work in it is DONE and pushed — true numbers, a gate that checks magnitude rather
+> than shape, and a menu model a headless test can read. It carries what shipped, the traps paid
+> for once, and the five things left that only a human can do. This file remains the standing
+> product reference.
+
 STATE: `main` · tree clean · pushed
        **Counts live in ONE place: `marketing/06-FACT-SHEET.md` §Verification.** Three files used
        to restate them and all three disagreed — 466 / 519 / 583 / 637 unit assertions, in a repo
