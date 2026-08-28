@@ -92,7 +92,24 @@ public struct ContextBuffer: Sendable {
     public func record(_ text: String, label: String) {
         guard !text.isEmpty, text.utf8.count <= Self.maxEntryBytes else { return }
         guard !entries().contains(where: { $0.text == text }) else { return }
-        try? fm.createDirectory(atPath: directory, withIntermediateDirectories: true)
+        // 0700 / 0600, AND IT WAS NOT — security review caught this. Under the standard umask
+        // these landed as 755 and 644: readable by every local account on the machine. What is
+        // in here is a git diff, a secret gist URL (`chute gist`), or whatever `chute buf add`
+        // was pointed at. Every other sensitive path in this codebase already does this —
+        // ActionRequest 0700, RequestInbox 0600, the env file 0600 — and this one was missed.
+        //
+        // AND IT REPAIRS WHAT IS ALREADY THERE. `createDirectory` does not touch the mode of a
+        // directory that already exists, so the attribute above would only ever protect a fresh
+        // install — everyone who had already used the feature would keep their 755 forever.
+        // Verified on this machine: `~/.chute/buffer` was `drwxr-xr-x` with `-rw-r--r--` files.
+        // One extra syscall on a path that already writes a file; idempotent.
+        try? fm.createDirectory(atPath: directory, withIntermediateDirectories: true,
+                                attributes: [.posixPermissions: NSNumber(value: 0o700)])
+        try? fm.setAttributes([.posixPermissions: NSNumber(value: 0o700)], ofItemAtPath: directory)
+        for stale in (try? fm.contentsOfDirectory(atPath: directory)) ?? [] where stale.hasSuffix(".json") {
+            try? fm.setAttributes([.posixPermissions: NSNumber(value: 0o600)],
+                                  ofItemAtPath: path(stale))
+        }
         let now = Date()
         // Timestamp then a random tail: two copies inside the same second must not collide, and
         // sorting by name has to stay sorting by time.
@@ -102,7 +119,10 @@ public struct ContextBuffer: Sendable {
                                       "label": label.isEmpty ? text : label,
                                       "text": text]
         guard let data = try? JSONSerialization.data(withJSONObject: payload) else { return }
-        try? data.write(to: URL(fileURLWithPath: path(name)))
+        // Written, then locked down. `Data.write` honours the umask and would leave this 644;
+        // creating it with the mode we want avoids a window where the file exists world-readable.
+        fm.createFile(atPath: path(name), contents: data,
+                      attributes: [.posixPermissions: NSNumber(value: 0o600)])
 
         let all = entries()
         if all.count > Self.keep { all.prefix(all.count - Self.keep).forEach(remove) }

@@ -58,10 +58,12 @@ more credible than the absolute one, and it survives someone reading the source.
 
 | Gate | Result | Command |
 |---|---|---|
-| Unit assertions | **751 passed** | `swift run chutetests` |
-| End-to-end | **128 passed** headless, **152** full | `CHUTE_HEADLESS=1 ./Scripts/smoke.sh` |
-| Demo tapes | **17** (13 hand-written, 4 generated from cases.ts) | `ls demo/tapes/*.tape \| wc -l` |
-| Demo delivery pipeline | **12 checks** | `./demo/gui/selftest.sh` |
+| Unit assertions | **956 passed** | `swift run chutetests` |
+| End-to-end | **130 passed** headless, **158** full | `CHUTE_HEADLESS=1 ./Scripts/smoke.sh` |
+| Metrics plausibility | **4 checks** — magnitude, not shape | `./Scripts/check-metrics.sh` |
+| Terminal tapes | **17** (13 hand-written, 4 generated from cases.ts) | `ls demo/tapes/*.tape \| wc -l` |
+| GUI tapes | **10** hand-written | `ls demo/gui/tapes/*.sh \| wc -l` |
+| Demo delivery pipeline | **13 checks** | `./demo/gui/selftest.sh` |
 | Case data | **25 cases** | `cd site && npm run check:cases` |
 | Site routes | **38** | `cd site && npx next build` |
 | CI | macOS 13, 14, 15 | `.github/workflows/macos-matrix.yml` |
