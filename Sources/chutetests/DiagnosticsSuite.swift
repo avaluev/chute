@@ -128,5 +128,41 @@ func diagnosticsSuite() {
              "/Users/x/Applications/Chute.app", "an app path is already the answer")
         T.ok(Diagnostics.resolvedAppPath("/Users/x/.local/bin").hasSuffix(".app"),
              "anything else resolves to an app bundle, never a bin directory")
+
+        // WHERE THE CLI IS LOOKED FOR. Homebrew owns the CLI now — the app stopped writing
+        // ~/.local/bin/chute, because two copies on PATH at the same version is a collision the
+        // app was creating and then diagnosing. The search order has to name both Homebrew
+        // prefixes or `chute doctor` reports "not found" on a Mac that has it installed:
+        // /opt/homebrew on Apple Silicon, /usr/local on Intel. ~/.local/bin stays LAST so an
+        // older install that still has the symlink keeps working until it is uninstalled.
+        let cands = Diagnostics.cliCandidates
+        T.ok(cands.contains("/opt/homebrew/bin/chute"), "Homebrew on Apple Silicon is searched")
+        T.ok(cands.contains("/usr/local/bin/chute"), "Homebrew on Intel is searched")
+        T.ok(cands.contains { $0.hasSuffix("/.local/bin/chute") },
+             "and the legacy symlink still resolves for anyone who already has one")
+        T.eq(cands.firstIndex { $0.hasSuffix("/.local/bin/chute") }, cands.count - 1,
+             "but it is searched LAST — Homebrew is the copy the product supports")
+
+        // The fix a user is told to run must not recreate the collision. Nothing in the check
+        // may offer to symlink any more.
+        let cliCheck = Diagnostics.all.first { $0.id == "cli" }
+        T.no(cliCheck?.fix.contains(".local/bin") ?? true,
+             "the cli fix no longer tells anyone to symlink into ~/.local/bin")
+        T.ok(cliCheck?.fix.contains("brew install") ?? false,
+             "it points at Homebrew, which is what the site and the README both advertise")
+
+        // NOTHING A CUSTOMER IS TOLD TO RUN MAY BE A DEVELOPER'S COMMAND. The ext-started fix
+        // read "sudo rm -rf ~/Library/Containers/… && ~/Documents/2026/Development/37.chute/
+        // Scripts/install.sh" — a root delete, followed by a path that exists on exactly one
+        // Mac in the world. Someone who installed from the DMG has no Scripts directory, so the
+        // second half fails and they are left having sudo-deleted something on the strength of
+        // an app's advice. The repair does not even need root: install.sh has always moved that
+        // container to the Trash through Finder, which asks for no password.
+        for check in Diagnostics.all {
+            T.no(check.fix.contains("sudo"),
+                 "check '\(check.id)' does not ask for root")
+            T.no(check.fix.contains("/Documents/") || check.fix.contains("/Users/"),
+                 "check '\(check.id)' names no path that exists on one machine only")
+        }
     }
 }

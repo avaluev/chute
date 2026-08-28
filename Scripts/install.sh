@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Installs Chute for the current user: app in ~/Applications, CLI in ~/.local/bin,
+# Installs Chute for the current user: app in ~/Applications. The CLI is Homebrew's job,
 # Finder right-click entries registered with the Services system.
 set -euo pipefail
 # $HOME MUST BE SANE BEFORE ANY rm -rf. `set -u` catches an UNSET variable; it does nothing for
@@ -14,10 +14,13 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 APP="$ROOT/dist/Chute.app"
 [ -d "$APP" ] || "$ROOT/Scripts/build-app.sh"
 
-mkdir -p "$HOME/Applications" "$HOME/.local/bin"
+mkdir -p "$HOME/Applications"
 rm -rf "$HOME/Applications/Chute.app"
 cp -R "$APP" "$HOME/Applications/Chute.app"
-ln -sf "$HOME/Applications/Chute.app/Contents/MacOS/chute" "$HOME/.local/bin/chute"
+# NO CLI SYMLINK. Homebrew owns the command-line tool — `brew install avaluev/tap/chute`, which
+# is what the site and the README advertise. Writing one here too put `chute` on PATH twice at
+# the same version, and the app then reported that collision as a fault and offered to recreate
+# it. The app keeps its own copy inside the bundle for its own use and writes nothing to PATH.
 
 # You built this app; it was never downloaded. Clearing these stops macOS treating each rebuild as
 # a suspicious new arrival.
@@ -79,10 +82,24 @@ if ! wait_for_extension; then
     echo "fixed — the Chute menu is back"
   else
     echo
-    echo "⚠️  The Finder extension still will not start. Two things to try, in order:"
-    echo "      sudo rm -rf $CONTAINER   (then run this installer again)"
-    echo "      $ROOT/Scripts/sign-identity.sh   (stops it recurring on every rebuild)"
+    echo "   The Finder right-click menu is not available yet."
     echo
+    echo "   macOS keeps a private folder for the extension, and it is still pinned to an older"
+    echo "   copy of Chute. This clears it and restarts Finder — no password needed:"
+    echo
+    echo "      \"$HOME/Applications/Chute.app/Contents/MacOS/chute\" doctor --fix"
+    echo
+    echo "   Everything else is installed and working."
+    echo
+    # The developer's version of the same advice, printed only when this is a source tree. A
+    # customer installing from the DMG has no Scripts/ directory and must never be handed
+    # `sudo rm -rf` for a path they cannot check — that is how someone deletes the wrong thing
+    # while trying to fix an app.
+    if [ -f "$ROOT/Scripts/sign-identity.sh" ]; then
+      echo "   (dev) stale container: $CONTAINER"
+      echo "   (dev) $ROOT/Scripts/sign-identity.sh stops this recurring on every rebuild"
+      echo
+    fi
   fi
 fi
 
@@ -93,18 +110,18 @@ cat <<EOF
 Chute installed.
 
   app   $HOME/Applications/Chute.app   (menu bar ⤓, hotkey ⌥⌘N)
-  cli   $HOME/.local/bin/chute         (add ~/.local/bin to PATH if needed)
+  cli   brew install avaluev/tap/chute  (free, MIT, optional — the app needs no PATH)
 
 Finder right-click → Chute actions, inline in the context menu …
 
-  check $HOME/.local/bin/chute doctor    (what is not wired up yet, and how to fix it)
-  agents $HOME/.local/bin/chute sessions  (every terminal session, grouped by state)
+  check chute doctor    (what is not wired up yet, and how to fix it)
+  agents chute sessions  (every terminal session, grouped by state)
 
 The menu bar badge only counts BLOCKED and WAITING sessions once Claude Code hooks are wired.
 Chute never edits ~/.claude/settings.json — wiring them is done by your own hand, if you want it:
 
-  $HOME/.local/bin/chute hooks status     (read-only: what is wired now)
-  $HOME/.local/bin/chute hooks snippet    (prints the JSON for you to paste in yourself)
+  chute hooks status     (read-only: what is wired now)
+  chute hooks snippet    (prints the JSON for you to paste in yourself)
 
 First use of the hotkey or a Finder action will ask for Automation permission. That prompt is
 macOS asking whether Chute may read your Finder selection. Nothing leaves your machine.
