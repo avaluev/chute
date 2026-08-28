@@ -91,12 +91,32 @@ verify_take "$SLUG" 12
 key kp:esc
 pause 0.6
 
-emit_timing  "$SLUG" "$MANUAL" "$CHUTE_SECS"
+# THE MANUAL SIDE IS NOT MEASURED, and this is the whole finding of the first real recording run.
+#
+# A script performing the ritual is not a person performing the ritual. This loop opened six
+# files, selected, copied, closed and pasted each one in 6.5 SECONDS — the ledger says 150s
+# because 150s is what a HUMAN takes: aiming a mouse, reading, finding the next file. Frames 8s
+# through 90s of the 95-second take are one static image (mse 0.13); the robot had finished and
+# the recorder ran on alone.
+#
+# 6.5s beside Chute's 5.6s does not argue for the product, it argues against it — and it would
+# have been printed under "backed by a stopwatch, not an estimate". That is the same dishonesty
+# this apparatus already caught once, when emit_timing was handed the ledger's own figure and
+# agreed with itself. A real clock timing the wrong performer is not better than an estimate.
+#
+# So: `-`, like the other seven tapes. The saving stays a ledger estimate and check-cases.mjs
+# says so out loud. The only honest way to earn the claim is a human doing the ritual on camera,
+# which is a decision about the demo, not about this file.
+emit_timing  "$SLUG" - "$CHUTE_SECS"
 export_web   "$SLUG"                                  # mp4 + webm + poster, for every case page
 verify_loop  "$SLUG"
-compose_race "$SLUG" "$MANUAL" "$CHUTE_SECS" 14       # the wide hero, desktop only
+# THE RACE IS OFF until a human performs Take A. It burns $MANUAL into a clock beside Chute's
+# number, and $MANUAL is 6.5s of robot — a side-by-side of 6.5s against 5.6s is an argument
+# against buying. compose_race, overlay.py's clock mode and six of selftest's twelve assertions
+# are all still here and all still pass; the only thing missing is a manual take worth racing.
+# Re-enable this line the moment Take A is performed by a person:
+#   compose_race "$SLUG" "$MANUAL" "$CHUTE_SECS" 14
 
 say "done:"
-say "  $OUT/$SLUG.mp4        the solo take — case pages, and every phone"
-say "  $OUT/$SLUG-race.mp4   the race — landing hero, too wide to read at 375px"
-say "  $OUT/$SLUG.json       what the stopwatch read, consumed by check-cases.mjs"
+say "  $OUT/$SLUG.mp4        the solo take — case pages, the landing hero, and every phone"
+say "  $OUT/$SLUG.json       the Chute side off a stopwatch; the manual side is null on purpose"

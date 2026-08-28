@@ -237,9 +237,20 @@ select_files() { # relative paths under the open folder
   planned "select $*" && return 0
   local list="" p
   for p in "$@"; do list="$list, (POSIX file \"$FIXTURE/$p\")"; done
-  osascript >/dev/null <<OSA
+  osascript >/dev/null <<OSA || die "Finder refused the selection — do all of: $* exist under
+    \$FIXTURE, and is the folder \`scene\` opened their parent?"
 tell application "Finder" to select {${list:2}}
 OSA
+  # Finder selects within ONE container. Asked for files in two different folders it quietly
+  # selects whichever subset shares a parent — and the old `say "selected $*"` announced the full
+  # list regardless. stop-typing-file-paths recorded a take of the wrong selection that way, and
+  # the tape only found out four verbs later when the clipboard did not match. Count them.
+  local want=$# got
+  got="$(osascript -e 'tell application "Finder" to set n to count of (selection as list)' \
+                   -e 'return n as text' 2>&1)"
+  [ "$got" = "$want" ] || die "asked Finder for $want file(s), it selected $got.
+    Finder selects within one container — every path must share a parent folder, and that folder
+    must be the one \`scene\` opened."
   say "selected $*"
 }
 
@@ -441,7 +452,13 @@ menubar_open() {
 tell application "System Events" to tell process "Chute"
     set p to position of menu bar item 1 of menu bar 1
     set s to size of menu bar item 1 of menu bar 1
-    return ((item 1 of p) + (item 1 of s) / 2 as integer) & "," & ((item 2 of p) + 10 as integer)
+    -- `number & "," & number` builds a LIST, which osascript prints as "1225,," — cliclick
+    -- rejects it and the arithmetic downstream dies on the comma. Coerce each side to text
+    -- first. Third instance of this bug in this file; selection_point and take_menubar were
+    -- the other two. If a value crosses out of AppleScript, it leaves as text or not at all.
+    set px to ((item 1 of p) + (item 1 of s) / 2) as integer
+    set py to ((item 2 of p) + 10) as integer
+    return (px as text) & "," & (py as text)
 end tell
 OSA
 )"
@@ -495,9 +512,16 @@ take_start() { # name seconds
 take_menubar() { # name seconds
   TAKE_NAME="$1"
   planned "record the menu bar for ${2}s" && return 0
-  local w; w="$(osascript -e 'tell application "Finder" to return item 1 of (bounds of window of desktop)' 2>/dev/null)"
-  local sw; sw="$(osascript -e 'tell application "Finder" to return item 3 of (bounds of window of desktop)' 2>/dev/null)"
-  [ -n "$sw" ] || die "could not read the display width"
+  # `item 3 of (bounds of window of desktop)` does not coerce — AppleScript treats the
+  # parenthesised form as a reference and errors -1728. Bind it to a variable first, which is the
+  # same fix selection_point needed. Both tapes that film the menu bar died here, and `set -e`
+  # killed the script on the failed assignment BEFORE the die below could say why, so the run
+  # printed nothing at all. The 2>&1 keeps osascript's own message for the error line.
+  local sw
+  sw="$(osascript -e 'tell application "Finder" to set b to bounds of window of desktop' \
+                  -e 'return item 3 of b' 2>&1)" \
+    || die "could not read the display width — osascript said: $sw"
+  case "$sw" in ''|*[!0-9]*) die "display width came back as '$sw', which is not a number" ;; esac
   local x=$(( sw - MENUBAR_W ))
   rm -f "$OUT/$1.mov"
   screencapture -v -V "$2" -R"$x,0,$MENUBAR_W,$MENUBAR_H" "$OUT/$1.mov" &
