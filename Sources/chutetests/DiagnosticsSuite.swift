@@ -10,7 +10,10 @@ func diagnosticsSuite() {
             T.no(check.title.isEmpty, "check '\(check.id)' has a title")
         }
         T.eq(Set(Diagnostics.all.map(\.id)).count, Diagnostics.all.count, "check ids are unique")
-        T.eq(Diagnostics.all.count, 9, "nine checks — hooks left deliberately, see Diagnostics.all")
+        // Ten, not nine: `hooks` moved from "deliberately absent" to "present, read-only, .note".
+        // Reporting a state was never the nudge the old comment worried about — only WRITING
+        // ~/.claude/settings.json is, and nothing here does that; see HookInstaller.status.
+        T.eq(Diagnostics.all.count, 10, "ten checks — hooks now reports, it still never writes")
 
         let good = DiagnosticsEnv(
             osMajor: 14, appPath: "/Users/x/Applications/Chute.app",
@@ -19,7 +22,7 @@ func diagnosticsSuite() {
             extensionID: "dev.valuev.chute.finder",
             automationOK: true,
             processList: "/System/Applications/Utilities/Terminal.app/Contents/MacOS/Terminal",
-            endToEndPassed: true)
+            endToEndPassed: true, hooksWired: true)
 
         T.eq(Diagnostics.run(good).filter { !$0.passed }.count, 0, "a healthy environment passes them all")
 
@@ -43,10 +46,32 @@ func diagnosticsSuite() {
         T.eq(Diagnostics.run(noAuto).first(where: { !$0.passed })?.check.id ?? "", "automation",
              "missing automation permission is named")
 
-        // No "hooks" check by design: doctor must never nudge anyone toward editing
-        // ~/.claude/settings.json, the one file Chute promises not to touch.
-        T.ok(!Diagnostics.all.contains { $0.id == "hooks" },
-             "there is no hooks check to fail")
+        // ── SEVERITY ─────────────────────────────────────────────────────────────────────────
+        //
+        // `cli` and `terminal` are the exact two checks FirstRunWindow used to over-count as
+        // permissions on a correct app-only install. `hooks` reads ~/.claude/settings.json but
+        // never writes it — reporting a state is not the nudge the old "no hooks check" comment
+        // was right to forbid. Everything else stays `.blocker`, its default.
+        for id in ["cli", "terminal", "hooks"] {
+            T.eq(Diagnostics.all.first { $0.id == id }?.severity, .note,
+                 "'\(id)' is informational, not a blocker")
+        }
+        T.eq(Diagnostics.all.filter { $0.severity == .blocker }.count, Diagnostics.all.count - 3,
+             "every other check is still a blocker by default")
+
+        // A hooks check that never fired reports the exact state a permanently dark badge is in —
+        // and does so without writing anything, the same contract HookInstaller.status keeps.
+        var noHooks = good; noHooks.hooksWired = false
+        let hooksOut = Diagnostics.run(noHooks).first { $0.check.id == "hooks" }
+        T.eq(hooksOut?.passed, false, "an unwired hooks check fails")
+        T.ok(hooksOut?.detail.contains("badge stays dark") == true,
+             "and says what that costs, not just that it failed")
+        T.ok(Diagnostics.run(noHooks).filter { !$0.passed }.count == 1,
+             "failing hooks alone fails exactly one check")
+
+        var withHooks = good; withHooks.hooksWired = true
+        T.ok(Diagnostics.run(withHooks).first { $0.check.id == "hooks" }?.passed == true,
+             "a wired hooks check passes")
 
         var broken = good; broken.endToEndPassed = false
         T.eq(Diagnostics.run(broken).first(where: { !$0.passed })?.check.id ?? "", "end-to-end",

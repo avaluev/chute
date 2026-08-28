@@ -98,7 +98,10 @@ if ! wait_for_extension; then
     echo "   macOS keeps a private folder for the extension, and it is still pinned to an older"
     echo "   copy of Chute. This clears it and restarts Finder — no password needed:"
     echo
-    echo "      \"$HOME/Applications/Chute.app/Contents/MacOS/chute\" doctor --fix"
+    # --force since 2026-08-29: `doctor --fix` previews by default like the other destructive
+    # commands, and the sentence above promises this CLEARS the folder. An instruction whose
+    # command does not do what the sentence says is worse than no instruction.
+    echo "      \"$HOME/Applications/Chute.app/Contents/MacOS/chute\" doctor --fix --force"
     echo
     echo "   Everything else is installed and working."
     echo

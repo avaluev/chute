@@ -43,12 +43,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         // use. `Notify.post`'s `.notDetermined` branch already asks at the moment one is actually
         // needed, which is the honest time to ask.
         registerHotKey()
-        FirstRunWindow.showIfNeeded()
-        // Teaching, not repair. FirstRunWindow shows only what is FAILING and stays silent when
-        // everything passes — which means a stranger whose install went perfectly sees nothing at
-        // all, in an app with no Dock icon. This runs once, on genuine first launch, and never
-        // reappears uninvited; `chute onboard` is the way back.
-        Onboard.showIfFirstRun()
+        // THE WIZARD OR THE REPAIR WINDOW, NEVER BOTH. Both are titled "Chute" and both call
+        // NSApp.activate — run unconditionally, one launch could stack two windows with the
+        // teaching one buried underneath. First launch gets the wizard, which already shows a
+        // failing check's own row (see Onboard.render); every launch after gets the repair window,
+        // which stays silent unless something that actually blocks the product is failing.
+        // `chute onboard` and the menu's `Setup…` row are the ways back to either, on demand.
+        if Onboard.hasOnboarded {
+            FirstRunWindow.showIfNeeded()
+        } else {
+            Onboard.showIfFirstRun()
+        }
         startWatching()
         startWatchingRequests()
         updateBadgeFromHooks()
@@ -109,6 +114,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             problem: problem,
             recent: trial.isUnlocked ? ContextBuffer().entries().reversed().map { $0 } : [],
             notificationsDenied: Notify.deniedAtLastCheck,
+            hasHookRecords: !HookState.readAll().isEmpty,
             loadFor: { SystemVitals.load(forTTY: $0, in: samples) },
             sessionCommands: { [transcripts] s in
                 SessionCommand.available(for: s, transcript: transcripts.cached(s.sessionID))
@@ -145,6 +151,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         case .openNotificationSettings:  return #selector(openNotificationSettings)
         case .reportProblem:             return #selector(reportProblem)
         case .openSettings:              return #selector(openSettings)
+        case .openSetup:                 return #selector(openSetup)
+        case .copyHooksSnippet:          return #selector(copyHooksSnippet(_:))
         case .quit:                      return #selector(NSApplication.terminate(_:))
         case .bufferCopyOne:             return #selector(bufferCopyOne(_:))
         case .bufferFlush:               return #selector(bufferFlush)
@@ -196,6 +204,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     @objc func openSetup() { FirstRunWindow.show() }
+
+    /// The row StatusMenu emits when there are live sessions but zero hook records have ever
+    /// existed — the badge and every session's state have nothing to draw from. The payload IS
+    /// the snippet; this only moves it to the clipboard, the same as every other buffer command.
+    @objc func copyHooksSnippet(_ sender: NSMenuItem) {
+        guard let snippet = sender.representedObject as? String else { return }
+        deliver(snippet, "Snippet copied", label: "Agent status hooks snippet")
+    }
 
     /// Support, without an inbox: the diagnostics go to the clipboard and a prefilled issue opens
     /// in the browser. One public answer then serves everyone who searches for the same thing.

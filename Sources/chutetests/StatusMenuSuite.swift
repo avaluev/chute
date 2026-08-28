@@ -44,12 +44,22 @@ func statusMenuSuite() {
              "and keeps the open-core promise at the moment it would be easiest to break")
 
         // Nobody is trapped: the ways out survive an expired trial.
-        for escape in ["Settings…", "Report a Problem…", "Quit Chute"] {
+        for escape in ["Settings…", "Setup…", "Report a Problem…", "Quit Chute"] {
             T.ok(find(expired, escape) != nil, "an expired trial still offers \(escape)")
         }
         // But not the paid surfaces.
         T.no(expired.contains { $0.kind == .servers },
              "the local-server list is behind the gate with everything else")
+
+        // ── AN EXPIRED TRIAL EXPLAINS ITSELF ────────────────────────────────────────────────
+        //
+        // Local Servers and Recent Copies used to just vanish when `!unlocked` — indistinguishable
+        // from "empty", the same false signal as everything else in this spec. The gate itself
+        // must not move: still no `.servers` node above, still nothing in Recent Copies' place.
+        T.ok(find(expired, "behind the licence") != nil,
+             "and says WHY those two sections are gone")
+        T.no(titles(licensed).contains { $0.contains("behind the licence") },
+             "a paying customer is never told a section is gated")
 
         // ── THE TRIAL ROW, ON THE RIGHT DAYS ────────────────────────────────────────────────
         //
@@ -188,6 +198,27 @@ func statusMenuSuite() {
              "and clicking it goes where the fix is")
         T.no(titles(broken).contains { $0.contains("No terminal sessions") },
              "and it does NOT also claim there are no sessions — we could not look")
+
+        // ── THE BADGE CANNOT WORK AND NOTHING SAYS SO ───────────────────────────────────────
+        //
+        // `updateBadgeFromHooks` reports 0 when no hook record has EVER existed — the same
+        // picture as "nothing needs you". The two must not be conflated: a quiet machine with
+        // hooks wired has zero CURRENT records constantly, and that is not a problem.
+        let needsHook = StatusMenu.model(sessions: live, trial: .licensed(email: "a@b.c"),
+                                         hasHookRecords: false)
+        let hookRow = find(needsHook, "Agent status needs a hook")
+        T.ok(hookRow != nil, "live sessions with zero hook records EVER get one explaining row")
+        T.eq(hookRow?.kind, .command(.copyHooksSnippet), "and clicking it copies the snippet")
+        T.eq(hookRow?.payload, HookInstaller.manualSnippet(),
+             "carrying exactly what chute hooks snippet would print")
+
+        T.no(titles(StatusMenu.model(sessions: live, trial: .licensed(email: "a@b.c")))
+                .contains { $0.contains("Agent status needs a hook") },
+             "the default (hooks presumed wired) shows nothing extra")
+        T.no(titles(StatusMenu.model(sessions: [], trial: .licensed(email: "a@b.c"),
+                                     hasHookRecords: false))
+                .contains { $0.contains("Agent status needs a hook") },
+             "and neither does an empty machine — nothing running, nothing to explain")
 
         // ── THE NOTIFICATIONS ROW ───────────────────────────────────────────────────────────
         // Only ever shown when a fallback notification was actually refused.

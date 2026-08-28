@@ -64,7 +64,14 @@ func cmdDoctor(_ a: Args) {
 
     let prerequisites = outcomes.filter { $0.check.id != "end-to-end" }
     let endToEnd = outcomes.first { $0.check.id == "end-to-end" }
-    let blocked = prerequisites.contains { !$0.passed }
+    // ONLY A BLOCKER BLOCKS. `blocked` used to mean "any prerequisite failed", which was already
+    // slightly wrong for `cli` and `terminal` and became actively harmful the moment `hooks`
+    // joined them: hooks are unwired on most machines BY DESIGN, so the end-to-end proof — the
+    // one check that runs a real command and reads the result back, and the only one that can
+    // say the product works — would have been skipped on almost every install. Its probe writes
+    // a temp file and round-trips the clipboard; it needs no Homebrew CLI, no terminal and no
+    // hook. Skipping it over an optional note is the false all-clear wearing the other face.
+    let blocked = prerequisites.contains { !$0.passed && $0.check.severity == .blocker }
 
     if a.has("json") {
         let rows = outcomes.map { o -> [String: Any] in
@@ -112,8 +119,13 @@ func cmdDoctor(_ a: Args) {
 
     let ran: [CheckOutcome] = blocked ? prerequisites : outcomes
     let failures = ran.filter { !$0.passed }
-    if failures.isEmpty && !blocked { exit(0) }
-    exit(failures.contains { $0.check.id == "os" } ? 2 : 1)
+    // THE EXIT CODE IS LOAD-BEARING. A failing `.note` (cli, terminal, hooks) prints above like
+    // any other failure, but must never flip a script or CI run red — hooks in particular is
+    // unwired on most machines by design, and a doctor that exits non-zero for that would make
+    // every script reading this exit code fail on a perfectly working install.
+    let blockerFailures = failures.filter { $0.check.severity == .blocker }
+    if blockerFailures.isEmpty { exit(0) }
+    exit(blockerFailures.contains { $0.check.id == "os" } ? 2 : 1)
 }
 
 /// ONE SWITCH, describing and doing. The preview arrived as a second switch mirroring this one,
