@@ -18,5 +18,6 @@ finderRevealSuite()
 supportReportSuite()
 pastedImageSuite()
 systemVitalsSuite()
+onboardingSuite()
 
 T.report()

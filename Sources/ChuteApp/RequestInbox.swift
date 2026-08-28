@@ -27,6 +27,13 @@ extension AppDelegate {
             try? FileManager.default.removeItem(atPath: path)
             guard let action = ChuteActions.find(request.id) else { continue }
 
+            // ABOVE THE GATE, deliberately. The user performed the right-click; the teaching
+            // succeeded. Whether the action is PERMITTED is a different question, and if the
+            // trial has lapsed beat 3 must still complete — otherwise the one beat that proves
+            // the product works becomes unreachable at exactly the moment someone is deciding
+            // whether to pay for it.
+            Onboard.observe(action.id)
+
             // THE GATE, and the only one. Every Finder action arrives here, so the trial is
             // checked once rather than in eight action handlers. The sandboxed extension is
             // deliberately not involved: it cannot read the licence file from inside its
