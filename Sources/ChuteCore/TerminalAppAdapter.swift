@@ -71,7 +71,7 @@ public struct TerminalAppAdapter: TerminalAdapter {
             let tty = Session.normalise(tty: f[3])
             let processes = f[6]
             let title = f[7]
-            let isAgent = ["claude", "codex", "gemini", "aider"].contains { processes.contains($0) }
+            let agent = agentName(in: processes)
             let busy = f[4].trimmingCharacters(in: .whitespaces) == "true"
             let hook = hooks[tty]
 
@@ -83,13 +83,31 @@ public struct TerminalAppAdapter: TerminalAdapter {
                 tty: tty,
                 project: project(fromWindowName: f[1]),
                 title: title,
-                isAgent: isAgent,
+                agent: agent,
                 busy: busy,
                 state: StateResolver.resolve(hook: hook, title: title, busy: busy,
-                                             isAgent: isAgent, now: now),
-                since: hook?.timestamp
+                                             isAgent: agent != nil, now: now),
+                since: hook?.timestamp,
+                sessionID: hook?.sessionID,
+                cwd: hook?.cwd
             )
         }
+    }
+
+    /// WHICH agent is running in this tab, by name, from Terminal's own process list.
+    ///
+    /// `cursor` was missing, so a Cursor terminal read as a plain shell and never appeared under
+    /// "Agents Working". The longest match wins rather than the first, so a table reordering
+    /// cannot change the answer and "claude" cannot mask a longer name containing it.
+    ///
+    /// This is a substring test over a comma-joined list, which is deliberately generous: the
+    /// executable is sometimes "claude", sometimes "cursor-agent", sometimes wrapped in
+    /// `caffeinate ◂ claude`. A false positive costs a row in the wrong group; a false negative
+    /// hides the session the user opened the menu to find.
+    public static let knownAgents = ["claude", "codex", "cursor", "gemini", "aider"]
+
+    public static func agentName(in processes: String) -> String? {
+        knownAgents.filter { processes.contains($0) }.max { $0.count < $1.count }
     }
 
     /// Terminal window names read "36.macai — ◑ Chut — caffeinate ◂ claude — 245×76".

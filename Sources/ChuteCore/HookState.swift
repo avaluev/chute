@@ -23,7 +23,11 @@ public enum HookState {
         return HookRecord(tty: Session.normalise(tty: rawTTY),
                           state: state,
                           cwd: obj["cwd"] as? String,
-                          sessionID: obj["session_id"] as? String,
+                          // Empty is ABSENT. The snippet writes "" whenever
+                          // CLAUDE_CODE_SESSION_ID is unset — a different agent, or a Claude Code
+                          // old enough not to export it. Treating "" as a value would build a
+                          // resume command for a session that does not exist.
+                          sessionID: (obj["session_id"] as? String).flatMap { $0.isEmpty ? nil : $0 },
                           timestamp: Date(timeIntervalSince1970: ts))
     }
 

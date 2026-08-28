@@ -39,6 +39,17 @@ public enum HookInstaller {
 
     /// A single line. Writes one small file and always exits 0 — a Chute failure must never
     /// break the user's agent session. $PPID is the claude process, whose tty is the tab's tty.
+    ///
+    /// THE SESSION ID comes from `$CLAUDE_CODE_SESSION_ID`, which Claude Code exports into every
+    /// hook's environment and which is exactly the uuid its transcript file is named after
+    /// (verified 2026-08-28 against ~/.claude/projects/<escaped-cwd>/<uuid>.jsonl). NOT
+    /// $CLAUDE_SESSION_ID, which does not exist; and not the JSON on stdin, because reading stdin
+    /// from a hook that must never block is a way to hang someone's agent.
+    ///
+    /// It is filtered to `[a-zA-Z0-9-]` before being embedded. That is a uuid's whole alphabet,
+    /// so nothing legitimate is lost — and it means no value of that variable can close the JSON
+    /// string and inject a field. `${VAR:-}` keeps it empty rather than unset under `set -u`, so
+    /// a different agent, or an older Claude Code, writes "" and every reader treats that as nil.
     /// `ps -o tty=` prints `??` (not empty) when there is no controlling terminal, so we whitelist
     /// alphanumeric tty names rather than just checking for non-empty. The cwd is escaped for JSON
     /// before being embedded, so a directory name containing `"` or `\` cannot break the printf.
@@ -49,8 +60,9 @@ public enum HookInstaller {
             + "T=$(ps -o tty= -p $PPID 2>/dev/null | tr -d ' '); "
             + "case \"$T\" in \"\"|*[!a-zA-Z0-9]*) printf '{}\\n'; exit 0;; esac; "
             + "CWD=$(printf '%s' \"$PWD\" | sed 's/\\\\/\\\\\\\\/g; s/\"/\\\\\"/g'); "
-            + "printf '{\"tty\":\"%s\",\"state\":\"%s\",\"cwd\":\"%s\",\"ts\":%s}' "
-            + "\"$T\" \"\(name)\" \"$CWD\" \"$(date +%s)\" > \"$S/$T.json.tmp\" 2>/dev/null "
+            + "SID=$(printf '%s' \"${CLAUDE_CODE_SESSION_ID:-}\" | tr -cd 'a-zA-Z0-9-'); "
+            + "printf '{\"tty\":\"%s\",\"state\":\"%s\",\"cwd\":\"%s\",\"session_id\":\"%s\",\"ts\":%s}' "
+            + "\"$T\" \"\(name)\" \"$CWD\" \"$SID\" \"$(date +%s)\" > \"$S/$T.json.tmp\" 2>/dev/null "
             + "&& mv \"$S/$T.json.tmp\" \"$S/$T.json\" 2>/dev/null; "
             + "printf '{}\\n'; exit 0"
     }
