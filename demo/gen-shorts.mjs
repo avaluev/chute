@@ -97,6 +97,17 @@ function existingTape(command) {
   return HAND_WRITTEN.has(verb) ? verb : null;
 }
 
+// VHS has no escape character inside a quoted string: `Type "chute note \\"x\\""` is a parse
+// error, not an escaped quote, and the generator emitted exactly that — so `make demos` died on
+// the one case whose command contains quotes, after re-recording the sixteen before it. VHS does
+// accept all three quote characters, so the fix is to CHOOSE one the string does not contain
+// rather than to escape anything. If a command ever contains all three, say so loudly here
+// instead of writing a tape that cannot parse.
+const vhsString = (s) => {
+  for (const q of ['"', "'", "`"]) if (!s.includes(q)) return q + s + q;
+  throw new Error(`cannot quote for VHS, the command uses all three quote characters: ${s}`);
+};
+
 const tape = (c) => `# ${c.pain}
 #
 # GENERATED from site/src/lib/cases.ts by demo/gen-shorts.mjs — do not edit by hand.
@@ -107,7 +118,7 @@ Output out/${c.slug}.gif
 Set Height 380
 
 Sleep 600ms
-Type "${c.command.replace(/"/g, '\\"')}"
+Type ${vhsString(c.command)}
 Enter
 Sleep 2.5s
 Sleep 1s
