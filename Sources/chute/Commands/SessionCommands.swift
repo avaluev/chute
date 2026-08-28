@@ -138,7 +138,8 @@ func cmdResume(_ a: Args) {
 
     // tmux CONTINUES a session, it does not move one: macOS cannot transplant a running process
     // onto a new tty. The old window keeps running until you close it.
-    Out.deliver(command, a, badge: a.has("tmux") ? "the old window keeps running" : nil)
+    Out.deliver(command, a, badge: a.has("tmux") ? "the old window keeps running" : nil,
+                label: a.has("tmux") ? "Continue \(s.project) in tmux" : "Resume \(s.project)")
 }
 
 func cmdFocus(_ a: Args) {

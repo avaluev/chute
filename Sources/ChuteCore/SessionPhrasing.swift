@@ -52,6 +52,19 @@ public enum SessionPhrasing {
         return parts.joined(separator: " · ")
     }
 
+    /// "just now", "3 min", "2 h", "yesterday". Short, because it sits at the end of a menu row
+    /// beside something more important than itself.
+    public static func ago(_ date: Date, now: Date = Date()) -> String {
+        let seconds = Int(now.timeIntervalSince(date))
+        switch seconds {
+        case ..<45:      return "just now"
+        case ..<3600:    return "\(max(1, seconds / 60)) min"
+        case ..<86_400:  return "\(seconds / 3600) h"
+        case ..<172_800: return "yesterday"
+        default:         return "\(seconds / 86_400) days"
+        }
+    }
+
     public static func elide(_ s: String, _ max: Int = 34) -> String {
         guard s.count > max else { return s }
         let half = (max - 1) / 2

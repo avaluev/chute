@@ -198,9 +198,9 @@ func cmdPrompt(_ a: Args) {
             let clip = Clipboard.read()
             if !clip.isEmpty { body += "\n\n" + clip }
         }
-        Out.deliver(body, a, badge: "decomposition prompt")
+        Out.deliver(body, a, badge: "decomposition prompt", label: "Decomposition prompt")
     case "ponytail":
-        Out.deliver(Templates.ponytailPrompt, a, badge: "anti-bloat prompt")
+        Out.deliver(Templates.ponytailPrompt, a, badge: "anti-bloat prompt", label: "Anti-bloat prompt")
     default:
         Out.fail("usage: chute prompt decompose|ponytail")
     }

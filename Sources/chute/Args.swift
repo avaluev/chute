@@ -70,10 +70,14 @@ enum Out {
         exit(1)
     }
     /// Print to stdout and put on the clipboard unless --no-copy was given.
-    static func deliver(_ text: String, _ args: Args, badge: String? = nil) {
+    static func deliver(_ text: String, _ args: Args, badge: String? = nil,
+                        label: String? = nil) {
         print(text)
         if !args.has("no-copy") {
             Clipboard.write(text)
+            // Remembered as it is handed over. Nothing to press afterwards, and nothing watching
+            // the pasteboard: this records what WE wrote, at the moment we wrote it.
+            ContextBuffer().record(text, label: label ?? badge ?? "")
             info("→ copied to clipboard" + (badge.map { " · \($0)" } ?? ""))
         } else if let badge {
             info("→ \(badge)")
