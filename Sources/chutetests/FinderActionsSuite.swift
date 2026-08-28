@@ -166,6 +166,17 @@ func finderActionsSuite() {
         T.eq(paths.title(count: 3), "Copy Full Paths (3)", "the count is substituted")
         T.eq(paths.plainTitle, "Copy Full Paths", "and dropped where it is unknown")
 
+        // THE HUD READS THIS PREFIX to decide green or red. It was a bare literal in two files
+        // and the panel drew every result green, so "Failed — not a directory" arrived with a
+        // green dot beside it. Pin the contract, or the colour drifts away from the words again.
+        for (err, code) in [("chute: not a directory: /x", Int32(1)), ("", Int32(2)), ("\n\n", Int32(3))] {
+            T.ok(ChuteActions.message(stderr: err, exitCode: code, fallback: "Done.")
+                    .hasPrefix(ChuteActions.failurePrefix),
+                 "a failure (exit \(code)) is recognisable as one from its first characters")
+        }
+        T.no(ChuteActions.message(stderr: "→ copied", exitCode: 0, fallback: "Done.")
+                .hasPrefix(ChuteActions.failurePrefix), "and a success never is")
+
         // Notification text: no CLI prefixes, no empty banners.
         T.eq(ChuteActions.message(stderr: "→ copied to clipboard · 2 path(s)", exitCode: 0,
                                   fallback: "Done."),

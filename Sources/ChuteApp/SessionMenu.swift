@@ -28,14 +28,15 @@ enum SessionMenu {
         return n == 0 ? "⤓" : "⤓ \(n)"
     }
 
+    /// `lockFocus`/`unlockFocus` is deprecated and draws against whatever context happens to be
+    /// current; the block form gets its own and is what AppKit asks for now.
     static func dot(_ hex: String) -> NSImage {
         let size = NSSize(width: 10, height: 10)
-        let image = NSImage(size: size)
-        image.lockFocus()
-        (NSColor(hex: hex) ?? .systemGray).setFill()
-        NSBezierPath(ovalIn: NSRect(origin: .zero, size: size)).fill()
-        image.unlockFocus()
-        return image
+        return NSImage(size: size, flipped: false) { rect in
+            (NSColor(hex: hex) ?? .systemGray).setFill()
+            NSBezierPath(ovalIn: rect).fill()
+            return true
+        }
     }
 
     /// Populates the menu AppKit is about to display. Do not build a new NSMenu and assign it to

@@ -325,6 +325,12 @@ public enum ChuteActions {
         }
     }
 
+    /// Every failure message starts with this, and the HUD reads it to decide whether to draw
+    /// the result green or red. It was a bare string in two files: the panel drew a GREEN dot
+    /// beside "Failed — not a directory", so the colour said one thing and the words said the
+    /// opposite. Colour is what gets read first.
+    public static let failurePrefix = "Failed — "
+
     /// Turn what the CLI said into one line a human can act on. The CLI writes progress to stderr
     /// with a `→ ` prefix and failures with a `chute: ` prefix; neither means anything in a banner.
     public static func message(stderr: String, exitCode: Int32, fallback: String) -> String {
@@ -333,12 +339,12 @@ public enum ChuteActions {
             .map { $0.trimmingCharacters(in: .whitespaces) }
             .last(where: { !$0.isEmpty })
         guard var text = line, !text.isEmpty else {
-            return exitCode == 0 ? fallback : "Failed — the command said nothing."
+            return exitCode == 0 ? fallback : failurePrefix + "the command said nothing."
         }
         for prefix in ["→ ", "chute: "] where text.hasPrefix(prefix) {
             text = String(text.dropFirst(prefix.count))
         }
-        if exitCode != 0 { return "Failed — " + text }
+        if exitCode != 0 { return failurePrefix + text }
         return text.prefix(1).uppercased() + text.dropFirst()
     }
 }

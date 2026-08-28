@@ -9,98 +9,62 @@ import ChuteCore
 /// alert style of "None" can hold it for minutes. The founder reported exactly that — the path was
 /// on the clipboard immediately and the banner arrived minutes later.
 ///
-/// No amount of tuning `UNUserNotificationCenter` fixes that, because the delay is not ours. So
-/// the confirmation a user needs in the first half-second does not go through the notification
-/// system at all. This panel appears in the same run loop turn as the result, obeys no
-/// notification policy, needs no permission, and cannot be batched into a summary.
+/// THIS IS THE ONLY SURFACE. It used to be one of two — a panel AND a Notification Centre banner
+/// for the same event — which is what a user sees as the same message arriving twice. `notify`
+/// picks one: this whenever there is somewhere to show it, a notification only when there is not.
 ///
-/// THIS IS THE ONLY SURFACE. It used to be one of two — the panel AND a Notification Centre
-/// banner for the same event — which is exactly what a user sees as the same message arriving
-/// twice. `notify` now picks one: this panel whenever there is a screen to draw on, a
-/// notification only when there is not. Never post both for one action.
+/// AN NSPOPOVER, NOT A HAND-DRAWN PANEL. This was a borderless `NSPanel` holding an
+/// `NSVisualEffectView`, with its own corner radius, its own mask image, its own shadow handling
+/// and its own screen-corner arithmetic — and it still showed a bright halo around the corners on
+/// a light background, because AppKit derives a window's shadow from the square window alpha no
+/// matter what the layer inside is masked to. Three attempts at fixing that were three attempts at
+/// re-implementing chrome the system already draws correctly.
+///
+/// So: none of it. A popover anchored to the status item gets the real material, the real
+/// continuous corners, the real shadow and an arrow pointing at the thing that did the work — and
+/// it moves with the status item instead of guessing at a screen corner. Roughly half the code of
+/// the panel it replaces, and none of the half that was wrong.
 enum ResultHUD {
-    nonisolated(unsafe) private static var panel: NSPanel?
+    nonisolated(unsafe) private static var popover: NSPopover?
     nonisolated(unsafe) private static var dismissAt: Date?
 
     /// How long it stays. Long enough to read six words, short enough that a second action does
-    /// not queue behind it. Frequent actions should not be animated or lingered over — the whole
-    /// point is that the user has already moved on.
-    private static let lifetime: TimeInterval = 1.6
+    /// not queue behind it. Frequent actions should not be lingered over — the point is that the
+    /// user has already moved on.
+    private static let lifetime: TimeInterval = 1.8
 
-    /// `anchor` is the status item's frame in screen coordinates when it is known, so the HUD
-    /// appears under the ⤓ that did the work. Falling back to the top-right of the main screen
-    /// keeps it in the same place rather than jumping to wherever the pointer happens to be.
-    ///
-    /// Returns whether the user was actually shown something. `notify` relies on this to pick
-    /// ONE surface: false here — and only false here — is what lets a notification be posted
-    /// instead. Never return true on a path that draws nothing, or an action goes unreported.
+    /// Returns whether the user was actually shown something. `notify` relies on this to pick ONE
+    /// surface: false here — and only false here — is what lets a notification be posted instead.
+    /// Never return true on a path that shows nothing, or an action goes unreported.
     @discardableResult
-    static func show(_ text: String, anchor: NSRect? = nil) -> Bool {
+    static func show(_ text: String) -> Bool {
         // Tests and CI have no window server. Drawing there is a crash, not a feature.
         guard NSApp != nil, !isHeadless else { return false }
-        // A clamshell Mac with its external display asleep has a live window server and NO
-        // screens: `origin(for:)` then falls back to (0,0) of nothing, the panel is drawn where
-        // nobody can see it, and returning true here would suppress the notification too — the
-        // one case where the durable, later-visible surface is the ONLY one that can work.
-        guard !NSScreen.screens.isEmpty else { return false }
         precondition(Thread.isMainThread, "ResultHUD must be shown on the main thread")
 
-        let body = NSTextField(labelWithString: text)
-        body.font = .systemFont(ofSize: 13, weight: .medium)
-        body.textColor = .labelColor
-        body.lineBreakMode = .byTruncatingTail
-        body.maximumNumberOfLines = 2
-        body.preferredMaxLayoutWidth = 320
+        // The anchor IS the status item. When the menu bar is full enough that macOS has hidden
+        // the item there is nothing to point at and nowhere sensible to put this, so hand the
+        // event to the notification instead of drawing it somewhere arbitrary.
+        guard let button = (NSApp.delegate as? AppDelegate)?.statusItem?.button,
+              button.window != nil, !button.isHidden else { return false }
 
-        let dot = NSView(frame: NSRect(x: 0, y: 0, width: 8, height: 8))
-        dot.wantsLayer = true
-        dot.layer?.backgroundColor = NSColor(srgbRed: 0.56, green: 0.86, blue: 0.44, alpha: 1).cgColor
-        dot.layer?.cornerRadius = 4
-        dot.widthAnchor.constraint(equalToConstant: 8).isActive = true
-        dot.heightAnchor.constraint(equalToConstant: 8).isActive = true
+        let p = popover ?? makePopover()
+        popover = p
+        p.contentViewController = content(text)
+        p.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
 
-        let row = NSStackView(views: [dot, body])
-        row.orientation = .horizontal
-        row.alignment = .centerY
-        row.spacing = 10
-        row.edgeInsets = NSEdgeInsets(top: 12, left: 16, bottom: 12, right: 18)
+        // A popover is a real accessibility element, unlike the borderless panel this replaces —
+        // but it is never focused, so VoiceOver would still say nothing without being told.
+        NSAccessibility.post(element: NSApp as Any, notification: .announcementRequested,
+                             userInfo: [.announcement: text,
+                                        .priority: NSAccessibilityPriorityLevel.high.rawValue])
 
-        // .hudWindow gives the system's own vibrant panel material, so this looks like macOS
-        // rather than like a web overlay someone drew.
-        let host = NSVisualEffectView()
-        host.material = .hudWindow
-        host.blendingMode = .behindWindow
-        host.state = .active
-        host.wantsLayer = true
-        host.layer?.cornerRadius = 10
-        host.layer?.masksToBounds = true
-
-        row.translatesAutoresizingMaskIntoConstraints = false
-        host.addSubview(row)
-        NSLayoutConstraint.activate([
-            row.leadingAnchor.constraint(equalTo: host.leadingAnchor),
-            row.trailingAnchor.constraint(equalTo: host.trailingAnchor),
-            row.topAnchor.constraint(equalTo: host.topAnchor),
-            row.bottomAnchor.constraint(equalTo: host.bottomAnchor),
-        ])
-
-        let size = row.fittingSize
-        let frame = NSRect(origin: .zero, size: NSSize(width: min(size.width, 380), height: size.height))
-
-        // Reuse one panel. A new window per action stacks them and leaks.
-        let p = panel ?? makePanel()
-        panel = p
-        p.contentView = host
-        p.setContentSize(frame.size)
-        p.setFrameOrigin(origin(for: frame.size, anchor: anchor))
-        p.orderFrontRegardless()          // never activates, never steals focus
-
-        // Re-showing extends the deadline rather than restarting a timer per call.
+        // Re-showing extends the deadline rather than starting a second timer per call.
         let deadline = Date().addingTimeInterval(lifetime)
         dismissAt = deadline
         DispatchQueue.main.asyncAfter(deadline: .now() + lifetime + 0.05) {
             guard let due = dismissAt, due <= Date() else { return }   // a newer show won
-            panel?.orderOut(nil)
+            popover?.performClose(nil)
             dismissAt = nil
         }
         return true
@@ -110,33 +74,52 @@ enum ResultHUD {
         ProcessInfo.processInfo.environment["CHUTE_HEADLESS"] == "1"
     }
 
-    private static func makePanel() -> NSPanel {
-        let p = NSPanel(contentRect: NSRect(x: 0, y: 0, width: 320, height: 44),
-                        styleMask: [.borderless, .nonactivatingPanel],
-                        backing: .buffered, defer: false)
-        p.isFloatingPanel = true
-        p.level = .statusBar                 // above ordinary windows, below the menu bar itself
-        p.backgroundColor = .clear
-        p.isOpaque = false
-        p.hasShadow = true
-        p.ignoresMouseEvents = true          // it is a message, not a control
-        p.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary]
-        p.hidesOnDeactivate = false
+    private static func makePopover() -> NSPopover {
+        let p = NSPopover()
+        // .transient so a click anywhere dismisses it, and .semitransient's habit of lingering
+        // over other apps is not what a 1.8-second toast wants.
+        p.behavior = .transient
+        p.animates = true
         return p
     }
 
-    /// Under the status item when we know where it is, otherwise the top-right of the screen the
-    /// pointer is on — the corner the ⤓ lives in, so the eye goes to the thing that did the work.
-    private static func origin(for size: NSSize, anchor: NSRect?) -> NSPoint {
-        let screen = NSScreen.screens.first { NSMouseInRect(NSEvent.mouseLocation, $0.frame, false) }
-            ?? NSScreen.main
-        guard let visible = screen?.visibleFrame else { return .zero }
+    /// The message, and a dot that says whether it went well. `ChuteActions.failurePrefix` is the
+    /// contract — pinned in FinderActionsSuite, because a green dot beside the word "Failed" is
+    /// worse than no dot at all.
+    private static func content(_ text: String) -> NSViewController {
+        let failed = text.hasPrefix(ChuteActions.failurePrefix)
 
-        if let anchor, anchor.width > 0 {
-            let x = min(max(anchor.midX - size.width / 2, visible.minX + 8),
-                        visible.maxX - size.width - 8)
-            return NSPoint(x: x, y: anchor.minY - size.height - 8)
-        }
-        return NSPoint(x: visible.maxX - size.width - 12, y: visible.maxY - size.height - 12)
+        let dot = NSImageView(image: NSImage(
+            systemSymbolName: failed ? "xmark.circle.fill" : "checkmark.circle.fill",
+            accessibilityDescription: failed ? "failed" : "done") ?? NSImage())
+        dot.contentTintColor = failed ? .systemRed : .systemGreen
+        dot.setContentHuggingPriority(.required, for: .horizontal)
+
+        let label = NSTextField(wrappingLabelWithString: text)
+        label.font = .systemFont(ofSize: 13, weight: .medium)
+        label.textColor = .labelColor
+        label.preferredMaxLayoutWidth = 300
+        label.setContentCompressionResistancePriority(.required, for: .vertical)
+
+        let row = NSStackView(views: [dot, label])
+        row.orientation = .horizontal
+        row.alignment = .firstBaseline
+        row.spacing = 8
+        row.edgeInsets = NSEdgeInsets(top: 14, left: 16, bottom: 14, right: 18)
+        row.translatesAutoresizingMaskIntoConstraints = false
+
+        let host = NSView()
+        host.addSubview(row)
+        NSLayoutConstraint.activate([
+            row.leadingAnchor.constraint(equalTo: host.leadingAnchor),
+            row.trailingAnchor.constraint(equalTo: host.trailingAnchor),
+            row.topAnchor.constraint(equalTo: host.topAnchor),
+            row.bottomAnchor.constraint(equalTo: host.bottomAnchor),
+        ])
+        host.frame = NSRect(origin: .zero, size: row.fittingSize)
+
+        let vc = NSViewController()
+        vc.view = host
+        return vc
     }
 }
