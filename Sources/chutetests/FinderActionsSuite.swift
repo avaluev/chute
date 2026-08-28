@@ -88,6 +88,43 @@ func finderActionsSuite() {
             T.eq(row.symbol, ChuteActions.find(row.children[0])!.symbol,
                  "the '\(row.title)' submenu takes its icon from its first child")
         }
+        // ONE JOB, ONE NAME — the invariant, not the instance.
+        //
+        // `sandbox-here` titled itself "New Scratch Folder", carried a comment explaining why
+        // "Clean Room" was rejected as a term nobody can look up, and then toasted "Clean room
+        // ready." six lines below it. The row and its confirmation named the same job two ways,
+        // in one struct, past a comment arguing against exactly that.
+        //
+        // The rule that catches it, and only it: a confirmation may not introduce a word that
+        // appears in NO title and NO detail anywhere in the table. Checked against the real data
+        // before it was written — every other doneMessage passes, and the two tree-depth rows
+        // ("2 Levels", "4 Levels") legitimately borrow "folder tree" from their parent row, which
+        // is why the vocabulary is the whole table rather than each action's own two fields.
+        //
+        // A confirmation is allowed its own verbs: "copied", "saved", "written" are what a toast
+        // says, not names of jobs, and no menu row is titled with them.
+        let confirmationVerbs: Set<String> = ["copied", "saved", "added", "created", "opened",
+                                              "written", "moved", "ready", "done"]
+        func significantWords(_ s: String) -> [String] {
+            s.lowercased().split(whereSeparator: { !$0.isLetter }).map(String.init)
+                .filter { $0.count > 2 && !confirmationVerbs.contains($0) }
+        }
+        let vocabulary = Set(ChuteActions.all.flatMap { significantWords($0.title + " " + $0.detail) })
+        // Prefix-matched at four characters so "files"/"file" and "rules"/"rule" are one word.
+        func inVocabulary(_ w: String) -> Bool {
+            vocabulary.contains { v in
+                let n = min(4, min(v.count, w.count))
+                return v.prefix(n) == w.prefix(n)
+            }
+        }
+        for action in ChuteActions.all {
+            for word in significantWords(action.doneMessage) where !inVocabulary(word) {
+                T.ok(false, "'\(action.id)' confirms with \"\(word)\", a word no row in this "
+                          + "menu uses — one job, one name")
+            }
+        }
+        T.ok(true, "every confirmation uses the words its own menu already uses")
+
         // With nothing selected the selection-scoped rows drop out; nothing may be left orphaned.
         T.ok(ChuteActions.rows(hasSelection: false, targetIsFolder: true).count < rows.count,
              "an empty selection draws fewer rows, not the same ones greyed out")

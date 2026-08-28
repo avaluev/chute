@@ -492,10 +492,16 @@ echo "19. the commands nothing was testing"
 printf 'first chunk' | pbcopy; "$CHUTE" buf add >/dev/null 2>&1
 printf 'second chunk' | pbcopy; "$CHUTE" buf add >/dev/null 2>&1
 has   "buf lists what it holds"      "$("$CHUTE" buf list 2>&1)" "2"
-"$CHUTE" buf flush >/dev/null 2>&1
+# `all` is the name (the GUI row for this job reads "Copy All N Together"); `flush` is kept as
+# an undocumented alias for muscle memory and scripts. Both are exercised so neither can be
+# dropped by accident — an alias nothing tests is an alias nobody knows is load-bearing.
+"$CHUTE" buf all --keep >/dev/null 2>&1
 OUT="$(pbpaste)"
-has   "buf flush returns the first"  "$OUT" "first chunk"
-has   "buf flush returns the second" "$OUT" "second chunk"
+has   "buf all returns the first"    "$OUT" "first chunk"
+has   "buf all returns the second"   "$OUT" "second chunk"
+printf 'nothing' | pbcopy
+"$CHUTE" buf flush >/dev/null 2>&1
+check "the flush alias gives the same text" "$(pbpaste)" "$OUT"
 "$CHUTE" buf clear >/dev/null 2>&1
 has   "buf clear empties it"         "$("$CHUTE" buf list 2>&1)" "empty"
 

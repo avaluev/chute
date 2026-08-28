@@ -9,7 +9,7 @@ CONTEXT IN
   bundle <files…>       Files + contents in one blob      --format xml|md
   tokens <files…>       Estimated token cost per file
   tree [dir]            Directory skeleton, junk excluded --depth N
-  buf add|list|flush|clear                                Context buffer across many copies
+  buf add|list|all|clear                                  Every recent copy, together
 
 FILES
   new                   Clipboard → new file              --name N --dir D --ext E --reveal

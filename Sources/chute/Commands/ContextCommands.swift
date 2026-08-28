@@ -121,11 +121,17 @@ func cmdBuf(_ a: Args) {
         for (i, e) in entries.enumerated() {
             Out.line("\(i + 1). \(e.preview)  [\(TokenEstimate.badge(TokenEstimate.tokens(in: e.text)))]")
         }
-    case "flush":
+    // "all", not "flush". The GUI row for this exact job reads "Copy All N Together"
+    // (StatusMenu.recentCopies), and BufferMenu's own comment said "flush the buffer" is a
+    // sentence about the implementation, not about the job — while the CLI shipped it anyway.
+    // FinderActions' naming law ("a verb, title case, no jargon, no abbreviations") governed the
+    // GUI only; `flush` breaks it. Kept as an undocumented alias: it is in muscle memory and in
+    // scripts, and breaking a name costs more than the name was ever worth.
+    case "all", "flush":
         guard let joined = buf.flushText() else { Out.fail("buffer is empty") }
         let n = buf.entries().count
         Out.deliver(joined, a, badge: "\(n) entries · \(TokenEstimate.badge(TokenEstimate.tokens(in: joined)))",
-                    label: "\(n) recent copies, together")
+                    label: "\(n) recent copies, together", record: false)
         if !a.has("keep") { buf.clear() }
     case "clear":
         let n = buf.entries().count
