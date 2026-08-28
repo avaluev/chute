@@ -19,13 +19,9 @@ enum SettingsWindow {
             refreshLicenseTab()
             return
         }
-        let w = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 520, height: 420),
-                         styleMask: [.titled, .closable], backing: .buffered, defer: false)
-        w.title = "Chute Settings"
-        w.center()
-        w.isReleasedWhenClosed = false
-
+        let w = Panel.make(title: "Chute Settings", width: 520, height: 420)
         let tabs = NSTabView(frame: NSRect(x: 0, y: 0, width: 520, height: 420))
+        tabs.autoresizingMask = [.width, .height]
         tabs.addTabViewItem(item("General", general()))
         tabs.addTabViewItem(item("License", license()))
         tabs.addTabViewItem(item("About", about()))
@@ -111,35 +107,11 @@ enum SettingsWindow {
     }
 
     // MARK: - Plumbing
+    // heading / body / pad live in Panel.swift — FirstRunWindow needs the same three.
 
-    private static func heading(_ s: String) -> NSTextField {
-        let t = NSTextField(labelWithString: s)
-        t.font = .systemFont(ofSize: 13, weight: .semibold)
-        return t
-    }
-
-    private static func body(_ s: String) -> NSTextField {
-        let t = NSTextField(wrappingLabelWithString: s)
-        t.font = .systemFont(ofSize: 12)
-        t.textColor = .secondaryLabelColor
-        t.preferredMaxLayoutWidth = 460
-        return t
-    }
-
-    private static func pad(_ stack: NSStackView) -> NSView {
-        stack.orientation = .vertical
-        stack.alignment = .leading
-        stack.spacing = 12
-        stack.translatesAutoresizingMaskIntoConstraints = false
-        let host = NSView(frame: NSRect(x: 0, y: 0, width: 520, height: 390))
-        host.addSubview(stack)
-        NSLayoutConstraint.activate([
-            stack.leadingAnchor.constraint(equalTo: host.leadingAnchor, constant: 24),
-            stack.trailingAnchor.constraint(equalTo: host.trailingAnchor, constant: -24),
-            stack.topAnchor.constraint(equalTo: host.topAnchor, constant: 24),
-        ])
-        return host
-    }
+    private static func heading(_ s: String) -> NSTextField { UI.heading(s) }
+    private static func body(_ s: String) -> NSTextField { UI.body(s) }
+    private static func pad(_ stack: NSStackView) -> NSView { UI.pad(stack, inset: 24) }
 
     static func refreshLicenseTab() {
         let state = Trial.touch()
@@ -164,7 +136,18 @@ enum SettingsWindow {
 
         @objc func activate() {
             let typed = keyField?.stringValue ?? ""
-            guard !typed.isEmpty, !typed.contains("…") else { return }   // the masked form, untouched
+            // The masked form is what is already active, and an empty field is nothing to check.
+            // Both used to return in silence, so Activate looked broken rather than done.
+            guard !typed.isEmpty else {
+                statusLabel?.stringValue = "Paste the key from your purchase email first"
+                statusLabel?.textColor = .secondaryLabelColor
+                return
+            }
+            guard !typed.contains("…") else {
+                statusLabel?.stringValue = "That licence is already active"
+                statusLabel?.textColor = .systemGreen
+                return
+            }
             if let info = Trial.activate(typed) {
                 statusLabel?.stringValue = "Licensed to \(info.email)"
                 statusLabel?.textColor = .systemGreen
