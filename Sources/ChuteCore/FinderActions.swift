@@ -223,7 +223,9 @@ public enum ChuteActions {
                     scope: .folder, kind: .setup, parentTitle: "Set Up for an Agent",
                     symbol: "folder.badge.plus",
                     template: ["sandbox", "--dir", "{dir}"],
-                    doneMessage: "Clean room ready."),
+                    // The confirmation says what the ROW says. It read "Clean room ready." — the
+                    // exact phrase the NAME note above rejects, six lines under the note itself.
+                    doneMessage: "Scratch folder ready."),
 
         // JTBD #12, T1: 3.3 min/day on the clock and ~20 min/day risk-adjusted — the largest
         // number in the ledger that had no Finder surface at all. It is also the job that makes

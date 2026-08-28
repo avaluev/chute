@@ -70,14 +70,19 @@ enum Out {
         exit(1)
     }
     /// Print to stdout and put on the clipboard unless --no-copy was given.
+    /// `record: false` for text that is MADE OUT OF the buffer. `buf all` joins the entries and
+    /// hands them back; filing that join adds an eleventh row holding a copy of the other ten,
+    /// and `keep` then evicts the oldest of the very things it just concatenated. 0d23f86 fixed
+    /// exactly this in the menu bar's bufferFlush and did not look at the CLI, which had the same
+    /// bug through the same shared function. A derived blob is not a new thing you collected.
     static func deliver(_ text: String, _ args: Args, badge: String? = nil,
-                        label: String? = nil) {
+                        label: String? = nil, record: Bool = true) {
         print(text)
         if !args.has("no-copy") {
             Clipboard.write(text)
             // Remembered as it is handed over. Nothing to press afterwards, and nothing watching
             // the pasteboard: this records what WE wrote, at the moment we wrote it.
-            ContextBuffer().record(text, label: label ?? badge ?? "")
+            if record { ContextBuffer().record(text, label: label ?? badge ?? "") }
             info("→ copied to clipboard" + (badge.map { " · \($0)" } ?? ""))
         } else if let badge {
             info("→ \(badge)")
