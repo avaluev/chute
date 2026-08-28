@@ -25,6 +25,15 @@ const is = (label, got, want) => {
 };
 
 is("keygen.mjs matches the key pinned in the Swift suite", fromTool, PINNED);
+
+// A pipe is legal in an email local part, and NEITHER minter escapes it — they concatenate
+// `email|issuedAt`. The app used to split on every pipe and reject such a key forever. Pinned
+// here so the two minters and the Swift verifier can never drift apart on it again.
+const PIPE_EMAIL = "a|b@example.com";
+const PINNED_PIPE =
+  "CHUTE-NfKttpwNJOMd6dzlOfYKrLmqDnRgsih0vf0p6YwK8WjBvFMbyw90/knRQkbtIR1EJgnjrfZtF7NJpGhMaSILAGF8YkBleGFtcGxlLmNvbXwxNzY3MjI1NjAw";
+is("a pipe in the email mints the pinned key", await workerMint(PIPE_EMAIL, SEED, AT), PINNED_PIPE);
+is("and keygen agrees on it", toolMint(SEED, PIPE_EMAIL, AT), PINNED_PIPE);
 is("the Worker mints the identical key", fromWorker, PINNED);
 is("Worker and keygen agree", fromWorker, fromTool);
 

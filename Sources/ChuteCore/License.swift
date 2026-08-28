@@ -48,9 +48,21 @@ public enum License {
               verifier.isValidSignature(signature, for: payload) else { return nil }
 
         // Only parsed AFTER the signature holds, so a forged payload is never even read.
-        let fields = String(decoding: payload, as: UTF8.self).split(separator: "|")
-        guard fields.count == 2, let epoch = TimeInterval(fields[1]), !fields[0].isEmpty else { return nil }
-        return LicenseInfo(email: String(fields[0]), issued: Date(timeIntervalSince1970: epoch))
+        //
+        // Split at the LAST pipe, not on every pipe. `|` is a legal RFC 5322 atext character, so
+        // `a|b@example.com` is a real address, and neither the Worker nor keygen escapes it —
+        // they just concatenate `email|issuedAt`. Splitting on all of them gave that customer
+        // three fields and a key that was correctly signed, correctly minted, and rejected
+        // forever, with no message explaining why. Only `issuedAt` is guaranteed pipe-free, so
+        // only the last separator is meaningful.
+        guard let sep = payload.lastIndex(of: UInt8(ascii: "|")) else { return nil }
+        let emailBytes = payload[payload.startIndex..<sep]
+        let epochBytes = payload[payload.index(after: sep)...]
+        guard !emailBytes.isEmpty,
+              let epoch = TimeInterval(String(decoding: epochBytes, as: UTF8.self))
+        else { return nil }
+        return LicenseInfo(email: String(decoding: emailBytes, as: UTF8.self),
+                           issued: Date(timeIntervalSince1970: epoch))
     }
 
     /// What to show in Settings — never the whole key, which people screenshot when asking for help.

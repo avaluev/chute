@@ -187,17 +187,28 @@ public enum LocalServers {
 
     /// Parse `ps -axo pid=,ppid=,comm=` into pid → (ppid, command). Pure.
     ///
-    /// `comm` is a PATH (`/usr/local/bin/node`, `npm exec next dev`), so the
-    /// last path component is taken and any argument tail dropped — `npm` has
-    /// to match `npm`, not `npm exec next start -p 3400`.
+    /// `comm` is a PATH, and macOS paths routinely contain spaces —
+    /// `/Applications/Sublime Text.app/Contents/MacOS/sublime_text`, anything under
+    /// `Application Support`, `Google Drive` or `iCloud Drive`. This used to cut the field at the
+    /// FIRST space and take the basename of what was left, which turned that path into `Sublime`.
+    /// A mis-identified command is not cosmetic here: `killSet` climbs to the highest ancestor
+    /// still in `runnerCommands`, so a name that matches nothing stops the climb early and
+    /// "Stop It" leaves the supervising `npm` alive to respawn the server it just killed.
+    ///
+    /// The slash decides. A field containing one is a path, and its basename is the whole tail
+    /// after the last `/` — spaces included, exactly as `SystemVitals.parse` already does. A
+    /// field with no slash is a bare name that may carry an argument tail, and there the first
+    /// word is right. `ps -axo comm=` prints the executable and not the argument list, so the
+    /// two shapes never overlap in practice.
     public static func parseProcessTable(_ output: String) -> [Int: (ppid: Int, command: String)] {
         var table: [Int: (ppid: Int, command: String)] = [:]
         for line in output.split(separator: "\n") {
             let parts = line.split(separator: " ", omittingEmptySubsequences: true)
             guard parts.count >= 3, let pid = Int(parts[0]), let ppid = Int(parts[1]) else { continue }
             let full = parts[2...].joined(separator: " ")
-            let head = full.split(separator: " ").first.map(String.init) ?? full
-            let name = head.split(separator: "/").last.map(String.init) ?? head
+            let name = full.contains("/")
+                ? (full as NSString).lastPathComponent
+                : (full.split(separator: " ").first.map(String.init) ?? full)
             table[pid] = (ppid, name)
         }
         return table

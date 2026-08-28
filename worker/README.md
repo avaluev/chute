@@ -51,11 +51,18 @@ Expected: `licence key format: Worker, keygen and app agree`.
 For a refund-and-reissue, a gift, or while the Worker is being fixed:
 
 ```bash
-cd /Users/sxope/Documents/2026/Development/37.chute && node worker/keygen.mjs mint <privateBase64> buyer@example.com
+cd /Users/sxope/Documents/2026/Development/37.chute && read -rs CHUTE_LICENSE_SEED && export CHUTE_LICENSE_SEED && node worker/keygen.mjs mint buyer@example.com; unset CHUTE_LICENSE_SEED
 ```
+
+`read -rs` takes the seed without echoing it and without putting it in shell history, which is
+where it landed for as long as it was an argument — and where `ps` could read it meanwhile.
 
 ## Deliberately not here
 
 - **No database.** The key is self-contained; there is nothing to look up and nothing to leak.
+  Duplicate webhook deliveries are handled without one: `issuedAt` comes from the event, so the
+  same transaction always mints the byte-identical key however many times Paddle sends it. A
+  store of seen event ids would work too, and would add a binding to provision and a failure
+  mode of its own to a design whose whole claim is that it holds no state.
 - **No activation count, no device limit.** Both need a server the app must call, which would
   contradict the offline promise that is half of why people buy this.

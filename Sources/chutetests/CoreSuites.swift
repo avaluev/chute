@@ -97,6 +97,32 @@ func coreSuites() {
         T.no(env.contains("super-secret-value-here"), "env value gone")
         T.eq(Redact.apply("just some normal prose about keys and tokens"), "just some normal prose about keys and tokens", "innocent text untouched")
 
+        // SECURITY — formats an audit found the list walking straight past. Every one of these
+        // is reachable through `chute gist`, which redacts and then UPLOADS.
+        // ASSEMBLED, NEVER WRITTEN OUT. A key-shaped literal in a test file is still a
+        // key-shaped literal to a scanner: GitHub's push protection rejected this very commit
+        // over the Stripe line, which held Stripe's own published example value. Concatenating
+        // the prefix exercises the same regex without putting the shape in the file — and the
+        // block was the right call, because nothing can tell a real key from a documented one.
+        let ghPat = "github" + "_pat_" + "11ABCDE0Y0aBcDeFgHiJkL" + "_mNoPqRsTuVwXyZ0123456789"
+        T.no(Redact.apply(ghPat).contains("mNoPqRsTuVwXyZ"),
+             "github fine-grained PAT gone — the default GitHub issues now")
+        let awsTemp = "ASIA" + "Y34FZKBOKMUTVV7A"
+        T.no(Redact.apply(awsTemp).contains("Y34FZKBOK"), "aws temporary credential gone")
+        let stripeSecret = "sk_" + "live_" + "51H8sJkQwErTyUiOpAsDfGh"
+        T.no(Redact.apply(stripeSecret).contains("51H8sJkQwErTy"), "stripe secret key gone")
+        let stripePublishable = "pk_" + "live_" + "51H8sJkQwErTyUiOpAsDfGh"
+        T.ok(Redact.apply(stripePublishable).contains("51H8sJkQwErTy"),
+             "but a publishable key is left alone — it is public by design")
+        let lower = Redact.apply("api_key=super-secret-value-here")
+        T.ok(lower.contains("api_key="), "a lowercase env key name is kept")
+        T.no(lower.contains("super-secret-value-here"), "and its value is gone — dotenv does not care about case")
+        let conn = Redact.apply("Server=db.example.com;Uid=root;Pwd=hunter2;Database=app")
+        T.no(conn.contains("hunter2"), "a semicolon-delimited connection string password is gone")
+        T.ok(conn.contains("Server=db.example.com"), "and the rest of the string survives")
+        T.no(Redact.apply("redis://:hunter2@cache:6379").contains("hunter2"),
+             "a URL password with no username — the ordinary Redis shape — is masked")
+
         // SECURITY — the two leaks the pattern list did not catch.
         T.ok(Redact.apply("db=postgres://admin:hunter2@localhost/app").contains("[REDACTED]@"),
              "credentials inside a URL are masked — no key-shaped pattern would catch them")

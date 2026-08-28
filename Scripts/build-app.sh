@@ -142,7 +142,8 @@ esac
 sign() {  # target [entitlements]
   local target="$1"; shift
   if [ "$IDENTITY" != "-" ]; then
-    ( codesign --force --sign "$IDENTITY" "${HARDEN[@]+"${HARDEN[@]}"}" "$@" "$target" 2>/dev/null ) & local pid=$!
+    local err; err="$(mktemp)"
+    ( codesign --force --sign "$IDENTITY" "${HARDEN[@]+"${HARDEN[@]}"}" "$@" "$target" 2>"$err" ) & local pid=$!
     disown 2>/dev/null || true
     local waited=0
     for _ in $(seq 1 120); do
@@ -161,14 +162,33 @@ sign() {  # target [entitlements]
       echo "        -k <your login password> ~/Library/Keychains/login.keychain-db"
       IDENTITY="-"
     else
-      wait "$pid" 2>/dev/null && return 0
+      # The exit code, not just "did it finish". A codesign that FAILED — a revoked certificate,
+      # a bad entitlement, a locked keychain that answered instead of hanging — used to land here
+      # with its stderr sent to /dev/null, fall through to the ad-hoc branch without a word, and
+      # let the script print "built $APP" as if nothing had happened. An ad-hoc bundle does not
+      # notarise and its Finder extension stops loading, so a silent downgrade is the one outcome
+      # that must never be quiet.
+      if wait "$pid" 2>/dev/null; then rm -f "$err"; return 0; fi
+      echo "note: codesign failed for $target with \"$IDENTITY\":" >&2
+      sed 's/^/      /' "$err" >&2
+      echo "      falling back to an ad-hoc signature — this build CANNOT be notarised." >&2
+      SIGNED_ADHOC=1
     fi
   fi
+  rm -f "${err:-}" 2>/dev/null || true
+  SIGNED_ADHOC=1
   codesign --force --sign - "$@" "$target" 2>/dev/null \
     || echo "note: signing unavailable for $target; it still runs locally"
 }
 
+SIGNED_ADHOC=0
 sign "$APPEX" --entitlements "$ROOT/Resources/ChuteFinder.entitlements"
 sign "$APP"
-echo "built $APP"
+# Say which kind of build this is, every time. `release.sh` re-verifies the outer signature
+# independently, but anyone running build-app.sh directly got an unqualified "built" either way.
+if [ "$SIGNED_ADHOC" = "1" ]; then
+  echo "built $APP  (AD-HOC SIGNED — runs locally, will not notarise)"
+else
+  echo "built $APP  (signed: $IDENTITY)"
+fi
 du -sh "$APP" | awk '{print "size: " $1}'
