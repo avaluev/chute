@@ -30,11 +30,19 @@ enum Onboard {
     /// pass that. An onboarding flag is written and read by ChuteApp alone, so it fails it.
     /// The escape hatch is ordinary macOS — `defaults delete dev.valuev.chute` — not a dotfile
     /// whose purpose the next person has to reverse-engineer before daring to delete it.
+    ///
+    /// The flag is written in `Handler.next()`'s Finish branch, not here. Writing it before
+    /// `show()` meant quitting mid-wizard still marked it done — the only way back was deleting
+    /// the whole defaults domain. Written late, quitting early leaves it unset, and the wizard is
+    /// what greets the next launch.
     static func showIfFirstRun() {
-        guard !UserDefaults.standard.bool(forKey: "onboarded") else { return }
-        UserDefaults.standard.set(true, forKey: "onboarded")
+        guard !hasOnboarded else { return }
         show()
     }
+
+    /// Read by `main.swift` too, to decide between this wizard and the repair window on launch —
+    /// one string, one place, rather than the key duplicated at each call site.
+    static var hasOnboarded: Bool { UserDefaults.standard.bool(forKey: "onboarded") }
 
     static func show() {
         index = 0
@@ -138,7 +146,14 @@ enum Onboard {
     final class Handler: NSObject {
         nonisolated(unsafe) static let shared = Handler()
         @objc func next() {
-            if index >= Onboarding.steps.count - 1 { window?.close(); return }
+            // Finish — and Skip on the last beat, which is the same button: there is no Skip row
+            // once `last` is true (see render()). Written HERE, not on first show, so quitting
+            // mid-wizard leaves it unset and the wizard is what the next launch shows again.
+            if index >= Onboarding.steps.count - 1 {
+                UserDefaults.standard.set(true, forKey: "onboarded")
+                window?.close()
+                return
+            }
             index += 1
             refreshOutcomes()
             render()

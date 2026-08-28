@@ -1,5 +1,12 @@
 import Foundation
 
+/// A check that fails either blocks the product from working, or merely describes a state that
+/// is fine to be in. Two cases, no scale between them — see `Diagnostics.all` for which is which.
+public enum Severity: Sendable, Equatable {
+    case blocker
+    case note
+}
+
 /// One thing that must be true for Chute to work.
 /// `why` and `fix` are non-optional by design: a check that cannot explain itself or state its
 /// remedy is a dead end, and a test in the suite mechanically forbids adding one.
@@ -8,9 +15,13 @@ public struct Check: Sendable, Equatable {
     public let title: String
     public let why: String
     public let fix: String
+    /// Defaults to `.blocker` so every check written before this existed keeps its old meaning
+    /// without being touched. Only `cli` and `terminal` — and the read-only `hooks` check below —
+    /// are marked `.note`.
+    public let severity: Severity
 
-    public init(id: String, title: String, why: String, fix: String) {
-        self.id = id; self.title = title; self.why = why; self.fix = fix
+    public init(id: String, title: String, why: String, fix: String, severity: Severity = .blocker) {
+        self.id = id; self.title = title; self.why = why; self.fix = fix; self.severity = severity
     }
 }
 
@@ -38,15 +49,20 @@ public struct DiagnosticsEnv: Sendable {
     /// Whether the extension's sandbox container still accepts the installed build's code
     /// identity. nil when there is no container yet, which is a healthy first install.
     public var containerAccepts: Bool?
+    /// Are Claude Code's agent-status hooks wired into `~/.claude/settings.json`? Read-only —
+    /// `HookInstaller.status` only reads that file, Chute never writes it. Defaults to false,
+    /// which is the common case: most machines never ran `chute hooks snippet`.
+    public var hooksWired: Bool
 
     public init(osMajor: Int, appPath: String, cliPath: String?, pluginkitList: String,
                 extensionID: String, automationOK: Bool, processList: String,
-                endToEndPassed: Bool, containerAccepts: Bool? = nil) {
+                endToEndPassed: Bool, containerAccepts: Bool? = nil, hooksWired: Bool = false) {
         self.osMajor = osMajor; self.appPath = appPath; self.cliPath = cliPath
         self.pluginkitList = pluginkitList; self.extensionID = extensionID
         self.automationOK = automationOK; self.processList = processList
         self.endToEndPassed = endToEndPassed
         self.containerAccepts = containerAccepts
+        self.hooksWired = hooksWired
     }
 }
 
@@ -60,9 +76,12 @@ public enum Diagnostics {
         Check(id: "app-location", title: "App location",
               why: "macOS only loads a Finder extension from an app in /Applications or ~/Applications.",
               fix: "Move Chute.app to ~/Applications, then run this again."),
+        // .note: a missing CLI does not block the app. FirstRunWindow used to title a clean
+        // app-only install "2 things need your permission" over this and `terminal` — neither
+        // is a permission, and Scripts/install.sh says the app does not need the CLI at all.
         Check(id: "cli", title: "Command line tool",
               why: "Every menu item and Finder action runs through the chute binary.",
-              fix: "brew install avaluev/tap/chute"),
+              fix: "brew install avaluev/tap/chute", severity: .note),
         Check(id: "ext-registered", title: "Finder extension registered",
               why: "macOS cannot show the right-click menu for an extension it does not know about.",
               fix: "chute doctor --fix   (runs pluginkit -a on the bundled extension)"),
@@ -77,10 +96,18 @@ public enum Diagnostics {
               fix: "chute doctor --fix triggers the prompt. If you denied it: System Settings → Privacy & Security → Automation."),
         Check(id: "terminal", title: "A terminal is running",
               why: "The session switcher lists terminal windows. With none open there is nothing to show.",
-              fix: "Open Terminal. Informational only — nothing is broken."),
-        // There is deliberately NO "hooks" check: agent status hooks are optional and manual
-        // (`chute hooks snippet`), and a doctor check nudging people to edit their own
-        // ~/.claude/settings.json is a nudge toward the one file Chute promises never to touch.
+              fix: "Open Terminal. Informational only — nothing is broken.", severity: .note),
+        // .note, and read-only: reporting whether the hooks are wired is not the same as nudging
+        // anyone to wire them. That principle stays — Chute never writes ~/.claude/settings.json,
+        // here or anywhere. What changed is that "no hooks check" made a permanently dark badge
+        // look identical to a healthy install with nothing to report; this says which one it is.
+        Check(id: "hooks", title: "Agent status hooks",
+              why: "The badge on the menu bar icon, and each session's blocked/waiting/working "
+                + "state, come entirely from hooks Claude Code calls. Without them the badge stays "
+                + "dark and every session looks idle, even a busy one.",
+              fix: "agent status hooks are not wired — the badge will stay dark. "
+                + "chute hooks snippet prints what to paste; Chute never edits that file itself.",
+              severity: .note),
         Check(id: "end-to-end", title: "End-to-end proof",
               why: "Every component can be healthy and the product still not work. This runs a real command and reads the result back.",
               fix: "If this alone fails, the pieces are fine but they are not talking. Re-run chute doctor --fix, then report it."),
@@ -134,6 +161,7 @@ public enum Diagnostics {
         add("terminal",
             env.processList.contains("Terminal.app/Contents/MacOS/Terminal"),
             env.processList.isEmpty ? "none detected" : "running")
+        add("hooks", env.hooksWired, env.hooksWired ? "wired" : "not wired — badge stays dark")
         add("end-to-end", env.endToEndPassed, env.endToEndPassed ? "verified" : "failed")
         return out
     }
@@ -201,8 +229,14 @@ public enum Diagnostics {
             automationOK: probe.ok,
             processList: Shell.run("ps", ["-Ao", "comm"]).out,
             endToEndPassed: endToEndProbe(),
-            containerAccepts: extensionHasStarted(extensionID: extensionID, appPath: appPath))
+            containerAccepts: extensionHasStarted(extensionID: extensionID, appPath: appPath),
+            hooksWired: HookInstaller.status(settingsPath: claudeSettingsPath).values.allSatisfy { $0 })
     }
+
+    /// Same path `chute hooks` defaults to (`Sources/chute/Commands/SessionCommands.swift`).
+    /// Read-only here too: `HookInstaller.status` only ever reads this file.
+    static let claudeSettingsPath =
+        (NSHomeDirectory() as NSString).appendingPathComponent(".claude/settings.json")
 
     /// Has the INSTALLED extension actually started? Proved by the extension itself: it writes
     /// `~/.chute/extension-loaded.txt` on load, so a marker older than the installed binary means

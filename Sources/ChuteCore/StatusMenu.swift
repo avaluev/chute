@@ -40,6 +40,8 @@ public enum StatusMenu {
         case openNotificationSettings
         case reportProblem
         case openSettings
+        case openSetup
+        case copyHooksSnippet
         case quit
         case bufferCopyOne
         case bufferFlush
@@ -98,6 +100,12 @@ public enum StatusMenu {
                              problem: String? = nil,
                              recent: [ContextBuffer.Entry] = [],
                              notificationsDenied: Bool = false,
+                             /// Has ANY hook record ever been written to `~/.chute/sessions`?
+                             /// Distinct from zero CURRENT records — a quiet machine with hooks
+                             /// wired has zero of those constantly and that is not a problem. Zero
+                             /// EVER means the badge and every session's state have nothing to
+                             /// draw from at all.
+                             hasHookRecords: Bool = true,
                              loadFor: (String) -> SessionLoad = { _ in
                                  SessionLoad(cpuPercent: 0, residentBytes: 0, processes: 0) },
                              sessionCommands: (Session) -> [(kind: String, title: String)] = { _ in [] },
@@ -130,6 +138,21 @@ public enum StatusMenu {
         if let problem {
             out.append(MenuNode(.command(.openAutomationSettings),
                                 "Cannot read Terminal — click to fix", toolTip: problem))
+            out.append(.separator())
+        }
+
+        // THE BADGE CANNOT WORK AND NOTHING SAYS SO. `updateBadgeFromHooks` reports 0 whenever no
+        // hook record has ever existed — the same picture as "nothing needs you". Sessions are
+        // visibly running, so silence here reads as "you're all caught up" when the truth is the
+        // badge has no data to draw from at all.
+        if !hasHookRecords, !sessions.isEmpty {
+            out.append(MenuNode(.command(.copyHooksSnippet),
+                                "Agent status needs a hook — Copy the Snippet",
+                                toolTip: "No agent-status hook has ever reported in, so the badge "
+                                       + "and each session's state have nothing to go on. Paste "
+                                       + "this into ~/.claude/settings.json yourself — Chute never "
+                                       + "edits that file.",
+                                payload: HookInstaller.manualSnippet()))
             out.append(.separator())
         }
 
@@ -207,6 +230,11 @@ public enum StatusMenu {
         if unlocked {
             out.append(MenuNode(.servers, "Local Servers"))
             out.append(contentsOf: recentCopies(recent))
+        } else {
+            // AN EXPIRED TRIAL MAKES BOTH VANISH SILENTLY, which to the user is indistinguishable
+            // from "empty" — the same false signal this whole spec exists to stop. The gate itself
+            // is unchanged: nothing here unlocks either section, it only says why they are gone.
+            out.append(MenuNode(.note, "Local Servers and Recent Copies are behind the licence"))
         }
         out.append(.separator())
 
@@ -218,6 +246,7 @@ public enum StatusMenu {
                                        + "cannot — no display attached — a notification is the "
                                        + "only way left to tell you."))
         }
+        out.append(MenuNode(.command(.openSetup), "Setup…"))
         out.append(MenuNode(.command(.reportProblem), "Report a Problem…"))
         out.append(MenuNode(.command(.openSettings), "Settings…"))
 

@@ -23,7 +23,10 @@ enum FirstRunWindow {
         DispatchQueue.global(qos: .utility).async {
             let outcomes = Diagnostics.run(Diagnostics.liveEnv())
             let failing = outcomes.filter { !$0.passed }
-            guard !failing.isEmpty else { return }   // nothing failing, nothing to show
+            // Open only when something that actually BLOCKS the product is failing. `cli` and
+            // `terminal` are `.note` — a machine with no Homebrew CLI and no Terminal window open
+            // is a correct, working, app-only install, and must show NOTHING.
+            guard failing.contains(where: { $0.check.severity == .blocker }) else { return }
             DispatchQueue.main.async { show(only: failing) }
         }
     }
@@ -85,10 +88,20 @@ enum FirstRunWindow {
 
         // Apple's wording rule for an alert: the title states what needs doing, not how the app
         // feels about it. "Chute is almost ready" over ten green ticks said nothing at all.
-        let failures = (outcomes ?? []).filter { !$0.passed }
+        //
+        // ONLY BLOCKERS COUNT AND ONLY BLOCKERS RENDER. `cli` and `terminal` are `.note` — neither
+        // is a permission, and showing them here over the same alarmed "needs your permission"
+        // wording is the exact false signal this window used to give. A note can still fail
+        // silently underneath (`chute doctor` prints it); this window is for what actually blocks
+        // the product, so it does not reintroduce the noise by another door. Wiring `Setup…` into
+        // the menu (see StatusMenu) makes this window reachable on a CLEAN install too, so the
+        // zero-failures case has to read as good news, not as "0 things need your permission".
+        let failures = (outcomes ?? []).filter { !$0.passed && $0.check.severity == .blocker }
         let title = outcomes == nil
             ? "Checking your setup"
-            : (failures.count == 1 ? "One thing needs your permission" : "\(failures.count) things need your permission")
+            : failures.isEmpty
+                ? "Chute is set up correctly"
+                : (failures.count == 1 ? "One thing needs your permission" : "\(failures.count) things need your permission")
         let heading = NSTextField(labelWithString: title)
         heading.font = .systemFont(ofSize: 18, weight: .semibold)
         root.addArrangedSubview(heading)
@@ -106,13 +119,19 @@ enum FirstRunWindow {
         let buttons = NSStackView()
         buttons.orientation = .horizontal
         buttons.spacing = 10
-        // The default button does the work; "Later" dismisses. Both verbs, both about this window.
-        let fix = NSButton(title: failures.count == 1 ? "Fix It" : "Fix These",
-                           target: Handler.shared, action: #selector(Handler.fixAll))
-        fix.keyEquivalent = "\r"
-        let skip = NSButton(title: "Later", target: Handler.shared, action: #selector(Handler.skip))
-        buttons.addArrangedSubview(fix)
-        buttons.addArrangedSubview(skip)
+        if failures.isEmpty {
+            let close = NSButton(title: "Close", target: Handler.shared, action: #selector(Handler.skip))
+            close.keyEquivalent = "\r"
+            buttons.addArrangedSubview(close)
+        } else {
+            // The default button does the work; "Later" dismisses. Both verbs, both about this window.
+            let fix = NSButton(title: failures.count == 1 ? "Fix It" : "Fix These",
+                               target: Handler.shared, action: #selector(Handler.fixAll))
+            fix.keyEquivalent = "\r"
+            let skip = NSButton(title: "Later", target: Handler.shared, action: #selector(Handler.skip))
+            buttons.addArrangedSubview(fix)
+            buttons.addArrangedSubview(skip)
+        }
         root.addArrangedSubview(buttons)
         return UI.pad(root)
     }
@@ -168,7 +187,13 @@ enum FirstRunWindow {
         @objc func fixAll() {
             let binary = Bundle.main.bundlePath + "/Contents/MacOS/chute"
             DispatchQueue.global(qos: .userInitiated).async {
-                _ = Shell.run(binary, ["doctor", "--fix"])
+                // --force, because THE BUTTON IS THE CONFIRMATION. `doctor --fix` gained a
+                // dry-run gate on 2026-08-29 along with the other four destructive commands, and
+                // without --force this shells out, previews to a stderr nobody sees, repairs
+                // nothing, and repaints the same failures — a Fix button that does not fix. The
+                // preview step those guards exist to add already happened here: the window listed
+                // what is wrong and the user pressed a button labelled Fix These.
+                _ = Shell.run(binary, ["doctor", "--fix", "--force"])
                 DispatchQueue.main.async {
                     // Re-verify from a FRESH environment; never repaint a row green without
                     // re-running the check behind it. refresh() is already off-main-safe.
