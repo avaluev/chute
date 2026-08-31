@@ -124,5 +124,17 @@ func contextBufferSuite() {
         } else {
             T.ok(false, "there is an entry to check the mode of")
         }
+
+        // CHUTE_BUFFER_DIR IS A GUARD, NOT A COMMENT. It shipped saying "tests only" and enforcing
+        // nothing — the CLI, the app and the Finder extension all read it, so anyone able to set
+        // an environment variable could point the basket anywhere. Security review caught that a
+        // comment is not a guard. Constrained to NSTemporaryDirectory(), which every `mktemp -d`
+        // satisfies, so the tests keep working and the promise is now true.
+        let tmp = URL(fileURLWithPath: NSTemporaryDirectory()).resolvingSymlinksInPath().path
+        T.ok(ContextBuffer.defaultDirectory == ContextBuffer.home
+                || ContextBuffer.defaultDirectory.hasPrefix(tmp),
+             "the basket is the real one, or somewhere under the temp directory — never elsewhere")
+        T.ok(ContextBuffer.home.hasPrefix(NSHomeDirectory()),
+             "and the real one is inside this user's home")
     }
 }

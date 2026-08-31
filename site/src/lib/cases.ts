@@ -170,13 +170,17 @@ export const CASES: Case[] = [
     command: 'chute note "waiting on the migration"',
   },
   {
+    // MOVED cli → finder 2026-08-31. It was a CLI-only job until `Add to Context Basket` became a
+    // Finder row that day; the primary way to do it is now a right-click, and the Finder menu is
+    // the paid surface. Left as `cli`/free it would have been counted in the free tier while the
+    // row it describes sat in the paid one — the value split is what the pricing page is built on.
     slug: "collect-files-over-several-copies",
-    jtbd: 22, surface: "cli", tier: "short", paid: false,
+    jtbd: 22, surface: "finder", tier: "short", paid: true,
     pain: "The files I need are in four different folders and the clipboard holds one thing.",
     ritual: "Paste each one into a scratch document as you go, then copy the whole document.",
-    fix: "Copy as you find them — each one lands in a buffer. Flush it once and everything comes out in one paste.",
+    fix: "Right-click each one as you find it. The menu bar holds them, and hands them over as @mentions your agent reads itself — or as the files themselves, with a token count.",
     seconds: { manual: 45, chute: 4 }, perDay: 12, savedMinutes: 8.2,
-    command: "chute buf add",
+    command: "chute basket add",
   },
   {
     slug: "what-did-the-agent-actually-change",

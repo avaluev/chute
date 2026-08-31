@@ -96,10 +96,15 @@ From `docs/03-JTBD-LEDGER.md`. Every figure is `frequency × (manual seconds −
 `docs/specs/move-5-delete-unpack.md` — so it no longer appears above or in either total below.
 Retired, not merely undersold: neither the CLI nor the Finder menu can do this job any more.
 
-**Headline: ~85 minutes a day.** That is the app surface total (85.7 min, from `cd site && npm run
-check:cases`), rounded down per this section's own rule. The ledger supports ~169.2 min/day across
-all 21 jobs; the smaller number is used deliberately, because it is the one that survives a
-sceptic with a stopwatch.
+**Headline: ~90 minutes a day.** That is the app surface total — Finder 89.0 + menu bar 4.9 =
+93.9 min, derived from `site/src/lib/cases.ts` — rounded down per this section's own rule. The
+ledger supports ~169.2 min/day across all 21 jobs, but 75.3 of that is the free MIT CLI, and a
+paid page must not quote a number two thirds of which the buyer already has for nothing.
+
+The app-surface figure moved twice on 2026-08-31 and both moves were downward-honest: four Finder
+rows were deleted (they solved problems a Claude Code user does not have), and JTBD 22 moved from
+the free CLI column to the paid Finder one when `Add to Context Basket` became a row. It is now
+the only number here that a buyer experiences as one person.
 
 Two figures need care:
 - **"Which agent is waiting" has no minutes figure and must not be given one.** Its cost is

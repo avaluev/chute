@@ -85,7 +85,7 @@ export default function Terms() {
       <H2>No warranty</H2>
       <p>
         Chute is provided as is. It runs destructive-looking operations on your files —{" "}
-        <code className="text-foreground">unpack</code>, <code className="text-foreground">clean</code>,{" "}
+        <code className="text-foreground">clean</code> and{" "}
         <code className="text-foreground">checkpoint</code> — and although every one of them
         previews before it acts, moves to the Trash rather than deleting, and never touches your git
         worktree, software has bugs. Keep backups. To the maximum extent the law allows, our

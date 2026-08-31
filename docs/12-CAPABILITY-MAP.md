@@ -5,7 +5,7 @@ same engine, and this is the one page that says which job each of them is actual
 
 | Surface | What it is | Paid? |
 |---|---|---|
-| **`chute` CLI** | 27 commands, MIT, free forever. Every capability lives here first. | free |
+| **`chute` CLI** | 26 commands, MIT, free forever. Every capability lives here first. | free |
 | **Finder right-click** | 11 actions in 6 rows. Every one of them shells out to the CLI. | paid |
 | **Menu bar (⤓)** | Session switcher, local servers, licence, diagnostics. Uses ChuteCore in-process. | paid |
 
@@ -31,6 +31,7 @@ swift run chute finder-actions --menu
         2 Levels
         4 Levels
         All Levels
+  Add to Context Basket            ● blue
   New File  ▸                      ● green
         Empty Markdown File
         Markdown File from Clipboard
@@ -38,7 +39,6 @@ swift run chute finder-actions --menu
   Set Up for an Agent  ▸           ● purple
         Add Agent Rules
         Save a Checkpoint
-  Move Junk to Trash…              ● red
 ```
 
 | Row | Action id | Runs | Acts on | JTBD | Saves/day | Colour |
@@ -53,14 +53,12 @@ swift run chute finder-actions --menu
 | New File ▸ Image from Clipboard | `paste-image` | `chute paste-image --dir <dir>` | folder | **3** (image variant) | ″ | green |
 | Set Up for an Agent ▸ Add Agent Rules | `seed-rules` | `chute seed <dir>` | folder | **7** Seed agent rule files | 9.9 min | purple |
 | Set Up for an Agent ▸ Save a Checkpoint | `checkpoint-here` | `chute checkpoint <dir>` | folder | **12** Pre-agent checkpoint | 3.3 min **+ ~20 min risk-adj.** | purple |
-| Move Junk to Trash… | `clean-junk` | `chute clean <dir>` | folder | **13** Clean agent junk | 6.6 min | **red** |
+| Add to Context Basket | `basket-add` | `chute basket add <files>` | selection | **22** Collect files across folders | 8.2 min | blue |
 
-**Total surfaced through Finder: 6 of the 22 ledger JTBDs, ≈ 80.5 min/day** on the clock, plus
+**Total surfaced through Finder: 7 of the 22 ledger JTBDs, ≈ 89.0 min/day** on the clock, plus
 JTBD 12's ~20 min/day of risk-adjusted saving. (One fewer JTBD and 28.5 min/day less than before
 2026-08-31: `unpack-here` — JTBD 9 — is gone, and unlike every other row removed from this menu so
-far, `unpack` has no CLI fallback either. See `docs/specs/move-5-delete-unpack.md`. This total
-still carries the pre-existing drift from `clean-junk`, listed in the row table above but already
-absent from `ChuteActions.all` — that reconciliation is a separate piece of work.)
+far, `unpack` has no CLI fallback either. See `docs/specs/move-5-delete-unpack.md`.)
 
 > JTBD **4** (syntax auto-detection, 2.0 min/day) rides along inside `new` rather than being a row
 > of its own, so it is not counted in the figure above. The largest saving in the whole ledger —
@@ -77,6 +75,7 @@ absent from `ChuteActions.all` — that reconciliation is a separate piece of wo
   block with a token count, ready to paste into a chat. This is the product's wedge.
 - **Copy Folder Tree** — the shape of a folder as an indented tree, with `node_modules`, `.build`
   and friends left out. Depth is a knob, not a dialog, because a context menu cannot ask.
+- **Add to Context Basket** — collect files across folders to hand over all at once. Run `chute basket copy` to get the collected files or a list of mentions.
 - **New File ▸ Empty Markdown File** — an empty `Untitled.md`, name selected and ready to type over.
 - **New File ▸ Markdown File from Clipboard** — the clipboard saved here, filename derived from its
   first line, language detected from its content.
@@ -87,9 +86,6 @@ absent from `ChuteActions.all` — that reconciliation is a separate piece of wo
 - **Set Up for an Agent ▸ Save a Checkpoint** — a restore point for this folder before you let an
   agent run. Uses `git add -A` against a private index and `commit-tree`, so your worktree, your
   index and `HEAD` are never touched — it can only add a branch. Not destructive, so it never asks.
-- **Move Junk to Trash…** — the scratch files an agent left behind, moved to the Trash (never
-  `rm`). Lists them first.
-- **Open in Terminal** — a terminal already `cd`'d here.
 
 ---
 
@@ -103,12 +99,12 @@ absent from `ChuteActions.all` — that reconciliation is a separate piece of wo
 | `bundle <files>` | 2 | ✅ | — | Finder is XML-only; `--format md` stays CLI. |
 | `tokens <files>` | 24 | ❌ | — | Partly covered: the bundle prints a count. See C. |
 | `tree [dir]` | 5 | ✅ | — | |
-| `buf add\|list\|flush\|clear` | 22 | ❌ | — | A ring needs state across clicks; a context menu has none. |
+| `basket add\|list\|copy\|clear` | 22 | ✅ | — | |
 | `new` | 3, 4 | ✅ | — | |
 | `seed [dir]` | 7 | ✅ | — | |
 | `note "text"` | 16 | ❌ | — | Needs typed text. A context menu cannot ask a question. |
 | `latest [dir]` | 10 | ❌ | — | **Gap — see C.** |
-| `clean [dir]` | 13 | ✅ | — | |
+| `clean [dir]` | 13 | ❌ | — | Removed from Finder 2026-08-31. |
 | `sandbox [name]` | 6, 21 | ❌ | — | JTBD 6 removed from Finder 2026-08-31; `--each` (JTBD 21) is CLI-only. |
 | `open [dir]` | 8 | ✅ (terminal) | — | `--with editor` is CLI-only. **Half a gap — see C.** |
 | `ports` | 15 | — | ✅ Local Servers | Correct: ports have no folder to right-click. |

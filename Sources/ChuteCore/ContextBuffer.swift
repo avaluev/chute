@@ -46,9 +46,37 @@ public struct ContextBuffer: Sendable {
     /// override those tests ran against the owner's actual basket — clearing files he had
     /// deliberately collected. A test suite that destroys the user's data to prove the feature
     /// works has disproved it. Not a general setting, not documented in `chute help`: tests only.
-    public init(directory: String = ProcessInfo.processInfo.environment["CHUTE_BUFFER_DIR"]
-                    ?? (NSHomeDirectory() as NSString).appendingPathComponent(".chute/buffer")) {
+    public init(directory: String = Self.defaultDirectory) {
         self.directory = directory
+    }
+
+    public static let home = (NSHomeDirectory() as NSString).appendingPathComponent(".chute/buffer")
+
+    /// `CHUTE_BUFFER_DIR` redirects the basket, **and is honoured only under the system temp
+    /// directory.**
+    ///
+    /// It exists for one reason: the smoke suite drives `basket add/copy/clear` through the real
+    /// binary, and without an override those runs operated on the owner's actual basket and ended
+    /// by clearing it. A suite that destroys the user's data to prove a feature works has
+    /// disproved it.
+    ///
+    /// The first version said "tests only" in a comment and enforced nothing — security review
+    /// caught that: a comment is not a guard, and the CLI, the app and the Finder extension all
+    /// read this. Constraining it to `NSTemporaryDirectory()` keeps every test working (`mktemp -d`
+    /// lands there) while making the promise in the comment true. Anything else is ignored, and
+    /// says so, because silently using the real basket when someone asked for a different one is
+    /// how a test suite eats a user's data twice.
+    public static var defaultDirectory: String {
+        guard let override = ProcessInfo.processInfo.environment["CHUTE_BUFFER_DIR"],
+              !override.isEmpty else { return home }
+        let tmp = URL(fileURLWithPath: NSTemporaryDirectory()).resolvingSymlinksInPath().path
+        let resolved = URL(fileURLWithPath: override).resolvingSymlinksInPath().path
+        guard resolved == tmp || resolved.hasPrefix(tmp.hasSuffix("/") ? tmp : tmp + "/") else {
+            FileHandle.standardError.write(Data(
+                "chute: ignoring CHUTE_BUFFER_DIR — it must be under \(tmp)\n".utf8))
+            return home
+        }
+        return override
     }
 
     private var fm: FileManager { .default }

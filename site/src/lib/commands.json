@@ -20,10 +20,6 @@
     "does": "Clipboard → new file, named from its # heading, extension from its syntax"
   },
   {
-    "cmd": "chute unpack",
-    "does": "Fenced code blocks → a real file tree. **Previews by default**, writes with --force"
-  },
-  {
     "cmd": "chute seed [dir]",
     "does": "CLAUDE.md, .cursorrules, AGENTS.md, SCRATCHPAD.md. Never overwrites"
   },

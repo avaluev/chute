@@ -13,7 +13,7 @@ Legend: **T1** = tier 1 (ship first) · **T2** = tier 2 · dry-run = destructive
 | FR-03 | 24 | `chute tokens <files…>` | **T1** Estimated token count, total + per file. |
 | FR-04 | 3 | `chute new [--name N] [--dir D] [--ext E]` | **T1** Creates a file from the clipboard. Name derived from the first `# heading`; extension from detected syntax. Never overwrites — de-duplicates with `-2`, `-3`. |
 | FR-05 | 4 | (library) `LanguageDetect` | **T1** Maps content → extension: json, py, swift, ts, js, sql, sh, yaml, html, css, rb, go, rs, java, md, txt. Powers FR-04 and FR-06. |
-| FR-06 | 9 | `chute unpack [--dir D] [--force]` | **T1** Parses fenced blocks with a path hint into a file tree. **Lists only unless `--force`.** Rejects absolute paths and any path escaping the target dir. |
+| ~~FR-06~~ | ~~9~~ | RETIRED 2026-08-31 | Was the unpack command: fenced blocks with a path hint → a file tree. Removed when the ICP was settled as Claude Code / Cursor users, whose agent writes files to disk itself, so the job never occurs for them. `MarkdownUnpack` and its `validate`/`staysInside` guards went with it. See `docs/specs/move-5-delete-unpack.md`. |
 | FR-07 | 8 | `chute open <dir> [--with terminal\|editor\|auto]` | **T1** Opens the folder in the detected terminal (Ghostty → iTerm → Warp → Terminal.app) or editor (Cursor → VS Code). |
 | FR-08 | 6 | `chute sandbox <name> [--dir D] [--agent claude\|codex\|gemini] [--yolo]` | **T1** mkdir → `git init` → seed README + CLAUDE.md → open terminal → run the agent. `--yolo` adds the agent's skip-permissions flag. |
 | FR-09 | 12 | `chute checkpoint [dir]` | **T1** Commits all current work onto `chute/checkpoint-<ts>`, then returns HEAD to the original branch. Never discards anything. |
@@ -29,7 +29,7 @@ Legend: **T1** = tier 1 (ship first) · **T2** = tier 2 · dry-run = destructive
 | FR-19 | 19 | `chute redact [files…]` | **T2** Masks `sk-ant-`, `sk-`, `ghp_`, `gho_`, `AKIA`, Bearer tokens, JWTs and `.env` values. |
 | FR-20 | 20 | `chute gist <files…>` | **T2** `gh gist create --secret`, URL to the clipboard. |
 | FR-21 | 21 | `chute sandbox --each <dirs…>` | **T2** Launches an agent in each selected folder. |
-| FR-22 | 22 | `chute buf add\|list\|flush\|clear` | **T2** Context buffer at `~/.chute/buffer`; `flush` joins entries with dividers onto the clipboard. |
+| FR-22 | 22 | `chute basket add\|list\|copy\|clear` | **T2** The Context Basket at `~/.chute/buffer` — collect files across folders, hand over once. Stores PATHS, not copies of content, so `copy` reads them fresh: `--format mentions` (default) gives `@src/a.ts @lib/b.ts` for an agent, `--format context` gives the same bundle `chute bundle` produces. `buf` is a kept alias. |
 | FR-23 | 23 | `chute dataurl <image>` | **T2** Base64 data URL / markdown image to the clipboard. |
 | FR-24 | 14 | `chute env inject <dir> [--keys A,B]` | **T2** Reads keys from the macOS Keychain only. Aborts unless `.env` is gitignored. Prints key **names**, never values. |
 
