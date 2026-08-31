@@ -229,12 +229,6 @@ for id in $ALL_IDS; do
       if ! command -v claude >/dev/null 2>&1; then skip "sandbox-here — claude is not on PATH"; continue; fi
       run_action "$id" --no-launch >/dev/null 2>&1;;
     # `checkpoint` refuses outside a git repository, which is correct and is asserted in section
-    # 8. The sweep fixture is a plain folder, so give it the state a user right-clicking this
-    # action is actually in. Declared LAST in the submenu, so this runs after the other agent
-    # actions have already seen the plain folder.
-    checkpoint-here)
-      git -C "$FX" rev-parse --is-inside-work-tree >/dev/null 2>&1 || git -C "$FX" init -q
-      run_action "$id" >/dev/null 2>&1;;
     paste-image)
       if [ "$HEADLESS" = "1" ]; then skip "paste-image — needs an image on the pasteboard"; continue; fi
       sips -s format png "$ROOT/Resources/Chute.icns" --out "$T/sweep.png" >/dev/null 2>&1
@@ -285,9 +279,9 @@ has   "bundle-xml reports a token count"       "$(cat /tmp/chute-a.err)" "token"
 # asserted here, not just their exit code — a menu item that runs clean and does nothing is the
 # failure mode this whole file exists for.
 
-run_action seed-rules >/dev/null 2>&1
-if [ -f "$FX/CLAUDE.md" ]; then ok "seed-rules leaves rules an agent will actually read"
-else bad "seed-rules leaves rules an agent will actually read" "no CLAUDE.md in $FX"; fi
+# seed-rules and checkpoint-here left the menu 2026-08-31 with their "Set Up for an Agent" parent.
+# `chute seed` and `chute checkpoint` are still CLI commands and are still exercised as such
+# earlier in this file; what went is the Finder row, and with it this section.
 
 # clean-junk was removed from the menu 2026-08-31 (git status already lists untracked files, and
 # a developer trusts it over a menu's idea of junk). `chute clean` is still exercised as a CLI
@@ -374,11 +368,14 @@ fi
 # demonstrate the four highest-value jobs in the ledger (seed, sandbox, clean), and
 # checkpoint — the last T1 job in the ledger that had no Finder surface. Change this number only
 # when the menu changes, never to make this file pass.
-# RECOUNTED FROM SCRATCH 2026-08-31, not patched. Four rows went that day — terminal (macOS
-# ships it), sandbox-here (the ICP's agent sandboxes itself), clean-junk (git status already lists
-# untracked files) and unpack-here (the ICP's agent writes files itself) — and basket-add arrived.
-# Counted against the live table, never against arithmetic: `chute finder-actions --json`.
-check "the menu table and this test agree" "$(printf '%s' "$ALL_IDS" | wc -w | tr -d ' ')" "11"
+# RECOUNTED FROM THE LIVE TABLE 2026-08-31, twice in one day, never patched. Six rows went that
+# day, each failing the same test — does this survive a user who has git, an OS with terminal
+# shortcuts, and an agent with filesystem access? terminal (macOS ships it), sandbox-here and
+# unpack-here (the agent sandboxes and writes files itself), clean-junk (git status lists
+# untracked files), then seed-rules and checkpoint-here with the "Set Up for an Agent" parent
+# that was only ever a category holding two unrelated jobs. basket-add arrived.
+# Counted against `chute finder-actions --json`, never against arithmetic.
+check "the menu table and this test agree" "$(printf '%s' "$ALL_IDS" | wc -w | tr -d ' ')" "9"
 
 echo "16. the Finder extension's request inbox (needs Chute.app running)"
 # The extension is sandboxed: it cannot run git, launch Terminal or drive AppleScript. It writes a

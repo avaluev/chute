@@ -6,7 +6,7 @@ same engine, and this is the one page that says which job each of them is actual
 | Surface | What it is | Paid? |
 |---|---|---|
 | **`chute` CLI** | 26 commands, MIT, free forever. Every capability lives here first. | free |
-| **Finder right-click** | 11 actions in 6 rows. Every one of them shells out to the CLI. | paid |
+| **Finder right-click** | 9 actions in 5 rows. Every one of them shells out to the CLI. | paid |
 | **Menu bar (⤓)** | Session switcher, local servers, licence, diagnostics. Uses ChuteCore in-process. | paid |
 
 The rule that keeps them honest: **the app is a surface, never a second implementation**
@@ -36,9 +36,6 @@ swift run chute finder-actions --menu
         Empty Markdown File
         Markdown File from Clipboard
         Image from Clipboard
-  Set Up for an Agent  ▸           ● purple
-        Add Agent Rules
-        Save a Checkpoint
 ```
 
 | Row | Action id | Runs | Acts on | JTBD | Saves/day | Colour |
@@ -51,14 +48,12 @@ swift run chute finder-actions --menu
 | New File ▸ Empty Markdown File | `new-markdown` | `chute new --blank --rename --dir <dir>` | folder | **3** Clipboard → file | 12.9 min | green |
 | New File ▸ Markdown File from Clipboard | `new-markdown-clipboard` | `chute new --naming underscore --ext md --rename --dir <dir>` | folder | **3** + **4** Syntax detection | ″ | green |
 | New File ▸ Image from Clipboard | `paste-image` | `chute paste-image --dir <dir>` | folder | **3** (image variant) | ″ | green |
-| Set Up for an Agent ▸ Add Agent Rules | `seed-rules` | `chute seed <dir>` | folder | **7** Seed agent rule files | 9.9 min | purple |
-| Set Up for an Agent ▸ Save a Checkpoint | `checkpoint-here` | `chute checkpoint <dir>` | folder | **12** Pre-agent checkpoint | 3.3 min **+ ~20 min risk-adj.** | purple |
 | Add to Context Basket | `basket-add` | `chute basket add <files>` | selection | **22** Collect files across folders | 8.2 min | blue |
 
-**Total surfaced through Finder: 7 of the 22 ledger JTBDs, ≈ 89.0 min/day** on the clock, plus
-JTBD 12's ~20 min/day of risk-adjusted saving. (One fewer JTBD and 28.5 min/day less than before
-2026-08-31: `unpack-here` — JTBD 9 — is gone, and unlike every other row removed from this menu so
-far, `unpack` has no CLI fallback either. See `docs/specs/move-5-delete-unpack.md`.)
+**Total surfaced through Finder: 5 of the 24 ledger JTBDs, ≈ 75.8 min/day** on the clock.
+(Two fewer JTBDs and 13.2 min/day less than before 2026-08-31: `seed-rules` — JTBD 7, 9.9 min —
+and `checkpoint-here` — JTBD 12, 3.3 min — were removed because the primary way to do them is now
+the CLI.)
 
 > JTBD **4** (syntax auto-detection, 2.0 min/day) rides along inside `new` rather than being a row
 > of its own, so it is not counted in the figure above. The largest saving in the whole ledger —
@@ -81,11 +76,6 @@ far, `unpack` has no CLI fallback either. See `docs/specs/move-5-delete-unpack.m
   first line, language detected from its content.
 - **New File ▸ Image from Clipboard** — a screenshot saved here as PNG, and its full path copied,
   so the next thing you paste into the issue is the path.
-- **Set Up for an Agent ▸ Add Agent Rules** — writes `CLAUDE.md`, `.cursorrules` and
-  `SCRATCHPAD.md` here, skipping any that already exist. Never overwrites, so it never asks.
-- **Set Up for an Agent ▸ Save a Checkpoint** — a restore point for this folder before you let an
-  agent run. Uses `git add -A` against a private index and `commit-tree`, so your worktree, your
-  index and `HEAD` are never touched — it can only add a branch. Not destructive, so it never asks.
 
 ---
 
@@ -101,7 +91,7 @@ far, `unpack` has no CLI fallback either. See `docs/specs/move-5-delete-unpack.m
 | `tree [dir]` | 5 | ✅ | — | |
 | `basket add\|list\|copy\|clear` | 22 | ✅ | — | |
 | `new` | 3, 4 | ✅ | — | |
-| `seed [dir]` | 7 | ✅ | — | |
+| `seed [dir]` | ~~7~~ | ❌ | — | JTBD 7 removed from Finder 2026-08-31. |
 | `note "text"` | 16 | ❌ | — | Needs typed text. A context menu cannot ask a question. |
 | `latest [dir]` | 10 | ❌ | — | **Gap — see C.** |
 | `clean [dir]` | 13 | ❌ | — | Removed from Finder 2026-08-31. |
@@ -109,7 +99,7 @@ far, `unpack` has no CLI fallback either. See `docs/specs/move-5-delete-unpack.m
 | `open [dir]` | 8 | ✅ (terminal) | — | `--with editor` is CLI-only. **Half a gap — see C.** |
 | `ports` | 15 | — | ✅ Local Servers | Correct: ports have no folder to right-click. |
 | `prompt decompose\|ponytail` | 17, 18 | ❌ | ❌ | No file context at all. Belongs in the menu bar, not Finder. |
-| `checkpoint [dir]` | 12 | ✅ | — | |
+| `checkpoint [dir]` | ~~12~~ | ❌ | — | JTBD 12 removed from Finder 2026-08-31. |
 | `diff [dir]` | 11 | ❌ | — | **Gap — see C.** |
 | `redact [files]` | 19 | ❌ | — | **Gap — see C.** |
 | `gist <files>` | 20 | ❌ | — | **Gap — see C.** The JTBD is literally named "from Finder". |
@@ -130,13 +120,15 @@ badge count, the live CPU/memory columns, the licence field, and ⌥⌘N.
 
 ## C. The gaps, ranked
 
-JTBD 12 was the last T1 job with a clean folder scope and no Finder surface. **It is in the menu
-as of 2026-08-28** — as a third child of "Set Up for an Agent", so the menu is still eight rows.
+~~**JTBD 12** Pre-agent checkpoint~~ — **RETIRED 2026-08-31.** The CLI equivalent (`chute checkpoint`)
+remains in full. It was surfaced through Finder as a third child of "Set Up for an Agent" (the menu
+is now five rows, not six) but the primary way to use it is the CLI, where it works in every context.
 What remains:
 
 | JTBD | CLI | Tier | Saves/day | Fits a right-click? | Verdict |
 |---|---|---|---|---|---|
-| ~~**12** Pre-agent checkpoint~~ | `checkpoint` | T1 | — | — | **Done — `checkpoint-here`.** |
+| ~~**7** Seed agent rule files~~ | `seed` | T1 | 9.9 min | folder — yes | **RETIRED 2026-08-31** — CLI-only now. |
+| ~~**12** Pre-agent checkpoint~~ | `checkpoint` | T1 | 3.3 min | folder — yes | **RETIRED 2026-08-31** — CLI-only now. |
 | **24** Token estimate | `tokens` | **T1** | prevents a full retry | selection — yes | Partly covered already. |
 | 16 Scratchpad note | `note` | T2 | 8.8 min | needs typed text | Correctly absent. |
 | 11 Diff snapshot | `diff` | T2 | 4.9 min | folder — yes | Defer. |
@@ -168,10 +160,10 @@ order against the same folder as every other action — and it found **three rea
 
 All three are regression-tested in `Scripts/smoke.sh` section 8.
 
-Everything else in the gap table stays out for now. Eight rows added to Finder's own already-long menu
-is the budget, and the six deferred jobs are worth ~23 min/day *combined* — less than half of what
-"Copy Files as Context" returns on its own. A ninth row costs every user on every right-click; it
-should be bought by a T1 job, not by six T2s.
+Everything else in the gap table stays out for now. Five rows surfaced through Finder is the budget,
+and the remaining deferred jobs are worth ~23 min/day *combined* — less than half of what
+"Copy Files as Context" returns on its own. A sixth row costs every user on every right-click; it
+should be bought by a T1 job, not by T2s.
 
 **JTBD 24 is a half-truth in the ledger.** `Copy Files as Context` already prints the token count
 with the bundle, so the "don't overflow the window" job is done at the moment it matters. What is

@@ -207,39 +207,14 @@ public enum ChuteActions {
                     template: ["paste-image", "--dir", "{dir}"],
                     doneMessage: "Image saved, path copied."),
 
-        // JTBD #7, 9.9 min/day. Never overwrites an existing rules file (NFR-08), so it needs no
-        // confirmation — the worst case is "kept existing CLAUDE.md".
-        ChuteAction(id: "seed-rules",
-                    title: "Add Agent Rules",
-                    detail: "CLAUDE.md, .cursorrules and SCRATCHPAD.md here, without touching any that exist.",
-                    scope: .folder, kind: .setup, parentTitle: "Set Up for an Agent",
-                    symbol: "doc.badge.gearshape.fill",
-                    template: ["seed", "{dir}"],
-                    doneMessage: "Agent rules added."),
+        // "Set Up for an Agent" and both its children removed 2026-08-31, on the owner's
+        // instruction. The parent was a category invented to hold two unrelated jobs — writing
+        // config files and taking a git snapshot — which is why it read as generic: there was no
+        // group to name. `seed-rules` went because the ICP keeps a GLOBAL ~/.claude/CLAUDE.md, so
+        // per-repo seeding is largely redundant for them; `checkpoint-here` went on the same test
+        // as `clean-junk` — you have git, and you trust it more.
+        // `chute seed` and `chute checkpoint` both still exist.
 
-        // sandbox-here removed 2026-08-31: ICP is Claude Code / Cursor users whose agents ship
-        // their own sandboxing model. `chute sandbox` stays in the CLI.
-        //
-        // JTBD #12, T1: 3.3 min/day on the clock and ~20 min/day risk-adjusted — the largest
-        // number in the ledger that had no Finder surface at all. It is also the job that makes
-        // every OTHER agent action psychologically affordable: the reason people hesitate before
-        // letting an agent loose is that they cannot cheaply undo it.
-        //
-        // NOT destructive, despite being a git command. `checkpoint` uses `git add -A` against a
-        // PRIVATE index and `commit-tree` (NFR-08), so it never touches the worktree, the index
-        // or HEAD — it can only add a branch. Nothing to preview, nothing to confirm, no ellipsis.
-        //
-        // Third child rather than a ninth row: eight rows added to Finder's own menu is the
-        // budget, and this sits with the other two things you do to a folder before an agent
-        // runs. Declared LAST so the submenu holder keeps `seed-rules`' icon and the drawn menu
-        // is unchanged.
-        ChuteAction(id: "checkpoint-here",
-                    title: "Save a Checkpoint",
-                    detail: "A restore point for this folder before an agent runs — your own files are never touched.",
-                    scope: .folder, kind: .setup, parentTitle: "Set Up for an Agent",
-                    symbol: "clock.arrow.circlepath",
-                    template: ["checkpoint", "{dir}"],
-                    doneMessage: "Checkpoint saved."),
 
         // clean-junk row removed 2026-08-31, on the owner's instruction. It previewed the list and
         // moved to the Trash rather than `rm`, so it was never the silent delete he feared — but
