@@ -62,7 +62,7 @@ more credible than the absolute one, and it survives someone reading the source.
 | End-to-end | **140 passed** headless, **168** full | `CHUTE_HEADLESS=1 ./Scripts/smoke.sh` |
 | Metrics plausibility | **4 checks** — magnitude, not shape | `./Scripts/check-metrics.sh` |
 | Terminal tapes | **16** (12 hand-written, 4 generated from cases.ts) | `ls demo/tapes/*.tape \| wc -l` |
-| GUI tapes | **9** hand-written | `ls demo/gui/tapes/*.sh \| wc -l` |
+| GUI tapes | **6** hand-written | `ls demo/gui/tapes/*.sh \| wc -l` |
 | Demo delivery pipeline | **11 checks** | `./demo/gui/selftest.sh` |
 | Case data | **21 cases** | `cd site && npm run check:cases` |
 | Site routes | **38** | `cd site && npx next build` |

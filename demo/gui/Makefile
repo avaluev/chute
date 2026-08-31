@@ -36,6 +36,22 @@ lint:
 	  fi; \
 	done; \
 	[ $$fail = 0 ] && echo "  ok   every tape speaks only in verbs"
+	@# A TAPE FOR A CASE THAT NO LONGER EXISTS. `lint` proved a tape's GRAMMAR and `plan` proved
+	@# its fixture, so both stayed green on 2026-08-31 while three tapes went on planning
+	@# recordings of Finder rows that had been deleted that morning. Shape, not substance — the
+	@# same gap this repo has now paid for three times. A tape is named after its case; if
+	@# cases.ts no longer has that slug, the tape records something the product cannot do.
+	@# Read the tape's OWN declared SLUG, not its filename: paste-a-whole-folder.sh has always
+	@# declared paste-a-whole-folder-into-your-agent, and a filename-based check called the
+	@# highest-value tape in the product an orphan on its first run.
+	@fail=0; for t in $(TAPES); do \
+	  slug=$$(sed -n 's/^SLUG="\(.*\)"/\1/p' $$t | head -1); \
+	  [ -n "$$slug" ] || { echo "  FAIL $$t declares no SLUG="; fail=1; continue; }; \
+	  grep -q "\"$$slug\"" ../../site/src/lib/cases.ts || { \
+	    echo "  FAIL $$t records '$$slug', which is no longer a case"; \
+	    echo "       the case was retired — delete the tape, or restore the case"; fail=1; }; \
+	done; \
+	[ $$fail = 0 ] && echo "  ok   every tape still has a case behind it"
 
 all: lint
 	@for t in $(TAPES); do echo "→ $$t"; ./$$t; done
