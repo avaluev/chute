@@ -28,6 +28,28 @@ indistinguishable from a hardcoded one. He was right about the symptom.
 four different folders and the clipboard holds one thing."** That is a BASKET. It shipped as a log
 of arbitrary text. This move makes the implementation match the header.
 
+## THE ICP DECISION — 2026-08-31, and it changes the output format
+
+The owner settled it: **Chute is for Claude Code / Cursor users**, people whose agent already has
+filesystem access. That kills the assumption under the original basket idea. A chat-UI user needs
+an XML bundle to paste. **A Claude Code user needs `@`-mentions** — they do not paste file
+contents, they point the agent at paths and it reads them itself.
+
+So the basket's PRIMARY output is `@`-mentions, and `PathFormat` already renders them:
+
+```swift
+PathFormat.render(paths, style: .at, separator: .space)   // → "@src/a.ts @lib/b.ts @test/c.ts"
+```
+
+`PathStyle.at` exists at `/Users/sxope/Documents/2026/Development/37.chute/Sources/ChuteCore/PathFormat.swift:4`
+and is already tested. **Do not write a formatter.**
+
+The XML bundle stays as the SECOND option, for the chat-UI persona the owner has chosen to keep
+serving with `unpack`. Two rows, one store:
+
+- `Copy Basket as @mentions` ← default, Claude Code / Cursor
+- `Copy Basket as Context` ← the bundle, chat UIs, carries the token count
+
 ## The one decision everything follows from
 
 **A basket entry is a FILE PATH, not a blob of text.**
@@ -73,8 +95,9 @@ Deletions are the point of this move. Ship less code than you started with where
    - **the count must be visible without hovering.** Being a submenu near the bottom of a long menu
      is why the owner reported "no row at all". Put `Basket (n)` where it is read, high in the
      menu, not buried under Local Servers.
-   - the `Copy Basket as Context` row carries the token count, via `TokenEstimate.badge` — that is
-     the number the job exists to give him.
+   - `Copy Basket as @mentions` first (the ICP's format), `Copy Basket as Context` second with the
+     token count via `TokenEstimate.badge`. Only the bundle row needs a token count — a list of
+     mentions costs almost nothing and quoting a number for it would be noise.
 
 4. **`ChuteApp/main.swift`** — wire the commands. `bufferCopyOne` becomes "reveal this file in
    Finder" or drop it; `bufferFlush` becomes the bundle copy; `bufferClear` becomes Empty Basket.
@@ -90,7 +113,10 @@ Deletions are the point of this move. Ship less code than you started with where
 Match the existing `T.suite` / `T.eq` / `T.ok` one-liner style.
 
 - an empty basket renders no section
-- three files render `Basket (3)`, one `Copy Basket as Context`, one `Empty Basket`
+- three files render `Basket (3)`, one `Copy Basket as @mentions`, one `Copy Basket as Context`,
+  one `Empty Basket`
+- the @mention output equals `PathFormat.render(paths, style: .at, separator: .space)` for the
+  same three files — reuse asserted, not reimplementation
 - **the basket's bundle text is byte-identical to `ContextBundle.xml` over the same three files**
   — this is the DRY assertion, and it is the one that matters
 - two files with the same basename from different folders render two distinguishable rows

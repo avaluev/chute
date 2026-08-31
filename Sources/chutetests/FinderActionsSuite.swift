@@ -174,10 +174,12 @@ func finderActionsSuite() {
             T.ok(a.isDestructive, "'\(a.id)' runs a --force-capable command, so it must confirm")
         }
 
-        // THE PAID SURFACE. These four moved out of the CLI so the app demonstrates the four
+        // THE PAID SURFACE. These three moved out of the CLI so the app demonstrates the three
         // highest-value jobs in the ledger instead of only the ones a terminal user already has.
         // If one is dropped, the landing page's arithmetic stops matching the product.
-        for id in ["unpack-here", "seed-rules", "sandbox-here", "clean-junk"] {
+        // sandbox-here was removed 2026-08-31: ICP is Claude Code / Cursor users whose agents ship
+        // their own sandboxing. The CLI keeps `chute sandbox`.
+        for id in ["unpack-here", "seed-rules", "clean-junk"] {
             guard let a = ChuteActions.find(id) else { T.ok(false, "'\(id)' is in the menu"); continue }
             T.eq(a.scope, .folder, "'\(id)' acts on the folder in view")
         }
@@ -185,15 +187,15 @@ func finderActionsSuite() {
         // the whole reason the other six ledger gaps are still gaps. If this ever becomes a
         // top-level row, that decision was made on purpose or the budget has quietly gone.
         let agentSetup = ChuteActions.all.filter { $0.parentTitle == "Set Up for an Agent" }
-        T.eq(agentSetup.map(\.id), ["seed-rules", "sandbox-here", "checkpoint-here"],
-             "setting up for an agent is rules, a scratch folder, and a way back")
+        T.eq(agentSetup.map(\.id), ["seed-rules", "checkpoint-here"],
+             "setting up for an agent is rules and a way back")
         T.ok(ChuteActions.find("checkpoint-here")?.isDestructive == false,
              "a checkpoint can only add a branch, so it never asks")
 
         // WHAT STAYS ONE CLICK. Not everything can: eight rows is already a lot to add to
         // Finder's own menu. The rule is the ledger — anything worth more than ~10 min/day is
         // reached in one click, everything else may sit one level down. Today that is bundle
-        // (41.1) and unpack (28.5); seed (9.9) and sandbox (7.3) are under "Set Up for an Agent".
+        // (41.1) and unpack (28.5); seed (9.9) is under "Set Up for an Agent" with checkpoint (3.3).
         // A submenu is not a demotion, but burying the two biggest savings would be.
         for id in ["bundle-xml", "unpack-here"] {
             T.ok(ChuteActions.find(id)?.parentTitle == nil,

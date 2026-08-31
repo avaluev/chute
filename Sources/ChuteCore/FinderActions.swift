@@ -206,27 +206,9 @@ public enum ChuteActions {
                     template: ["seed", "{dir}"],
                     doneMessage: "Agent rules added."),
 
-        // JTBD #6, 7.3 min/day. Creates a NEW folder beside this one and launches the agent there,
-        // so an agent told to go wild does it somewhere that is not your repo. Additive: nothing
-        // existing is touched, so no confirmation.
-        // NAME. "Clean Room" appears nowhere else in this product, its docs or its CLI — a term
-        // invented for one menu row is a term nobody can look up. "Scratch" is already the word
-        // used for the files `clean` removes, and the row sits under "Set Up for an Agent", so it
-        // does not have to repeat "for an Agent" either.
+        // sandbox-here removed 2026-08-31: ICP is Claude Code / Cursor users whose agents ship
+        // their own sandboxing model. `chute sandbox` stays in the CLI.
         //
-        // ICON. `shippingbox.and.arrow.backward.fill` was a near-twin of the bundle action's
-        // `shippingbox.fill` at 18pt — two boxes in one menu. This makes a folder,
-        // so it is drawn as one.
-        ChuteAction(id: "sandbox-here",
-                    title: "New Scratch Folder",
-                    detail: "A fresh folder here with git and rules ready, and the agent already running in it.",
-                    scope: .folder, kind: .setup, parentTitle: "Set Up for an Agent",
-                    symbol: "folder.badge.plus",
-                    template: ["sandbox", "--dir", "{dir}"],
-                    // The confirmation says what the ROW says. It read "Clean room ready." — the
-                    // exact phrase the NAME note above rejects, six lines under the note itself.
-                    doneMessage: "Scratch folder ready."),
-
         // JTBD #12, T1: 3.3 min/day on the clock and ~20 min/day risk-adjusted — the largest
         // number in the ledger that had no Finder surface at all. It is also the job that makes
         // every OTHER agent action psychologically affordable: the reason people hesitate before

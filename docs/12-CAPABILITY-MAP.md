@@ -6,7 +6,7 @@ same engine, and this is the one page that says which job each of them is actual
 | Surface | What it is | Paid? |
 |---|---|---|
 | **`chute` CLI** | 27 commands, MIT, free forever. Every capability lives here first. | free |
-| **Finder right-click** | 14 actions in 8 rows. Every one of them shells out to the CLI. | paid |
+| **Finder right-click** | 11 actions in 7 rows. Every one of them shells out to the CLI. | paid |
 | **Menu bar (⤓)** | Session switcher, local servers, licence, diagnostics. Uses ChuteCore in-process. | paid |
 
 The rule that keeps them honest: **the app is a surface, never a second implementation**
@@ -38,7 +38,6 @@ swift run chute finder-actions --menu
         Image from Clipboard
   Set Up for an Agent  ▸           ● purple
         Add Agent Rules
-        New Scratch Folder
         Save a Checkpoint
   Move Junk to Trash…              ● red
 ```
@@ -55,16 +54,15 @@ swift run chute finder-actions --menu
 | New File ▸ Markdown File from Clipboard | `new-markdown-clipboard` | `chute new --naming underscore --ext md --rename --dir <dir>` | folder | **3** + **4** Syntax detection | ″ | green |
 | New File ▸ Image from Clipboard | `paste-image` | `chute paste-image --dir <dir>` | folder | **3** (image variant) | ″ | green |
 | Set Up for an Agent ▸ Add Agent Rules | `seed-rules` | `chute seed <dir>` | folder | **7** Seed agent rule files | 9.9 min | purple |
-| Set Up for an Agent ▸ New Scratch Folder | `sandbox-here` | `chute sandbox --dir <dir>` | folder | **6** Agent sandbox init | 7.3 min | purple |
 | Set Up for an Agent ▸ Save a Checkpoint | `checkpoint-here` | `chute checkpoint <dir>` | folder | **12** Pre-agent checkpoint | 3.3 min **+ ~20 min risk-adj.** | purple |
 | Move Junk to Trash… | `clean-junk` | `chute clean <dir>` | folder | **13** Clean agent junk | 6.6 min | **red** |
 
-**Total surfaced through Finder: 9 of the 24 ledger JTBDs, ≈ 123 min/day** on the clock, plus
+**Total surfaced through Finder: 8 of the 23 ledger JTBDs, ≈ 116 min/day** on the clock, plus
 JTBD 12's ~20 min/day of risk-adjusted saving.
 
 > JTBD **4** (syntax auto-detection, 2.0 min/day) rides along inside `new` and `unpack` rather
 > than being a row of its own, so it is not counted in either figure. Counting it would make the
-> line read 10 of 24 and ≈125 min/day. The two largest
+> line read 9 of 23 and ≈118 min/day. The two largest
 savings in the whole ledger — bundle (41.1) and unpack (28.5) — are both one click, never behind a
 submenu. `Sources/chutetests/FinderActionsSuite.swift` fails the build if either is demoted.
 
@@ -86,9 +84,6 @@ submenu. `Sources/chutetests/FinderActionsSuite.swift` fails the build if either
   so the next thing you paste into the issue is the path.
 - **Set Up for an Agent ▸ Add Agent Rules** — writes `CLAUDE.md`, `.cursorrules` and
   `SCRATCHPAD.md` here, skipping any that already exist. Never overwrites, so it never asks.
-- **Set Up for an Agent ▸ New Scratch Folder** — a *new* folder beside this one, with git
-  initialised, rules seeded, and the agent already running in it. Where you send an agent you do
-  not trust yet.
 - **Set Up for an Agent ▸ Save a Checkpoint** — a restore point for this folder before you let an
   agent run. Uses `git add -A` against a private index and `commit-tree`, so your worktree, your
   index and `HEAD` are never touched — it can only add a branch. Not destructive, so it never asks.
@@ -115,7 +110,7 @@ submenu. `Sources/chutetests/FinderActionsSuite.swift` fails the build if either
 | `note "text"` | 16 | ❌ | — | Needs typed text. A context menu cannot ask a question. |
 | `latest [dir]` | 10 | ❌ | — | **Gap — see C.** |
 | `clean [dir]` | 13 | ✅ | — | |
-| `sandbox [name]` | 6, 21 | ✅ | — | `--each` (multi-agent broadcast, JTBD 21) is CLI-only. |
+| `sandbox [name]` | 6, 21 | ❌ | — | JTBD 6 removed from Finder 2026-08-31; `--each` (JTBD 21) is CLI-only. |
 | `open [dir]` | 8 | ✅ (terminal) | — | `--with editor` is CLI-only. **Half a gap — see C.** |
 | `ports` | 15 | — | ✅ Local Servers | Correct: ports have no folder to right-click. |
 | `prompt decompose\|ponytail` | 17, 18 | ❌ | ❌ | No file context at all. Belongs in the menu bar, not Finder. |
@@ -246,9 +241,6 @@ that cannot distinguish is decoration. Siblings inside one submenu do share, so 
 is deterministic. They are pre-rendered to an 18pt bitmap with the colour baked in and
 `isTemplate` off, because a live symbol's configuration is dropped crossing the appex → Finder
 boundary and a template is forced monochrome by the system.
-
-`shippingbox.and.arrow.backward.fill` was replaced with `folder.badge.plus` for `sandbox-here`:
-at 18pt it was a near-twin of the bundle row's `shippingbox.fill`, and the action makes a folder.
 
 ### Safety
 

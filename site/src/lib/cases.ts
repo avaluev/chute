@@ -119,17 +119,6 @@ export const CASES: Case[] = [
     command: "chute seed .",
   },
   {
-    slug: "a-clean-room-for-a-risky-agent",
-    jtbd: 6, surface: "finder", tier: "hero", paid: true,
-    pain: "I want to let it run wild, but not in this repo.",
-    ritual: "mkdir, cd, git init, copy the rules in, open a terminal, start the agent, remember what you called the folder.",
-    fix: "Right-click. A fresh folder with git and rules already in it, and the agent running in a terminal that is already there.",
-    seconds: { manual: 45, chute: 5 }, perDay: 11, savedMinutes: 7.3,
-    demo: "/media/a-clean-room-for-a-risky-agent.mp4",
-    poster: "/media/a-clean-room-for-a-risky-agent.jpg",
-    command: "chute sandbox spike --yolo",
-  },
-  {
     slug: "whats-on-port-3000",
     jtbd: 15, surface: "menubar", tier: "hero", paid: true,
     pain: "Something is on 3000 and I cannot find which window it is in.",
