@@ -40,3 +40,22 @@ public enum ContextBundle {
         return String(p.dropFirst(root.count + 1))
     }
 }
+
+/// ONE DEFINITION OF "THE BUNDLE", reused rather than copied — `chute bundle`'s `assembledBundle`
+/// (`chute`'s `ContextCommands.swift`) and `ContextBuffer.bundleText()` both call this and only
+/// this, so they can never drift into two different formats. The precise defect a previous commit
+/// already collapsed out of `doctor --fix` once.
+///
+/// It lived in `ContextBuffer.swift` for one commit, because the agent that wrote it did not own
+/// this file and Swift lets an extension sit anywhere in the module. It compiled and it was
+/// correct — but "where is the bundle defined?" then had two plausible answers and only one right
+/// one, which is the same cost as two definitions minus the drift.
+extension ContextBundle {
+    public static func assemble(_ paths: [String], format: String = "xml")
+        -> (text: String, files: [BundleFile], skipped: [String]) {
+        let (files, skipped) = FileScan.bundleFiles(paths)
+        let root = ProjectRoot.of(files.map(\.path))
+        let text = format == "md" ? markdown(files, root: root) : xml(files, root: root)
+        return (text, files, skipped)
+    }
+}
