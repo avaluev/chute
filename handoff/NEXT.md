@@ -1,380 +1,216 @@
-# HANDOFF — Chute — standing product reference
+# HANDOFF — Chute — the canonical entry point
 
-> **START HERE:** `handoff/HANDOFF-2026-08-31-icp.md` is the current entry point — the ICP was
-> settled as Claude Code / Cursor users, four Finder rows were deleted for failing that test, and
-> the Context Basket replaced Recent Copies.
->
-> `handoff/HANDOFF-2026-08-29-surfaces.md` is the session before it — Moves 0-4
-> of the strategic redesign are DONE and pushed, along with the reported Recent Copies bug and
-> three defects nobody had reported. `handoff/HANDOFF-2026-08-28-measurement.md` is the session
-> before it and remains the record of the measurement work.
->
-> The measurement work in it is DONE and pushed — true numbers, a gate that checks magnitude rather
-> than shape, and a menu model a headless test can read. It carries what shipped, the traps paid
-> for once, and the five things left that only a human can do. This file remains the standing
-> product reference.
+> Written 2026-09-01 for the session that makes this repo something a professional developer
+> would accept. Overwrite this file; do not add a second one. Dated snapshots of finished work
+> live in `handoff/HANDOFF-YYYY-MM-DD-<topic>.md` and are records, not plans.
 
-STATE: `main` · tree clean · pushed
-       **Counts live in ONE place: `marketing/06-FACT-SHEET.md` §Verification.** Three files used
-       to restate them and all three disagreed — 466 / 519 / 583 / 637 unit assertions, in a repo
-       whose whole argument is that its numbers are checkable. A count copied forward is a count
-       nobody re-derived. Run the gate, read the tally, and if it differs from the fact sheet fix
-       the fact sheet; do not add a fourth copy here.
+STATE: `main` · `242dd69` · tree clean · **pushed** · installed app stamp == HEAD
+Counts live in ONE place: `marketing/06-FACT-SHEET.md` §Verification. Re-derive; never copy forward.
 
 ```bash
-swift build -c release && swift run chutetests
+swift build -c release && swift run -c release chutetests
 cd /Users/sxope/Documents/2026/Development/37.chute && ./Scripts/smoke.sh
 cd /Users/sxope/Documents/2026/Development/37.chute && CHUTE_HEADLESS=1 ./Scripts/smoke.sh
-cd /Users/sxope/Documents/2026/Development/37.chute && make -C demo/gui check && ./demo/verify.sh
-cd /Users/sxope/Documents/2026/Development/37.chute/site && npm run build && npm run check:cases && npm run check:claims && npm run check:paddle
+cd /Users/sxope/Documents/2026/Development/37.chute && ./demo/verify.sh && make -C demo/gui lint
+cd /Users/sxope/Documents/2026/Development/37.chute/site && npm run check:cases && npm run check:claims
 ```
+
+Green as of this writing: **898 unit · 165 smoke · 137 headless · 11 delivery · 19 cases · 4 metrics.**
+
+---
 
 ## ONE-LINE GOAL
-Your agents should not cost you attention: turn a Finder selection into agent-ready context, and
-tell you which agent is waiting.
+
+A senior engineer clones this repo, reads for twenty minutes, and can say what it does, prove it
+works, and find nothing that embarrasses them.
 
 ---
 
-## RUN THIS FIRST (in a real Terminal, not through an agent)
+## WHAT THE PRODUCT IS, after 2026-08-31
 
-```bash
-swift run chutetests && ./Scripts/smoke.sh
-cd /Users/sxope/Documents/2026/Development/37.chute && ./Scripts/build-app.sh && ./Scripts/install.sh
-cd /Users/sxope/Documents/2026/Development/37.chute && ~/.local/bin/chute doctor
+**ICP: Claude Code / Cursor users** — people whose agent already reads and writes files. This was
+decided by the founder and it invalidated ~60% of a ledger costed for someone who copy-pastes
+between a browser chat and their disk. Do not re-derive it; see
+`handoff/HANDOFF-2026-08-31-icp.md`.
+
+**The Finder menu — 5 rows, 9 actions.** Every row survives one test: *does this survive a user
+who has git, an OS with terminal shortcuts, and an agent with filesystem access?*
+
 ```
-Expect the tallies in `marketing/06-FACT-SHEET.md` §Verification, and `→ all 9 checks passed`.
-`build-app.sh` may ask the keychain for the signing key — click **Always Allow** once.
-
----
-
-## WHAT THE PRODUCT DOES TODAY
-
-**Finder right-click → Chute actions INLINE in the context menu** (8 actions, `chute finder-actions` lists them; no `Chute ▸` hop since 2026-08-27 — each row carries a literal SF Symbol — folder for the tree, photo for the image, square.and.pencil for new files — and the tree shows on FILE clicks too, copying the enclosing folder):
-Copy Full Paths (n) · Copy Files as Context (n) · Copy Folder Tree ▸ 2 / 4 / All Levels ·
-Save Clipboard as Files… · New File ▸ Empty Markdown File / Markdown File from Clipboard /
-Image from Clipboard · Set Up for an Agent ▸ Add Agent Rules / New Scratch Folder ·
-Move Junk to Trash… · Open in Terminal.
-Renamed and recoloured 2026-08-28 — the full row-by-row map, the naming rules and the
-JTBD/CLI coverage tables are in docs/12-CAPABILITY-MAP.md.
-
-**Menu bar** — sessions grouped by what you must do about them, with per-session cost:
-```
-Waiting for You  (1)
-  sntz_mockups   waiting 2 hours for you    0% CPU · 520 MB memory        ⌥1
-Agents Working  (3)
-  37.chute   ◑ Session switcher completion   3% CPU · 774 MB memory       ⌥2
-Idle Terminals  (4)
-  37.chute   no agent running
-This Mac — using 1.9 of 16 cores · busiest: chrome-headless-shell at 126% CPU · battery at 31 °C
-Local Servers  (8)  ▸   Open in Browser · Copy the URL · Stop It (kill 55868)
-Report a Problem…
+Copy Full Paths          9.1 min/day
+Copy Files as Context   41.1 min/day    the wedge
+Copy Folder Tree ▸       4.5 min/day    2 / 4 / All Levels
+Add to Context Basket    8.2 min/day    the only row nothing else on the Mac ships
+New File ▸              12.9 min/day    Empty Markdown / From Clipboard / Image
 ```
 
-**CLI** — 25 commands, all covered by the e2e suite. `chute doctor` diagnoses, `chute doctor
---report` builds a redacted problem report for a public issue.
+**Six rows were deleted on 2026-08-31**, each for failing that test: `Open in Terminal` (macOS
+ships it), `New Scratch Folder` (the agent sandboxes itself), `Move Junk to Trash` (`git status`
+already lists untracked files), `Save Clipboard as Files` (the agent writes files itself),
+`seed-rules` + `checkpoint-here` with their "Set Up for an Agent" parent (a category, not a job).
+The CLI keeps every one of those capabilities.
+
+**Value, derived from `site/src/lib/cases.ts`:** Finder 75.8 · menu bar 4.9 · **app surface 80.7**
+· free MIT CLI 75.3 · all 19 jobs 156.0.
 
 ---
 
-## BUSINESS MODEL — decided 2026-08-27, do not re-litigate
+## ALREADY GOOD — do not spend the next session here
 
-**Open core.** `chute` CLI is MIT, installable by Homebrew; **Chute.app is $19 one-time** through
-Paddle. The CLI is rewritable in a weekend; the sandboxed Finder integration is the moat, and three
-of its load-bearing facts are documented nowhere but this repo.
-
-- **Buy the $99 Apple Developer ID.** Without notarisation every buyer meets a Gatekeeper wall.
-  Six sales pay for it. Everything in the launch plan assumes a clean install.
-- **Support has no inbox.** "Report a Problem…" → redacted diagnostics on the clipboard + a
-  prefilled public GitHub issue. One answer serves everyone who searches it.
-- **Positioning:** *your agents shouldn't cost you attention.*
-- **Launch order:** notarised build → Homebrew tap + README GIFs → technical write-up →
-  Show HN → Product Hunt two weeks later. Channels and reasoning in
-  `/Users/sxope/Documents/2026/Development/37.chute/docs/09-GTM-DECISIONS.md`.
+- **CI is real.** `.github/workflows/macos-matrix.yml` runs build + unit + smoke on macOS 13, 14
+  and 15, assembles the app bundle, and asserts the appex's Mach-O entry point.
+- **Zero dependencies.** `grep -c '.package(' Package.swift` → 0. Builds offline with Command Line
+  Tools; Xcode not required.
+- **The gates check magnitude, not just shape.** `Scripts/check-metrics.sh` compares against the
+  real RAM and core count and against a known 500 MB allocation.
+- **Guards that name themselves when they fail.** Row counts and order, the destructive-action
+  invariant, the orphan-tape check, the ghost-command check, the naming invariant. Six of them
+  caught real regressions during the last session, including three of mine.
+- **No TODO or FIXME anywhere.** Four `ponytail:` markers, each naming its ceiling and upgrade
+  path — that is a deliberate ledger, not rot.
+- **LICENSE is MIT** and matches the documented open-core split.
 
 ---
 
-## NEXT — in order
+## THE GAPS — measured, not guessed
 
-> **THE NEXT SESSION HAS A WRITTEN PLAN: `handoff/HANDOFF-2026-08-28-measurement.md`.**
-> Read it before anything else. It carries the measurement doctrine, the syscall surface proved
-> on this machine with real timings, the agent dispatch (3 Sonnet + 2 Haiku on disjoint files),
-> and the plausibility gate — because every gate in this repo checks that a number EXISTS and
-> none checks that it is SANE, which is how CPU stayed 24× wrong through a green build.
+### 1. Ten files have zero unit coverage, and they are the ones a buyer clicks
+`Package.swift:18` — `chutetests` depends on **ChuteCore only**. Every file in `Sources/ChuteApp`
+(10 of them, 415 lines in `main.swift` alone) and `Sources/ChuteFinder` is untested by the unit
+suite. `smoke.sh` reaches some of it through the real binary, but no assertion can see a branch.
 
+The pattern that already works is two files away: `StatusMenu` and `ChuteActions` are **pure data
+in ChuteCore**, so a headless test reads the exact menu the app draws. Extend that, or add a
+`.testTarget` — decide deliberately and write down which.
 
-Everything below the line is done. **Everything blocking revenue is manual and yours.**
+### 2. Every number on the site is an estimate
+All six `demo/out/gui/*.json` carry `manual: null`. `check:cases` says so honestly, which is why
+it passes. **Nothing is backed by a two-sided stopwatch.** For a tool sold on "here is the time
+you save", that is the single most attackable claim.
+→ `./demo/gui/by-hand.sh`, ~3 minutes, and only the founder can do it.
 
-### 1. Phase 0 — nothing ships without these (all manual)
-| # | Thing | Why it blocks | Where |
+### 3. The menu bar's flagship has never been costed
+`which-agent-is-waiting-for-you` is `jtbd: 0`, `savedMinutes: null`, and the menu bar is now the
+**only ICP-native surface in the product** — which agent is waiting, zombie ports, what changed.
+It has been ranked lowest all along on a number computed for the wrong buyer.
+Needs two figures only the founder has: times/day he checks which agent is waiting, and how long
+finding it takes without Chute.
+
+### 4. The Basket has never been used by a human
+Built, tested, installed, and unvalidated. The test: right-click three files in three folders →
+**Add to Context Basket** → **Copy Basket as @mentions** → paste into Claude Code. Fixture is at
+`~/Desktop/chute-basket-test/`. **If that is not obviously faster than typing three paths, delete
+it like the other six.** Do not polish it before answering.
+
+### 5. Release blockers, unchanged
+`Sources/ChuteCore/License.swift:28` is still `REPLACE_ME_BEFORE_RELEASE`. `dig +short chutedev.com`
+is still empty. Apple enrolment ($99) not done, Paddle not wired. And `Scripts/release.sh` builds
+and notarises correctly but **never touches the Homebrew tap** — which is why the installed CLI
+once ran 54 commits behind HEAD with no way to tell.
+
+---
+
+## THE TEN THINGS, RANKED — from a full readiness audit, 2026-09-01
+
+`docs/specs/readiness-audit-FINDINGS.md` carries the evidence for each. ~13 hours total; items
+1–5 are what a buyer or App Review trips over, 6–10 are what makes solo maintenance cheap.
+
+| # | Fix | Where | Est |
 |---|---|---|---|
-| 1 | Two CNAMEs for chutedev.com → `chute.pages.dev`, **proxied** | `dig +short chutedev.com` is empty; every launch asset prints that domain | Cloudflare DNS |
-| 2 | Apple Developer ID ($99/yr) + notarytool profile | `Scripts/release.sh` dies on it; every stranger meets Gatekeeper | `Scripts/notarize-setup.md` |
-| 3 | Production Ed25519 keypair | `Sources/ChuteCore/License.swift:28` is still `REPLACE_ME_BEFORE_RELEASE` — no key can verify | `cd worker && node keygen.mjs` |
-| 4 | `hello@` and `keys@chutedev.com` | the only stated support channel, and the licence email's sender | Cloudflare Email Routing + verify in Resend |
-| 5 | Paddle account, product, `pri_…` | checkout degrades to trial-download while the env vars are empty | `site/src/lib/config.ts:25` |
-| 6 | Worker deploy + 3 secrets | no key is minted without it | `cd worker && npx wrangler deploy` |
-| ~~7~~ | ~~Homebrew tap~~ | **DONE 2026-08-28** — `brew info avaluev/tap/chute` → 0.2.0, real sha256 `e7c3ea3a…`. `chute doctor` finds it at `/opt/homebrew/bin/chute`. | — |
+| 1 | **LICENSE scope.** The root MIT file may grant away the PAID app's source. Add a NOTICE or per-directory LICENSE matching the documented open-core split. | `LICENSE` | 2 h |
+| 2 | **`chute sessions` exits 0 when Automation is denied** — a permission failure is indistinguishable from "no sessions" to any script. | `SessionCommands.swift:10-30` | 0.5 h |
+| 3 | **`chute seed` exits 0 when every write failed.** | `FileCommands.swift:69-70` | 0.5 h |
+| 4 | **Narrow the Finder extension's entitlement.** It holds a read-write exception on `/`; it only ever needs `~/.chute`. Re-test that it still registers after narrowing. | `Resources/ChuteFinder.entitlements:14` | 1 h |
+| 5 | **Three AppleScript-escape implementations.** Collapse into the one ChuteCore function all three call. | `FinderReveal`, `AgentCommands:39`, `ChuteFinderSync:217` | 1 h |
+| 6 | **Split `AgentCommands.swift`** — five unrelated features (open, sandbox, ports, env, prompt) in one file, against the one-file-per-feature pattern the other command files follow. | `Sources/chute/Commands/` | 2 h |
+| 7 | **Extract `RequestInbox`'s confirm/dry-run decision into ChuteCore**, following the proven `StatusMenu` pattern, so a headless test can read it. Highest-value piece of the coverage gap. | `ChuteApp/RequestInbox.swift` | 4 h |
+| 8 | **Shrink the public API** to symbols with callers outside their own file. | `Sources/ChuteCore/` | 1 h |
+| 9 | **Mint the production licence key** (`node worker/keygen.mjs new`) and verify one real key round-trips by hand. | `License.swift:28` | 1 h |
+| 10 | **The two session-switcher numbers**, then cost the menu bar's flagship. | `cases.ts`, `03-JTBD-LEDGER.md` | — |
 
-Order matters: **(2) → `release.sh` → tag → sha256 → bump the tap.** (1), (4) and (6) run in parallel.
-Bump `Sources/ChuteCore/Version.swift:12` to `0.3.0` first — `release.sh` refuses a tag that exists
-and `v0.2.0` is pushed. Never delete that tag: the tap's sha256 is computed from its tarball.
+**Already fixed on 2026-09-01, do not re-spend time:** `chute basket add` now reports what
+actually happened rather than what it attempted (it printed "added 3" on failure and "added 1" on
+a duplicate); `Scripts/release.sh` now REFUSES to build while `License.swift:28` is the
+placeholder — that placeholder is not valid base64, so every buyer's key would have failed
+silently, and `LicenseSuite` structurally cannot catch it because it verifies against its own
+generated keypair; README's stale `chute buf` row is now `chute basket`.
 
-### 2. ~~Record the demos~~ — DONE 2026-08-28
-
-All eight hero cases are recorded off a real screen and committed under
-`site/public/media/` as mp4 + webm + poster. `demo/out/` is gitignored, so
-**`make -C demo publish` is what makes a recording durable — run it after every take.**
-
-What the first real recording run found, all fixed and all in git:
-
-- `make -C demo/gui plan`, documented as safe and screenless, launched TextEdit and opened six
-  files: the lint banned `osascript|cliclick|sleep|screencapture` but not `open|killall`.
-- `take_menubar` and `menubar_open` both died on AppleScript list-vs-value (`item 3 of (bounds …)`
-  and `number & "," & number`). Third and fourth instances in that file. If a value leaves
-  AppleScript, it leaves as text.
-- `select_files` asked Finder for four files in two folders, got the two that shared a parent, and
-  announced all four. It counts the selection now and dies with the reason.
-
-**The finding that matters: a script cannot measure a human ritual.** The wedge tape timed the
-manual ritual at **6.5 seconds** — a robot typing ⌘A at machine speed — against a ledger that says
-150 s because 150 s is what a person takes. Frames 8 s to 90 s of that 95-second take are one
-static image. 6.5 s beside Chute's 5.6 s argues *against* the product, and it would have shipped
-under "backed by a stopwatch, not an estimate". The manual side is `null`; the side-by-side race
-is switched off in `demo/gui/tapes/paste-a-whole-folder.sh` with a one-line note saying how to
-re-enable it. `compose_race`, `overlay.py clock` and six of selftest's twelve assertions are all
-still there and all still pass — **the only missing piece is a manual take performed by a human.**
-That is the one open demo decision, and it is yours.
-
-### 3. Hand-verify the one thing no test covers
-The menu-bar gate wiring. ChuteApp is AppKit and outside the test target, so `trial.isUnlocked`
-is tested but "both menu builders call it" is not:
-
-```bash
-cd /Users/sxope/Documents/2026/Development/37.chute && python3 - <<'EOF'
-import json, time, os
-p = os.path.expanduser("~/Library/Application Support/Chute/trial.json")
-os.makedirs(os.path.dirname(p), exist_ok=True)
-long_ago = time.time() - 400 * 86400 - 978307200
-json.dump({"firstRun": long_ago, "lastSeen": time.time() - 978307200}, open(p, "w"))
-EOF
-```
-Then open the menu bar. Expect **two rows** — "Trial ended — Buy Chute, $19 once" and the free-CLI
-line — and **no session list, no server list, no count on the badge**. Delete `trial.json` after.
-
-### 4. Look at the eight-row Finder menu
-```bash
-cd /Users/sxope/Documents/2026/Development/37.chute && .build/release/chute finder-actions --menu
-```
-That prints it without a right-click. Then right-click for real and judge it. The grouping was
-reasoned, not seen — the one part of this that has not met a human eye.
-
-## DONE 2026-08-28, LATE — do not redo
-
-| What | Where | Proof |
-|---|---|---|
-| 8 hero recordings of the paid surface, published | `site/public/media/*.mp4` | `npm run check:cases` → 25/25 |
-| The site renders app video, not terminal GIFs | `site/src/components/case-bits.tsx` — branches on the file extension | `<video>` + two `<source>` in the built HTML |
-| `make -C demo publish` carries mp4/webm/jpg | `demo/Makefile` | 25 files published |
-| Onboarding — five beats, beat 3 waits for a real right-click | `Sources/ChuteCore/OnboardingSteps.swift`, `ChuteApp/Onboarding.swift`, `chute onboard` | 751 unit (was 637) |
-| Homebrew owns the CLI; the app writes nothing to PATH | `install.sh`, `Diagnostics.cliCandidates`, `DoctorCommand` | `which -a chute` → one line |
-| No fix string asks for `sudo` or a one-machine path | test in `DiagnosticsSuite.swift` | perturbed red, restored |
-| 10 merged worktrees removed | — | 1.7 GB reclaimed |
-
-**The fix string that shipped and should not have:** `sudo rm -rf ~/Library/Containers/… && ~/Documents/2026/Development/37.chute/Scripts/install.sh` — a root delete followed by a path that exists on one Mac in the world. The repair never needed root; `install.sh` always asked Finder to move that container to the Trash. It is a `doctor --fix` case now.
-
-## DECISIONS (do not re-litigate)
-
-- **Open core, $19, MIT CLI, buy the $99 ID.** See above.
-- **The extension never does the work.** It writes a request to `~/.chute/requests`; ChuteApp
-  carries it out. Measured: `git` refuses to run in a sandbox at all, launching an app is denied
-  (`-54`), AppleScript to Terminal is denied (`-10004`).
-- **Sign with a stable identity** (`Scripts/sign-identity.sh`). An ad-hoc signature is a new code
-  identity every build, which invalidates the extension's sandbox container — the menu then
-  vanishes with no error anywhere.
-- **Never route around a user's setting.** Notifications denied means silence plus an offer to fix
-  it, not an `osascript` banner wearing Script Editor's icon.
-- **One action table** (`ChuteCore/FinderActions.swift`) feeds the Finder menu, the app and the
-  tests. Two copies had already drifted into naming different actions.
-- **No XCTest** (ships with Xcode) · **no third-party dependencies** · **no telemetry**.
-- **Chute NEVER writes to another tool's configuration** — decided 2026-08-27 by the founder:
-  a broken agent setup costs the user more than any badge is worth. `chute hooks install` is
-  gone; `chute hooks snippet` PRINTS the JSON for the user's own hand, `status` is read-only,
-  `uninstall` only ever subtracts chute-marked blocks (legacy installs). The doctor "hooks"
-  check was removed with it — doctor must not nudge people toward editing `~/.claude`.
-  The founder's own machine still has the legacy hooks wired (their choice, they power the
-  badge); `chute hooks uninstall` removes them whenever wanted.
-- **Price $19**, revisit at v1.0 once signed and auto-updating.
-- **Temperature is the battery sensor, and says so.** CPU die sensors need root; `powermetrics`
-  needs sudo. `ProcessInfo.thermalState` speaks only when ELEVATED — ".nominal" printed as
-  "running cool" beside a 171% session row on a hot chassis is how the line lost trust. The
-  This-Mac line is measurements only (`SystemVitals.machineLine`), built from the SAME ps
-  snapshot as the rows, and the open menu re-samples everything every 2 s (timer in .common
-  run-loop modes, sampling off-main).
+**The audit also confirmed these are already done** — do not re-audit them: the
+`CHUTE_BUFFER_DIR` guard, the hooks check that ended the false "all 9 passed", onboarding's
+premature done-flag, the dead `openSetup`, README's `unpack` references, and smoke.sh's `set -e`
+footgun.
 
 ---
 
-### Decided 2026-08-28
+## NEXT — in order, for one session
 
-- **The app is the product; the CLI is the sample.** One launch wave, app-first. The two-wave
-  plan spent eight days teaching the audience to want the free thing before asking for $19. See
-  `docs/09-GTM-DECISIONS.md` §7 and `marketing/05-CONTENT-CALENDAR.md` §1.
-- **Four Finder actions added** — unpack, seed, sandbox, clean. The paid surface demonstrated
-  ~73 min/day against the free CLI's ~125; a buyer's own arithmetic said not to buy. It is now
-  **130.7 vs 86.8**, asserted by `site/scripts/check-cases.mjs` so it cannot invert again.
-- **Destructive Finder actions confirm before writing.** `confirmButton` on `ChuteAction`; the
-  app runs the harmless form, shows the list, and only re-runs with `--force` on a yes. Cancel is
-  the default button. A right-click that silently writes into a repo is the one thing that would
-  destroy the trust the whole page is sold on.
-- **The menu bar is gated.** It was not, and `/buy` sold it — three of the four things that page
-  lists kept working forever. A lapsed trial now gets two rows and a plain statement that the
-  free CLI still does all of it.
-- **The menu is 8 drawn rows, not 13.** Grouped, not trimmed. The rule for what stays one click
-  is the ledger: above ~10 min/day is inline, below may sit one level down.
-- **Every figure on the site is re-derived from the ledger at build time**, including the
-  ledger's own arithmetic. A number that cannot be traced cannot be published.
-- **A recorded stopwatch beats an estimate.** Where `demo/out/gui/<slug>.json` exists, the deploy
-  fails if the page claims a saving the recording did not reproduce.
-- **No placeholder art, and no hole where art would go.** A case without a recording renders as
-  one column, deliberately — not a two-column row with an empty half.
+1. **Close the coverage gap (half a day).** Move the remaining decision logic out of
+   `Sources/ChuteApp/main.swift` into ChuteCore as pure functions, following `StatusMenu`. Target
+   the branch-carrying ones: menu assembly, the request-inbox dispatch, and the deliver/notify
+   paths. Every function moved gets a headless assertion. **Perturb each to red before believing
+   it.**
+2. **One error-handling pass (2 h).** Find every silent failure — empty `catch`, ignored `try?`, a
+   `guard … else { return }` where a user is waiting, and any command exiting 0 on failure. A
+   prior audit counted 8 CLI commands failing silently at exit 0; verify and fix. **Rule 4 of the
+   measurement doctrine: a refusal is not a zero.**
+3. **Shrink the public API to what has callers (1 h).** ChuteCore is a library; every `public`
+   symbol with no caller outside its own file is surface a maintainer keeps working for nobody.
+4. **Split `AgentCommands.swift` (1 h).** It is four unrelated features in one file — ports,
+   sandbox, open, env. Named as a problem in two audits and still true.
+5. **Then the texts and the JTBDs**, once the code is settled: re-read every user-facing string
+   against the naming law at `Sources/ChuteCore/FinderActions.swift:10` and the invariant test in
+   `FinderActionsSuite`. Retire the ledger rows for the six deleted jobs properly (struck through
+   + dated, the way FR-06 was), so the docs record decisions rather than absences.
 
-## TRAPS (each cost real time)
-
-- **`representedObject` does not survive the trip to Finder.** A FinderSync menu is drawn by
-  Finder and only plain properties cross that boundary — `tag` does. Dispatching on
-  `representedObject` made every menu item a silent no-op.
-- **A sandboxed appex's container ACL pins the code identity that created it.** After a rebuild
-  macOS refuses to start it: `(AppSandbox) code identity <cdhash …> not in ACL for container`.
-  `pluginkit` still reports it registered and enabled. `Scripts/install.sh` repairs it —
-  delete container → `pluginkit -r` → relaunch the app → `pluginkit -a` → `-e use` → restart Finder,
-  in that order. Clearing the container alone is not enough.
-- **`git` cannot run inside an App Sandbox** — "xcrun: error: cannot be used within an App Sandbox".
-- **An appex registers when its HOST APP IS LAUNCHED**, not on `pluginkit -a`.
-- **`NSExtensionMain` is not callable from Swift** — link with `-Xlinker -e -Xlinker
-  _NSExtensionMain` and no `main.swift`.
-- **`NSHomeDirectory()` in the extension is the container**, not `/Users/<you>`. A `~`-relative
-  write lands in the container and still exits 0. Absolute paths only.
-- **The app bootstrap must stay LAST in `Sources/ChuteApp/main.swift`** — top-level code runs in
-  order. Deleting a class above it once took `app.run()` with it.
-- **A skipped check is not a passing check.** That same regression showed up as a green run because
-  "Chute.app is not running" was reported as SKIP. It is a failure now.
-- **AppleScript over a live window list breaks mid-scan** — "Can't get item 13 of every window.
-  Invalid index" — when a terminal closes. Each window and tab is wrapped in `try` for that reason.
-- **`lsof -ti tcp:<port>` returns the LEAF and the CLIENTS.** Killing the leaf lets the npm
-  supervisor respawn the port; killing everything returned kills the browser tab watching it.
-- **`brew services` daemons cannot be killed, only booted out.** postgres/redis/ollama are
-  launchd agents with `KeepAlive=true`: TERM *and* KILL are respawned before the port check
-  even runs, so "Stop It" read as a no-op. The only stop launchd respects is
-  `launchctl bootout gui/$UID/<label>`; `LocalServers.killPlan` routes any kill tree containing
-  a launchd job pid (from `launchctl list`) to bootout. Restore with
-  `launchctl bootstrap gui/$UID ~/Library/LaunchAgents/homebrew.mxcl.<name>.plist` or
-  `brew services start <name>`.
-- **`Shell.run` used to read stdout then stderr sequentially.** A child that fills the ~64 KB
-  stderr pipe while stdout is still open deadlocks both processes — in the menu bar app that is
-  a dead menu with no error anywhere. stderr is now drained concurrently; the Shell suite floods
-  200 KB to prove it.
-- **`pgrep -x Terminal` never matches Terminal.app**; use `ps -Ao comm` and a path fragment.
-- **`ps -o tty=` prints `??`**, not empty, when there is no controlling terminal.
-- **An agent's real work runs DETACHED from its tty.** claude (ttys004) → zsh (??) → npm (??) →
-  chrome-headless-shell (??) at 120% CPU: summing tty-attached processes showed "0% CPU" on the
-  session cooking the chassis. `SystemVitals.attribute` walks every detached process up its
-  parent chain to the terminal it descends from; the menu also names the machine's busiest
-  process when it exceeds 80% of a core.
-- **APFS is case-insensitive**: the app executable is `ChuteApp` so it cannot collide with `chute`.
-- **`git log origin/<branch>..HEAD` returns 0 when the branch was never pushed** — the error is
-  suppressed and silence reads as success. Verify with `git ls-remote --heads origin <branch>`.
-- **The installed CLI is a COPY inside the app bundle.** After any Swift change:
-  `./Scripts/build-app.sh && ./Scripts/install.sh`.
-- **`sudo` and interactive password prompts do not work through an agent shell.** Finder can move a
-  protected container to the Trash without a password; `osascript -e 'tell application "Finder" to
-  delete POSIX file "…"'`.
-- **Another agent may be working in this tree.** A session here switched branches mid-flight and a
-  commit landed on `fix/kill-the-tree-not-the-leaf`. Check `git branch --show-current` before
-  committing.
+**Then, and only then, the product question:** custom user actions. The founder proposed it and
+the model already supports it — `ChuteAction` is pure data and `argv()` already substitutes
+`{files}`/`{dir}`, so reading extra actions from `~/.chute/actions.json` is ~40 lines. But it turns
+an opinionated 5-row menu into a platform, macOS already ships Automator Quick Actions and
+Shortcuts for exactly this, and it means Chute executes commands the user wrote. **Design it
+before building it.**
 
 ---
 
-### From 2026-08-28
+## TRAPS — paid for, repeatedly. Do not pay again
 
-- **`FileScan.expand` filtered junk out before `clean` could see it.** Right for `bundle`, exactly
-  backwards for the one command whose job is to find junk — every `.log`, `.tmp`, `.bak`, `.swp`,
-  `.orig` and `.rej` was invisible and only the scratch PREFIXES were ever listed. Fixed with
-  `includingJunk:`; `isAgentScratch` still decides what is actually trashed. → If a command seems
-  to under-report, check what the shared scan dropped before blaming the command.
-- **A dry run wrote a timing file the deploy gate believed.** `emit_timing` read 0.0s off a
-  stopwatch that was never started. → Any mode that fakes execution must be enforced in the
-  library, never left to each caller to remember; `make -C demo/gui lint` exists for this.
-- **PLAN mode leaked within ten minutes of existing**, because a tape called `osascript` directly
-  and started driving the real cursor. → A tape may only speak in verbs.
-- **The site's nav did not link to the two new pages**, and five sections reserved an empty slot
-  for demos that do not exist. Both survived a green build, 38 generated routes and zero failed
-  network requests. → **Open it in a browser and look at it.** Nothing else catches this class.
-- **The copy said "eight files"; the demo selects three folders holding six.** → The page quotes
-  the demo. Never bend the recording to match a sentence.
-- **`git commit` in this repo needs an explicit pathspec** and the working directory does NOT
-  persist as expected between agent shell calls — `cd` to the repo root in every command.
-
-## REVIEW FINDINGS STILL OPEN
-
-**Apple platform design**
-- ~~The status item draws a text glyph (`⤓ 3`)~~ — **FIXED 2026-08-28.** It is a template
-  `NSImage` now (`Sources/ChuteApp/SessionMenu.swift`, `applyBadge`), so the system tints it.
-- The first-run window is a hand-built `NSWindow` of stacked rows; `NSAlert` is the HIG-correct
-  shape for "one thing needs your permission". **Still open, but read the doc comment first —
-  the current shape is argued for, so this is a decision to revisit rather than a defect.**
-- ~~No Settings window~~ — it exists (`Sources/ChuteApp/SettingsWindow.swift`, three tabs).
-  **No About panel: still genuinely missing.** Nothing calls `orderFrontStandardAboutPanel`.
-
-**Code**
-- `/Users/sxope/Documents/2026/Development/37.chute/Sources/chute/Commands/AgentCommands.swift`
-  is four features in one file (ports, sandbox, env, terminal launching). Split it when the next
-  one arrives.
-- The assert harness has no test isolation: suites share the process and the real clipboard, and
-  the e2e suite drives the REAL app — which is why running it posts real notifications.
-
-**Security — fixed, recorded for the next reviewer**
-Inbox hardened to `0700` with per-file ownership checks; `unpack` blocked from escaping through a
-symlink; redaction extended to private key blocks and URL credentials; AppleScript escaping fixed
-to handle backslashes. Full detail in the commit `security: harden the request inbox…`.
-
-**2026-08-27 deep review — fixed the same day**
-- CRITICAL `chute gist` uploaded raw files while help claimed "nothing is ever uploaded" —
-  now redacts every text file before upload and the help names gist as the one exception.
-- HIGH `chute unpack --force` could mkdir OUTSIDE `--dir` through a pre-existing symlink before
-  the escape check ran — `staysInside` now runs before AND after `createDirectory`.
-- HIGH `seed`/`note`/`buf add` swallowed write errors (`try?`) then reported success — a failed
-  `chute note` claiming "anchored" was the worst lie in the product. All three now fail loudly.
-- HIGH `NameDerive.uniquePath` was probe-then-write (TOCTOU): two simultaneous pastes could both
-  resolve `Shot-2.png` and the second silently clobbered the first. `writeUniquely` makes the
-  write itself the probe (`.withoutOverwriting` = O_EXCL).
-- MEDIUM `Notify.deniedAtLastCheck` was written from UNUserNotificationCenter's queue and read on
-  main — now hops to main for every write.
-- Dead code removed: `FirstRunWindow.failuresOnly`, `SessionPhrasing.runningFor`.
-- LOW, known and accepted: `Out.fail` exits without unwinding `defer`, so a failed
-  `chute checkpoint`/`gist` can leave a stray temp file in `/tmp` (periodically purged by macOS).
+- **A hand-kept list is not a gate.** `check:claims` passed for a whole day while four files told
+  people to run a deleted command, because it compared against a list of retired names nobody
+  updates. It asks the dispatch switch now.
+- **A comment is not a guard.** `CHUTE_BUFFER_DIR` said "tests only" and enforced nothing.
+- **Green with zero failures can still be a broken run.** A deleted action left `run_action
+  clean-junk` in `smoke.sh`; under `set -e` it aborted at line 94 — exit 1, no FAILs, no summary.
+  Read the tally, never the exit code.
+- **A gate that proves shape passes a deleted feature.** `demo/gui check` planned full recordings
+  for three retired rows: lint proved grammar, plan proved fixtures, neither asked if the thing
+  existed.
+- **Patch a total and you will be wrong.** The capability map claimed 82.1 while its own row table
+  summed to 89.0. Derive every number from `cases.ts` after the edit.
+- **A passing suite says the SOURCE is right, never that the INSTALLED APP is.** `chute doctor`
+  prints the build stamp for exactly this reason. Check it before debugging anything.
+- **Test suites must not touch the user's data.** The basket tests cleared his real basket until
+  `CHUTE_BUFFER_DIR` was added.
+- **Running the full suite blocks the founder** — it owns the clipboard for ~30s and drives real
+  Finder actions. Safe while he works: `swift build`, `swift run chutetests`, the site checks.
+  Batch the rest and ask.
 
 ---
 
-## TESTING OTHER macOS VERSIONS WITH ONE LAPTOP
+## DECISIONS — do not re-litigate
 
-1. **CI is the version matrix.**
-   `/Users/sxope/Documents/2026/Development/37.chute/.github/workflows/macos-matrix.yml` runs build,
-   447 unit assertions and the headless e2e suite on **macOS 13, 14, 15**. Free for public repos —
-   which open core makes you anyway. Catches API removals, `lsof`/`ps`/`osascript` output changes,
-   Swift drift, SDK breakage. Cannot catch: the extension loading, TCC prompts, notification delivery.
-2. **A VM for the desktop half.** Apple Silicon virtualises macOS 12+ via Virtualization.framework —
-   VirtualBuddy (free) or UTM; the licence allows two VMs per host. Finder extensions do load in a
-   VM and TCC prompts behave normally.
-3. **The floor is honest.** `Package.swift` declares `.macOS(.v13)` and there are **no `@available`
-   guards anywhere**, because every API used exists at 13 — audited. Adding a newer API without a
-   guard is the failure mode; the matrix catches it.
-4. **The risk is behaviour, not API.** macOS 15.0–15.1 removed the Extensions settings pane; 14+
-   tightened App Management provenance. Recorded in
-   `/Users/sxope/Documents/2026/Development/37.chute/docs/08-MACOS-COMPATIBILITY.md`.
-
----
+- **ICP is Claude Code / Cursor users.** Everything follows from it.
+- **The CLI is plumbing, not a product.** It competes with free `npx repomix` and earns nothing;
+  it stays MIT and stops being marketed as thirteen jobs to learn.
+- **A basket entry is a PATH**, not a copy of content — hence no size cap, rows that name the
+  file, contents read fresh at hand-over, "— missing" when a file is gone.
+- **Nothing auto-fills the basket.** Automatic filing is what made the old Recent Copies read as
+  hardcoded.
+- **`Copy Folder Tree` and `New File` stay** despite the ICP logic — a pasted tree orients an
+  agent without it burning context on `ls -R`. Do not re-propose deleting these.
+- **`check-metrics` goes red ~1 run in 3 under heavy load, green alone.** Do NOT widen the bound;
+  that is how it would stop catching the 24× error it was built for. Re-run on a quiet machine.
 
 ## OPEN QUESTIONS FOR THE HUMAN
-1. **Domain** — none of the 56 in `docs/CloudflareDomainsPrice.md` spell the product's name.
-2. **Real CPU temperature** — worth a privileged helper, or is the battery sensor plus thermal
-   pressure enough?
-3. **Your own machine still has the legacy hooks wired** (they power the badge and were left
-   untouched on purpose). Keep them, or `chute hooks uninstall` to run hook-free?
+
+- The Basket: faster than typing three `@` paths, or delete it? (Gap 4 above.)
+- The two session-switcher numbers. (Gap 3.)
+- Custom user actions: platform, or stay opinionated?

@@ -99,7 +99,7 @@ chute diff . --copy                  # what did the agent actually change?
 | `chute redact` | Mask API keys and tokens before sharing |
 | `chute gist <files…>` | Secret gist, URL on the clipboard |
 | `chute dataurl <image>` | Base64 data URL for vision prompts. `--markdown` |
-| `chute buf add\|list\|flush` | Gather context across many copies, paste once |
+| `chute basket add\|list\|copy\|clear` | Collect files across folders, hand them over once — `copy` gives `@mentions` or the files themselves |
 | `chute prompt decompose\|ponytail` | Prompt templates: split work into 15-min tasks; cut over-engineering |
 | `chute env inject [dir]` | Keychain → `.env`. Refuses unless `.env` is gitignored |
 | `chute sessions` | Every terminal session, grouped by state. `--json` |
