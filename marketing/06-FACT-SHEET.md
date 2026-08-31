@@ -1,6 +1,6 @@
 # Fact sheet — every claim, and the command that proves it
 
-**Measured 2026-08-28. Re-measure before quoting; never copy a number forward.**
+**Measured 2026-08-31. Re-measure before quoting; never copy a number forward.**
 
 > This file went stale within four hours of being written: it said `0.1.0` while the build said
 > `0.2.0`. That is not an argument against the file, it is the argument for it — the version was
@@ -26,7 +26,7 @@ command and update this file first, then the copy.
 |---|---|---|
 | App bundle size | **2.5 MB** | `du -sh dist/Chute.app` |
 | CLI binary size | **788 KB** | `ls -lh .build/release/chute` |
-| CLI commands | **25** | `chute help \| grep -cE '^  [a-z]'` |
+| CLI commands | **26** | `chute help \| grep -cE '^  [a-z]'` |
 | Finder actions | **11**, drawn as **6 rows** | `chute finder-actions --menu` |
 | External dependencies | **0** | `grep -c '.package(' Package.swift` → 0 |
 | Lines of Swift | **6,873** | `find Sources -name '*.swift' \| xargs wc -l \| tail -1` |
@@ -58,13 +58,13 @@ more credible than the absolute one, and it survives someone reading the source.
 
 | Gate | Result | Command |
 |---|---|---|
-| Unit assertions | **973 passed** | `swift run chutetests` |
-| End-to-end | **146 passed** headless, **174** full | `CHUTE_HEADLESS=1 ./Scripts/smoke.sh` |
+| Unit assertions | **919 passed** | `swift run chutetests` |
+| End-to-end | **140 passed** headless, **168** full | `CHUTE_HEADLESS=1 ./Scripts/smoke.sh` |
 | Metrics plausibility | **4 checks** — magnitude, not shape | `./Scripts/check-metrics.sh` |
-| Terminal tapes | **17** (13 hand-written, 4 generated from cases.ts) | `ls demo/tapes/*.tape \| wc -l` |
-| GUI tapes | **10** hand-written | `ls demo/gui/tapes/*.sh \| wc -l` |
-| Demo delivery pipeline | **13 checks** | `./demo/gui/selftest.sh` |
-| Case data | **23 cases** | `cd site && npm run check:cases` |
+| Terminal tapes | **16** (12 hand-written, 4 generated from cases.ts) | `ls demo/tapes/*.tape \| wc -l` |
+| GUI tapes | **9** hand-written | `ls demo/gui/tapes/*.sh \| wc -l` |
+| Demo delivery pipeline | **11 checks** | `./demo/gui/selftest.sh` |
+| Case data | **21 cases** | `cd site && npm run check:cases` |
 | Site routes | **38** | `cd site && npx next build` |
 | CI | macOS 13, 14, 15 | `.github/workflows/macos-matrix.yml` |
 
@@ -86,16 +86,20 @@ From `docs/03-JTBD-LEDGER.md`. Every figure is `frequency × (manual seconds −
 | Job | Times a day | Saves |
 |---|---|---|
 | Files + contents into a prompt | 17 | **41.1 min/day** |
-| An answer back into real files | 15 | **28.5 min/day** |
 | Break work into 15-minute tasks | 8 | 15.6 min/day |
 | Keys from Keychain into `.env` | 7 | 13.4 min/day |
 | Clipboard straight into a file | 25 | 12.9 min/day |
 | Seed agent rule files | 7 | 9.9 min/day |
 | File paths into a prompt | **32** | 9.1 min/day |
 
-**Headline: 90–115 minutes a day.** That is the app surface total (114.2 min), stated conservatively.
-The ledger supports ~204 min/day across all 23 jobs; the smaller number is used deliberately,
-because it is the one that survives a sceptic with a stopwatch.
+`unpack` (JTBD 9, "an answer back into real files", 28.5 min/day) is gone as of 2026-08-31 — see
+`docs/specs/move-5-delete-unpack.md` — so it no longer appears above or in either total below.
+Retired, not merely undersold: neither the CLI nor the Finder menu can do this job any more.
+
+**Headline: ~85 minutes a day.** That is the app surface total (85.7 min, from `cd site && npm run
+check:cases`), rounded down per this section's own rule. The ledger supports ~169.2 min/day across
+all 21 jobs; the smaller number is used deliberately, because it is the one that survives a
+sceptic with a stopwatch.
 
 Two figures need care:
 - **"Which agent is waiting" has no minutes figure and must not be given one.** Its cost is
@@ -116,7 +120,7 @@ post or page opens with a command name.
 | Never say | Why | Say instead |
 |---|---|---|
 | "328 KB" | The app is 2.5 MB. This was live on the site until 2026-08-28. | "2.5 MB, no dependencies, no launch daemon" |
-| "28 commands" | There are 25. | "25 commands" |
+| "28 commands" | There are 26. | "26 commands" |
 | "Nothing is uploaded, ever" | `gist` uploads on request. | "No network code at all; `gist` shells out to your own `gh`" |
 | "Notarized" / "signed by Apple" | Not yet true. `spctl -a dist/Chute.app` says `rejected`. | Nothing — omit until the Developer ID exists |
 | ~~"Available on Homebrew"~~ | **NOW TRUE as of 2026-08-28.** `brew install avaluev/tap/chute` installs 0.2.0 from source in ~46s with no warnings, and `brew test` passes. | Say it. |

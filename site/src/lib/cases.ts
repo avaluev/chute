@@ -61,17 +61,6 @@ export const CASES: Case[] = [
     command: "chute bundle src/ --format xml",
   },
   {
-    slug: "turn-an-answer-back-into-files",
-    jtbd: 9, surface: "finder", tier: "hero", paid: true,
-    pain: "It gave me four files as one blob of markdown and now I'm copy-pasting each one.",
-    ritual: "Find the first fence, select exactly it, copy, new file, paste, save, remember where it was supposed to go. Then the next three.",
-    fix: "Right-click the folder. You get the list of what it would write, and it writes only after you say so — and never outside that folder.",
-    seconds: { manual: 120, chute: 6 }, perDay: 15, savedMinutes: 28.5,
-    demo: "/media/turn-an-answer-back-into-files.mp4",
-    poster: "/media/turn-an-answer-back-into-files.jpg",
-    command: "chute unpack --dir .",
-  },
-  {
     slug: "which-agent-is-waiting-for-you",
     jtbd: 0, surface: "menubar", tier: "hero", paid: true,
     pain: "Nine terminals. One of them stopped four minutes ago and I don't know which.",

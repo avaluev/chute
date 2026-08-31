@@ -56,12 +56,10 @@ demo "redact"      "$CHUTE" redact "$HERE/fixtures/leaky.env.txt" --no-copy
 demo "sessions"    "$CHUTE" sessions
 demo "ports"       "$CHUTE" ports
 
-# Clipboard-driven demos: the fixture on the pasteboard is half the test. This is precisely the
-# pair that broke — the command was fine, the fixture was not.
-clip "$HERE/fixtures/answer.md"
-demo "unpack (preview)" "$CHUTE" unpack
-clip "$HERE/fixtures/answer.md"
-demo "unpack --force"   "$CHUTE" unpack --force
+# Clipboard-driven demo: the fixture on the pasteboard is half the test. This is precisely the
+# kind of pair that broke when `chute unpack` still existed here — the command was fine, the
+# fixture was not. `unpack` itself was removed 2026-08-31 (docs/specs/move-5-delete-unpack.md);
+# `new` is the clipboard-driven demo that remains.
 clip "$HERE/fixtures/answer.md"
 demo "new"              "$CHUTE" new --no-rename
 

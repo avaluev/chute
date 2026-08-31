@@ -59,8 +59,8 @@ public struct ChuteAction: Sendable, Equatable {
     ///
     /// A right-click that silently writes into a repo is the one thing that would destroy the
     /// trust the rest of this product is sold on, so the destructive step is never the same click
-    /// as the one that opened the menu. `unpack` and `clean` both preview by default already
-    /// (NFR-05) — this carries that guarantee across the Finder boundary instead of restating it.
+    /// as the one that opened the menu. `clean` previews by default already (NFR-05) — this
+    /// carries that guarantee across the Finder boundary instead of restating it.
     public let confirmButton: String?
 
     public init(id: String, title: String, detail: String, scope: Scope, kind: Kind,
@@ -154,20 +154,31 @@ public enum ChuteActions {
                     template: ["tree", "{dir}", "--depth", "99"],
                     doneMessage: "Folder tree copied."),
 
-        // The other direction, and the second-largest saving in the ledger (JTBD #9, 28.5 min/day).
-        // It was CLI-only, which meant the buyer never saw the half of the loop that gets the
-        // agent's answer back onto disk. Destructive, so it previews first — see `confirmButton`.
-        // NAME. "Write Clipboard Files Here" named a thing that does not exist — there is no such
-        // object as a "clipboard file". The clipboard holds an agent's answer; this saves the
-        // files inside it. `menuTitle` appends the ellipsis, because it previews first.
-        ChuteAction(id: "unpack-here",
-                    title: "Save Clipboard as Files",
-                    detail: "The files in a copied answer, written into this folder — after you see the list.",
-                    scope: .folder, kind: .destructive,
-                    symbol: "arrow.down.doc.fill",
-                    template: ["unpack", "--dir", "{dir}"],
-                    doneMessage: "Files written.",
-                    confirmButton: "Write Files"),
+        // THE ONE THING NO CLIPBOARD MANAGER CAN DO, and after 2026-08-31 the only thing left in
+        // this menu that nothing else ships. Maccy, Raycast and Paste hold TEXT; this holds FILES,
+        // so it can hand them over as `@mentions` an agent resolves itself, or as their contents
+        // with a token count. Collect across four folders, hand over once.
+        //
+        // The job is JTBD 22 and it was in the ledger from the start — it just shipped as a log of
+        // everything the CLI had ever copied, labelled "Recent Copies", filling itself with things
+        // nobody chose. Only an explicit click files anything now.
+        //
+        // `.selection`, not `.folder`: you are collecting the files you picked, and unlike every
+        // other row here it is additive — nothing is copied, nothing is written, so it needs no
+        // confirmation and no preview.
+        ChuteAction(id: "basket-add",
+                    title: "Add to Context Basket ({n})",
+                    detail: "Collect these for an agent. The menu bar holds them until you hand them over.",
+                    scope: .selection, kind: .copy,
+                    symbol: "tray.and.arrow.down.fill",
+                    template: ["basket", "add", "{files}"],
+                    doneMessage: "Added to the basket."),
+
+        // unpack-here removed 2026-08-31, on the owner's explicit decision, not a cleanup: the ICP
+        // is now Claude Code / Cursor users, whose agent already writes files to disk — the moment
+        // `unpack` existed for (a browser chat that can only hand back fenced code blocks) never
+        // occurs for them. See docs/specs/move-5-delete-unpack.md. `MarkdownUnpack.swift`,
+        // `cmdUnpack` and `chute unpack` are gone with it — this was never a CLI-only fallback.
 
         ChuteAction(id: "new-markdown",
                     title: "Empty Markdown File",

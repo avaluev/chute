@@ -68,49 +68,9 @@ func coreSuites() {
         T.ok(ContextBundle.markdown(bundle, root: "/p").contains("```ts a.ts"), "md fence carries language + path")
     }
 
-    // MARK: - FR-06 markdown unpacker
-    T.suite("MarkdownUnpack") {
-        let onFence = MarkdownUnpack.parse("```ts src/auth.ts\nexport const x = 1\n```")
-        T.eq(onFence.count, 1, "one file from fence info line")
-        T.eq(onFence.first?.path ?? "", "src/auth.ts", "path on fence info line")
-        T.eq(onFence.first?.content ?? "", "export const x = 1", "content preserved")
-        T.eq(MarkdownUnpack.parse("### src/db.ts\n\n```ts\nconst db = 1\n```").first?.path ?? "", "src/db.ts", "path from heading")
-        T.eq(MarkdownUnpack.parse("**config/app.json**\n```json\n{}\n```").first?.path ?? "", "config/app.json", "path from bold line")
-        let multi = MarkdownUnpack.parse("### a.ts\n```ts\n1\n```\n### b.py\n```python\n2\n```")
-        T.eq(multi.map(\.path), ["a.ts", "b.py"], "multiple files")
-        T.eq(multi.map(\.content), ["1", "2"], "multiple contents")
-        T.ok(MarkdownUnpack.parse("```\nplain\n```").isEmpty, "unnamed blocks skipped")
-        T.throwsError("rejects absolute path") { _ = try MarkdownUnpack.validate([UnpackedFile(path: "/etc/passwd", content: "x")]) }
-        T.throwsError("rejects parent traversal") { _ = try MarkdownUnpack.validate([UnpackedFile(path: "../../etc/passwd", content: "x")]) }
-        T.noThrow("accepts nested relative path") { _ = try MarkdownUnpack.validate([UnpackedFile(path: "a/b/c.ts", content: "x")]) }
-
-        // Part A — pathFromBody: what agents actually emit when there's no fence info and no
-        // heading above the fence — the path named in a leading comment inside the block.
-        let slashPath = MarkdownUnpack.parse("```ts\n// src/c.ts\nexport const c = 1\n```")
-        T.eq(slashPath.first?.path ?? "", "src/c.ts", "path from // comment on body[0]")
-        let hashPath = MarkdownUnpack.parse("```python\n# app/main.py\nprint(1)\n```")
-        T.eq(hashPath.first?.path ?? "", "app/main.py", "path from # comment on body[0]")
-        let blockPath = MarkdownUnpack.parse("```css\n/* src/d.css */\nbody { margin: 0 }\n```")
-        T.eq(blockPath.first?.path ?? "", "src/d.css", "path from /* */ comment on body[0]")
-        let htmlPath = MarkdownUnpack.parse("```html\n<!-- src/e.html -->\n<div></div>\n```")
-        T.eq(htmlPath.first?.path ?? "", "src/e.html", "path from <!-- --> comment on body[0]")
-        // DECISION: the marker is KEPT in the written content — that comment is part of the file
-        // the agent wrote, not part of the path. Only the extracted PATH has it stripped.
-        T.eq(slashPath.first?.content ?? "", "// src/c.ts\nexport const c = 1",
-             "comment marker is KEPT in the written content, not stripped")
-        T.throwsError("a traversal path sourced from a body comment is still rejected") {
-            _ = try MarkdownUnpack.validate(MarkdownUnpack.parse("```ts\n// ../../etc/passwd\nx\n```"))
-        }
-        T.ok(MarkdownUnpack.parse("```ts\nconst x = 1\n```").isEmpty,
-             "ordinary code on body[0] yields no file — info-string and heading paths do not regress")
-        // A shebang survives the "#" strip as "!/bin/bash": no space, full of slashes, and it
-        // would have written a file into a directory named "!". Both comment-stripping callers
-        // had the hole, so the guard lives in looksLikePath.
-        T.ok(MarkdownUnpack.parse("```bash\n#!/bin/bash\necho hi\n```").isEmpty,
-             "a shebang on body[0] is not a path")
-        T.ok(MarkdownUnpack.parse("#!/bin/bash\n\n```bash\necho hi\n```").isEmpty,
-             "a shebang in the line above the fence is not a path either")
-    }
+    // FR-06 markdown unpacker (`MarkdownUnpack`) removed 2026-08-31 with `chute unpack` — see
+    // docs/specs/move-5-delete-unpack.md. Its two suites (parse/validate here, staysInside below
+    // near FileScan.expand) went with it.
 
     // MARK: - FR-19 redaction
     T.suite("FileScan.absolute") {
@@ -182,49 +142,6 @@ func coreSuites() {
         T.ok(Redact.apply("before\n" + key + "\nafter").contains("before"),
              "and the surrounding text survives")
 
-    }
-
-    // ITS OWN SUITE. These assertions sat inside T.suite("Redact"), so a symlink-escape failure
-    // reported as "Redact › a path through a symlink…" — the one label a reader greps for at 3am,
-    // pointing at the wrong module. A failing security guard must say which guard it is.
-    T.suite("MarkdownUnpack.staysInside") {
-        // SECURITY — a path that escapes through a symlink already sitting in the target folder.
-        let box = NSTemporaryDirectory() + "chute-escape-\(UInt32.random(in: 0...99999))"
-        let inside = (box as NSString).appendingPathComponent("safe")
-        let outside = (box as NSString).appendingPathComponent("outside")
-        try? FileManager.default.createDirectory(atPath: inside, withIntermediateDirectories: true)
-        try? FileManager.default.createDirectory(atPath: outside, withIntermediateDirectories: true)
-        defer { try? FileManager.default.removeItem(atPath: box) }
-        try? FileManager.default.createSymbolicLink(
-            atPath: (inside as NSString).appendingPathComponent("link"), withDestinationPath: outside)
-
-        T.ok(MarkdownUnpack.staysInside(dir: inside, path: "src/app.ts"),
-             "an ordinary nested path is inside")
-        T.ok(MarkdownUnpack.staysInside(dir: inside, path: "app.ts"),
-             "and so is a file at the top")
-        T.ok(!MarkdownUnpack.staysInside(dir: inside, path: "link/pwned.txt"),
-             "a path through a symlink that leaves the folder is refused")
-        T.ok(!MarkdownUnpack.staysInside(dir: inside, path: "../pwned.txt"),
-             "and so is a plain climb, belt and braces with validate()")
-        T.ok(!MarkdownUnpack.staysInside(dir: inside, path: "link/deep/pwned.txt"),
-             "a symlink escape is caught even when the path continues past it")
-
-        // THE FALSE REFUSAL. `resolvingSymlinksInPath()` only rewrites components that exist, so
-        // an unwritten parent came back verbatim while the existing root came back normalised —
-        // and macOS collapses /private/tmp to /tmp, so `chute unpack` from inside /tmp compared
-        // `/tmp/x` against `/private/tmp/x/notes` and refused every nested file in the answer.
-        // Silently: one `continue` per file, under this function's own escape message.
-        let privateRoot = "/private/tmp/chute-staysinside-\(UUID().uuidString)"
-        try? FileManager.default.createDirectory(atPath: privateRoot, withIntermediateDirectories: true)
-        defer { try? FileManager.default.removeItem(atPath: privateRoot) }
-        T.ok(MarkdownUnpack.staysInside(dir: privateRoot, path: "notes/hello.md"),
-             "a nested path under /private/tmp is inside, not an escape")
-        T.ok(MarkdownUnpack.staysInside(dir: privateRoot, path: "a/b/c/d.txt"),
-             "and so is one several levels deep that does not exist yet")
-        try? FileManager.default.createSymbolicLink(
-            atPath: (privateRoot as NSString).appendingPathComponent("out"), withDestinationPath: "/private/etc")
-        T.ok(!MarkdownUnpack.staysInside(dir: privateRoot, path: "out/passwd"),
-             "and a real escape from there is still refused")
     }
 
     T.suite("FileScan.expand") {

@@ -43,55 +43,10 @@ func cmdNew(_ a: Args) {
     }
 }
 
-// MARK: - FR-06 markdown → filesystem
-
-func cmdUnpack(_ a: Args) {
-    let markdown = a.has("stdin")
-        ? String(data: FileHandle.standardInput.readDataToEndOfFile(), encoding: .utf8) ?? ""
-        : Clipboard.read()
-    let dir = FileScan.absolute(a.value("dir", or: FileManager.default.currentDirectoryPath))
-    let parsed = MarkdownUnpack.parse(markdown)
-    guard !parsed.isEmpty else {
-        Out.fail("no named code blocks found — a block needs a path, e.g. ```ts src/app.ts")
-    }
-    let files: [UnpackedFile]
-    do { files = try MarkdownUnpack.validate(parsed) }
-    catch { Out.fail("\(error)") }
-
-    // NFR-05 — preview by default, write only with --force.
-    guard a.has("force") else {
-        Out.info("dry run — \(files.count) file(s) would be written to \(dir):")
-        for f in files {
-            let exists = FileManager.default.fileExists(atPath: (dir as NSString).appendingPathComponent(f.path))
-            Out.line("  \(exists ? "overwrite" : "create   ") \(f.path)  (\(f.content.count) bytes)")
-        }
-        Out.info("→ re-run with --force to write")
-        return
-    }
-    for f in files {
-        let full = (dir as NSString).appendingPathComponent(f.path)
-        let parent = (full as NSString).deletingLastPathComponent
-        // Checked BEFORE mkdir as well as after: a symlink already sitting in the target
-        // (src -> ~/Library) resolves NOW, and without this check createDirectory would happily
-        // build folders on the far side of it before the file write is refused.
-        guard MarkdownUnpack.staysInside(dir: dir, path: f.path) else {
-            Out.info("refusing to write outside \(dir): \(f.path) resolves elsewhere")
-            continue
-        }
-        try? FileManager.default.createDirectory(atPath: parent, withIntermediateDirectories: true)
-        // And AFTER, so components that only became resolvable once created are covered too.
-        guard MarkdownUnpack.staysInside(dir: dir, path: f.path) else {
-            Out.info("refusing to write outside \(dir): \(f.path) resolves elsewhere")
-            continue
-        }
-        do {
-            try f.content.write(toFile: full, atomically: true, encoding: .utf8)
-            Out.line("wrote \(full)")
-        } catch {
-            Out.info("failed \(f.path): \(error.localizedDescription)")
-        }
-    }
-}
+// FR-06 markdown → filesystem (`chute unpack`, `MarkdownUnpack.swift`) removed 2026-08-31: the
+// ICP is Claude Code / Cursor users, whose agent already writes files to disk — the moment this
+// existed for (a browser chat that can only hand back fenced code blocks) never occurs for them.
+// See docs/specs/move-5-delete-unpack.md.
 
 // MARK: - FR-11 seed agent rules
 

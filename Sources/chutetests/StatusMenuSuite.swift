@@ -117,49 +117,64 @@ func statusMenuSuite() {
             T.ok(false, "the collapsed row owns a submenu")
         }
 
-        // ── RECENT COPIES — THE BUG THAT PROMPTED ALL OF THIS ───────────────────────────────
+        // ── THE BASKET — THE BUG THAT PROMPTED ALL OF THIS ──────────────────────────────────
         //
-        // "It is a shit hardcode. It never works." Clicking a row re-recorded the replay under
-        // the HUD's confirmation wording, so the list filled with rows reading "Copied" and, at
-        // ten kept, evicted everything real. ContextBuffer now refuses to file text it already
-        // holds; this asserts the MENU half — that the section is absent when empty, that its
-        // count matches its contents, and that the rows carry the words the entries were
-        // delivered under rather than a verb.
+        // "It is a shit hardcode. It never works." Only 3 of 10 Finder actions ever wrote to the
+        // old store, so the list could not change no matter what the owner did — indistinguishable
+        // from hardcoded, from outside. An entry is a FILE PATH now (see ContextBuffer.swift), and
+        // the only way in is an explicit add. This asserts the MENU half: absent when empty, its
+        // count matches its contents, and each row names the file it is.
         let empty = StatusMenu.model(sessions: live, trial: .licensed(email: "a@b.c"), recent: [])
-        T.no(titles(empty).contains { $0.contains("Recent Copies") },
-             "Recent Copies is absent entirely when there is nothing in it")
+        T.no(titles(empty).contains { $0.contains("Basket") },
+             "the basket is absent entirely when there is nothing in it")
 
         let dir = NSTemporaryDirectory() + "chute-menu-\(UUID().uuidString)"
         defer { try? FileManager.default.removeItem(atPath: dir) }
         let buf = ContextBuffer(directory: dir)
-        buf.record("the patch", label: "Diff · what the agent changed")
-        buf.record("/a/b.ts", label: "2 full paths")
-        buf.record("the patch", label: "Copied")          // the replay that used to file a row
+        buf.add("/tmp/chute-menu-fixture-a.ts")
+        buf.add("/tmp/chute-menu-fixture-b.ts")
+        buf.add("/tmp/chute-menu-fixture-c.ts")
         let entries = buf.entries().reversed().map { $0 }
 
-        let withCopies = StatusMenu.model(sessions: live, trial: .licensed(email: "a@b.c"),
-                                          recent: entries)
-        let parent = find(withCopies, "Recent Copies")
-        T.ok(parent != nil, "and present once there is something to put back")
-        T.eq(parent?.title, "Recent Copies  (2)",
-             "counting the two DISTINCT things copied, not the three record calls")
+        let withBasket = StatusMenu.model(sessions: live, trial: .licensed(email: "a@b.c"),
+                                          recent: entries, recentTokens: 1234)
+        let parent = find(withBasket, "Basket")
+        T.ok(parent != nil, "and present once there is something in it")
+        T.eq(parent?.title, "Basket  (3)", "counting the three files added")
 
         guard case .submenu(let rows)? = parent?.kind else {
-            T.ok(false, "Recent Copies owns a submenu"); return
+            T.ok(false, "Basket owns a submenu"); return
         }
         let rowTitles = rows.filter { $0.kind != .separator }.map(\.title)
-        T.ok(rowTitles.contains { $0.contains("Diff · what the agent changed") },
-             "a row is named for what it IS")
-        T.no(rowTitles.contains { $0.hasPrefix("Copied") },
-             "and never for the confirmation that announced it")
-        T.ok(rowTitles.contains { $0.contains("Copy All 2 Together") },
-             "the count in Copy All matches the rows above it")
-        T.ok(rowTitles.contains("Clear"), "and it can be emptied")
+        T.ok(rowTitles.contains { $0.contains("chute-menu-fixture-a.ts") },
+             "a row is named for the file it is")
+        T.ok(rowTitles.contains { $0.contains("— missing") },
+             "and says so when the path no longer exists on disk, rather than dropping the row")
+        T.ok(rowTitles.contains("Copy Basket as @mentions"),
+             "the ICP's format is offered — Claude Code / Cursor already have filesystem access")
+        T.ok(rowTitles.contains { $0.contains("Copy Basket as Context") && $0.contains("~1k tokens") },
+             "and the bundle format carries the token count it was handed, not one it computed itself")
+        T.no(rowTitles.contains { $0.contains("Copy Basket as @mentions") && $0.contains("tokens") },
+             "while the @mention row carries no count — it costs almost nothing to send")
+        T.ok(rowTitles.contains("Empty Basket"), "and it can be emptied")
         // Every entry row must carry which entry it is, or clicking it can only guess.
-        let copyRows = rows.filter { $0.kind == .command(.bufferCopyOne) }
-        T.eq(copyRows.count, 2, "one row per held entry")
-        T.no(copyRows.contains { $0.payload == nil },
-             "and each names the entry it would put back")
+        let fileRows = rows.filter { $0.kind == .command(.bufferReveal) }
+        T.eq(fileRows.count, 3, "one row per held entry")
+        T.no(fileRows.contains { $0.payload == nil },
+             "and each carries the path it would reveal in Finder")
+
+        // ── POSITION: HIGH IN THE MENU, NOT BURIED UNDER LOCAL SERVERS ──────────────────────
+        //
+        // Being a submenu near the bottom of a long menu is why the owner reported "no row at
+        // all" in the first place — its count was always readable without hovering, the same as
+        // it is now; what moved is WHERE.
+        let basketIndex = withBasket.firstIndex { $0.title.hasPrefix("Basket") }
+        let serversIndex = withBasket.firstIndex { $0.kind == .servers }
+        if let b = basketIndex, let s = serversIndex {
+            T.ok(b < s, "the basket sits above Local Servers, where it is read")
+        } else {
+            T.ok(false, "both the basket and Local Servers are present to compare positions")
+        }
 
         // ── ORDER ───────────────────────────────────────────────────────────────────────────
         //

@@ -31,7 +31,6 @@ swift run chute finder-actions --menu
         2 Levels
         4 Levels
         All Levels
-  Save Clipboard as Files…         ● red
   New File  ▸                      ● green
         Empty Markdown File
         Markdown File from Clipboard
@@ -49,7 +48,6 @@ swift run chute finder-actions --menu
 | Copy Folder Tree ▸ 2 Levels | `tree-2` | `chute tree <dir> --depth 2` | folder | **5** Directory tree skeleton | 4.5 min | blue |
 | Copy Folder Tree ▸ 4 Levels | `tree-4` | `chute tree <dir> --depth 4` | folder | **5** | ″ | blue |
 | Copy Folder Tree ▸ All Levels | `tree-all` | `chute tree <dir> --depth 99` | folder | **5** | ″ | blue |
-| Save Clipboard as Files… | `unpack-here` | `chute unpack --dir <dir>` | folder | **9** Markdown → filesystem | **28.5 min** | **red** |
 | New File ▸ Empty Markdown File | `new-markdown` | `chute new --blank --rename --dir <dir>` | folder | **3** Clipboard → file | 12.9 min | green |
 | New File ▸ Markdown File from Clipboard | `new-markdown-clipboard` | `chute new --naming underscore --ext md --rename --dir <dir>` | folder | **3** + **4** Syntax detection | ″ | green |
 | New File ▸ Image from Clipboard | `paste-image` | `chute paste-image --dir <dir>` | folder | **3** (image variant) | ″ | green |
@@ -57,14 +55,19 @@ swift run chute finder-actions --menu
 | Set Up for an Agent ▸ Save a Checkpoint | `checkpoint-here` | `chute checkpoint <dir>` | folder | **12** Pre-agent checkpoint | 3.3 min **+ ~20 min risk-adj.** | purple |
 | Move Junk to Trash… | `clean-junk` | `chute clean <dir>` | folder | **13** Clean agent junk | 6.6 min | **red** |
 
-**Total surfaced through Finder: 7 of the 22 ledger JTBDs, ≈ 109 min/day** on the clock, plus
-JTBD 12's ~20 min/day of risk-adjusted saving.
+**Total surfaced through Finder: 6 of the 22 ledger JTBDs, ≈ 80.5 min/day** on the clock, plus
+JTBD 12's ~20 min/day of risk-adjusted saving. (One fewer JTBD and 28.5 min/day less than before
+2026-08-31: `unpack-here` — JTBD 9 — is gone, and unlike every other row removed from this menu so
+far, `unpack` has no CLI fallback either. See `docs/specs/move-5-delete-unpack.md`. This total
+still carries the pre-existing drift from `clean-junk`, listed in the row table above but already
+absent from `ChuteActions.all` — that reconciliation is a separate piece of work.)
 
-> JTBD **4** (syntax auto-detection, 2.0 min/day) rides along inside `new` and `unpack` rather
-> than being a row of its own, so it is not counted in either figure. Counting it would make the
-> line read 9 of 23 and ≈118 min/day. The two largest
-savings in the whole ledger — bundle (41.1) and unpack (28.5) — are both one click, never behind a
-submenu. `Sources/chutetests/FinderActionsSuite.swift` fails the build if either is demoted.
+> JTBD **4** (syntax auto-detection, 2.0 min/day) rides along inside `new` rather than being a row
+> of its own, so it is not counted in the figure above. The largest saving in the whole ledger —
+> bundle (41.1) — is one click, never behind a submenu.
+> `Sources/chutetests/FinderActionsSuite.swift` fails the build if it is demoted. `unpack` (28.5)
+> was the ledger's other one-click job until it was deleted entirely 2026-08-31 — it no longer has
+> a row to demote.
 
 ### What each one actually does, in one sentence
 
@@ -74,9 +77,6 @@ submenu. `Sources/chutetests/FinderActionsSuite.swift` fails the build if either
   block with a token count, ready to paste into a chat. This is the product's wedge.
 - **Copy Folder Tree** — the shape of a folder as an indented tree, with `node_modules`, `.build`
   and friends left out. Depth is a knob, not a dialog, because a context menu cannot ask.
-- **Save Clipboard as Files…** — the inverse. An agent answered with five fenced code blocks and
-  their filenames; this writes them to disk here. Lists them first and writes nothing until you
-  press **Write Files**.
 - **New File ▸ Empty Markdown File** — an empty `Untitled.md`, name selected and ready to type over.
 - **New File ▸ Markdown File from Clipboard** — the clipboard saved here, filename derived from its
   first line, language detected from its content.
@@ -95,7 +95,7 @@ submenu. `Sources/chutetests/FinderActionsSuite.swift` fails the build if either
 
 ## B. Every CLI capability, and where it surfaces
 
-27 commands. Read `chute help` for the flags; this table answers only "who can reach it".
+26 commands. Read `chute help` for the flags; this table answers only "who can reach it".
 
 | CLI | JTBD | Finder | Menu bar | Why |
 |---|---|---|---|---|
@@ -105,7 +105,6 @@ submenu. `Sources/chutetests/FinderActionsSuite.swift` fails the build if either
 | `tree [dir]` | 5 | ✅ | — | |
 | `buf add\|list\|flush\|clear` | 22 | ❌ | — | A ring needs state across clicks; a context menu has none. |
 | `new` | 3, 4 | ✅ | — | |
-| `unpack` | 9 | ✅ | — | |
 | `seed [dir]` | 7 | ✅ | — | |
 | `note "text"` | 16 | ❌ | — | Needs typed text. A context menu cannot ask a question. |
 | `latest [dir]` | 10 | ❌ | — | **Gap — see C.** |
