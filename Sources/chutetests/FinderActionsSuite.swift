@@ -76,11 +76,10 @@ func finderActionsSuite() {
         // same action natively, four rows below. `chute open` stays in the CLI. Change this number
         // on purpose or not at all.
         let rows = ChuteActions.rows()
-        T.eq(rows.count, 7, "the right-click adds seven rows to Finder's menu")
+        T.eq(rows.count, 6, "the right-click adds six rows to Finder's menu")
         T.eq(rows.map(\.title), ["Copy Full Paths", "Copy Files as Context", "Copy Folder Tree",
-                                 "Save Clipboard as Files…", "New File", "Set Up for an Agent",
-                                 "Move Junk to Trash…"],
-             "and they read in that order — context out, answer in, make, set up, tidy")
+                                 "Save Clipboard as Files…", "New File", "Set Up for an Agent"],
+             "and they read in that order — context out, answer in, make, set up")
         T.eq(Set(rows.map(\.symbol)).count, rows.count,
              "no two DRAWN rows share an icon, submenu holders included")
         // ChuteFinderSync builds a submenu's holder from whichever child reaches it first, so the
@@ -161,8 +160,10 @@ func finderActionsSuite() {
         // default in the CLI (NFR-05); the guarantee only survives the trip through the menu if
         // the template stays in its harmless form and the app supplies --force after asking.
         let destructive = ChuteActions.all.filter(\.isDestructive)
-        T.eq(Set(destructive.map(\.id)), ["unpack-here", "clean-junk"],
-             "exactly the two actions that change files ask first")
+        // One, not two: clean-junk was removed 2026-08-31 (git status already lists untracked
+        // files, and a developer trusts it over a menu's list). The rule it proves is unchanged.
+        T.eq(Set(destructive.map(\.id)), ["unpack-here"],
+             "every action that changes files asks first")
         for a in destructive {
             T.ok(!(a.confirmButton ?? "").isEmpty, "'\(a.id)' names the button that does the thing")
             T.ok(!a.template.contains("--force"),
@@ -179,7 +180,7 @@ func finderActionsSuite() {
         // If one is dropped, the landing page's arithmetic stops matching the product.
         // sandbox-here was removed 2026-08-31: ICP is Claude Code / Cursor users whose agents ship
         // their own sandboxing. The CLI keeps `chute sandbox`.
-        for id in ["unpack-here", "seed-rules", "clean-junk"] {
+        for id in ["unpack-here", "seed-rules"] {
             guard let a = ChuteActions.find(id) else { T.ok(false, "'\(id)' is in the menu"); continue }
             T.eq(a.scope, .folder, "'\(id)' acts on the folder in view")
         }

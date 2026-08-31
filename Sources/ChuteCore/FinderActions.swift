@@ -230,16 +230,12 @@ public enum ChuteActions {
                     template: ["checkpoint", "{dir}"],
                     doneMessage: "Checkpoint saved."),
 
-        // JTBD #13, 6.6 min/day. Moves to the Trash, never `rm` — but it still removes files from
-        // where the user put them, so it shows the list first.
-        ChuteAction(id: "clean-junk",
-                    title: "Move Junk to Trash",
-                    detail: "The scratch files an agent left behind, moved to the Trash — after you see the list.",
-                    scope: .folder, kind: .destructive,
-                    symbol: "trash.fill",
-                    template: ["clean", "{dir}"],
-                    doneMessage: "Junk moved to Trash.",
-                    confirmButton: "Move to Trash"),
+        // clean-junk row removed 2026-08-31, on the owner's instruction. It previewed the list and
+        // moved to the Trash rather than `rm`, so it was never the silent delete he feared — but
+        // the argument underneath was better than that: in a git repo `git status` already lists
+        // every untracked file, and a developer trusts it more than a menu's list. The row only
+        // earned its place OUTSIDE a repo, which is rare enough not to occupy a permanent row in
+        // a context menu. `chute clean` still exists, still previews, still only Trashes.
 
         // terminal row removed 2026-08-31: macOS ships "New Terminal at Folder" and
         // "New Terminal Tab at Folder" in the same menu. `chute open` still works via CLI.

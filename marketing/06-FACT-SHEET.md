@@ -27,7 +27,7 @@ command and update this file first, then the copy.
 | App bundle size | **2.5 MB** | `du -sh dist/Chute.app` |
 | CLI binary size | **788 KB** | `ls -lh .build/release/chute` |
 | CLI commands | **25** | `chute help \| grep -cE '^  [a-z]'` |
-| Finder actions | **11**, drawn as **7 rows** | `chute finder-actions --menu` |
+| Finder actions | **11**, drawn as **6 rows** | `chute finder-actions --menu` |
 | External dependencies | **0** | `grep -c '.package(' Package.swift` → 0 |
 | Lines of Swift | **6,873** | `find Sources -name '*.swift' \| xargs wc -l \| tail -1` |
 | Minimum macOS | **13 Ventura** | `grep -o 'macOS(.v[0-9]*)' Package.swift` |
@@ -93,7 +93,7 @@ From `docs/03-JTBD-LEDGER.md`. Every figure is `frequency × (manual seconds −
 | Seed agent rule files | 7 | 9.9 min/day |
 | File paths into a prompt | **32** | 9.1 min/day |
 
-**Headline: 90–120 minutes a day.** That is the app surface total (120.8 min), stated conservatively.
+**Headline: 90–115 minutes a day.** That is the app surface total (114.2 min), stated conservatively.
 The ledger supports ~204 min/day across all 23 jobs; the smaller number is used deliberately,
 because it is the one that survives a sceptic with a stopwatch.
 

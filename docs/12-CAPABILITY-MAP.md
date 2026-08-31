@@ -6,7 +6,7 @@ same engine, and this is the one page that says which job each of them is actual
 | Surface | What it is | Paid? |
 |---|---|---|
 | **`chute` CLI** | 27 commands, MIT, free forever. Every capability lives here first. | free |
-| **Finder right-click** | 11 actions in 7 rows. Every one of them shells out to the CLI. | paid |
+| **Finder right-click** | 11 actions in 6 rows. Every one of them shells out to the CLI. | paid |
 | **Menu bar (⤓)** | Session switcher, local servers, licence, diagnostics. Uses ChuteCore in-process. | paid |
 
 The rule that keeps them honest: **the app is a surface, never a second implementation**
@@ -57,7 +57,7 @@ swift run chute finder-actions --menu
 | Set Up for an Agent ▸ Save a Checkpoint | `checkpoint-here` | `chute checkpoint <dir>` | folder | **12** Pre-agent checkpoint | 3.3 min **+ ~20 min risk-adj.** | purple |
 | Move Junk to Trash… | `clean-junk` | `chute clean <dir>` | folder | **13** Clean agent junk | 6.6 min | **red** |
 
-**Total surfaced through Finder: 8 of the 23 ledger JTBDs, ≈ 116 min/day** on the clock, plus
+**Total surfaced through Finder: 7 of the 22 ledger JTBDs, ≈ 109 min/day** on the clock, plus
 JTBD 12's ~20 min/day of risk-adjusted saving.
 
 > JTBD **4** (syntax auto-detection, 2.0 min/day) rides along inside `new` and `unpack` rather
