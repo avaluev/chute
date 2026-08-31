@@ -1,6 +1,10 @@
 # HANDOFF — Chute — standing product reference
 
-> **START HERE:** `handoff/HANDOFF-2026-08-29-surfaces.md` is the current entry point — Moves 0-4
+> **START HERE:** `handoff/HANDOFF-2026-08-31-icp.md` is the current entry point — the ICP was
+> settled as Claude Code / Cursor users, four Finder rows were deleted for failing that test, and
+> the Context Basket replaced Recent Copies.
+>
+> `handoff/HANDOFF-2026-08-29-surfaces.md` is the session before it — Moves 0-4
 > of the strategic redesign are DONE and pushed, along with the reported Recent Copies bug and
 > three defects nobody had reported. `handoff/HANDOFF-2026-08-28-measurement.md` is the session
 > before it and remains the record of the measurement work.
