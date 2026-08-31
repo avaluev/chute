@@ -18,6 +18,10 @@ hasnt(){ if printf '%s' "$2" | grep -qF -- "$3"; then bad "$1" "should not conta
 HEADLESS="${CHUTE_HEADLESS:-0}"
 skip() { printf '  SKIP %s (headless)\n' "$1"; }
 SAVED="$(pbpaste)"; trap 'printf %s "$SAVED" | pbcopy' EXIT
+# THE BASKET IS THE USER'S DATA. `basket add/copy/clear` is exercised below against the real
+# binary, and without this every run cleared whatever the owner had actually collected. Proving a
+# feature works by destroying what it holds is not proving it works.
+export CHUTE_BUFFER_DIR="$(mktemp -d)/basket"
 
 T="$(mktemp -d)"; cd "$T"
 mkdir -p proj/src && cd proj

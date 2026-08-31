@@ -41,8 +41,13 @@ public struct ContextBuffer: Sendable {
 
     public let directory: String
 
-    public init(directory: String = (NSHomeDirectory() as NSString)
-                    .appendingPathComponent(".chute/buffer")) {
+    /// Where the basket lives. `CHUTE_BUFFER_DIR` overrides it, and exists for ONE reason: the
+    /// smoke suite exercises `basket add/copy/clear` against the real binary, and without an
+    /// override those tests ran against the owner's actual basket — clearing files he had
+    /// deliberately collected. A test suite that destroys the user's data to prove the feature
+    /// works has disproved it. Not a general setting, not documented in `chute help`: tests only.
+    public init(directory: String = ProcessInfo.processInfo.environment["CHUTE_BUFFER_DIR"]
+                    ?? (NSHomeDirectory() as NSString).appendingPathComponent(".chute/buffer")) {
         self.directory = directory
     }
 
