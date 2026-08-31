@@ -124,17 +124,3 @@ public struct ContextBuffer: Sendable {
         return ContextBundle.assemble(paths).text
     }
 }
-
-/// ONE DEFINITION OF "THE BUNDLE", reused rather than copied — `chute bundle`'s `assembledBundle`
-/// (`chute`'s `ContextCommands.swift`) and this basket both call this and only this, so they can
-/// never drift into two different formats. The precise defect a previous commit already
-/// collapsed out of `doctor --fix` once.
-extension ContextBundle {
-    public static func assemble(_ paths: [String], format: String = "xml")
-        -> (text: String, files: [BundleFile], skipped: [String]) {
-        let (files, skipped) = FileScan.bundleFiles(paths)
-        let root = ProjectRoot.of(files.map(\.path))
-        let text = format == "md" ? markdown(files, root: root) : xml(files, root: root)
-        return (text, files, skipped)
-    }
-}
