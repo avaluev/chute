@@ -9,11 +9,11 @@ CONTEXT IN
   bundle <files…>       Files + contents in one blob      --format xml|md
   tokens <files…>       Estimated token cost per file
   tree [dir]            Directory skeleton, junk excluded --depth N
-  buf add|list|all|clear                                  Every recent copy, together
+  basket add|list|copy|clear                              Collect files across folders, hand over once
+                        copy --format mentions|context      @mentions for an agent, or the files themselves
 
 FILES
   new                   Clipboard → new file              --name N --dir D --ext E --reveal
-  unpack                Markdown code blocks → files      --dir D --force   (dry run by default)
   seed [dir]            CLAUDE.md / .cursorrules / …      --rules claude,cursor,agents,scratchpad,gitignore
   note "text"           Append to SCRATCHPAD.md           --dir D
   latest [dir]          Reveal newest artifact            --quicklook
@@ -81,9 +81,11 @@ case "paths":      cmdPaths(args)
 case "bundle":     cmdBundle(args)
 case "tokens":     cmdTokens(args)
 case "tree":       cmdTree(args)
+case "basket":     cmdBasket(args)
+// `buf` was the name until 2026-08-31. Undocumented alias: it is in muscle memory and in scripts,
+// and breaking a name costs more than the name was ever worth.
 case "buf":        cmdBuf(args)
 case "new":        cmdNew(args)
-case "unpack":     cmdUnpack(args)
 case "seed":       cmdSeed(args)
 case "note":       cmdNote(args)
 case "latest":     cmdLatest(args)

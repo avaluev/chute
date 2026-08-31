@@ -108,11 +108,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         // process listings for a menu the user is already waiting on.
         let samples = trial.isUnlocked ? SystemVitals.sample() : []
 
+        // Read once, used twice: the entries for the rows, and — only when there are any — the
+        // files' own content for the token count on "Copy Basket as Context". StatusMenu.model
+        // stays free of disk reads; this is the one place that does them, same as `samples` above.
+        let basketBuf = ContextBuffer()
+        let basketEntries = trial.isUnlocked ? basketBuf.entries().reversed().map { $0 } : []
+        let basketTokens = basketEntries.isEmpty ? 0
+            : TokenEstimate.tokens(in: basketBuf.bundleText() ?? "")
+
         let model = StatusMenu.model(
             sessions: sessions,
             trial: trial,
             problem: problem,
-            recent: trial.isUnlocked ? ContextBuffer().entries().reversed().map { $0 } : [],
+            recent: basketEntries,
+            recentTokens: basketTokens,
             notificationsDenied: Notify.deniedAtLastCheck,
             hasHookRecords: !HookState.readAll().isEmpty,
             loadFor: { SystemVitals.load(forTTY: $0, in: samples) },
@@ -154,7 +163,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         case .openSetup:                 return #selector(openSetup)
         case .copyHooksSnippet:          return #selector(copyHooksSnippet(_:))
         case .quit:                      return #selector(NSApplication.terminate(_:))
-        case .bufferCopyOne:             return #selector(bufferCopyOne(_:))
+        case .bufferReveal:              return #selector(bufferReveal(_:))
+        case .bufferMentions:            return #selector(bufferMentions)
         case .bufferFlush:               return #selector(bufferFlush)
         case .bufferClear:               return #selector(bufferClear)
         }
@@ -170,37 +180,57 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         return menu
     }
 
-    // MARK: - Clipboard buffer
+    // MARK: - Context basket
     //
     // Every one of these is user-initiated. Nothing on this path runs unless a menu item is
     // clicked — Chute does not observe the pasteboard, and this is the whole of its involvement
-    // with it.
+    // with it. Nothing here files a NEW entry, either: only `chute basket add` and the Finder's
+    // "Add to Basket" row do that. This section only ever reads and copies.
 
-    @objc func bufferCopyOne(_ sender: NSMenuItem) {
-        guard let name = sender.representedObject as? String,
-              let entry = ContextBuffer().entries().first(where: { $0.name == name }) else { return }
-        deliver(entry.text, "Copied")
+    /// Reveal, not "put back on the clipboard" — an entry is a file path now, not a copy of its
+    /// content, so there is nothing to put back. Says something on both failure paths rather than
+    /// the silent no-op this used to be when a row's entry had been evicted between the menu
+    /// drawing and the click.
+    @objc func bufferReveal(_ sender: NSMenuItem) {
+        guard let path = sender.representedObject as? String,
+              ContextBuffer().entries().contains(where: { $0.path == path }) else {
+            say("That file is no longer in the basket")
+            return
+        }
+        guard FileManager.default.fileExists(atPath: path) else {
+            say("That file no longer exists on disk")
+            return
+        }
+        NSWorkspace.shared.selectFile(path, inFileViewerRootedAtPath: "")
     }
 
-    /// NOT VIA `deliver`. The joined text is made OUT of the entries — recording it would file an
-    /// eleventh row holding a copy of the other ten, and `keep` would then evict the oldest of the
-    /// very things it had just concatenated. A derived blob is not a new thing you collected.
+    /// The ICP's format, first in the menu: Claude Code / Cursor already have filesystem access,
+    /// so they need paths pointed at, not content pasted. Does not empty the basket — copying it
+    /// is not the same decision as being done with it; "Empty Basket" is its own explicit row.
+    @objc func bufferMentions() {
+        let buf = ContextBuffer()
+        guard let text = buf.mentionText() else { say("Basket is empty"); return }
+        Clipboard.write(text)
+        say("\(buf.entries().count) copied as @mentions")
+    }
+
+    /// The chat-UI format — the bundle `chute unpack` still serves, byte-identical to
+    /// `chute bundle` for the same files. Same non-destructive read as `bufferMentions` above.
     @objc func bufferFlush() {
         let buf = ContextBuffer()
-        guard let joined = buf.flushText() else { return }
+        guard let text = buf.bundleText() else { say("Basket is empty"); return }
         let n = buf.entries().count
-        buf.clear()
-        Clipboard.write(joined)
-        say(n == 1 ? "Copied" : "\(n) copied as one")
+        Clipboard.write(text)
+        say("\(n) copied as context (\(TokenEstimate.badge(TokenEstimate.tokens(in: text))))")
     }
 
     @objc func bufferClear() {
-        // No confirmation. Recent Copies refills itself every time you use the product, so there
-        // is nothing here anyone assembled by hand — a sheet would cost more attention than the
-        // contents are worth. Contrast Move Junk to Trash, which confirms because it touches
-        // files the user made.
+        // No confirmation. The basket refills itself the moment you add to it again, so there is
+        // nothing here a sheet would protect that "Empty Basket" itself does not already say
+        // plainly. Contrast Move Junk to Trash, which confirms because it touches files the user
+        // made — this only ever touches Chute's own bookkeeping of paths.
         ContextBuffer().clear()
-        say("Recent copies cleared")
+        say("Basket emptied")
     }
 
     @objc func openSetup() { FirstRunWindow.show() }
@@ -210,7 +240,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     /// the snippet; this only moves it to the clipboard, the same as every other buffer command.
     @objc func copyHooksSnippet(_ sender: NSMenuItem) {
         guard let snippet = sender.representedObject as? String else { return }
-        deliver(snippet, "Snippet copied", label: "Agent status hooks snippet")
+        deliver(snippet, "Snippet copied")
     }
 
     /// Support, without an inbox: the diagnostics go to the clipboard and a prefilled issue opens
@@ -248,20 +278,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         // and without the project on each one the list cannot tell you which is which.
         switch payload.kind {
         case .copyID:
-            deliver(sessionID, "Session ID copied", label: "Session ID · \(s.project)")
+            deliver(sessionID, "Session ID copied")
         case .copyResume:
             guard let cmd = ResumeCommand.resume(agent: s.agent, sessionID: sessionID) else { return }
-            deliver(cmd, "Resume command copied", label: "Resume · \(s.project)")
+            deliver(cmd, "Resume command copied")
         case .tmux:
             guard let cmd = ResumeCommand.tmux(project: s.project, cwd: s.cwd,
                                                agent: s.agent, sessionID: sessionID) else { return }
-            deliver(cmd, "tmux command copied — the conversation resumes; the old window keeps running",
-                    label: "tmux · \(s.project)")
+            deliver(cmd, "tmux command copied — the conversation resumes; the old window keeps running")
         case .copyCost:
             guard let t = transcripts.cached(sessionID),
                   let label = AgentTranscript.costLabel(output: t.outputTokens,
                                                         cacheRead: t.cacheReadTokens) else { return }
-            deliver(label, "Cost copied", label: "Cost · \(s.project) · \(label)")
+            deliver(label, "Cost copied")
         }
     }
 
@@ -269,16 +298,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     /// would silently destroy whatever the user had copied, which is the opposite of this app's
     /// job. Use `say` for a message with nothing to hand over.
     ///
-    /// `message` is the CONFIRMATION — what the HUD says once, in the moment. `label` is the
-    /// ROW — what Recent Copies shows for as long as it holds the entry, and they are not the
-    /// same sentence. This used to file the confirmation as the label, so every row read "Session
-    /// ID copied" and none of them said WHICH session: a list of identical verbs you had to copy
-    /// out one by one to tell apart. A label names the content; it defaults to the message only
-    /// for the callers where the two genuinely coincide.
-    func deliver(_ text: String, _ message: String, label: String? = nil) {
+    /// NO LONGER FILES INTO THE BASKET. It used to — every session command (a session ID, a
+    /// resume command, a tmux command) auto-recorded here, which is the same "everything files
+    /// itself" defect `Out.deliver` had on the CLI side. None of these are file paths, and a
+    /// basket entry is one now (see `ContextBuffer.swift`), so there is nothing left for this to
+    /// hand over to it. The former `label` parameter existed only to name that recording; it is
+    /// gone with it.
+    func deliver(_ text: String, _ message: String) {
         guard !text.isEmpty else { say(message); return }
         Clipboard.write(text)
-        ContextBuffer().record(text, label: label ?? message)
         say(message)
     }
 

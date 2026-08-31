@@ -6,7 +6,7 @@ Manual timings are the workarounds you described. Chute timings are the design t
 
 | # | JTBD | Freq/day | Manual | Chute | Saved/day | Build cost | Tier |
 |---|---|---|---|---|---|---|---|
-| 9 | Multi-file markdown → filesystem | 15 | 120 s | 6 s | **28.5 min** | M | **T1** |
+| 9 | ~~Multi-file markdown → filesystem~~ **RETIRED 2026-08-31** | 15 | 120 s | 6 s | ~~28.5 min~~ | M | ~~T1~~ |
 | 2 | Multi-file context bundle (XML) | 17 | 150 s | 5 s | **41.1 min** | S | **T1** |
 | 3 | Clipboard → file in target folder | 25 | 35 s | 4 s | **12.9 min** | S | **T1** |
 | 1 | Multi-file path extraction | 32 | 20 s | 3 s | **9.1 min** | S | **T1** |

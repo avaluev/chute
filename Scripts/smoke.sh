@@ -62,29 +62,6 @@ printf '{"a": 1, "b": [2,3]}' | pbcopy
 NEW3="$("$CHUTE" new --dir . --name cfg 2>/dev/null)"
 check "detects json"       "$(basename "$NEW3")" "cfg.json"
 
-echo "6. unpack — dry run is the default"
-printf '### src/new1.ts\n```ts\nconst n = 1\n```\n### src/new2.py\n```python\nn = 2\n```\n' | pbcopy
-OUT="$("$CHUTE" unpack --dir . 2>&1)"
-has "dry run lists"   "$OUT" "src/new1.ts"
-if [ -f src/new1.ts ]; then bad "dry run writes nothing" "src/new1.ts was created"; else ok "dry run writes nothing"; fi
-"$CHUTE" unpack --dir . --force >/dev/null 2>&1
-if [ -f src/new1.ts ] && [ -f src/new2.py ]; then ok "--force writes both"; else bad "--force writes both" "missing files"; fi
-check "content correct" "$(cat src/new1.ts)" "const n = 1"
-
-echo "7. unpack refuses path traversal"
-printf '### ../../etc/pwned.txt\n```\nx\n```\n' | pbcopy
-OUT="$("$CHUTE" unpack --dir . --force 2>&1)"
-has "refuses traversal" "$OUT" "refusing to write outside"
-if [ -f ../../etc/pwned.txt ]; then bad "no escape" "wrote outside"; else ok "no escape"; fi
-
-echo "7b. unpack refuses to follow a symlink out of the target folder"
-mkdir -p esc/safe esc/outside && ln -sfn "$T/proj/esc/outside" esc/safe/link
-printf '### link/pwned.txt\n```\nx\n```\n' | pbcopy
-OUT="$("$CHUTE" unpack --dir esc/safe --force 2>&1)"
-if [ -f esc/outside/pwned.txt ]; then bad "no escape through a symlink" "wrote outside the folder"
-else ok "no escape through a symlink"; fi
-has "and says why" "$OUT" "resolves elsewhere"
-
 echo "8. checkpoint never touches the worktree"
 git init -q . && git add -A && git -c user.email=t@t -c user.name=t commit -qm init
 echo "uncommitted work" > src/wip.ts
@@ -254,11 +231,6 @@ for id in $ALL_IDS; do
     checkpoint-here)
       git -C "$FX" rev-parse --is-inside-work-tree >/dev/null 2>&1 || git -C "$FX" init -q
       run_action "$id" >/dev/null 2>&1;;
-    # The sweep's clipboard is plain prose, and `unpack` correctly refuses prose. Give it the
-    # thing it is for — a fenced block with a path — or this asserts the refusal, not the feature.
-    unpack-here)
-      printf '```ts sweep/out.ts\nexport const x = 1\n```\n' | pbcopy
-      run_action "$id" >/dev/null 2>&1;;
     paste-image)
       if [ "$HEADLESS" = "1" ]; then skip "paste-image — needs an image on the pasteboard"; continue; fi
       sips -s format png "$ROOT/Resources/Chute.icns" --out "$T/sweep.png" >/dev/null 2>&1
@@ -309,24 +281,29 @@ has   "bundle-xml reports a token count"       "$(cat /tmp/chute-a.err)" "token"
 # asserted here, not just their exit code — a menu item that runs clean and does nothing is the
 # failure mode this whole file exists for.
 
-# NFR-05 ACROSS THE MENU BOUNDARY: without --force these two must change NOTHING. The app runs
-# exactly this form first and only re-runs with --force once the user has seen the list.
-printf '```ts sweep/out.ts\nexport const x = 1\n```\n' | pbcopy
-run_action unpack-here >/dev/null 2>&1
-has   "unpack-here previews the file it would write" "$(cat /tmp/chute-a.out)" "sweep/out.ts"
-if [ ! -e "$FX/sweep/out.ts" ]; then ok "and writes nothing until it is confirmed"
-else bad "and writes nothing until it is confirmed" "$FX/sweep/out.ts exists after a preview"; fi
-
 run_action seed-rules >/dev/null 2>&1
 if [ -f "$FX/CLAUDE.md" ]; then ok "seed-rules leaves rules an agent will actually read"
 else bad "seed-rules leaves rules an agent will actually read" "no CLAUDE.md in $FX"; fi
 
-touch "$FX/temp_agent_output.log"
-run_action clean-junk >/dev/null 2>&1
-has   "clean-junk finds what an agent left behind" "$(cat /tmp/chute-a.out)" "temp_agent_output.log"
-if [ -e "$FX/temp_agent_output.log" ]; then ok "and trashes nothing until it is confirmed"
-else bad "and trashes nothing until it is confirmed" "the file was removed by a preview"; fi
-rm -f "$FX/temp_agent_output.log"
+# clean-junk was removed from the menu 2026-08-31 (git status already lists untracked files, and
+# a developer trusts it over a menu's idea of junk). `chute clean` is still exercised as a CLI
+# command elsewhere in this file; what went is the Finder row, and with it this section.
+
+# basket-add — the one row in this menu nothing else on the Mac ships. Proves the whole path:
+# a Finder click reaches the CLI, the CLI files a PATH (not a copy of the text), and the two
+# hand-over formats read back what went in.
+"$CHUTE" basket clear >/dev/null 2>&1
+run_action basket-add >/dev/null 2>&1
+has   "basket-add files the selection"     "$("$CHUTE" basket list 2>&1)" "a.ts"
+MENTIONS="$("$CHUTE" basket copy --no-copy 2>&1)"
+has   "and hands it over as an @mention"   "$MENTIONS" "@"
+has   "naming the file the click chose"    "$MENTIONS" "a.ts"
+has   "or as the file's contents"          "$("$CHUTE" basket copy --format context --no-copy 2>&1)" "<file path="
+# Adding the same file twice is one entry — the basket is a set of files, not a log of clicks.
+run_action basket-add >/dev/null 2>&1
+check "the same file twice is one entry"   "$("$CHUTE" basket list 2>&1 | grep -c "src/a.ts")" "1"
+"$CHUTE" basket clear >/dev/null 2>&1
+has   "clear empties it"                   "$("$CHUTE" basket list 2>&1)" "empty"
 
 run_action tree-2 >/dev/null 2>&1
 has   "tree-2 shows the folder"            "$(pbpaste)" "src/"
@@ -390,10 +367,14 @@ else
 fi
 
 # 14 = the 9 original actions, the four that moved out of the CLI so the paid surface can
-# demonstrate the four highest-value jobs in the ledger (unpack, seed, sandbox, clean), and
+# demonstrate the four highest-value jobs in the ledger (seed, sandbox, clean), and
 # checkpoint — the last T1 job in the ledger that had no Finder surface. Change this number only
 # when the menu changes, never to make this file pass.
-check "the menu table and this test agree" "$(printf '%s' "$ALL_IDS" | wc -w | tr -d ' ')" "14"
+# RECOUNTED FROM SCRATCH 2026-08-31, not patched. Four rows went that day — terminal (macOS
+# ships it), sandbox-here (the ICP's agent sandboxes itself), clean-junk (git status already lists
+# untracked files) and unpack-here (the ICP's agent writes files itself) — and basket-add arrived.
+# Counted against the live table, never against arithmetic: `chute finder-actions --json`.
+check "the menu table and this test agree" "$(printf '%s' "$ALL_IDS" | wc -w | tr -d ' ')" "11"
 
 echo "16. the Finder extension's request inbox (needs Chute.app running)"
 # The extension is sandboxed: it cannot run git, launch Terminal or drive AppleScript. It writes a
@@ -488,22 +469,31 @@ mkdir -p "$T/emptydir"
 has   "tree lands on the clipboard"        "$(pbpaste)" "root.ts"
 
 echo "19. the commands nothing was testing"
-# buf — gather across many copies, paste once.
-printf 'first chunk' | pbcopy; "$CHUTE" buf add >/dev/null 2>&1
-printf 'second chunk' | pbcopy; "$CHUTE" buf add >/dev/null 2>&1
-has   "buf lists what it holds"      "$("$CHUTE" buf list 2>&1)" "2"
-# `all` is the name (the GUI row for this job reads "Copy All N Together"); `flush` is kept as
-# an undocumented alias for muscle memory and scripts. Both are exercised so neither can be
-# dropped by accident — an alias nothing tests is an alias nobody knows is load-bearing.
-"$CHUTE" buf all --keep >/dev/null 2>&1
-OUT="$(pbpaste)"
-has   "buf all returns the first"    "$OUT" "first chunk"
-has   "buf all returns the second"   "$OUT" "second chunk"
-printf 'nothing' | pbcopy
-"$CHUTE" buf flush >/dev/null 2>&1
-check "the flush alias gives the same text" "$(pbpaste)" "$OUT"
-"$CHUTE" buf clear >/dev/null 2>&1
-has   "buf clear empties it"         "$("$CHUTE" buf list 2>&1)" "empty"
+# The basket across FOLDERS — the job it exists for, and the one a clipboard manager cannot do.
+# It used to hold arbitrary TEXT and auto-filled from every command's output; it holds FILE PATHS
+# now and only an explicit add files anything (2026-08-31).
+mkdir -p "$T/bk/one" "$T/bk/two"
+printf 'export const a = 1\n' > "$T/bk/one/alpha.ts"
+printf 'export const b = 2\n' > "$T/bk/two/beta.ts"
+"$CHUTE" basket clear >/dev/null 2>&1
+"$CHUTE" basket add "$T/bk/one/alpha.ts" >/dev/null 2>&1
+"$CHUTE" basket add "$T/bk/two/beta.ts"  >/dev/null 2>&1
+LIST="$("$CHUTE" basket list 2>&1)"
+has   "the basket spans folders"     "$LIST" "alpha.ts"
+has   "and holds both"               "$LIST" "beta.ts"
+MENTIONS="$("$CHUTE" basket copy --no-copy 2>&1)"
+has   "@mentions name the first"     "$MENTIONS" "alpha.ts"
+has   "@mentions name the second"    "$MENTIONS" "beta.ts"
+has   "and are @-prefixed for an agent" "$MENTIONS" "@"
+# The other hand-over: the files themselves, which must equal what `bundle` produces for them.
+CTX="$("$CHUTE" basket copy --format context --no-copy 2>/dev/null)"
+BUN="$("$CHUTE" bundle "$T/bk/one/alpha.ts" "$T/bk/two/beta.ts" --no-copy 2>/dev/null)"
+check "the bundle format is the bundle" "$CTX" "$BUN"
+# `buf` was the name until 2026-08-31; kept as an undocumented alias for muscle memory and
+# scripts. An alias nothing tests is an alias nobody knows is load-bearing.
+has   "the buf alias still reaches it" "$("$CHUTE" buf list 2>&1)" "alpha.ts"
+"$CHUTE" basket clear >/dev/null 2>&1
+has   "clear empties it"             "$("$CHUTE" basket list 2>&1)" "empty"
 
 # dataurl — an image as a base64 URL for a vision prompt.
 sips -s format png "$ROOT/Resources/Chute.icns" --out "$T/du.png" >/dev/null 2>&1
@@ -595,8 +585,9 @@ if [ "$HEADLESS" = "1" ]; then skip "metrics are plausible in magnitude"; else
 fi
 
 echo "23. the destructive commands preview before they act"
-# NFR-05 applied the same way everywhere. `clean` and `unpack` — which only Trash and only
-# overwrite — dry-ran by default; the five that do worse did not. Each pair below proves BOTH
+# NFR-05 applied the same way everywhere. `clean` — which only Trashes — dry-ran by default
+# from the start; `unpack` did too until it was removed 2026-08-31
+# (docs/specs/move-5-delete-unpack.md). The rest did not. Each pair below proves BOTH
 # halves: nothing happened without --force, and the command still does its job with it. A guard
 # that is only checked in the safe direction is a guard nobody has seen work.
 

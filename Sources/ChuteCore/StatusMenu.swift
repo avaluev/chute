@@ -21,7 +21,7 @@ import Foundation
 ///
 /// `StatusMenu.model(...)` decides WHAT is in the menu, in what order, with what titles.
 /// `SessionMenu` turns that into `NSMenu` and decides NOTHING. If a question has a right and a
-/// wrong answer — is the trial row shown on day 10? does Recent Copies appear when empty? — it
+/// wrong answer — is the trial row shown on day 10? does the Basket appear when empty? — it
 /// is answered here, where a test can ask it too.
 ///
 /// AppKit specifics that carry no decision stay in the renderer: images, targets, selectors, and
@@ -43,7 +43,8 @@ public enum StatusMenu {
         case openSetup
         case copyHooksSnippet
         case quit
-        case bufferCopyOne
+        case bufferReveal
+        case bufferMentions
         case bufferFlush
         case bufferClear
     }
@@ -99,6 +100,12 @@ public enum StatusMenu {
                              trial: TrialState,
                              problem: String? = nil,
                              recent: [ContextBuffer.Entry] = [],
+                             /// The basket's "Copy Basket as Context" row needs a token count, and
+                             /// getting one means reading files off disk — a side effect this
+                             /// function otherwise never has. The caller does that read once and
+                             /// hands back a number, the same way `hasHookRecords` hands in a fact
+                             /// rather than letting this function go read `~/.chute/sessions`.
+                             recentTokens: Int = 0,
                              notificationsDenied: Bool = false,
                              /// Has ANY hook record ever been written to `~/.chute/sessions`?
                              /// Distinct from zero CURRENT records — a quiet machine with hooks
@@ -131,7 +138,8 @@ public enum StatusMenu {
                                        + "ability to do these things."))
             out.append(.separator())
             out.append(contentsOf: standardItems(trial: trial, unlocked: false,
-                                                 recent: [], notificationsDenied: notificationsDenied))
+                                                 recent: [], recentTokens: 0,
+                                                 notificationsDenied: notificationsDenied))
             return out
         }
 
@@ -190,7 +198,8 @@ public enum StatusMenu {
         }
 
         out.append(contentsOf: standardItems(trial: trial, unlocked: true,
-                                             recent: recent, notificationsDenied: notificationsDenied))
+                                             recent: recent, recentTokens: recentTokens,
+                                             notificationsDenied: notificationsDenied))
         return out
     }
 
@@ -224,17 +233,21 @@ public enum StatusMenu {
 
     /// Everything below the sessions, which is the same on every open.
     static func standardItems(trial: TrialState, unlocked: Bool,
-                              recent: [ContextBuffer.Entry],
+                              recent: [ContextBuffer.Entry], recentTokens: Int,
                               notificationsDenied: Bool) -> [MenuNode] {
         var out: [MenuNode] = []
         if unlocked {
+            // BASKET FIRST, THEN LOCAL SERVERS. It used to sit below Local Servers as a submenu,
+            // where the owner reported "no row at all" — not because a submenu hides its count
+            // (the title reads "Basket  (n)" without hovering, same as before), but because that
+            // position is easy to scroll past on a long menu. Read where it is read.
+            out.append(contentsOf: basket(recent, tokens: recentTokens))
             out.append(MenuNode(.servers, "Local Servers"))
-            out.append(contentsOf: recentCopies(recent))
         } else {
             // AN EXPIRED TRIAL MAKES BOTH VANISH SILENTLY, which to the user is indistinguishable
             // from "empty" — the same false signal this whole spec exists to stop. The gate itself
             // is unchanged: nothing here unlocks either section, it only says why they are gone.
-            out.append(MenuNode(.note, "Local Servers and Recent Copies are behind the licence"))
+            out.append(MenuNode(.note, "Local Servers and the Context Basket are behind the licence"))
         }
         out.append(.separator())
 
@@ -268,18 +281,25 @@ public enum StatusMenu {
 
     /// HIDDEN ENTIRELY WHEN EMPTY, so it costs a reader nothing on day one — and so that the
     /// "(n)" in its title is never a lie. The entries arrive newest-first.
-    static func recentCopies(_ entries: [ContextBuffer.Entry]) -> [MenuNode] {
+    ///
+    /// Rewritten from `recentCopies`: an entry is a FILE PATH now, not a copy of its content (see
+    /// `ContextBuffer.swift`), so a row is the file's own name and folder, its payload is the
+    /// path itself, and clicking it reveals the file in Finder rather than replaying a clipboard
+    /// write. `@mentions` comes first — the ICP's format — `Context` second, carrying the token
+    /// count only the bundle needs.
+    static func basket(_ entries: [ContextBuffer.Entry], tokens: Int) -> [MenuNode] {
         guard !entries.isEmpty else { return [] }
         var children: [MenuNode] = entries.map {
-            MenuNode(.command(.bufferCopyOne),
+            MenuNode(.command(.bufferReveal),
                      "\($0.preview)      \(SessionPhrasing.ago($0.date))",
-                     toolTip: "Put this back on the clipboard.", payload: $0.name)
+                     toolTip: "Reveal this file in Finder.", payload: $0.path)
         }
         children.append(.separator())
+        children.append(MenuNode(.command(.bufferMentions), "Copy Basket as @mentions"))
         children.append(MenuNode(.command(.bufferFlush),
-                                 "Copy All \(entries.count) Together"))
-        children.append(MenuNode(.command(.bufferClear), "Clear"))
-        return [MenuNode(.submenu(children), "Recent Copies  (\(entries.count))")]
+                                 "Copy Basket as Context   (\(TokenEstimate.badge(tokens)))"))
+        children.append(MenuNode(.command(.bufferClear), "Empty Basket"))
+        return [MenuNode(.submenu(children), "Basket  (\(entries.count))")]
     }
 
     // ── THE NUMBERS ON A ROW ────────────────────────────────────────────────────────────────

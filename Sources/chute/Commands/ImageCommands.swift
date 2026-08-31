@@ -24,12 +24,11 @@ func cmdPasteImage(_ a: Args) {
 
     // The path goes on the clipboard NOW, so it is pasteable even if the rename never happens.
     //
-    // NOT via `Out.deliver`: this command replaces the clipboard a second time when the rename
-    // lands, and it says so in its own words. What it must not do is skip the buffer — every other
-    // delivering command files what it handed you, and this one did not, so an image path was the
-    // one thing Recent Copies could never give back.
+    // It does NOT add itself to the basket. The basket holds what you deliberately collected, and
+    // an action that files things behind your back is exactly what made the old Recent Copies
+    // read as hardcoded: it filled with entries nobody chose. `chute basket add <path>` is one
+    // command away if you want this image in there.
     Clipboard.write(path)
-    ContextBuffer().record(path, label: "Image · \((path as NSString).lastPathComponent)")
     Out.line(path)
 
     guard !a.has("no-rename") else {
@@ -70,11 +69,6 @@ private func watchForRename(of path: String, in dir: String, seconds: Double) {
         // Renamed. Only take the clipboard if it is still the path we put there.
         if PastedImage.mayReplaceClipboard(current: Clipboard.read(), weWrote: path) {
             Clipboard.write(current)
-            // The old path names a file that no longer exists. A Recent Copies row that pastes a
-            // dead path is worse than no row, so the entry moves rather than accumulating.
-            let buf = ContextBuffer()
-            buf.entries().filter { $0.text == path }.forEach(buf.remove)
-            buf.record(current, label: "Image · \((current as NSString).lastPathComponent)")
             Out.info("→ renamed · new path copied")
         }
         return

@@ -13,20 +13,13 @@ func cmdPaths(_ a: Args) {
                 label: files.count == 1 ? "1 full path" : "\(files.count) full paths")
 }
 
-/// The text `bundle` hands over — and therefore the text `tokens` must count. ONE definition.
-///
-/// Making the two agree put this five-line sequence in the file twice, which is the same
-/// two-places-for-one-truth collapsed out of `doctor --fix` three commits earlier, reintroduced
-/// while fixing something else. The smoke assertion that they produce the same number is the
-/// test; this is the reason it cannot fail by drift.
+/// The text `bundle` hands over — and therefore the text `tokens` must count, and what the
+/// context basket's "Copy Basket as Context" must be byte-identical to. ONE definition:
+/// `ContextBundle.assemble`, declared in `ChuteCore/ContextBuffer.swift` so the basket can reach
+/// it too. This is a thin wrapper picking the format out of `Args`, not a second copy of it.
 func assembledBundle(_ paths: [String], _ a: Args)
     -> (text: String, files: [BundleFile], skipped: [String]) {
-    let (files, skipped) = FileScan.bundleFiles(paths)
-    let root = ProjectRoot.of(files.map(\.path))
-    let text = a.value("format", or: "xml") == "md"
-        ? ContextBundle.markdown(files, root: root)
-        : ContextBundle.xml(files, root: root)
-    return (text, files, skipped)
+    ContextBundle.assemble(paths, format: a.value("format", or: "xml"))
 }
 
 // MARK: - FR-02 bundle
@@ -105,48 +98,57 @@ func cmdDataURL(_ a: Args) {
                 label: "Image as a data URL · \(data.count / 1024) KB")
 }
 
-// MARK: - FR-22 context buffer
+// MARK: - FR-22 context basket
 
-func cmdBuf(_ a: Args) {
-    // The store is ChuteCore.ContextBuffer, shared with the menu bar's Clipboard Buffer submenu.
-    // It used to live here, and naming entries after the CURRENT COUNT meant removing one made the
-    // next add overwrite a surviving entry — in the one feature whose entire purpose is not losing
-    // a copy. See ContextBuffer.add.
+/// `chute buf` → `chute basket`, 2026-08-31 — the ICP decision. A basket entry is a FILE PATH
+/// now, not a copy of its content (see `ChuteCore/ContextBuffer.swift`), and the only way in is
+/// explicit: `add`. Nothing auto-files any more.
+///
+/// `cmdBuf` below stays as a one-line alias — `Sources/chute/main.swift`'s switch still reads
+/// `case "buf": cmdBuf(args)`, and that file is not owned here; the parent adds `case "basket":
+/// cmdBasket(args)` and the `help` text, see FINDINGS.
+func cmdBasket(_ a: Args) {
+    // The store is ChuteCore.ContextBuffer, shared with the menu bar's Basket section.
     let buf = ContextBuffer()
     let action = a.positional.first ?? "list"
 
     switch action {
     case "add":
-        let text = a.positional.count > 1 ? a.positional.dropFirst().joined(separator: " ") : Clipboard.read()
-        guard !text.isEmpty else { Out.fail("clipboard is empty") }
-        guard buf.add(text) != nil else { Out.fail("cannot buffer: could not write to \(buf.directory)") }
-        Out.info("→ buffered entry \(buf.entries().count) (\(TokenEstimate.badge(TokenEstimate.tokens(in: text))))")
+        let paths = a.paths(dropping: 1)
+        guard !paths.isEmpty else { Out.fail("usage: chute basket add <files…>") }
+        paths.forEach { buf.add($0) }
+        Out.info("→ added \(paths.count) — \(buf.entries().count) in the basket")
     case "list":
         let entries = buf.entries()
-        guard !entries.isEmpty else { Out.info("buffer is empty"); return }
-        for (i, e) in entries.enumerated() {
-            Out.line("\(i + 1). \(e.preview)  [\(TokenEstimate.badge(TokenEstimate.tokens(in: e.text)))]")
+        guard !entries.isEmpty else { Out.info("basket is empty"); return }
+        for (i, e) in entries.enumerated() { Out.line("\(i + 1). \(e.preview)") }
+    // Two formats, the ICP decision: @-mentions for the Claude Code / Cursor user who has
+    // filesystem access and just needs paths pointed at; `--format context` for the chat-UI
+    // persona `chute unpack` still serves, carrying its own token count.
+    case "copy":
+        guard !buf.entries().isEmpty else { Out.fail("basket is empty") }
+        if a.value("format", or: "mentions") == "context" {
+            let text = buf.bundleText() ?? ""
+            Out.deliver(text, a,
+                        badge: "\(buf.entries().count) file(s) · \(TokenEstimate.badge(TokenEstimate.tokens(in: text)))",
+                        label: "Basket as Context")
+        } else {
+            let text = buf.mentionText() ?? ""
+            Out.deliver(text, a, badge: "\(buf.entries().count) file(s) as @mentions",
+                        label: "Basket as @mentions")
         }
-    // "all", not "flush". The GUI row for this exact job reads "Copy All N Together"
-    // (StatusMenu.recentCopies), and BufferMenu's own comment said "flush the buffer" is a
-    // sentence about the implementation, not about the job — while the CLI shipped it anyway.
-    // FinderActions' naming law ("a verb, title case, no jargon, no abbreviations") governed the
-    // GUI only; `flush` breaks it. Kept as an undocumented alias: it is in muscle memory and in
-    // scripts, and breaking a name costs more than the name was ever worth.
-    case "all", "flush":
-        guard let joined = buf.flushText() else { Out.fail("buffer is empty") }
-        let n = buf.entries().count
-        Out.deliver(joined, a, badge: "\(n) entries · \(TokenEstimate.badge(TokenEstimate.tokens(in: joined)))",
-                    label: "\(n) recent copies, together", record: false)
-        if !a.has("keep") { buf.clear() }
     case "clear":
         let n = buf.entries().count
         buf.clear()
-        Out.info("→ buffer cleared (\(n) entries)")
+        Out.info("→ basket cleared (\(n) entries)")
     default:
-        Out.fail("usage: chute buf add|list|flush|clear")
+        Out.fail("usage: chute basket add|list|copy|clear")
     }
 }
+
+/// Kept exactly as `flush` was kept as an undocumented alias for `all`: muscle memory and scripts
+/// cost more to break than the old name is worth.
+func cmdBuf(_ a: Args) { cmdBasket(a) }
 
 /// The shortest true description of what a bundle covered, for a menu row. Folder names where
 /// they are common, otherwise a count — "src/auth, src/api" is what you are scanning for; the

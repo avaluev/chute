@@ -69,17 +69,19 @@ func finderActionsSuite() {
         T.eq(Set(inline.map(\.symbol)).count, inline.count,
              "no two inline rows share an icon — an icon that cannot distinguish is decoration")
 
-        // THE MENU AS DRAWN. Thirteen actions, but the number that matters is how many rows this
-        // adds to a Finder context menu that is already long. Seven was arrived at by grouping,
-        // not by dropping anything: three ways to copy context out, one to bring an answer back,
-        // then create / set up / clean up. The terminal row was removed because macOS ships the
-        // same action natively, four rows below. `chute open` stays in the CLI. Change this number
-        // on purpose or not at all.
+        // THE MENU AS DRAWN. The number that matters is how many rows this adds to a Finder
+        // context menu that is already long. unpack-here ("Save Clipboard as Files…") was removed
+        // 2026-08-31 — the ICP's agent already writes files to disk, so the row it bought
+        // (answer back onto disk) no longer earns its place; see
+        // docs/specs/move-5-delete-unpack.md. Then `basket-add` was ADDED the same day — the one
+        // row in this menu that nothing else on the Mac ships. Six: three ways to copy context out
+        // NOW, one to collect it for later, then create / set up. Change this number on purpose or
+        // not at all.
         let rows = ChuteActions.rows()
         T.eq(rows.count, 6, "the right-click adds six rows to Finder's menu")
         T.eq(rows.map(\.title), ["Copy Full Paths", "Copy Files as Context", "Copy Folder Tree",
-                                 "Save Clipboard as Files…", "New File", "Set Up for an Agent"],
-             "and they read in that order — context out, answer in, make, set up")
+                                 "Add to Context Basket", "New File", "Set Up for an Agent"],
+             "and they read in that order — copy now, collect for later, make, set up")
         T.eq(Set(rows.map(\.symbol)).count, rows.count,
              "no two DRAWN rows share an icon, submenu holders included")
         // ChuteFinderSync builds a submenu's holder from whichever child reaches it first, so the
@@ -140,9 +142,13 @@ func finderActionsSuite() {
         }
         // The tint switch is exhaustive over Kind, so this only has to prove no action was left
         // in a catch-all bucket that means nothing. `.open` is no longer in the Finder menu
-        // (terminal row removed; `chute open` stays in the CLI).
+        // (terminal row removed; `chute open` stays in the CLI), and neither is `.destructive`
+        // (unpack-here removed 2026-08-31 — see docs/specs/move-5-delete-unpack.md). Both cases
+        // stay in the enum for the day a future action needs them: `.open` for one that leaves
+        // Finder, `.destructive` for one that changes files — which is exactly what the empty
+        // destructive-set invariant above exists to catch when that day comes.
         T.ok(ChuteActions.all.contains { $0.kind == .copy } && ChuteActions.all.contains { $0.kind == .create }
-             && ChuteActions.all.contains { $0.kind == .setup } && ChuteActions.all.contains { $0.kind == .destructive },
+             && ChuteActions.all.contains { $0.kind == .setup },
              "every safety class actually represented in the menu is used — a class with no members is a class nobody learns")
 
         // THE ELLIPSIS, which is Apple's rule and not decoration: an item that opens a dialog
@@ -156,31 +162,39 @@ func finderActionsSuite() {
         }
 
         // DESTRUCTIVE ACTIONS. A right-click that silently writes into a repo is the one thing
-        // that would destroy the trust everything else here is sold on. Both of these preview by
-        // default in the CLI (NFR-05); the guarantee only survives the trip through the menu if
-        // the template stays in its harmless form and the app supplies --force after asking.
+        // that would destroy the trust everything else here is sold on. Anything destructive
+        // previews by default in the CLI (NFR-05); the guarantee only survives the trip through
+        // the menu if the template stays in its harmless form and the app supplies --force after
+        // asking.
         let destructive = ChuteActions.all.filter(\.isDestructive)
-        // One, not two: clean-junk was removed 2026-08-31 (git status already lists untracked
-        // files, and a developer trusts it over a menu's list). The rule it proves is unchanged.
-        T.eq(Set(destructive.map(\.id)), ["unpack-here"],
-             "every action that changes files asks first")
+        // EMPTY, not one: unpack-here — the last destructive row — was removed 2026-08-31 (the
+        // ICP's agent already writes files to disk; see docs/specs/move-5-delete-unpack.md).
+        // clean-junk went the same way earlier for an unrelated reason (git status already lists
+        // untracked files). An empty set is a legitimate state, and this assertion MUST keep
+        // standing rather than be deleted: the day a new action changes files on disk, this is
+        // the guard that forces it to declare a confirmation instead of writing silently.
+        T.eq(Set(destructive.map(\.id)), [],
+             "every action that changes files asks first — none do right now, and that is fine")
         for a in destructive {
             T.ok(!(a.confirmButton ?? "").isEmpty, "'\(a.id)' names the button that does the thing")
             T.ok(!a.template.contains("--force"),
                  "'\(a.id)' does not carry --force — the first run must be the preview")
         }
         // And the inverse, so a future action cannot quietly become destructive: anything whose
-        // command has a --force mode must declare a confirmation.
-        for a in ChuteActions.all where ["unpack", "clean"].contains(a.template.first ?? "") {
+        // command has a --force mode must declare a confirmation. `unpack` itself is gone
+        // (docs/specs/move-5-delete-unpack.md); `clean` is the one --force-capable command left.
+        for a in ChuteActions.all where a.template.first == "clean" {
             T.ok(a.isDestructive, "'\(a.id)' runs a --force-capable command, so it must confirm")
         }
 
-        // THE PAID SURFACE. These three moved out of the CLI so the app demonstrates the three
-        // highest-value jobs in the ledger instead of only the ones a terminal user already has.
-        // If one is dropped, the landing page's arithmetic stops matching the product.
-        // sandbox-here was removed 2026-08-31: ICP is Claude Code / Cursor users whose agents ship
-        // their own sandboxing. The CLI keeps `chute sandbox`.
-        for id in ["unpack-here", "seed-rules"] {
+        // THE PAID SURFACE. This was three jobs that moved out of the CLI so the app demonstrated
+        // ones a terminal user did not already have for free. Two are gone now, both removed
+        // 2026-08-31 on the owner's decision that the ICP is Claude Code / Cursor users:
+        // sandbox-here (their agents ship their own sandboxing; CLI keeps `chute sandbox`) and
+        // unpack-here (their agent already writes files to disk; see
+        // docs/specs/move-5-delete-unpack.md). seed-rules remains — if it goes too, the landing
+        // page's Finder-surface arithmetic stops matching what the app actually does.
+        for id in ["seed-rules"] {
             guard let a = ChuteActions.find(id) else { T.ok(false, "'\(id)' is in the menu"); continue }
             T.eq(a.scope, .folder, "'\(id)' acts on the folder in view")
         }
@@ -193,17 +207,14 @@ func finderActionsSuite() {
         T.ok(ChuteActions.find("checkpoint-here")?.isDestructive == false,
              "a checkpoint can only add a branch, so it never asks")
 
-        // WHAT STAYS ONE CLICK. Not everything can: eight rows is already a lot to add to
-        // Finder's own menu. The rule is the ledger — anything worth more than ~10 min/day is
-        // reached in one click, everything else may sit one level down. Today that is bundle
-        // (41.1) and unpack (28.5); seed (9.9) is under "Set Up for an Agent" with checkpoint (3.3).
-        // A submenu is not a demotion, but burying the two biggest savings would be.
-        for id in ["bundle-xml", "unpack-here"] {
-            T.ok(ChuteActions.find(id)?.parentTitle == nil,
-                 "'\(id)' is one click — it is one of the two largest savings in the ledger")
-        }
-        T.eq(ChuteActions.argv(ChuteActions.find("unpack-here")!, dir: "/tmp/p", files: ["/a.ts"]),
-             ["unpack", "--dir", "/tmp/p"], "the selection never reaches a folder action")
+        // WHAT STAYS ONE CLICK. Not everything can: five rows is already worth adding to Finder's
+        // own menu. The rule is the ledger — anything worth more than ~10 min/day is reached in
+        // one click, everything else may sit one level down. Today that is bundle (41.1) alone;
+        // unpack (28.5) was the ledger's other one-click job until it was removed 2026-08-31 (see
+        // docs/specs/move-5-delete-unpack.md). seed (9.9) is under "Set Up for an Agent" with
+        // checkpoint (3.3). A submenu is not a demotion, but burying the largest saving would be.
+        T.ok(ChuteActions.find("bundle-xml")?.parentTitle == nil,
+             "'bundle-xml' is one click — it is the largest saving in the ledger")
 
         // Titles carry the count so you see what you are about to act on.
         T.eq(paths.title(count: 3), "Copy Full Paths (3)", "the count is substituted")

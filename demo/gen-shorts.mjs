@@ -51,7 +51,9 @@ const NEEDS_SETUP = {
 /** Hand-written tapes that predate this generator. Craft beats generation; never clobber them. */
 const HAND_WRITTEN = new Set(
   ["bundle", "checkpoint", "diff", "doctor", "new", "paths", "ports",
-   "redact", "seed", "sessions", "tokens", "tree", "unpack"],
+   "redact", "seed", "sessions", "tokens", "tree"],
+  // "unpack" removed 2026-08-31 with demo/tapes/unpack.tape and the command itself —
+  // see docs/specs/move-5-delete-unpack.md.
 );
 
 /**
