@@ -130,15 +130,6 @@ export const CASES: Case[] = [
     command: "chute ports --kill 3000",
   },
   {
-    slug: "move-the-junk-an-agent-left",
-    jtbd: 13, surface: "finder", tier: "short", paid: true,
-    pain: "temp_, scratch_, three .log files, and I no longer know which of them matters.",
-    ritual: "Sort by date, squint, delete the ones you recognise, leave the rest because you are not sure.",
-    fix: "Right-click. You see the list first, and what goes, goes to the Trash — never rm.",
-    seconds: { manual: 40, chute: 4 }, perDay: 11, savedMinutes: 6.6,
-    command: "chute clean .",
-  },
-  {
     slug: "the-shape-of-a-folder",
     jtbd: 5, surface: "finder", tier: "short", paid: true,
     pain: "It keeps asking where things are because it cannot see the project.",
