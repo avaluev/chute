@@ -56,16 +56,23 @@ switcher are the paid app — 14 days free, then $19 once: chutedev.com
 """
 
 let argv = Array(CommandLine.arguments.dropFirst())
+// The stamp `Scripts/build-app.sh` writes into both Info.plists and `chute doctor` already
+// prints — reused here, worded the same way, so the two surfaces never disagree about what
+// "current" means. Absent (a binary from a plain `swift build`, never through build-app.sh) must
+// read as absent, not as current — DiagnosticsSuite already asserts installedBuild() itself does
+// that; this is the same "not stamped" wording DoctorCommand's non-json line uses.
+let versionLine = "chute \(ChuteVersion.current) · app build "
+    + (Diagnostics.installedBuild() ?? "not stamped — rebuild with ./Scripts/build-app.sh")
 // `--version` and `--help` are the forms every other CLI answers to, so answer to them here:
 // anything starting with `--` is swallowed by Args as a flag and never reaches the switch below,
 // which left the `case "--version"` there looking handled while printing the help instead.
 if argv.first == "--version" || argv.first == "-V" {
-    print("chute \(ChuteVersion.current)")
+    print(versionLine)
     exit(0)
 }
 guard let command = argv.first, !command.hasPrefix("--") else {
     print(helpText)
-    exit(argv.isEmpty ? 1 : 0)
+    exit(0) // no-args is the product's front door: help on stdout, exit 0 — not a failure to pipe.
 }
 let args = Args(Array(argv.dropFirst()))
 
@@ -100,7 +107,7 @@ case "onboard":    cmdOnboard(args)
 case "finder-actions": cmdFinderActions(args)
 case "paste-image":    cmdPasteImage(args)
 case "help", "-h", "--help", "version", "--version":
-    if command.contains("version") { print("chute \(ChuteVersion.current)") } else { print(helpText) }
+    if command.contains("version") { print(versionLine) } else { print(helpText) }
 default:
     Out.fail("unknown command '\(command)' — run `chute help`")
 }

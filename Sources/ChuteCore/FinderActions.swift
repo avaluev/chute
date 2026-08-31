@@ -259,13 +259,8 @@ public enum ChuteActions {
                     doneMessage: "Junk moved to Trash.",
                     confirmButton: "Move to Trash"),
 
-        ChuteAction(id: "terminal",
-                    title: "Open in Terminal",
-                    detail: "A terminal window already sitting in this folder.",
-                    scope: .folder, kind: .open,
-                    symbol: "terminal.fill",
-                    template: ["open", "{dir}"],
-                    doneMessage: "Terminal opened."),
+        // terminal row removed 2026-08-31: macOS ships "New Terminal at Folder" and
+        // "New Terminal Tab at Folder" in the same menu. `chute open` still works via CLI.
     ]
 
     public static func find(_ id: String) -> ChuteAction? { all.first { $0.id == id } }

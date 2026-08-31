@@ -150,15 +150,6 @@ export const CASES: Case[] = [
     command: "chute clean .",
   },
   {
-    slug: "open-a-terminal-where-you-are",
-    jtbd: 8, surface: "finder", tier: "short", paid: true,
-    pain: "I am looking at the folder in Finder and I need a shell in it.",
-    ritual: "New terminal, cd, then paste the path you just went and copied.",
-    fix: "Right-click. The terminal is already sitting in that folder.",
-    seconds: { manual: 15, chute: 2 }, perDay: 27, savedMinutes: 5.9,
-    command: "chute open .",
-  },
-  {
     slug: "the-shape-of-a-folder",
     jtbd: 5, surface: "finder", tier: "short", paid: true,
     pain: "It keeps asking where things are because it cannot see the project.",

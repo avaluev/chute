@@ -69,16 +69,18 @@ func finderActionsSuite() {
         T.eq(Set(inline.map(\.symbol)).count, inline.count,
              "no two inline rows share an icon — an icon that cannot distinguish is decoration")
 
-        // THE MENU AS DRAWN. Fourteen actions, but the number that matters is how many rows this
-        // adds to a Finder context menu that is already long. Eight was arrived at by grouping,
+        // THE MENU AS DRAWN. Thirteen actions, but the number that matters is how many rows this
+        // adds to a Finder context menu that is already long. Seven was arrived at by grouping,
         // not by dropping anything: three ways to copy context out, one to bring an answer back,
-        // then create / set up / clean up / leave. Change this number on purpose or not at all.
+        // then create / set up / clean up. The terminal row was removed because macOS ships the
+        // same action natively, four rows below. `chute open` stays in the CLI. Change this number
+        // on purpose or not at all.
         let rows = ChuteActions.rows()
-        T.eq(rows.count, 8, "the right-click adds eight rows to Finder's menu")
+        T.eq(rows.count, 7, "the right-click adds seven rows to Finder's menu")
         T.eq(rows.map(\.title), ["Copy Full Paths", "Copy Files as Context", "Copy Folder Tree",
                                  "Save Clipboard as Files…", "New File", "Set Up for an Agent",
-                                 "Move Junk to Trash…", "Open in Terminal"],
-             "and they read in that order — context out, answer in, make, set up, tidy, leave")
+                                 "Move Junk to Trash…"],
+             "and they read in that order — context out, answer in, make, set up, tidy")
         T.eq(Set(rows.map(\.symbol)).count, rows.count,
              "no two DRAWN rows share an icon, submenu holders included")
         // ChuteFinderSync builds a submenu's holder from whichever child reaches it first, so the
@@ -138,10 +140,11 @@ func finderActionsSuite() {
                  "'\(a.id)' is coloured for what it actually does to your disk")
         }
         // The tint switch is exhaustive over Kind, so this only has to prove no action was left
-        // in a catch-all bucket that means nothing.
+        // in a catch-all bucket that means nothing. `.open` is no longer in the Finder menu
+        // (terminal row removed; `chute open` stays in the CLI).
         T.ok(ChuteActions.all.contains { $0.kind == .copy } && ChuteActions.all.contains { $0.kind == .create }
-             && ChuteActions.all.contains { $0.kind == .setup } && ChuteActions.all.contains { $0.kind == .open },
-             "every safety class is actually used — a class with no members is a class nobody learns")
+             && ChuteActions.all.contains { $0.kind == .setup } && ChuteActions.all.contains { $0.kind == .destructive },
+             "every safety class actually represented in the menu is used — a class with no members is a class nobody learns")
 
         // THE ELLIPSIS, which is Apple's rule and not decoration: an item that opens a dialog
         // before it acts ends in one, so "does it now" and "asks first" are distinguishable
