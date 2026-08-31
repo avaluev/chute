@@ -27,7 +27,7 @@ command and update this file first, then the copy.
 | App bundle size | **2.5 MB** | `du -sh dist/Chute.app` |
 | CLI binary size | **788 KB** | `ls -lh .build/release/chute` |
 | CLI commands | **25** | `chute help \| grep -cE '^  [a-z]'` |
-| Finder actions | **12**, drawn as **7 rows** | `chute finder-actions --menu` |
+| Finder actions | **11**, drawn as **7 rows** | `chute finder-actions --menu` |
 | External dependencies | **0** | `grep -c '.package(' Package.swift` → 0 |
 | Lines of Swift | **6,873** | `find Sources -name '*.swift' \| xargs wc -l \| tail -1` |
 | Minimum macOS | **13 Ventura** | `grep -o 'macOS(.v[0-9]*)' Package.swift` |
@@ -58,13 +58,13 @@ more credible than the absolute one, and it survives someone reading the source.
 
 | Gate | Result | Command |
 |---|---|---|
-| Unit assertions | **992 passed** | `swift run chutetests` |
+| Unit assertions | **973 passed** | `swift run chutetests` |
 | End-to-end | **146 passed** headless, **174** full | `CHUTE_HEADLESS=1 ./Scripts/smoke.sh` |
 | Metrics plausibility | **4 checks** — magnitude, not shape | `./Scripts/check-metrics.sh` |
 | Terminal tapes | **17** (13 hand-written, 4 generated from cases.ts) | `ls demo/tapes/*.tape \| wc -l` |
 | GUI tapes | **10** hand-written | `ls demo/gui/tapes/*.sh \| wc -l` |
 | Demo delivery pipeline | **13 checks** | `./demo/gui/selftest.sh` |
-| Case data | **25 cases** | `cd site && npm run check:cases` |
+| Case data | **23 cases** | `cd site && npm run check:cases` |
 | Site routes | **38** | `cd site && npx next build` |
 | CI | macOS 13, 14, 15 | `.github/workflows/macos-matrix.yml` |
 
@@ -93,8 +93,8 @@ From `docs/03-JTBD-LEDGER.md`. Every figure is `frequency × (manual seconds −
 | Seed agent rule files | 7 | 9.9 min/day |
 | File paths into a prompt | **32** | 9.1 min/day |
 
-**Headline: 90–120 minutes a day.** That is the Tier-1 total (~110 min), stated conservatively.
-The ledger supports ~218 min/day across all 24 jobs; the smaller number is used deliberately,
+**Headline: 90–120 minutes a day.** That is the app surface total (120.8 min), stated conservatively.
+The ledger supports ~204 min/day across all 23 jobs; the smaller number is used deliberately,
 because it is the one that survives a sceptic with a stopwatch.
 
 Two figures need care:
