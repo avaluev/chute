@@ -61,9 +61,6 @@ Extensions → Finder → ☑ Chute, or run `pluginkit -e use -i dev.valuev.chut
 
 ## The loop
 
-![An agent's markdown answer becomes a real file tree](marketing/media/unpack.gif)
-
-
 ```bash
 # context in — select files in Finder, or name them
 chute paths src/*.ts                 # clean absolute paths → clipboard
@@ -75,7 +72,8 @@ chute checkpoint .                   # snapshot everything, including untracked 
 chute sandbox spike-auth --yolo      # folder + git + CLAUDE.md + terminal running claude
 
 # artifacts out
-chute unpack                         # a multi-file answer on the clipboard → real files
+chute basket add src/*.ts            # collect files across folders
+chute basket copy --format context   # hand them over to the agent
 chute new                            # clipboard → a correctly named, correctly typed file
 chute diff . --copy                  # what did the agent actually change?
 ```
@@ -89,7 +87,6 @@ chute diff . --copy                  # what did the agent actually change?
 | `chute tokens <files…>` | Estimated token cost, per file and total |
 | `chute tree [dir]` | Directory skeleton, junk excluded. `--depth N` |
 | `chute new` | Clipboard → new file, named from its `# heading`, extension from its syntax |
-| `chute unpack` | Fenced code blocks → a real file tree. **Previews by default**, writes with `--force` |
 | `chute seed [dir]` | `CLAUDE.md`, `.cursorrules`, `AGENTS.md`, `SCRATCHPAD.md`. Never overwrites |
 | `chute note "…"` | Append to `SCRATCHPAD.md` — where you left off |
 | `chute latest [dir]` | Reveal the newest artifact. `--quicklook` |
@@ -179,8 +176,7 @@ they are never what the question "what is running?" means.
 
 Chute is built to be trusted with a repo an agent is about to rampage through.
 
-- **`unpack` and `clean` preview by default.** Nothing is written or deleted without `--force`.
-- **`unpack` refuses to escape its target directory** — absolute paths and `../` are rejected.
+- **`clean` previews by default.** Nothing is deleted without `--force`.
 - **`checkpoint` cannot lose work.** It stages into a private index file, so your real index,
   your worktree and `HEAD` are never touched. It only ever adds a branch.
 - **`new` and `seed` never overwrite.** Collisions become `-2`, `-3`.

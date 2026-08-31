@@ -123,5 +123,60 @@ if (actions) {
     : ok(`no page names a retired Finder action (${live.size} live titles checked)`)
 }
 
+// ── EVERY `chute <command>` NAMED ANYWHERE MUST ACTUALLY RUN ────────────────────────────────
+//
+// The check above compares pages against a HAND-KEPT list of retired titles, which is why it
+// passed on 2026-08-31 while README.md, the docs page, terms and commands.json all still told
+// people to run `chute unpack` — a command deleted that morning. A list somebody has to remember
+// to update is not a gate; it is a second place for the truth to live.
+//
+// Two decisions make this precise rather than noisy:
+//
+//   TRUTH = THE DISPATCH SWITCH, not `chute help`. `buf` (a kept alias), `finder-actions` and
+//   `paste-image` (internal, driven by the Finder extension) all really work and are deliberately
+//   absent from help. Checking against help would have called three working commands ghosts.
+//
+//   SCOPE = CODE SPANS ONLY. `chute command-line tool`, `chute production signing` and
+//   `chute licence key` are English sentences, not invocations. Matching prose produced eleven
+//   false positives on the first run. Only `backticked` markdown and <code> in HTML count.
+const MAIN = readFileSync(new URL("../../Sources/chute/main.swift", import.meta.url).pathname, "utf8")
+// Every quoted name on every `case` line. The first version required all names on a line to be
+// bare words, so `case "help", "-h", "--help", ...:` matched nothing and `chute help` — the most
+// documented command in the product — was reported as a ghost.
+const known = new Set([...MAIN.matchAll(/^case ([^:\n]+):/gm)]
+  .flatMap((m) => [...m[1].matchAll(/"([a-z][a-z-]*)"/g)].map((x) => x[1])))
+
+const spans = []
+for (const [page, html] of HTML) {
+  for (const m of html.matchAll(/<code[^>]*>([\s\S]*?)<\/code>/g)) spans.push([page, visible(m[1])])
+}
+const REPO = new URL("../../", import.meta.url).pathname
+const md = [["README.md", readFileSync(REPO + "README.md", "utf8")]]
+// Two files describe things that are deliberately NOT the shipped product:
+//   06-BACKLOG.md    names commands nobody has built — that is what a backlog is.
+//   11-PHASE-0-RUNBOOK.md  is ops prose about Paddle and Apple, where `chute licence minting`
+//                          is a product-description FIELD and `chute notarytool` is a sentence.
+// Both produced only false alarms, and a gate that cries wolf is one people learn to ignore.
+const NOT_THE_PRODUCT = new Set(["06-BACKLOG.md", "11-PHASE-0-RUNBOOK.md"])
+for (const f of readdirSync(REPO + "docs")) {
+  if (f.endsWith(".md") && !NOT_THE_PRODUCT.has(f)) {
+    md.push([`docs/${f}`, readFileSync(REPO + "docs/" + f, "utf8")])
+  }
+}
+for (const [where, text] of md) {
+  for (const m of text.matchAll(/`([^`\n]+)`/g)) spans.push([where, m[1]])
+  for (const m of text.matchAll(/```[a-z]*\n([\s\S]*?)```/g)) spans.push([where, m[1]])
+}
+
+const ghosts = new Set()
+for (const [where, code] of spans) {
+  for (const m of code.matchAll(/\bchute ([a-z][a-z-]{2,})\b/g)) {
+    if (!known.has(m[1])) ghosts.add(`${where}: "chute ${m[1]}"`)
+  }
+}
+ghosts.size
+  ? bad(`${ghosts.size} place(s) show a chute command that does not exist`, [...ghosts].join("; "))
+  : ok(`every documented chute command is in the dispatch (${known.size} live)`)
+
 console.log(`\nclaims: ${failed ? `${failed} failed` : "every claim on the site is one the fact sheet stands behind"}`)
 process.exit(failed ? 1 : 0)

@@ -29,7 +29,8 @@ chute checkpoint .                # snapshot everything, including untracked fil
 chute sandbox spike-auth --yolo   # folder + git + CLAUDE.md + terminal running claude
 
 # artifacts out
-chute unpack                      # a multi-file answer on the clipboard → real files
+chute basket add src/*.ts         # collect files across folders
+chute basket copy --format context # hand them over to the agent
 chute new                         # clipboard → a correctly named, correctly typed file
 chute diff . --copy               # what did the agent actually change?`}
       </pre>
