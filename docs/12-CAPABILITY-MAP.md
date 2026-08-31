@@ -41,7 +41,6 @@ swift run chute finder-actions --menu
         New Scratch Folder
         Save a Checkpoint
   Move Junk to Trash…              ● red
-  Open in Terminal                 ● indigo
 ```
 
 | Row | Action id | Runs | Acts on | JTBD | Saves/day | Colour |
@@ -59,14 +58,13 @@ swift run chute finder-actions --menu
 | Set Up for an Agent ▸ New Scratch Folder | `sandbox-here` | `chute sandbox --dir <dir>` | folder | **6** Agent sandbox init | 7.3 min | purple |
 | Set Up for an Agent ▸ Save a Checkpoint | `checkpoint-here` | `chute checkpoint <dir>` | folder | **12** Pre-agent checkpoint | 3.3 min **+ ~20 min risk-adj.** | purple |
 | Move Junk to Trash… | `clean-junk` | `chute clean <dir>` | folder | **13** Clean agent junk | 6.6 min | **red** |
-| Open in Terminal | `terminal` | `chute open <dir>` | folder | **8** Open terminal here | 5.9 min | indigo |
 
-**Total surfaced through Finder: 10 of the 24 ledger JTBDs, ≈ 129 min/day** on the clock, plus
+**Total surfaced through Finder: 9 of the 24 ledger JTBDs, ≈ 123 min/day** on the clock, plus
 JTBD 12's ~20 min/day of risk-adjusted saving.
 
 > JTBD **4** (syntax auto-detection, 2.0 min/day) rides along inside `new` and `unpack` rather
 > than being a row of its own, so it is not counted in either figure. Counting it would make the
-> line read 11 of 24 and ≈131 min/day. The two largest
+> line read 10 of 24 and ≈125 min/day. The two largest
 savings in the whole ledger — bundle (41.1) and unpack (28.5) — are both one click, never behind a
 submenu. `Sources/chutetests/FinderActionsSuite.swift` fails the build if either is demoted.
 

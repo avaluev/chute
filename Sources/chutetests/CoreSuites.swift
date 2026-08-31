@@ -258,6 +258,33 @@ func coreSuites() {
         T.ok(Junk.isAgentScratch(name: "scratch_notes.md"), "and so is a scratch prefix")
     }
 
+    // MARK: - Move 3: `chute --version` must be able to say it is stale
+    T.suite("VersionLine") {
+        // `chute --version` builds this line the same way `chute doctor` already does — see the
+        // `versionLine` constant in Sources/chute/main.swift, which cannot be imported here (an
+        // executable target, not a library). Testing the STRING built from ChuteVersion.current +
+        // Diagnostics.installedBuild(), not plist-reading: DiagnosticsSuite already proves
+        // installedBuild() itself reads a stamped plist correctly.
+        func versionLine(appPath: String) -> String {
+            "chute \(ChuteVersion.current) · app build "
+                + (Diagnostics.installedBuild(appPath: appPath) ?? "not stamped — rebuild with ./Scripts/build-app.sh")
+        }
+
+        T.ok(versionLine(appPath: "/tmp/no-such-chute-app-\(UUID().uuidString).app").contains("not stamped"),
+             "no stamp reads as not stamped, never as current")
+
+        let bundle = NSTemporaryDirectory() + "chute-versionline-\(UUID().uuidString)/Chute.app/Contents"
+        try? FileManager.default.createDirectory(atPath: bundle, withIntermediateDirectories: true)
+        let stampedApp = (bundle as NSString).deletingLastPathComponent
+        let plist = (bundle as NSString).appendingPathComponent("Info.plist")
+        try? NSDictionary(dictionary: ["ChuteBuild": "abc1234 2026-08-29T12:00Z"])
+            .write(toFile: plist, atomically: true)
+        T.eq(versionLine(appPath: stampedApp),
+             "chute \(ChuteVersion.current) · app build abc1234 2026-08-29T12:00Z",
+             "the stamp is present in the version string when the app is stamped")
+        try? FileManager.default.removeItem(atPath: (stampedApp as NSString).deletingLastPathComponent)
+    }
+
     T.suite("Shell") {
         // A child that floods stderr while its stdout is still open used to deadlock BOTH
         // processes: the ~64 KB pipe filled, the child blocked mid-write, stdout never closed,

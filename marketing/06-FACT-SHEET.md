@@ -27,7 +27,7 @@ command and update this file first, then the copy.
 | App bundle size | **2.5 MB** | `du -sh dist/Chute.app` |
 | CLI binary size | **788 KB** | `ls -lh .build/release/chute` |
 | CLI commands | **25** | `chute help \| grep -cE '^  [a-z]'` |
-| Finder actions | **13**, drawn as **8 rows** | `chute finder-actions --menu` |
+| Finder actions | **12**, drawn as **7 rows** | `chute finder-actions --menu` |
 | External dependencies | **0** | `grep -c '.package(' Package.swift` → 0 |
 | Lines of Swift | **6,873** | `find Sources -name '*.swift' \| xargs wc -l \| tail -1` |
 | Minimum macOS | **13 Ventura** | `grep -o 'macOS(.v[0-9]*)' Package.swift` |

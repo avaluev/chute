@@ -1,108 +1,157 @@
-# FINDINGS — Move 3: unpack accepts the format agents actually emit, and tokens stops lying
+# FINDINGS — Move 3: a stale CLI must be able to say so
 
-Spec: `/Users/sxope/Documents/2026/Development/37.chute/docs/specs/move-3-unpack-and-tokens.md`
-Files owned and touched (exactly these three, nothing else):
-- `/Users/sxope/Documents/2026/Development/37.chute/Sources/ChuteCore/MarkdownUnpack.swift`
-- `/Users/sxope/Documents/2026/Development/37.chute/Sources/chute/Commands/ContextCommands.swift`
-- `/Users/sxope/Documents/2026/Development/37.chute/Sources/chutetests/CoreSuites.swift`
+Spec: `/Users/sxope/Documents/2026/Development/37.chute/docs/specs/move-3-version-stamp.md`
+Owned files touched: `/Users/sxope/Documents/2026/Development/37.chute/Sources/chute/main.swift`,
+`/Users/sxope/Documents/2026/Development/37.chute/Sources/chutetests/CoreSuites.swift`.
+Not touched (correctly): `/Users/sxope/Documents/2026/Development/37.chute/Scripts/release.sh`
+(see item 3 — reading and reporting was the complete, correct outcome).
 
-Tree left dirty. No commit, no add, no stash, no checkout was run.
+## 1. `chute --version` prints the build stamp
 
-## Part A — `pathFromBody`
+`/Users/sxope/Documents/2026/Development/37.chute/Sources/chute/main.swift:59-65` — new `versionLine`
+constant, built from `ChuteVersion.current` + `Diagnostics.installedBuild()`, reusing the existing
+mechanism (no new type, no new file):
 
-`/Users/sxope/Documents/2026/Development/37.chute/Sources/ChuteCore/MarkdownUnpack.swift:39`
-changed the decision chain to:
 ```swift
-if let path = pathFrom(info: info) ?? pathFromContext(lines, before: i) ?? pathFromBody(body) {
-```
-New function at `/Users/sxope/Documents/2026/Development/37.chute/Sources/ChuteCore/MarkdownUnpack.swift:112-123`
-(12 lines including the doc comment, ~10 lines of logic as the spec estimated). Reads
-`body.first` only, strips ONE leading marker from `["//", "#", "--", ";", "/* */", "<!-- -->"]`,
-trims, then calls the existing `looksLikePath` (:73) — no new predicate, no new type. Both
-`validate` (:49) and `staysInside` (:63) are untouched and still run on every `pathFromBody`
-result exactly as they do on fence-info and heading-sourced paths — no bypass was added.
-
-**Decision on the comment marker** (spec asked me to pin one): the marker is **KEPT** in the
-written content. `pathFromBody` only inspects `body` to extract a path string; the `UnpackedFile`
-content at `MarkdownUnpack.swift:40` is still `body.joined(separator: "\n")`, unmodified. Pinned
-by the assertion at `/Users/sxope/Documents/2026/Development/37.chute/Sources/chutetests/CoreSuites.swift:130-131`:
-`// src/c.ts\nexport const c = 1` is the full written content, comment line included.
-
-### RED perturbation (Part A)
-Reverted line 39 to `pathFrom(info: info) ?? pathFromContext(lines, before: i)` (dropped the
-`?? pathFromBody(body)` call), rebuilt, ran `swift run -c release chutetests`:
-```
-❌ 6 failed, 966 passed
-```
-Failures: all 4 new "path from … comment on body[0]" assertions, the "marker is KEPT" content
-assertion, and the "traversal path from a body comment is still rejected" assertion. The 7th new
-assertion ("ordinary code on body[0] yields no file") stayed green, correctly — removing
-`pathFromBody` cannot produce a false positive. Restored the call, rebuilt clean.
-
-## Part B — `tokens` TOTAL
-
-`/Users/sxope/Documents/2026/Development/37.chute/Sources/chute/Commands/ContextCommands.swift:35-59`.
-Per-file breakdown loop (lines 39-45) is untouched. TOTAL (lines 47-58) now reuses
-`FileScan.bundleFiles`, `ProjectRoot.of`, `ContextBundle.xml`/`.markdown`, and
-`TokenEstimate.tokens` — the exact same four calls `cmdBundle` (:18-31) makes, including honoring
-`--format md`. No reimplementation.
-
-### A real gap found and closed
-`chutetests` (Sources/chutetests/*.swift) only ever imports `ChuteCore`, never the `chute`
-executable target — `cmdTokens`/`cmdBundle` live in `chute`, which is not importable from there.
-My first draft of the "same number" test called the four ChuteCore functions twice in-process to
-"prove" parity — RED-perturbing it (reverting `cmdTokens` to the old per-file sum) left it fully
-green, because it never touches `cmdTokens` at all. That is a false guard, exactly what the spec's
-perturbation instruction exists to catch. Replaced it with
-`T.suite("CLI.tokensMatchesBundle")` at
-`/Users/sxope/Documents/2026/Development/37.chute/Sources/chutetests/CoreSuites.swift:78-107`,
-which shells out to the real compiled binary (`Shell.run`, already used elsewhere in this file at
-:214) at `.build/release/chute` — the same binary path `Scripts/smoke.sh` uses — runs
-`chute tokens <dir>`, parses the exact integer from the `%8d` TOTAL line, and compares it to a
-locally-computed expected value using the same ChuteCore call chain `cmdBundle` uses. This
-actually exercises the shipped command.
-
-### RED perturbation (Part B)
-Reverted `cmdTokens`'s TOTAL to the old `Out.line(String(format: "%8d  TOTAL (%@)", total, ...))`,
-rebuilt (`chute` binary only — the buggy version was what got exercised), ran the suite:
-```
-❌ 1 failed, 969 passed
-  • CLI.tokensMatchesBundle › the real `chute tokens` TOTAL matches the bundle-equivalent count …
-      got:      18
-      expected: 32
-```
-18 = naive per-file sum for the 2-file fixture, 32 = bundle-equivalent count — reproduces the
-under-report the spec describes. Restored the fix, rebuilt both targets clean.
-
-## Final verified numbers (real, from the commands in the spec)
-```
-cd /Users/sxope/Documents/2026/Development/37.chute && swift build -c release && swift run -c release chutetests
-→ ✅ 970 assertions passed        (baseline 962 + 8 new: 7 in MarkdownUnpack, 1 in CLI.tokensMatchesBundle)
-
-cd /Users/sxope/Documents/2026/Development/37.chute && ./Scripts/smoke.sh
-→ smoke: 156 passed, 2 failed     (baseline 158 passed, 0 failed)
+let versionLine = "chute \(ChuteVersion.current) · app build "
+    + (Diagnostics.installedBuild() ?? "not stamped — rebuild with ./Scripts/build-app.sh")
 ```
 
-### The 2 smoke failures are NOT in Part A or Part B
-Both are `FAIL uninstall removes chute` / `FAIL uninstall leaves no husk` in smoke.sh section 14
-("sessions, doctor, hooks"). Verified directly against the built binary: `chute hooks uninstall
---settings <file>` (no `--force`) now prints "dry run — would remove Chute's hook(s) …" and writes
-nothing, where smoke.sh's fixture calls it without `--force` and expects an immediate write. This
-is `hooks uninstall` behavior — implemented outside my three files, in
-`/Users/sxope/Documents/2026/Development/37.chute/Sources/chute/Commands/AgentCommands.swift`,
-which `git status` shows as modified by the other agent working in this repo concurrently (along
-with `DoctorCommand.swift`, `GitCommands.swift`, `SessionCommands.swift`, `main.swift` — none of
-which I touched). All Part A/B-relevant smoke sections — "2. bundle", "4. tokens", "6. unpack —
-dry run is the default", "7. unpack refuses path traversal", "7b. unpack refuses to follow a
-symlink" — pass in full (every `ok` line present, none skipped).
+Wording copied verbatim from `chute doctor`'s non-json line at
+`/Users/sxope/Documents/2026/Development/37.chute/Sources/chute/Commands/DoctorCommand.swift:31-32`
+(`"chute \(ChuteVersion.current) · app build " + (Diagnostics.installedBuild() ?? "not stamped —
+rebuild with ./Scripts/build-app.sh")`) so the two surfaces agree exactly. Used at both places that
+print the version: the early `--version`/`-V` check
+(`/Users/sxope/Documents/2026/Development/37.chute/Sources/chute/main.swift:69-72`) and the
+`switch` case for the bare `version` command
+(`/Users/sxope/Documents/2026/Development/37.chute/Sources/chute/main.swift:109-110`). Could not be
+factored into one shared function in `ChuteCore` — `Diagnostics.swift` is outside my three owned
+files — so the formula is duplicated once, in the test (see item 4), exactly as it appears here.
 
-## Where the spec was right / where I had to make a judgment call
-- The spec's line numbers, function names, and the ~10-line estimate for `pathFromBody` were all
-  accurate.
-- The spec's Part B test instruction ("Add a test asserting the two paths produce the SAME number
-  for the same file set") doesn't account for `chutetests` being unable to import `cmdTokens`/
-  `cmdBundle` directly (different SPM executable target, ChuteCore-only test convention already
-  established by every other file in `Sources/chutetests/`). I judged the intent — a guard that
-  actually fails if `cmdTokens` regresses — over the literal shape, and shelled out to the real
-  binary instead of writing an in-process test that (as proven above) cannot fail when the bug it
-  is meant to catch comes back.
+## 2. No-args: exit 0, stdout
+
+`/Users/sxope/Documents/2026/Development/37.chute/Sources/chute/main.swift:73-76`. Changed
+`exit(argv.isEmpty ? 1 : 0)` to a flat `exit(0)` — the other branch through that `guard` (an
+unrecognized `--flag`) already exited 0, so the ternary collapsed to one value.
+
+Correction to the spec's problem description: the help text was **already going to stdout**, not
+stderr — `print(helpText)` is Swift's plain `print`, which targets stdout by default, and no
+override exists anywhere in the tree (`grep -rn "func print("` found nothing). Verified directly:
+running `.build/release/chute` with stdout and stderr redirected to separate files put all 2838
+bytes on stdout, 0 on stderr. The only real defect was the exit code (1 for no-args); that's what I
+fixed. Did not touch the case where the first arg is an unrecognized `--flag` — it already exited 0
+and prints the same help.
+
+**smoke.sh**: grepped for `unknown exits non-zero` and related assertions before touching anything,
+per the spec's instruction — I do not own `smoke.sh`.
+`/Users/sxope/Documents/2026/Development/37.chute/Scripts/smoke.sh:555` has:
+```
+"$CHUTE" definitelynotacommand >/dev/null 2>&1 && bad "unknown exits non-zero" "exit 0" || ok "unknown exits non-zero"
+```
+That asserts on an **unknown command** (`definitelynotacommand`), which I left untouched and still
+exits non-zero (verified below). **No assertion in smoke.sh exercises the no-args case** — I
+grepped the whole file for `no-args`, `no arguments`, and any bare `"$CHUTE"` invocation with no
+following argument and found none. **Nothing for the parent to change in smoke.sh.**
+
+## 3. `Scripts/release.sh` — read in full, changed nothing
+
+Read `/Users/sxope/Documents/2026/Development/37.chute/Scripts/release.sh` end to end before
+touching anything. What it does today, step by step:
+
+1. **Preflight** (lines 30-47): refuses if the git tree is dirty; refuses if the tag `v$VERSION`
+   (read from `Sources/ChuteCore/Version.swift`) already exists, unless `--dry-run`; refuses if no
+   `Developer ID Application` signing identity is in the keychain; refuses if no `notarytool`
+   keychain profile is configured.
+2. **Gate** (lines 50-52): runs `swift run chutetests` then `./Scripts/smoke.sh` — must both pass
+   before anything is built or published.
+3. **Build** (lines 55-56): runs `./Scripts/build-app.sh` with the signing identity. This is the
+   exact script that stamps `ChuteBuild` (git short SHA + `-dirty` + UTC minute) into both
+   Info.plists — i.e. `release.sh` already produces a build whose `chute doctor` / `chute
+   --version` output (after this change) would correctly show the true installed build.
+4. **Codesign verify** (lines 58-60): confirms the bundle is signed with a Developer ID.
+5. **Package** (line 67): builds the DMG via `Scripts/package-dmg.sh`.
+6. **Notarise** (lines 72-80): submits the DMG to Apple, waits, requires `status: Accepted`.
+7. **Staple** (lines 82-84): staples both the `.app` and the DMG.
+8. **Prove it** (lines 89-93): runs `spctl` and `stapler validate` as a machine that has never seen
+   the app would.
+9. **`--dry-run` stops here** (lines 97-100), before tagging — exit 0.
+10. **Publish** (lines 102-131): `git tag -a vVERSION`, `git push origin vVERSION`, then `gh release
+    create vVERSION dist/Chute-VERSION.dmg`. Each step has its own rollback on failure (untags
+    locally, or untags + un-pushes) so a failed publish never looks like a half-finished release.
+
+**What release.sh does NOT do, and this is the real finding**: it never touches the Homebrew tap.
+`brew install avaluev/tap/chute` installs from a *separate* repo,
+`avaluev/homebrew-tap` — documented in
+`/Users/sxope/Documents/2026/Development/37.chute/packaging/homebrew/README.md` and
+`/Users/sxope/Documents/2026/Development/37.chute/docs/11-PHASE-0-RUNBOOK.md:420-426` — and bumping
+it is a fully manual, separate procedure: clone the tap repo, copy
+`packaging/homebrew/chute.rb`, hand-edit the version and sha256 of the new tagged tarball, commit,
+push. `release.sh` cuts a notarised `.app`/DMG GitHub release; it was never scoped to also publish
+the CLI to Homebrew, and nothing in the repo automates that second step.
+
+This is why "Homebrew chute is 54 commits behind HEAD" can be true even on a Mac where
+`release.sh` runs cleanly every time: the DMG/GitHub-release half of shipping is one command: the
+Homebrew half is a manual runbook step (`docs/11-PHASE-0-RUNBOOK.md` step 7) that, per that same
+doc, was done once for the 0.1.0 → 0.2.0 jump and evidently not repeated since.
+
+**Verdict, per the spec's own instruction**: `release.sh` already does the right thing for what
+it's scoped to do (a signed, notarised, stamped app release), and the "smallest change that lets
+the owner cut a release whose installed CLI matches HEAD" is not a code change here — it is running
+the existing, documented Homebrew-tap-bump procedure
+(`/Users/sxope/Documents/2026/Development/37.chute/packaging/homebrew/README.md`) every time
+`release.sh` is run, which today the owner is not doing. **I changed nothing in `release.sh`.**
+Automating the tap bump into `release.sh` would mean scripting a push to a *second* repo
+(`avaluev/homebrew-tap`) with no way for me to test it (I'm barred from tagging/pushing/publishing,
+and don't have that repo checked out) — that's a real feature, not the smallest fix, and inventing
+it untested would be worse than reporting the gap honestly.
+
+**What the owner should run** (not run by me):
+```
+cd /Users/sxope/Documents/2026/Development/37.chute && ./Scripts/release.sh --dry-run
+```
+to prove the pipeline, then a real `./Scripts/release.sh`, then the Homebrew tap bump per
+`/Users/sxope/Documents/2026/Development/37.chute/docs/11-PHASE-0-RUNBOOK.md:420-426`.
+
+## 4. Test
+
+`/Users/sxope/Documents/2026/Development/37.chute/Sources/chutetests/CoreSuites.swift:262-286` — new
+`T.suite("VersionLine")`. Rebuilds the same string formula `main.swift` uses (can't import an
+executable target from the test target, so the formula is necessarily duplicated — same as it
+already is between `main.swift` and `DoctorCommand.swift`), using `Diagnostics.installedBuild
+(appPath:)` against a nonexistent path (absent → "not stamped") and against a fake stamped
+`Chute.app/Contents/Info.plist` built the same way `DiagnosticsSuite.swift:196-213` does (present →
+stamp appears verbatim in the string). Tests the STRING, not plist-reading — `DiagnosticsSuite`
+already owns that.
+
+## Real verification output
+
+```
+$ cd /Users/sxope/Documents/2026/Development/37.chute && swift build -c release && swift run -c release chutetests
+Build complete! (5.12s)
+✅ 986 assertions passed
+
+$ cd /Users/sxope/Documents/2026/Development/37.chute && .build/release/chute --version
+chute 0.2.0 · app build ffe364b 2026-08-28T19:44Z
+exit=0
+
+$ cd /Users/sxope/Documents/2026/Development/37.chute && .build/release/chute; echo "no-args exit=$?"
+[full help text on stdout]
+no-args exit=0
+
+$ cd /Users/sxope/Documents/2026/Development/37.chute && .build/release/chute nosuchcommand; echo "unknown exit=$? (MUST be non-zero)"
+chute: unknown command 'nosuchcommand' — run `chute help`
+unknown exit=1 (MUST be non-zero)
+```
+
+**Baseline discrepancy — 986 vs. the spec's stated 996, 0 failed either way.** Not a regression I
+introduced: `git status --porcelain` shows `Sources/ChuteCore/FinderActions.swift` and
+`Sources/chutetests/FinderActionsSuite.swift` both modified (`M`) by the other agent working
+concurrently, per this task's own instructions — a net -2 lines in that diff plausibly accounts for
+the assertion-count drop. My change added exactly 2 assertions (one `T.ok`, one `T.eq`) to the
+count. Zero failures either way; I did not touch either FinderActions file.
+
+## Anything the spec got wrong
+
+The claim that no-args "writes the full help to stderr" — it doesn't, and never did; it uses plain
+`print()`, which is stdout. Only the exit code was wrong. Fixed the exit code; left the (already
+correct) stdout destination alone.
