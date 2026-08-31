@@ -116,8 +116,23 @@ func cmdBasket(_ a: Args) {
     case "add":
         let paths = a.paths(dropping: 1)
         guard !paths.isEmpty else { Out.fail("usage: chute basket add <files…>") }
-        paths.forEach { buf.add($0) }
-        Out.info("→ added \(paths.count) — \(buf.entries().count) in the basket")
+        // COUNT WHAT HAPPENED, not what was attempted. This reported `paths.count` and discarded
+        // `add`'s return, so a write that failed — a full disk, a directory it could not create —
+        // still printed "added 3", and re-adding a file already in the basket printed "added 1"
+        // when nothing was added. The same rule the metrics work is built on, pointing the other
+        // way: a failure is not a success.
+        let before = Set(buf.entries().map(\.path))
+        let failed = paths.filter { buf.add($0) == nil }
+        let added = buf.entries().filter { !before.contains($0.path) }.count
+        let already = paths.count - added - failed.count
+        guard failed.count < paths.count else {
+            Out.fail("could not add anything to the basket — is \(buf.directory) writable?")
+        }
+        var said = "→ added \(added)"
+        if already > 0 { said += " · \(already) already there" }
+        if !failed.isEmpty { said += " · \(failed.count) could not be added" }
+        Out.info(said + " — \(buf.entries().count) in the basket")
+        if !failed.isEmpty { failed.forEach { Out.info("  not added: \($0)") } }
     case "list":
         let entries = buf.entries()
         guard !entries.isEmpty else { Out.info("basket is empty"); return }
