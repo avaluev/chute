@@ -97,17 +97,6 @@ export const CASES: Case[] = [
     command: "chute paths src/*.ts",
   },
   {
-    slug: "agent-rules-in-one-click",
-    jtbd: 7, surface: "finder", tier: "hero", paid: true,
-    pain: "Every new repo starts with me pasting the same CLAUDE.md I wrote three months ago.",
-    ritual: "Find the last project that had it, open the file, copy, new file, paste. Then the same for .cursorrules.",
-    fix: "Right-click the folder. The rules files land there, and any that already exist are left exactly as they are.",
-    seconds: { manual: 90, chute: 5 }, perDay: 7, savedMinutes: 9.9,
-    demo: "/media/agent-rules-in-one-click.mp4",
-    poster: "/media/agent-rules-in-one-click.jpg",
-    command: "chute seed .",
-  },
-  {
     slug: "whats-on-port-3000",
     jtbd: 15, surface: "menubar", tier: "hero", paid: true,
     pain: "Something is on 3000 and I cannot find which window it is in.",
@@ -220,21 +209,6 @@ export const CASES: Case[] = [
     seconds: { manual: 15, chute: 2 }, perDay: 20, savedMinutes: 4.3,
     demo: "/media/find-the-file-it-just-wrote.gif",
     command: "chute latest",
-  },
-  {
-    slug: "a-snapshot-before-you-let-it-run",
-    // Reached the Finder menu on 2026-08-28 as "Set Up for an Agent ▸ Save a Checkpoint".
-    // It was the last T1 job in the ledger with a clean folder scope and no surface.
-    jtbd: 12, surface: "finder", tier: "short", paid: true,
-    pain: "I am about to let it loose on a repo with work in it I have not committed.",
-    ritual: "Commit something you did not want to commit, or stash and find out later that stashing skipped your untracked files.",
-    // The mechanism, deliberately, instead of the ledger's risk-adjusted "+20 min/day" — an
-    // unexplained risk-weighted figure on a landing page reads as inflation, and this one is
-    // more convincing as a fact about git than as a number.
-    fix: "A snapshot of everything, untracked files included, without touching your index, your worktree or HEAD. It can only ever add a branch.",
-    seconds: { manual: 25, chute: 3 }, perDay: 9, savedMinutes: 3.3,
-    demo: "/media/checkpoint.gif",
-    command: "chute checkpoint .",
   },
   {
     slug: "an-image-as-one-line-of-text",

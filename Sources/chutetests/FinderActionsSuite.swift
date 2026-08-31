@@ -74,14 +74,17 @@ func finderActionsSuite() {
         // 2026-08-31 — the ICP's agent already writes files to disk, so the row it bought
         // (answer back onto disk) no longer earns its place; see
         // docs/specs/move-5-delete-unpack.md. Then `basket-add` was ADDED the same day — the one
-        // row in this menu that nothing else on the Mac ships. Six: three ways to copy context out
-        // NOW, one to collect it for later, then create / set up. Change this number on purpose or
+        // row in this menu that nothing else on the Mac ships. Then "Set Up for an Agent" went the
+        // same day with both its children: it was a CATEGORY invented to hold two unrelated jobs,
+        // which is why it read as generic — writing config files and taking a git snapshot share
+        // only "an agent is involved", and so does the whole product. Five: three ways to copy
+        // context out NOW, one to collect it for later, then create. Change this on purpose or
         // not at all.
         let rows = ChuteActions.rows()
-        T.eq(rows.count, 6, "the right-click adds six rows to Finder's menu")
+        T.eq(rows.count, 5, "the right-click adds five rows to Finder's menu")
         T.eq(rows.map(\.title), ["Copy Full Paths", "Copy Files as Context", "Copy Folder Tree",
-                                 "Add to Context Basket", "New File", "Set Up for an Agent"],
-             "and they read in that order — copy now, collect for later, make, set up")
+                                 "Add to Context Basket", "New File"],
+             "and they read in that order — copy now, collect for later, make")
         T.eq(Set(rows.map(\.symbol)).count, rows.count,
              "no two DRAWN rows share an icon, submenu holders included")
         // ChuteFinderSync builds a submenu's holder from whichever child reaches it first, so the
@@ -147,9 +150,15 @@ func finderActionsSuite() {
         // stay in the enum for the day a future action needs them: `.open` for one that leaves
         // Finder, `.destructive` for one that changes files — which is exactly what the empty
         // destructive-set invariant above exists to catch when that day comes.
-        T.ok(ChuteActions.all.contains { $0.kind == .copy } && ChuteActions.all.contains { $0.kind == .create }
-             && ChuteActions.all.contains { $0.kind == .setup },
+        // `.setup` joined `.open` and `.destructive` as an empty class on 2026-08-31 when both
+        // "Set Up for an Agent" children went. All three stay in the enum for the day an action
+        // needs them; what must hold is that a class WITH members is a class the menu really draws.
+        T.ok(ChuteActions.all.contains { $0.kind == .copy } && ChuteActions.all.contains { $0.kind == .create },
              "every safety class actually represented in the menu is used — a class with no members is a class nobody learns")
+        for empty in [ChuteAction.Kind.open, .destructive, .setup] {
+            T.ok(!ChuteActions.all.contains { $0.kind == empty },
+                 "'\(empty)' has no members today — if one appears, give it a colour and a rule first")
+        }
 
         // THE ELLIPSIS, which is Apple's rule and not decoration: an item that opens a dialog
         // before it acts ends in one, so "does it now" and "asks first" are distinguishable
@@ -194,18 +203,13 @@ func finderActionsSuite() {
         // unpack-here (their agent already writes files to disk; see
         // docs/specs/move-5-delete-unpack.md). seed-rules remains — if it goes too, the landing
         // page's Finder-surface arithmetic stops matching what the app actually does.
-        for id in ["seed-rules"] {
-            guard let a = ChuteActions.find(id) else { T.ok(false, "'\(id)' is in the menu"); continue }
-            T.eq(a.scope, .folder, "'\(id)' acts on the folder in view")
-        }
+        T.ok(ChuteActions.find("seed-rules") == nil && ChuteActions.find("checkpoint-here") == nil,
+             "seed-rules and checkpoint-here are gone — the CLI keeps `chute seed` and `chute checkpoint`")
         // JTBD #12 reached the menu as a THIRD CHILD, not a ninth row — the eight-row budget is
         // the whole reason the other six ledger gaps are still gaps. If this ever becomes a
         // top-level row, that decision was made on purpose or the budget has quietly gone.
-        let agentSetup = ChuteActions.all.filter { $0.parentTitle == "Set Up for an Agent" }
-        T.eq(agentSetup.map(\.id), ["seed-rules", "checkpoint-here"],
-             "setting up for an agent is rules and a way back")
-        T.ok(ChuteActions.find("checkpoint-here")?.isDestructive == false,
-             "a checkpoint can only add a branch, so it never asks")
+        T.ok(ChuteActions.all.allSatisfy { $0.parentTitle != "Set Up for an Agent" },
+             "no orphan hangs under a submenu parent that no longer exists")
 
         // WHAT STAYS ONE CLICK. Not everything can: five rows is already worth adding to Finder's
         // own menu. The rule is the ledger — anything worth more than ~10 min/day is reached in

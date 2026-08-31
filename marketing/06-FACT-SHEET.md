@@ -27,7 +27,7 @@ command and update this file first, then the copy.
 | App bundle size | **2.5 MB** | `du -sh dist/Chute.app` |
 | CLI binary size | **788 KB** | `ls -lh .build/release/chute` |
 | CLI commands | **26** | `chute help \| grep -cE '^  [a-z]'` |
-| Finder actions | **11**, drawn as **6 rows** | `chute finder-actions --menu` |
+| Finder actions | **9**, drawn as **5 rows** | `chute finder-actions --menu` |
 | External dependencies | **0** | `grep -c '.package(' Package.swift` → 0 |
 | Lines of Swift | **6,873** | `find Sources -name '*.swift' \| xargs wc -l \| tail -1` |
 | Minimum macOS | **13 Ventura** | `grep -o 'macOS(.v[0-9]*)' Package.swift` |
@@ -58,13 +58,13 @@ more credible than the absolute one, and it survives someone reading the source.
 
 | Gate | Result | Command |
 |---|---|---|
-| Unit assertions | **919 passed** | `swift run chutetests` |
-| End-to-end | **140 passed** headless, **168** full | `CHUTE_HEADLESS=1 ./Scripts/smoke.sh` |
+| Unit assertions | **898 passed** | `swift run chutetests` |
+| End-to-end | **137 passed** headless, **165** full | `CHUTE_HEADLESS=1 ./Scripts/smoke.sh` |
 | Metrics plausibility | **4 checks** — magnitude, not shape | `./Scripts/check-metrics.sh` |
 | Terminal tapes | **16** (12 hand-written, 4 generated from cases.ts) | `ls demo/tapes/*.tape \| wc -l` |
-| GUI tapes | **6** hand-written | `ls demo/gui/tapes/*.sh \| wc -l` |
+| GUI tapes | **5** hand-written | `ls demo/gui/tapes/*.sh \| wc -l` |
 | Demo delivery pipeline | **11 checks** | `./demo/gui/selftest.sh` |
-| Case data | **21 cases** | `cd site && npm run check:cases` |
+| Case data | **19 cases** | `cd site && npm run check:cases` |
 | Site routes | **38** | `cd site && npx next build` |
 | CI | macOS 13, 14, 15 | `.github/workflows/macos-matrix.yml` |
 
@@ -96,9 +96,9 @@ From `docs/03-JTBD-LEDGER.md`. Every figure is `frequency × (manual seconds −
 `docs/specs/move-5-delete-unpack.md` — so it no longer appears above or in either total below.
 Retired, not merely undersold: neither the CLI nor the Finder menu can do this job any more.
 
-**Headline: ~90 minutes a day.** That is the app surface total — Finder 89.0 + menu bar 4.9 =
-93.9 min, derived from `site/src/lib/cases.ts` — rounded down per this section's own rule. The
-ledger supports ~169.2 min/day across all 21 jobs, but 75.3 of that is the free MIT CLI, and a
+**Headline: ~80 minutes a day.** That is the app surface total — Finder 75.8 + menu bar 4.9 =
+80.7 min, derived from `site/src/lib/cases.ts` — rounded down per this section's own rule. The
+ledger supports ~156.0 min/day across all 19 jobs, but 75.3 of that is the free MIT CLI, and a
 paid page must not quote a number two thirds of which the buyer already has for nothing.
 
 The app-surface figure moved twice on 2026-08-31 and both moves were downward-honest: four Finder
