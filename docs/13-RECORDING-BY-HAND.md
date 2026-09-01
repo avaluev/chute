@@ -111,7 +111,7 @@ tracked, and that is the only thing that makes a recording survive. Run it after
 `check:cases` compares your seconds against `docs/03-JTBD-LEDGER.md` within `max(3 s, 15 %)`.
 If it fails: **the stopwatch wins.** Change the ledger, then let it cascade —
 `site/src/lib/cases.ts` (`seconds`, `savedMinutes`) and `marketing/06-FACT-SHEET.md` (the
-90–120 min/day headline). `check:cases` re-derives the arithmetic and will not let you write a
+~80 min/day app-surface headline). `check:cases` re-derives the arithmetic and will not let you write a
 figure the ledger does not support, including the assertion that the paid surface still carries
 more minutes than the free CLI.
 

@@ -13,6 +13,11 @@ Not because the others are weak — because Chute has a riskiest assumption we a
 |---|---|---|---|---|
 | **A1** | **A stranger can install Chute and see the menu** | **Fatal — nothing else matters** | **Negative.** The founder, holding the source, a compiler and an agent, could not make the context menu appear across three attempts and several hours | The onboarding module. Test on a second Mac, cold. |
 | A2 | The pain is worth paying to remove | Product is a free toy | Strong-ish: 90–120 min/day measured, but measured on one person | 20 ECP users, ask for money |
+
+> **Superseded 2026-09-01.** 90–120 was costed before the ICP was settled on Claude Code /
+> Cursor users (2026-08-31), which deleted six jobs. The app surface is **80.7 min/day** and all 19
+> jobs are 156.0. This line is left standing because it records what was believed when the decision
+> was made; do not quote it.
 | A3 | Bundling is the wedge, not paths | Wrong headline, wrong demo | None | Instrument which command gets used |
 | A4 | $19 is the right number | Leaves money or volume | **SUPERSEDED 2026-08-27: $19.** Prior decision was $9 on 2026-08-26; new decision reflects signed/notarized build | Re-test if volume or objections arise |
 | A5 | They can be reached cheaply | No distribution | None | Bullseye ring 1 |
