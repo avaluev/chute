@@ -36,13 +36,11 @@ func launchTerminal(dir: String, command: String?) {
 
     switch app {
     case "Terminal":
-        let escaped = full.replacingOccurrences(of: "\\", with: "\\\\")
-                          .replacingOccurrences(of: "\"", with: "\\\"")
+        let escaped = AppleScript.escape(full)
         Shell.launch("osascript", ["-e", "tell application \"Terminal\" to do script \"\(escaped)\"",
                                    "-e", "tell application \"Terminal\" to activate"])
     case "iTerm":
-        let escaped = full.replacingOccurrences(of: "\\", with: "\\\\")
-                          .replacingOccurrences(of: "\"", with: "\\\"")
+        let escaped = AppleScript.escape(full)
         Shell.launch("osascript", ["-e", """
             tell application "iTerm"
               activate

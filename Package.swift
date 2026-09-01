@@ -14,7 +14,10 @@ let package = Package(
     targets: [
         .target(name: "ChuteCore"),
         .executableTarget(name: "chute", dependencies: ["ChuteCore"]),
-        .executableTarget(name: "ChuteApp", dependencies: ["ChuteCore"]),
+        // `exclude` because Sources/ChuteApp/LICENSE is the proprietary half of the open-core
+        // split (the root LICENSE is MIT and says so), and SwiftPM warns about any file in a
+        // target directory it has no rule for.
+        .executableTarget(name: "ChuteApp", dependencies: ["ChuteCore"], exclude: ["LICENSE"]),
         .executableTarget(name: "chutetests", dependencies: ["ChuteCore"]),
     ]
 )

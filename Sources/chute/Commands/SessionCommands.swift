@@ -25,7 +25,10 @@ func discoverSessions() -> (sessions: [Session], hadError: Bool) {
 func cmdSessions(_ a: Args) {
     let (sessions, hadError) = discoverSessions()
     guard !sessions.isEmpty else {
-        if !hadError { Out.info("no terminal sessions") }
+        // An empty list has two causes and a script must be able to tell them apart. `discover`
+        // already printed the reason and how to fix it; this is the exit code that carries it.
+        if hadError { Out.fail("could not list terminal sessions") }
+        Out.info("no terminal sessions")
         return
     }
 

@@ -272,7 +272,7 @@ public enum Diagnostics {
     /// Runs the product, not its parts: writes a temp file, asks chute for its path, reads the
     /// clipboard back. Component checks passing while THIS fails is the exact state this project
     /// spent a day in.
-    public static func endToEndProbe() -> Bool {
+    static func endToEndProbe() -> Bool {
         let dir = NSTemporaryDirectory() + "chute-doctor-\(UUID().uuidString)"
         defer { try? FileManager.default.removeItem(atPath: dir) }
         guard (try? FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)) != nil

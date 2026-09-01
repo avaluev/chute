@@ -10,7 +10,11 @@
        thing macOS can refuse. -->
   <key>com.apple.security.automation.apple-events</key><array><string>com.apple.finder</string></array>
   <key>com.apple.security.temporary-exception.apple-events</key><array><string>com.apple.finder</string></array>
-  <!-- Writing the request file into ~/.chute/requests, which is outside the container. -->
-  <key>com.apple.security.temporary-exception.files.absolute-path.read-write</key><array><string>/</string></array>
+  <!-- Writing the request file into ~/.chute/requests, which is outside the container. Scoped to
+       that one directory: the absolute-path form was `/` — a read-write exception on the entire
+       filesystem for a process that only ever writes one folder. home-relative is the right shape
+       here because the path is `~/.chute` and the username is not known at build time
+       (`ActionRequest.swift:26`). -->
+  <key>com.apple.security.temporary-exception.files.home-relative-path.read-write</key><array><string>/.chute/</string></array>
 </dict>
 </plist>

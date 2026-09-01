@@ -37,7 +37,7 @@ jobs:
         run: swift build -c release
 
       - name: Unit suite
-        run: swift run chutetests
+        run: swift run -c release chutetests
 
       - name: End-to-end suite (headless)
         env:

@@ -8,13 +8,6 @@ import Foundation
 /// Accessibility permission — without it the keystroke silently does nothing, so the failure is
 /// reported rather than swallowed.
 public enum FinderReveal {
-    /// AppleScript is a string language: a quote or backslash in a path would end the literal
-    /// early and turn the rest of the path into code.
-    public static func escape(_ path: String) -> String {
-        path.replacingOccurrences(of: "\\", with: "\\\\")
-            .replacingOccurrences(of: "\"", with: "\\\"")
-    }
-
     /// How long Finder gets to answer. AppleScript's own `with timeout of` is the bound, because
     /// `osascript` has no flag for it and `Process` has no deadline — and without one this call
     /// waits FOREVER. Measured 2026-08-28: with Finder busy tracking an open context menu, a
@@ -29,7 +22,7 @@ public enum FinderReveal {
         """
         with timeout of \(revealTimeoutSeconds) seconds
           tell application "Finder"
-            reveal POSIX file "\(escape(path))"
+            reveal POSIX file "\(AppleScript.escape(path))"
             activate
           end tell
         end timeout

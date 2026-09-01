@@ -1,0 +1,12 @@
+Copyright (c) 2026 Alexandr Valuev. All rights reserved.
+
+This directory is the PAID half of Chute. The MIT licence in the repository root
+does not apply here — see the scope note at the top of that file.
+
+The source is published so it can be read, audited and built by the person who
+bought it. No licence is granted to copy, modify, redistribute, sublicense or sell
+it, or to distribute a derived work.
+
+Permission for anything beyond reading and building: valuev.alexandr@gmail.com
+
+The rest of the repository, including the `chute` CLI and ChuteCore, is MIT.

@@ -25,5 +25,6 @@ contextBufferSuite()
 processMetricsSuite()
 processIdentitySuite()
 statusMenuSuite()
+confirmPromptSuite()
 
 T.report()

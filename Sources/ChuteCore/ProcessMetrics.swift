@@ -390,7 +390,7 @@ public enum ProcessMetrics {
 
     /// Every pid on the machine, via `proc_listallpids`. Asked twice: once for the count, once
     /// for the data, because the number of processes changes between the two calls.
-    public static func allPIDs() -> [Int32] {
+    static func allPIDs() -> [Int32] {
         let count = proc_listallpids(nil, 0)
         guard count > 0 else { return [] }
         var pids = [Int32](repeating: 0, count: Int(count) + 64)   // headroom for new arrivals

@@ -1,3 +1,24 @@
+Chute is open-core. This file is the MIT licence, and it does NOT cover the whole
+repository — read the scope below before assuming it does.
+
+  MIT (this file applies):
+    Sources/chute/         the `chute` CLI
+    Sources/ChuteCore/     the library the CLI is built from
+    Sources/chutetests/    its test suite
+    Scripts/               build, install and release scripts
+    demo/, site/, worker/, marketing/, docs/, brand/, packaging/
+
+  NOT MIT — all rights reserved (see the LICENSE file in each directory):
+    Sources/ChuteApp/      the menu-bar app
+    Sources/ChuteFinder/   the Finder right-click extension
+    Resources/             that app's Info.plists, entitlements and assets
+
+The paid product is the Finder menu and the menu-bar session switcher. Their source
+is published so it can be read and audited, not so it can be redistributed. The CLI
+is MIT and stays MIT — see README.md.
+
+--------------------------------------------------------------------------------
+
 MIT License
 
 Copyright (c) 2026 Alexandr Valuev
