@@ -16,15 +16,23 @@ of network code.
 
 Running agents 10 hours a day means paying a tax on every loop:
 
-| You do this | Times a day | It costs |
-|---|---|---|
-| Copy file paths into a prompt | 25–40 | 20 s each, plus escaping mistakes |
-| Paste an LLM answer into a new file | 20–30 | 6 steps in a text editor |
-| Hand-bundle several files into one prompt | 15–20 | 2 min of tab-hopping |
-| Unpack a multi-file answer back onto disk | 10–20 | 2 min of copy-paste |
+| You do this | Times a day | By hand | With Chute | Saves |
+|---|---|---|---|---|
+| Feed it a folder, one file at a time | 17 | 150 s | 5 s | **41.1 min/day** |
+| Paste the clipboard into a new file | 25 | 35 s | 4 s | 12.9 min/day |
+| Type a file path into a prompt | 32 | 20 s | 3 s | 9.1 min/day |
+| Collect files across folders, then hand them over | 12 | 45 s | 4 s | 8.2 min/day |
+| Show it the shape of a folder | 10 | 30 s | 3 s | 4.5 min/day |
+| Find out what is holding port 3000 | 11 | 30 s | 3 s | 4.9 min/day |
 
-That is **90–120 minutes a day**. Chute removes it. See
-[`docs/03-JTBD-LEDGER.md`](docs/03-JTBD-LEDGER.md) for the full arithmetic.
+That is **~80 minutes a day** — 80.7, for the app's own surface. Every figure comes from
+[`site/src/lib/cases.ts`](site/src/lib/cases.ts), which `site/scripts/check-cases.mjs` re-derives
+from [`docs/03-JTBD-LEDGER.md`](docs/03-JTBD-LEDGER.md) on every build.
+
+Two honest notes, because they are the first things a sceptic asks. **These are timings of one
+person's workflow**, not a study. And the free MIT CLI carries another 75.3 min/day of its own —
+the 156.0 total is real and it is not a number to wave at a buyer, because two thirds of it costs
+nothing.
 
 ---
 

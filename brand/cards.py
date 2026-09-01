@@ -24,18 +24,26 @@ with open(TOKENS_PATH) as f:
 C = {k: v["hex"] for k, v in TOKENS["color"].items()}
 BRAND = TOKENS["brand"]
 
+# Every card here must name a job the product STILL DOES. `unpack` sat in this list until
+# 2026-09-01, four weeks after the command was deleted — and brand/out/card-unpack.png was
+# scheduled into the launch calendar twice. A card generator is marketing copy with a build step;
+# it rots exactly like the rest of it.
 FEATURES = [
     ("bundle", "Eight files, one paste", "with the token count before you send it"),
-    ("unpack", "An answer becomes files", "previews first, never escapes the folder"),
+    ("basket", "Three folders, one hand-over", "collect as you browse, paste once"),
     ("sessions", "Which agent is waiting", "nine terminals, one honest list"),
     ("ports", "What is running on :3000", "and which project it belongs to"),
 ]
 
 # (accent-coloured lead, rest) — kept as explicit data, not auto-split, so wording stays exact
+# EVERY NUMBER HERE IS ALSO IN marketing/06-FACT-SHEET.md §Verification. Two were wrong when this
+# comment was written: "90–120 minutes a day" predates the 2026-08-31 ICP decision that cut the
+# app surface to 80.7 min/day, and "25 commands" was off by one against `chute help`. Both would
+# have been printed onto the launch's social images. Re-derive; never retype.
 QUOTES = [
-    ("90–120", "minutes a day"),
+    ("80", "minutes a day"),
     ("0", "lines of network code"),
-    ("25", "commands, zero dependencies"),
+    ("26", "commands, zero dependencies"),
     ("no account,", "no telemetry, no network"),
 ]
 

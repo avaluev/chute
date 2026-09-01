@@ -14,6 +14,11 @@ day. Lives in Finder + Terminal + a web chat, and pays a tax on every hop betwee
 macOS Finder is built for manual work, not for feeding machines. Measured across the 24 JTBDs in
 `03-JTBD-LEDGER.md`: **~90–120 min/day of pure micro-friction** per builder.
 
+> **Superseded 2026-09-01.** 90–120 was costed before the ICP was settled on Claude Code /
+> Cursor users (2026-08-31), which deleted six jobs. The app surface is **80.7 min/day** and all 19
+> jobs are 156.0. This line is left standing because it records what was believed when the decision
+> was made; do not quote it.
+
 ## Why now
 CLI coding agents became the default workflow in 2025–26. Every existing context-menu utility was
 designed for the pre-agent era: they create empty files from static templates. Nobody ships
