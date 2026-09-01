@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <!-- REQUIRED UNDER THE HARDENED RUNTIME, which `build-app.sh` turns on for any Developer ID
+       signature because notarisation refuses a submission without it. The hardened runtime blocks
+       Apple Events by default: without this key every `osascript` this app runs — reveal a file in
+       Finder, open a folder in Terminal or iTerm, read the terminal session list — fails with
+       errAEEventNotPermitted (-1743), and it fails ONLY in the notarised build, never in the local
+       one. That is the shape of a bug found by a customer.
+
+       `NSAppleEventsUsageDescription` in Info.plist is a DIFFERENT thing and both are needed: the
+       Info.plist string is the consent prompt the user sees, this entitlement is the runtime
+       permission to ask at all.
+
+       Nothing else is listed on purpose. Chute reads and writes the user's own files as the user,
+       and the CLI it ships spawns git — so no library-validation exception, no JIT, no unsigned
+       executable memory, no disable-executable-page-protection. Each of those is a question at
+       App Review and buys nothing here. -->
+  <key>com.apple.security.automation.apple-events</key><true/>
+</dict>
+</plist>

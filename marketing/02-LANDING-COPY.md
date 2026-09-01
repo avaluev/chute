@@ -91,7 +91,7 @@ it at. Pointing is the part you do by hand, 49 times a day between paths and con
 **Does it phone home?** No. There is no network code except `chute gist`, which shells out to
 your own `gh` when you ask it to.
 
-**Does it need Xcode?** No. 2.5 MB app, 788 KB binary, built with the Command Line Tools, zero
+**Does it need Xcode?** No. 2.4 MB app, 727 KB binary, built with the Command Line Tools, zero
 third-party dependencies.
 
 **Does it work with Cursor / Codex / Gemini / Aider?** Yes — the output is plain text and files.

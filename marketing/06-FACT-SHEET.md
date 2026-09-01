@@ -10,7 +10,7 @@
 > fails the deploy if any of those strings appears on a rendered page. Strike a row through with
 > `~~…~~` when it stops being false and enforcement drops it on the next run.
 
-This file exists because three false claims reached the live site: "328 KB" (the app is 2.5 MB),
+This file exists because three false claims reached the live site: "328 KB" (the app is 2.4 MB),
 "28 commands" (there are 25), and unit-test counts that disagreed between the README and the
 handoff. A number in marketing copy with no command beside it is a number that will be wrong
 within a fortnight.
@@ -24,8 +24,8 @@ command and update this file first, then the copy.
 
 | Claim | Value | Prove it |
 |---|---|---|
-| App bundle size | **2.5 MB** | `du -sh dist/Chute.app` |
-| CLI binary size | **788 KB** | `ls -lh .build/release/chute` |
+| App bundle size | **2.4 MB** | `du -sh dist/Chute.app` |
+| CLI binary size | **727 KB** | `ls -lh dist/Chute.app/Contents/MacOS/chute` — the SHIPPED copy. `.build/release/chute` is 1.0 MB because it has not been stripped yet; only `build-app.sh` strips. |
 | CLI commands | **26** | `chute help \| grep -cE '^  [a-z]'` |
 | Finder actions | **9**, drawn as **5 rows** | `chute finder-actions --menu` |
 | External dependencies | **0** | `grep -c '.package(' Package.swift` → 0 |
@@ -124,7 +124,8 @@ post or page opens with a command name.
 
 | Never say | Why | Say instead |
 |---|---|---|
-| "328 KB" | The app is 2.5 MB. This was live on the site until 2026-08-28. | "2.5 MB, no dependencies, no launch daemon" |
+| "328 KB" | The app is 2.4 MB. This was live on the site until 2026-08-28. | "2.4 MB, no dependencies, no launch daemon" |
+| "2.5 MB" | Was true, then was not: the bundle reached **3.3 MB** unnoticed because eight files carried a hand-typed copy of this number and nothing checked any of them. `strip -x` before signing brought it to **2.4 MB** on 2026-09-01, and `Scripts/build-app.sh` now FAILS if this row and `du -sh dist/Chute.app` disagree. | "2.4 MB" — and re-derive it, never retype it |
 | "28 commands" | There are 26. | "26 commands" |
 | "Nothing is uploaded, ever" | `gist` uploads on request. | "No network code at all; `gist` shells out to your own `gh`" |
 | "Notarized" / "signed by Apple" | Not yet true. `spctl -a dist/Chute.app` says `rejected`. | Nothing — omit until the Developer ID exists |
