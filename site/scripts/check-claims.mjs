@@ -220,18 +220,31 @@ ghosts.size
 // people read — is cut mid-sentence. marketing/08-LINKEDIN.md states a character count beside
 // every hook, and on the day it was written TEN OF TWELVE were wrong, because they were counted
 // by eye. A number in a document with no command behind it is a number that is already drifting.
+//
+// EVERY LinkedIn file, not one filename. This was hard-coded to `08-LINKEDIN.md` until
+// 2026-09-02, so `10-LINKEDIN-SHIPPING.md` — six more hooks, written the same night — would have
+// been the only ungated copy in the campaign. That is the identical shape as the bug in the
+// paragraph above: a gate scoped to the files that existed when it was written.
 {
-  const linkedin = readFileSync(REPO + "marketing/08-LINKEDIN.md", "utf8")
-  const hooks = [...linkedin.matchAll(/\*\*HOOK\*\* \((\d+)\)\n> (.+)/g)]
-  const wrong = hooks.filter(([, n, text]) => Number(n) !== text.trim().length)
-    .map(([, n, text]) => `"${text.trim().slice(0, 30)}…" says ${n}, is ${text.trim().length}`)
-  const tooLong = hooks.filter(([, , text]) => text.trim().length > 140)
-    .map(([, , text]) => `"${text.trim().slice(0, 30)}…" is ${text.trim().length}`)
-  if (!hooks.length) bad("the LinkedIn hooks were read", "no **HOOK** (n) blocks found — has the format changed?")
+  const files = readdirSync(REPO + "marketing").filter((f) => /LINKEDIN/i.test(f) && f.endsWith(".md"))
+  if (!files.length) bad("the LinkedIn files were found", "no marketing/*LINKEDIN*.md — has the naming changed?")
+  let total = 0
+  const wrong = [], tooLong = []
+  for (const f of files) {
+    const hooks = [...readFileSync(REPO + "marketing/" + f, "utf8")
+      .matchAll(/\*\*HOOK\*\* \((\d+)\)\n> (.+)/g)]
+    if (!hooks.length) bad(`hooks were read from marketing/${f}`, "no **HOOK** (n) blocks — has the format changed?")
+    total += hooks.length
+    for (const [, n, text] of hooks) {
+      const t = text.trim()
+      if (Number(n) !== t.length) wrong.push(`${f}: "${t.slice(0, 30)}…" says ${n}, is ${t.length}`)
+      if (t.length > 140) tooLong.push(`${f}: "${t.slice(0, 30)}…" is ${t.length}`)
+    }
+  }
   if (wrong.length) bad(`${wrong.length} LinkedIn hook(s) state the wrong length`, wrong.join("; "))
   if (tooLong.length) bad(`${tooLong.length} LinkedIn hook(s) exceed the 140-char mobile cut`, tooLong.join("; "))
-  if (hooks.length && !wrong.length && !tooLong.length) {
-    ok(`${hooks.length} LinkedIn hooks are under 140 chars and count themselves honestly`)
+  if (total && !wrong.length && !tooLong.length) {
+    ok(`${total} LinkedIn hooks across ${files.length} file(s) are under 140 chars and count themselves honestly`)
   }
 }
 
@@ -271,6 +284,65 @@ try {
   if (phantom.length) bad(`${phantom.length} sitemap entr(ies) point at nothing`, phantom.join(", "))
   if (!missing.length && !phantom.length) ok(`sitemap.xml covers all ${built.length} built pages`)
 } catch { bad("sitemap.xml was read", "not found in out/ — is `next build` current?") }
+
+// ── THE NOTARISATION CLAIM, ASKED OF THE ARTIFACT INSTEAD OF A WORD LIST ────────────────────
+//
+// The FALSE table used to forbid the literal word "Notarized". A word list cannot tell a CLAIM
+// from a DENIAL, so it would have blocked the one honest thing to publish while the app is
+// unsigned: an article explaining exactly where the Gatekeeper wall is. It also missed the
+// British spelling this repo actually uses, so it never protected anything it was aimed at.
+//
+// `spctl` is the artifact. While it says `rejected`, the affirmative forms below are false and
+// are refused. The moment a Developer ID lands and it says `accepted`, they become true and this
+// check passes on its own — the row retires itself, with nobody remembering to strike it.
+{
+  const APP = new URL("../../dist/Chute.app", import.meta.url).pathname
+  let verdict = null
+  try {
+    execFileSync("/usr/sbin/spctl", ["-a", "-vv", APP], { encoding: "utf8", stdio: "pipe" })
+    verdict = "accepted"
+  } catch (e) {
+    const out = `${e.stdout ?? ""}${e.stderr ?? ""}`
+    verdict = /rejected/.test(out) ? "rejected" : null
+  }
+  const AFFIRMATIVE = ["is notarised", "is notarized", "notarised by apple", "notarized by apple",
+                       "signed and notarised", "signed and notarized", "notarised and stapled",
+                       "notarized and stapled", "opens without a warning", "no gatekeeper warning"]
+  if (verdict === null) {
+    // Not a pass. A gate that scores itself over a missing artifact is the false green this whole
+    // file exists to stop — say the denominator out loud.
+    bad("the Gatekeeper verdict was read", `spctl gave no usable verdict for ${APP} — build it: ./Scripts/build-app.sh`)
+  } else if (verdict === "rejected") {
+    const hits = []
+    for (const [page, html] of HTML) {
+      const text = visible(html).toLowerCase()
+      for (const phrase of AFFIRMATIVE) if (text.includes(phrase)) hits.push(`${page}: "${phrase}"`)
+    }
+    hits.length
+      ? bad(`spctl says rejected, but ${hits.length} page(s) claim otherwise`, hits.join("; "))
+      : ok(`spctl says rejected and no page claims otherwise (${AFFIRMATIVE.length} phrasings checked)`)
+  } else {
+    ok("spctl says accepted — the notarisation claim is now true and no longer forbidden")
+  }
+}
+
+// ── THE FALSE TABLE APPLIES TO THE README TOO ──────────────────────────────────────────────
+//
+// Everything above reads the BUILT SITE, which is correct for a visitor and blind to the repo's
+// own front door. The README is the first page a developer, a reviewer or a hiring manager reads,
+// and on 2026-09-02 it carried "Nothing is uploaded, ever" — a string the fact sheet has forbidden
+// in bold since 2026-08-28, with the precise replacement written beside it.
+//
+// The fact sheet is excluded, and only the fact sheet: it is where the forbidden strings are
+// DEFINED, so scanning it would fail on its own definitions.
+{
+  const readme = readFileSync(REPO + "README.md", "utf8")
+  const hits = FALSE_CLAIMS.filter((c) => readme.toLowerCase().includes(c.toLowerCase()))
+  hits.length
+    ? bad(`${hits.length} forbidden claim(s) are in README.md`,
+          hits.map((c) => `"${c}"`).join(", ") + " — see the FALSE table in marketing/06-FACT-SHEET.md")
+    : ok(`README.md carries none of the ${FALSE_CLAIMS.length} forbidden claims`)
+}
 
 console.log(`\nclaims: ${failed ? `${failed} failed` : "every claim on the site is one the fact sheet stands behind"}`)
 process.exit(failed ? 1 : 0)

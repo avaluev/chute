@@ -68,8 +68,8 @@
     "does": "Base64 data URL for vision prompts. --markdown"
   },
   {
-    "cmd": "chute buf add\\|list\\|flush",
-    "does": "Gather context across many copies, paste once"
+    "cmd": "chute basket add\\|list\\|copy\\|clear",
+    "does": "Collect files across folders, hand them over once — copy gives @mentions or the files themselves"
   },
   {
     "cmd": "chute prompt decompose\\|ponytail",

@@ -14,8 +14,9 @@ cd /Users/sxope/Documents/2026/Development/37.chute && ./demo/verify.sh && make 
 cd /Users/sxope/Documents/2026/Development/37.chute/site && npm run check:cases && npm run check:claims
 ```
 
-Green 2026-09-01: **911 unit · 144 headless · 172 full smoke · 4 metrics · 11 delivery · 19 cases
-· claims · demo/gui lint.**
+Green 2026-09-02: **949 unit · 145 headless · 81 acceptance · 11 delivery · 19 cases · claims
+· demo/gui lint · ratchet 171/171.** Full smoke (173) and metrics (4/4) last green 2026-09-01;
+both need the founder's machine to themselves — see TRAPS.
 
 ---
 
@@ -84,6 +85,23 @@ note. Five files of 50 lines removes no complexity. Re-propose only with a concr
 
 ---
 
+## DONE 2026-09-02 (verified) — the GTM pack, and four new guards
+
+| Fix | Proof |
+|---|---|
+| **The Apple question answered and costed.** It was two questions fused into one: taking money needs no Apple ID; the file opening on a stranger's Mac needs $99/yr. Break-even is **6 units**. `marketing/09-APPLE-AND-DISTRIBUTION.md` | `spctl -a -vv dist/Chute.app` → `rejected`, `origin=Chute Local Dev` |
+| **The escape hatch that closed.** Homebrew ends support for casks failing Gatekeeper as of **2026-09-01** and is removing `--no-quarantine` (`Homebrew/brew` #20755). Any plan with "worst case, ship a cask" in it is dead. The *formula* path is untouched — locally compiled binaries are never quarantined, which is why the free CLI already reaches strangers with no Apple ID. | `docs/11-PHASE-0-RUNBOOK.md` item 7, already DONE |
+| **The site can discuss the wall.** The FALSE table forbade the literal word "notarized", so a word list could not tell a claim from a denial — it would have blocked the only honest thing to publish while unsigned, and it missed the British spelling this repo actually uses. `check-claims.mjs` asks `spctl` and forbids 10 affirmative phrasings instead. **The row retires itself when the verdict changes.** | perturbed: "notarised and stapled" on a page → `FAIL spctl says rejected, but 3 page(s) claim otherwise` |
+| **The LinkedIn hook gate scans every `marketing/*LINKEDIN*.md`.** It was hard-coded to `08`, so the six new hooks would have been the campaign's only ungated copy — the identical shape as the bug that let five assets sell a deleted command. | 18 hooks across 2 files; perturbed both ways (wrong count, and >140 chars) → red |
+| **The FALSE table now applies to README.md.** Every other check reads the built site and is blind to the repo's own front door, which carried "Nothing is uploaded, ever" — forbidden in bold since 2026-08-28, with the precise replacement written beside it. Fixed to the precise phrasing. | perturbed: appended the string → `FAIL 1 forbidden claim(s) are in README.md` |
+| **Fact sheet de-rotted.** `Lines of Swift` said 6,873 against a real 11,680; `Version` said 0.2.0 against a shipping 0.2.1. New §Distribution carries every Gatekeeper claim with its command. | `find Sources -name '*.swift' \| xargs wc -l \| tail -1` |
+| **`/building-with-agents` renders from the markdown, not a copy of it.** `marked` reads `marketing/11-BUILDING-WITH-AGENTS.md` at build time. Two copies of an article is the same failure as two copies of a claim. | `npx next build` → 36 routes; sitemap covers all 30 |
+
+**The gate caught this session's own writing.** The article's §Part 4 explains that scoping the
+command checker to code spans removed eleven false positives — and put the example phrase inside
+backticks, which made it a real ghost-command hit. `FAIL 2 place(s) show a chute command that does
+not exist`. The sentence was fixed, not the gate.
+
 ## IN FLIGHT — nothing
 
 The narrowed appex entitlement is **proved at runtime**, not just at build time. `uninstall.sh`
@@ -123,6 +141,9 @@ Chute does not write that file, here or anywhere. That is a standing decision, n
 | `marketing/06-FACT-SHEET.md` | **every number, and the command that proves it.** One place. |
 | `marketing/07-WEBSITE.md` | site rebuild, the 10-shot screenshot plan, SEO/GEO/AIO |
 | `marketing/08-LINKEDIN.md` | 12 posts, full text — the 90-day compounding asset |
+| `marketing/09-APPLE-AND-DISTRIBUTION.md` | **the Apple decision, settled.** Selling ≠ delivering; the Gatekeeper wall in clicks; the Homebrew cask deadline; the arithmetic |
+| `marketing/10-LINKEDIN-SHIPPING.md` | 6 posts — the shipping-wall arc. Interleave with 08, do not batch |
+| `marketing/11-BUILDING-WITH-AGENTS.md` | **the expertise asset.** How this was built: 5 ways a green suite lied, the ratchet, 7 rules. Rendered at `/building-with-agents` from this one file |
 
 **05 is the spike, 08 is the engine.** They share no copy on purpose: two copies of a claim drift
 the moment one is edited.
@@ -171,7 +192,13 @@ The seven findings that change decisions:
    Context Basket → Copy Basket as @mentions → paste into Claude Code. **If that is not obviously
    faster than typing three `@` paths, delete it** like the other six. Do not polish it before
    answering.
-3. **Phase 0 — money.** `Sources/ChuteCore/License.swift:28` is still `REPLACE_ME_BEFORE_RELEASE`;
+3. **Apple enrolment — START IT BEFORE SLEEPING.** It is the only blocker with a 24–48 h human
+   review queue, so every hour it is not started is an hour added to the launch date.
+   <https://developer.apple.com/programs/enroll/>, Individual / Sole Proprietor,
+   `docs/11-PHASE-0-RUNBOOK.md` §STEP 1. The reasoning is settled in
+   `marketing/09-APPLE-AND-DISTRIBUTION.md` — **do not re-litigate it**, and in particular do not
+   re-open "ship a cask instead", which stopped being possible on 2026-09-01.
+4. **Phase 0 — the rest of the money.** `Sources/ChuteCore/License.swift:28` is still `REPLACE_ME_BEFORE_RELEASE`;
    it is not valid base64, so **every buyer's key would fail silently** and `LicenseSuite` cannot
    see it (it verifies against its own keypair). `Scripts/release.sh` now refuses to build past
    it. Then: `dig +short chutedev.com` (empty), Apple enrolment ($99), Paddle. Runbook:

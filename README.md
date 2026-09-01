@@ -191,9 +191,39 @@ Chute is built to be trusted with a repo an agent is about to rampage through.
 - **`clean` moves files to the Trash**, never `rm`.
 - **`env inject` reads the Keychain only**, prints key names but never values, and refuses to
   create a `.env` that git would track.
-- **Nothing is uploaded, ever** — except `chute gist`, when you explicitly ask for it.
+- **No network code at all.** `grep -rn 'URLSession\|NSURLConnection' Sources/` returns nothing.
+  One command, `chute gist`, uploads — by shelling out to your own `gh`, with your own
+  credentials, on the files you name, after redacting keys and tokens. Chute never opens a socket.
 
 ---
+
+## How this was built
+
+Six weeks, one person, coding agents doing most of the typing — and about a fifth of the repository
+by volume is the machinery that checks the other four fifths.
+
+That ratio is the whole finding. Agents made writing code cheap and left the cost of trusting it
+exactly where it was, so the interesting engineering moved into the gates:
+
+| Gate | What it checks that a normal test does not |
+|---|---|
+| [`Scripts/check-metrics.sh`](Scripts/check-metrics.sh) | a **magnitude** against something physical — RAM, cores, a load of known size. Written after a CPU figure shipped 24× wrong with every shape assertion green |
+| [`Scripts/check-untested-logic.sh`](Scripts/check-untested-logic.sh) | decision points in targets no test can import may **shrink freely and never grow**. Written after a one-line bug shipped past 917 green assertions |
+| [`Scripts/acceptance.sh`](Scripts/acceptance.sh) | all 9 Finder actions against a hostile tree — symlink loops, 10 MB files, quotes in filenames |
+| [`site/scripts/check-claims.mjs`](site/scripts/check-claims.mjs) | every published claim against the **artifact that implements it** — the CLI's dispatch switch, `du` on the bundle, `spctl` on the app. Not against a list a human maintains |
+
+The method, the five ways a green suite lied, and the seven rules that came out of it are written
+up in full:
+
+**→ [The harness is the product](marketing/11-BUILDING-WITH-AGENTS.md)** — how to build this way,
+with every bug that taught each rule.
+
+Two companion documents, both decision memos rather than narrative:
+
+- [Can I sell a DMG without an Apple ID?](marketing/09-APPLE-AND-DISTRIBUTION.md) — the Gatekeeper
+  wall measured in clicks, the Homebrew cask deadline of 2026-09-01, and the arithmetic that
+  settles it
+- [`handoff/NEXT.md`](handoff/NEXT.md) — the live state of the project, including what is broken
 
 ## Development
 
