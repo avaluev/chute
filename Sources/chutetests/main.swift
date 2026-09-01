@@ -28,5 +28,6 @@ statusMenuSuite()
 confirmPromptSuite()
 projectRootSuite()
 finderTargetSuite()
+treeRenderSuite()
 
 T.report()
