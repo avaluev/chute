@@ -198,6 +198,26 @@ ghosts.size
   ? bad(`${ghosts.size} place(s) show a chute command that does not exist`, [...ghosts].join("; "))
   : ok(`every documented chute command is in the dispatch (${known.size} live)`)
 
+// ── every LinkedIn hook must be under the truncation limit, and must say its own real length ─
+// LinkedIn truncates at ~140 characters on mobile: past that the first line — the only line most
+// people read — is cut mid-sentence. marketing/08-LINKEDIN.md states a character count beside
+// every hook, and on the day it was written TEN OF TWELVE were wrong, because they were counted
+// by eye. A number in a document with no command behind it is a number that is already drifting.
+{
+  const linkedin = readFileSync(REPO + "marketing/08-LINKEDIN.md", "utf8")
+  const hooks = [...linkedin.matchAll(/\*\*HOOK\*\* \((\d+)\)\n> (.+)/g)]
+  const wrong = hooks.filter(([, n, text]) => Number(n) !== text.trim().length)
+    .map(([, n, text]) => `"${text.trim().slice(0, 30)}…" says ${n}, is ${text.trim().length}`)
+  const tooLong = hooks.filter(([, , text]) => text.trim().length > 140)
+    .map(([, , text]) => `"${text.trim().slice(0, 30)}…" is ${text.trim().length}`)
+  if (!hooks.length) bad("the LinkedIn hooks were read", "no **HOOK** (n) blocks found — has the format changed?")
+  if (wrong.length) bad(`${wrong.length} LinkedIn hook(s) state the wrong length`, wrong.join("; "))
+  if (tooLong.length) bad(`${tooLong.length} LinkedIn hook(s) exceed the 140-char mobile cut`, tooLong.join("; "))
+  if (hooks.length && !wrong.length && !tooLong.length) {
+    ok(`${hooks.length} LinkedIn hooks are under 140 chars and count themselves honestly`)
+  }
+}
+
 // ── the changelog's newest entry must be the version that actually ships ────────────────────
 // A changelog is the one page whose whole job is being current, and it is hand-maintained on
 // purpose (see the comment on that page). So this asks Version.swift — the single source the app
