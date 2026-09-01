@@ -57,7 +57,12 @@ public enum FinderReveal {
     /// Set by the smoke suite. `CHUTE_HEADLESS=1` is documented as making the suite runnable
     /// without "a logged-in Mac with Finder", and this call was the one place that still reached
     /// for Finder anyway — so the headless run hung exactly where a CI runner would.
-    static var isHeadless: Bool { ProcessInfo.processInfo.environment["CHUTE_HEADLESS"] == "1" }
+    /// PUBLIC because callers have their own GUI-dependent work to skip, not only this one.
+    /// `chute paste-image` polls for 90 seconds waiting for the user to rename the file in
+    /// Finder; under CHUTE_HEADLESS that reveal never happens, so the poll waits for something
+    /// that cannot occur and the headless run blocks for a minute and a half. The guard was one
+    /// line too short.
+    public static var isHeadless: Bool { ProcessInfo.processInfo.environment["CHUTE_HEADLESS"] == "1" }
 
     @discardableResult
     public static func revealAndBeginRename(_ path: String,

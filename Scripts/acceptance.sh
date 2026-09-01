@@ -50,8 +50,15 @@ expect_ok()   { if [ "$RC" -eq 0 ]; then ok "$1" "$2"; else bad "$1" "$2" "exit 
 expect_fail() { if [ "$RC" -ne 0 ]; then ok "$1" "$2"; else bad "$1" "$2" "exit 0 — a failure reported success"; fi; }
 expect_has()  { if printf '%s' "$OUT" | grep -qF -- "$3"; then ok "$1" "$2"; else bad "$1" "$2" "missing '$3'"; fi; }
 expect_not()  { if printf '%s' "$OUT" | grep -qF -- "$3"; then bad "$1" "$2" "should not contain '$3'"; else ok "$1" "$2"; fi; }
-expect_under(){ if [ "$MS" -le "$3" ]; then ok "$1" "$2 (${MS}ms)"; else bad "$1" "$2" "${MS}ms, budget ${3}ms"; SLOW="$SLOW$1 ${MS}ms\n"; fi; }
-timing()      { printf '%-10s %6sms  %s\n' "$1" "$MS" "$2" >> "$WORK/timings"; }
+# EVERY timed case is recorded, not just the ones that failed. `--perf` printed nothing on its
+# first real run because a `timing()` helper existed here and nothing ever called it — a flag that
+# silently does nothing is worse than no flag, and it was in the harness written to catch exactly
+# that class of defect.
+expect_under(){
+  printf '%-6s %6sms / %6sms  %s\n' "$1" "$MS" "$3" "$2" >> "$WORK/timings"
+  if [ "$MS" -le "$3" ]; then ok "$1" "$2 (${MS}ms)"
+  else bad "$1" "$2" "${MS}ms, budget ${3}ms"; SLOW="$SLOW$1 ${MS}ms\n"; fi
+}
 
 echo "building fixtures…"
 "$ROOT/Scripts/fixtures.sh" "$FIX" >/dev/null || { echo "fixtures failed" >&2; exit 1; }
@@ -231,10 +238,42 @@ run "$CHUTE" paste-image --dir "$WORK/new"
 expect_fail "I-01" "text on the clipboard is refused with a reason"
 run "$CHUTE" paste-image --dir "$FIX/nope"
 expect_fail "I-02" "a missing folder is refused"
+# THE POSITIVE CASE. It needs a real image on the clipboard, which needs a logged-in session — so
+# it is attempted and skipped rather than assumed, and the skip says so instead of passing quietly.
+python3 - <<'PNG' > "$WORK/red.png"
+import zlib, struct, sys
+def chunk(t, d):
+    c = t + d
+    return struct.pack('>I', len(d)) + c + struct.pack('>I', zlib.crc32(c))
+raw = b''.join(b'\x00' + bytes([255, 0, 0]) * 4 for _ in range(4))
+sys.stdout.buffer.write(b'\x89PNG\r\n\x1a\n'
+    + chunk(b'IHDR', struct.pack('>IIBBBBB', 4, 4, 8, 2, 0, 0, 0))
+    + chunk(b'IDAT', zlib.compress(raw)) + chunk(b'IEND', b''))
+PNG
+if osascript -e "set the clipboard to (read (POSIX file \"$WORK/red.png\") as «class PNGf»)" 2>/dev/null; then
+  mkdir -p "$WORK/img"
+  run "$CHUTE" paste-image --dir "$WORK/img"
+  expect_ok  "I-03" "a real image on the clipboard is saved"
+  # 90 SECONDS, MEASURED 2026-09-02. paste-image polls for the user to rename the file in Finder.
+  # CHUTE_HEADLESS skips the reveal that starts a rename — but the poll sat on the other side of
+  # that guard, so a headless run waited a minute and a half for something that cannot happen.
+  expect_under "I-04" "and does not wait for a rename that cannot happen headlessly" 5000
+  [ "$(find "$WORK/img" -name '*.png' | wc -l | tr -d ' ')" = "1" ] \
+    && ok "I-05" "exactly one PNG landed" || bad "I-05" "exactly one PNG landed" "$(ls "$WORK/img")"
+  file "$WORK/img"/*.png 2>/dev/null | grep -q "PNG image data" \
+    && ok "I-06" "and it is a real PNG, not renamed bytes" || bad "I-06" "and it is a real PNG" "not PNG"
+else
+  printf '  SKIP I-03..I-06 (no GUI session — cannot put an image on the clipboard)\n'
+fi
 
 # ── summary ──────────────────────────────────────────────────────────────────────────────────
-if [ "$PERF" = "1" ] && [ -f "$WORK/timings" ]; then
-  echo; echo "timings"; cat "$WORK/timings"
+if [ "$PERF" = "1" ]; then
+  echo
+  if [ -f "$WORK/timings" ]; then
+    printf 'timings — case, measured, budget\n'; cat "$WORK/timings"
+  else
+    echo "timings: none recorded — no case called expect_under, which is itself a bug"
+  fi
 fi
 echo
 [ -n "$SLOW" ] && { echo "over budget:"; printf "$SLOW"; }

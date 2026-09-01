@@ -77,7 +77,7 @@ fixture actually reproduces the negative.**
 
 ## 4. The cases
 
-76, all in `Scripts/acceptance.sh`. The run reports 77 — the extra one is the script checking
+80, all in `Scripts/acceptance.sh`. The run reports 81 — the extra one is the script checking
 that this very number is still right. Grouped by action; every one is positive (P), negative (N),
 boundary (B) or corner (C).
 
@@ -113,10 +113,14 @@ Created (P) · a second does not overwrite the first (C) · both exist (B) · a 
 **an unwritable folder is refused, not reported as created** (N) · from the clipboard, named from
 its heading (P) · **an empty clipboard is refused rather than making an empty file** (N).
 
-### Image from Clipboard — `I-01 … I-02`
-Text on the clipboard is refused with a reason (N) · a missing folder is refused (N).
-*Gap, stated honestly: no positive case. Putting a real image on the clipboard needs a GUI
-session. `demo/gui/` is where that belongs, not here.*
+### Image from Clipboard — `I-01 … I-06`
+Text on the clipboard is refused with a reason (N) · a missing folder is refused (N) · **a real
+PNG is saved** (P) · **it does not wait 90 s for a rename that cannot happen headlessly** (C — the
+2026-09-02 block) · exactly one PNG lands (B) · and it is a real PNG rather than renamed bytes (C).
+
+The positive cases generate a 4×4 PNG and put it on the clipboard with `osascript`. That needs a
+logged-in session, so they are attempted and **skipped with a message** where it fails, never
+passed quietly.
 
 ## 5. Performance budgets
 
@@ -160,9 +164,10 @@ The nineteen jobs in `site/src/lib/cases.ts` are what the site sells. Which are 
 | Menu bar, paid | 2 | `whats-on-port-3000` by smoke; `which-agent-is-waiting-for-you` **not covered** — it needs live terminal sessions |
 | Free CLI | 12 | `Scripts/smoke.sh` |
 
-**Two honest gaps**, both needing a live GUI session rather than more cases: a positive
-`paste-image`, and the menu bar's session list. Both belong in `demo/gui/`, and the second is the
-one still carrying `savedMinutes: null` in the ledger.
+**One honest gap left**: the menu bar's session list, which needs live terminal sessions. It is
+also the surface still carrying `savedMinutes: null` in the ledger. The `paste-image` gap was
+closed on 2026-09-02 — and closing it immediately found a 90-second headless block, which is the
+argument for closing gaps rather than documenting them.
 
 ## 8. Running it unattended
 
