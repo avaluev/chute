@@ -124,6 +124,8 @@ post or page opens with a command name.
 
 | Never say | Why | Say instead |
 |---|---|---|
+| "turn agent output back into files" | The `unpack` command was deleted 2026-08-31 — a Claude Code user's agent writes its own files. This exact sentence survived in the site's `<meta name="description">` and OpenGraph description until 2026-09-01, because `check-claims.mjs` stripped tags before reading. It reads metadata now. | Nothing — the job no longer exists |
+| "Paste an answer back" | Same deleted command, the hero's half-sentence version of it. | "Select the folders. Right-click once." |
 | "328 KB" | The app is 2.4 MB. This was live on the site until 2026-08-28. | "2.4 MB, no dependencies, no launch daemon" |
 | "2.5 MB" | Was true, then was not: the bundle reached **3.3 MB** unnoticed because eight files carried a hand-typed copy of this number and nothing checked any of them. `strip -x` before signing brought it to **2.4 MB** on 2026-09-01, and `Scripts/build-app.sh` now FAILS if this row and `du -sh dist/Chute.app` disagree. | "2.4 MB" — and re-derive it, never retype it |
 | "28 commands" | There are 26. | "26 commands" |

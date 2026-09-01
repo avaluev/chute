@@ -37,9 +37,22 @@ try { HTML = pages(OUT).map((p) => [p.replace(OUT, "") || "/", readFileSync(p, "
 catch { console.error("check-claims: no built site — run `npx next build` first"); process.exit(1) }
 ok(`${HTML.length} rendered pages read`)
 
-/** Text a visitor actually sees: tags stripped, entities unescaped, whitespace collapsed. */
+/**
+ * Text a visitor actually sees — PLUS the metadata a visitor never sees and a crawler always does.
+ *
+ * Stripping tags was the whole blind spot: on 2026-09-01 the site's own `<meta name="description">`
+ * and OpenGraph description still sold `unpack`, a command deleted on 2026-08-31, and every check
+ * in this file passed because all of them read `visible()` and `visible()` threw those away. That
+ * string is what Google, an AI crawler and every shared link show — the highest-leverage sentence
+ * on the site was the one sentence nothing checked.
+ */
+const metaText = (html) =>
+  [...html.matchAll(/<meta[^>]+content="([^"]*)"/g)].map((m) => m[1]).join(" ")
+  + " " + (html.match(/<title[^>]*>([\s\S]*?)<\/title>/)?.[1] ?? "")
+
 const visible = (html) =>
-  html.replace(/<script[\s\S]*?<\/script>/g, " ")
+  (html + " " + metaText(html))
+    .replace(/<script[\s\S]*?<\/script>/g, " ")
       .replace(/<[^>]+>/g, " ")
       .replace(/&#x27;|&apos;/g, "'").replace(/&quot;/g, '"')
       .replace(/&amp;/g, "&").replace(/&mdash;/g, "—").replace(/&nbsp;/g, " ")

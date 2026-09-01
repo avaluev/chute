@@ -128,8 +128,9 @@ export default function Home() {
         </h1>
 
         <p className="mt-6 max-w-2xl text-lg text-muted-foreground">
-          Select files in Finder, get agent-ready context with a token count. Paste an answer back,
-          get real files. And see, without hunting through nine terminal windows, which agent is
+          Select the folders, right-click once, and every file inside is on your clipboard as one
+          blob with a token count. Collect files across folders into a basket and hand the whole
+          set over at once. And see, without hunting through nine terminal windows, which agent is
           actually waiting for you.
         </p>
 
