@@ -320,8 +320,11 @@ public enum ProcessMetrics {
     /// which is normal, not an error, and is why the caller has a fallback.
     private static func path(of pid: Int32) -> String? {
         var buf = [CChar](repeating: 0, count: 4096)
-        guard proc_pidpath(pid, &buf, UInt32(buf.count)) > 0 else { return nil }
-        let path = String(cString: buf)
+        // Use the RETURNED LENGTH rather than scanning for a terminator. Same reasoning as
+        // `comm` above: the length is the fact the kernel actually gives us.
+        let n = proc_pidpath(pid, &buf, UInt32(buf.count))
+        guard n > 0 else { return nil }
+        let path = String(decoding: buf.prefix(Int(n)).map { UInt8(bitPattern: $0) }, as: UTF8.self)
         return path.isEmpty ? nil : path
     }
 
@@ -330,8 +333,14 @@ public enum ProcessMetrics {
     /// and is sometimes the better one. See `programName`.
     private static func comm(_ k: kinfo_proc) -> String {
         var raw = k.kp_proc.p_comm
-        return withUnsafeBytes(of: &raw) {
-            String(cString: $0.baseAddress!.assumingMemoryBound(to: CChar.self))
+        return withUnsafeBytes(of: &raw) { buf in
+            // BOUNDED BY THE TUPLE, not by a NUL the kernel is trusted to have written.
+            // `String(cString:)` on the raw base address reads until it finds a zero — if
+            // `p_comm` ever came back filled to its last byte, that read walks off the end of a
+            // 17-byte stack buffer. The kernel does terminate it today; a memory-safety guarantee
+            // that depends on the kernel continuing to is not a guarantee. `prefix(while:)` cannot
+            // leave the buffer, and `String(decoding:as:)` cannot trap on invalid UTF-8 either.
+            String(decoding: buf.prefix { $0 != 0 }, as: UTF8.self)
         }
     }
 

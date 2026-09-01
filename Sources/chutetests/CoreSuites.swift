@@ -21,6 +21,11 @@ func coreSuites() {
         T.eq(TokenEstimate.tokens(in: String(repeating: "a", count: 400)), 100, "~4 chars per token")
         T.eq(TokenEstimate.tokens(in: ""), 0, "empty is zero")
         T.eq(TokenEstimate.tokens(in: "ab"), 1, "partial token rounds up")
+        // The count is UTF-8 BYTES, not characters. "é" is one Character and two bytes; a model
+        // is billed for the two. This assertion is what stops someone "simplifying" it back to
+        // `text.count`, which is both slower and cheaper than the truth.
+        T.eq(TokenEstimate.tokens(in: "\u{1F600}"), 1, "an emoji is 4 bytes, not 1 character")
+        T.eq(TokenEstimate.tokens(in: String(repeating: "é", count: 200)), 100, "2 bytes each, not 1")
         T.eq(TokenEstimate.badge(32_000), "~32k tokens", "k badge")
         T.eq(TokenEstimate.badge(850), "~850 tokens", "small badge")
     }

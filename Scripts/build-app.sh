@@ -25,6 +25,15 @@ mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 # NOTE: APFS is case-insensitive — the app executable must not be a case variant of "chute".
 cp "$ROOT/.build/release/ChuteApp" "$APP/Contents/MacOS/ChuteApp"
 cp "$ROOT/.build/release/chute"    "$APP/Contents/MacOS/chute"
+# STRIP BEFORE SIGNING, always. Measured 2026-09-01: `strip -x` takes each Swift binary from
+# ~1.08 MB to ~744 KB — 31%, and about a megabyte off a 3.3 MB bundle — because a release Swift
+# binary ships a large local symbol table nothing at runtime reads. `-x` keeps the global and
+# undefined symbols, which is what the appex's `_NSExtensionMain` entry point and every dynamic
+# link need; a bare `strip` would take those too.
+#
+# ORDER IS LOAD-BEARING: stripping a signed binary invalidates its signature and the extension
+# then refuses to load with no message anywhere. Strip here, sign at the bottom, never the reverse.
+strip -x "$APP/Contents/MacOS/ChuteApp" "$APP/Contents/MacOS/chute"
 # The icon the menu bar, Notification Center and Finder all show. Generated once by
 # Scripts/make-icon.swift and committed — a build never renders it.
 cp "$ROOT/Resources/Chute.icns" "$APP/Contents/Resources/Chute.icns"
@@ -45,6 +54,11 @@ swiftc -O -o "$APPEX/Contents/MacOS/ChuteFinder" \
     "$ROOT/Sources/ChuteFinder/ChuteFinderSync.swift" \
     -I "$ROOT/.build/release" "$ROOT"/.build/release/ChuteCore.build/*.o \
     -Xlinker -e -Xlinker _NSExtensionMain
+strip -x "$APPEX/Contents/MacOS/ChuteFinder"
+# The entry point must survive the strip, or the extension loads as a plain executable and Finder
+# shows nothing. This is the same assertion CI makes on the assembled bundle.
+nm -u "$APPEX/Contents/MacOS/ChuteFinder" | grep -q _NSExtensionMain \
+  || { echo "build-app: _NSExtensionMain is gone from the appex after stripping" >&2; exit 1; }
 
 cat > "$APPEX/Contents/Info.plist" <<APPEXPLIST
 <?xml version="1.0" encoding="UTF-8"?>
@@ -91,7 +105,8 @@ cat > "$APP/Contents/Info.plist" <<PLIST
   <key>LSMinimumSystemVersion</key><string>13.0</string>
   <key>LSUIElement</key><true/>
   <key>CFBundleIconFile</key><string>Chute</string>
-  <key>NSHumanReadableCopyright</key><string>Chute — drop context into your agent.</string>
+  <key>NSHumanReadableCopyright</key><string>Copyright © 2026 Alexandr Valuev. All rights reserved.</string>
+  <key>LSApplicationCategoryType</key><string>public.app-category.developer-tools</string>
   <key>NSAppleEventsUsageDescription</key><string>Chute reads your Finder selection so it can turn it into agent context.</string>
   <!-- How the sandboxed Finder extension reaches this app. The extension cannot run git, launch
        Terminal or drive AppleScript itself — measured — so it hands the job over through here. -->
@@ -195,7 +210,17 @@ sign() {  # target [entitlements]
 
 SIGNED_ADHOC=0
 sign "$APPEX" --entitlements "$ROOT/Resources/ChuteFinder.entitlements"
-sign "$APP"
+# The app is NOT sandboxed (it does the work the sandboxed appex cannot), but it IS hardened for
+# Developer ID — and a hardened app with no entitlements cannot send an Apple Event. See the file.
+sign "$APP" --entitlements "$ROOT/Resources/Chute.entitlements"
+# WHAT WAS ACTUALLY SIGNED, asserted rather than assumed. Both of these have shipped wrong before
+# in projects that assumed the flags took: an entitlement silently dropped because it was passed to
+# the wrong `sign` call, and an appex entry point stripped away. The cost of checking is 40 ms.
+codesign -d --entitlements - "$APP" 2>/dev/null | grep -q "com.apple.security.automation.apple-events" \
+  || { echo "build-app: the app signed WITHOUT the Apple Events entitlement — every osascript it runs will fail under the hardened runtime" >&2; exit 1; }
+codesign -d --entitlements - "$APPEX" 2>/dev/null | grep -q "com.apple.security.app-sandbox" \
+  || { echo "build-app: the appex signed WITHOUT the sandbox entitlement — Finder will register it and never load it" >&2; exit 1; }
+
 # Say which kind of build this is, every time. `release.sh` re-verifies the outer signature
 # independently, but anyone running build-app.sh directly got an unqualified "built" either way.
 if [ "$SIGNED_ADHOC" = "1" ]; then
@@ -204,4 +229,16 @@ else
   echo "built $APP  (signed: $IDENTITY)"
 fi
 echo "build: $BUILD $BUILT_AT"
-du -sh "$APP" | awk '{print "size: " $1}'
+SIZE="$(du -sh "$APP" | awk '{print $1}')"          # e.g. 2.4M
+echo "size: $SIZE"
+# THE SIZE CLAIM, GATED AT ITS SOURCE. "2.5 MB" was hand-typed into eight files and stayed there
+# while the bundle grew to 3.3 MB — nothing compared the sentence to the artifact. This does.
+# The fact sheet is the one place the number is allowed to live; every asset quotes it from there.
+SHEET="$ROOT/marketing/06-FACT-SHEET.md"
+CLAIMED="$(sed -n 's/^| App bundle size | \*\*\([0-9.]*\) MB\*\*.*/\1/p' "$SHEET")"
+ACTUAL="${SIZE%M}"
+if [ "$CLAIMED" != "$ACTUAL" ]; then
+  echo "build-app: the fact sheet says the app is ${CLAIMED} MB and it is ${ACTUAL} MB." >&2
+  echo "           Fix marketing/06-FACT-SHEET.md, then every asset that quotes it." >&2
+  exit 1
+fi

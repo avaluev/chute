@@ -21,13 +21,25 @@ pkill -x ChuteApp 2>/dev/null || true
 # CLI), so on any recent install this pointed at nothing and the `|| true` hid it. The copy inside
 # the bundle is the one that is certainly present at uninstall time.
 for CLI in "$HOME/Applications/Chute.app/Contents/MacOS/chute" \
+           "/Applications/Chute.app/Contents/MacOS/chute" \
            "/opt/homebrew/bin/chute" "/usr/local/bin/chute" "$HOME/.local/bin/chute"; do
   [ -x "$CLI" ] || continue
   "$CLI" hooks uninstall --force 2>/dev/null || true
   break
 done
-pluginkit -r "$HOME/Applications/Chute.app/Contents/PlugIns/ChuteFinder.appex" 2>/dev/null || true
-rm -rf "$HOME/Applications/Chute.app"
+# BOTH LOCATIONS. `install.sh` puts the app in ~/Applications, but the DMG ships a symlink to
+# /Applications and tells the customer to drag it there — so the only install path a STRANGER
+# ever takes was the one path this script did not clean. It removed nothing, said "Chute removed."
+# and left a registered Finder extension behind.
+#
+# The literal "/Applications/Chute.app" is safe where "$HOME/Applications/Chute.app" needed a
+# guard: there is no variable in it to collapse to the empty string.
+for APPDIR in "$HOME/Applications" "/Applications"; do
+  [ -d "$APPDIR/Chute.app" ] || continue
+  pluginkit -r "$APPDIR/Chute.app/Contents/PlugIns/ChuteFinder.appex" 2>/dev/null || true
+  rm -rf "$APPDIR/Chute.app" 2>/dev/null \
+    || echo "$(basename "$0"): could not remove $APPDIR/Chute.app — try: sudo rm -rf '$APPDIR/Chute.app'" >&2
+done
 rm -f "$HOME/.local/bin/chute"
 rm -rf "$HOME/.chute"
 # Legacy: v0.1 installed Automator Quick Actions. Removed here so old installs clean up.
