@@ -214,13 +214,10 @@ class ChuteFinderSync: FIFinderSync {
     /// Failures only. Successes are announced by ChuteApp, which is the process that did the work
     /// and can post a proper notification under Chute's own name.
     private func notify(action: ChuteAction, message: String) {
-        func escape(_ s: String) -> String {
-            s.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "'")
-        }
         let osa = Process()
         osa.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
-        osa.arguments = ["-e", "display notification \"\(escape(message))\" with title \"Chute\" "
-                             + "subtitle \"\(escape(action.plainTitle))\""]
+        osa.arguments = ["-e", "display notification \"\(AppleScript.escape(message))\" with title \"Chute\" "
+                             + "subtitle \"\(AppleScript.escape(action.plainTitle))\""]
         try? osa.run()
         osa.waitUntilExit()
     }

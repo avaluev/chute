@@ -93,19 +93,14 @@ extension AppDelegate {
     /// disk changes. Cancel is the default button: a stray Return key must not write files.
     @MainActor
     static func confirm(action: ChuteAction, button: String, preview: String) -> Bool {
-        let lines = preview.split(separator: "\n", omittingEmptySubsequences: true)
-        // A selection can be thousands of files; an alert that tall is not readable and not
-        // dismissable. Show enough to recognise the set, then say how much was not shown.
-        let shown = lines.prefix(previewLineLimit).map { $0.trimmingCharacters(in: .whitespaces) }
-        let hidden = lines.count - shown.count
-        var body = shown.joined(separator: "\n")
-        if hidden > 0 { body += "\n… and \(hidden) more" }
-        if body.isEmpty { body = "Nothing to change here." }
+        // WHAT it says is `ConfirmPrompt` in ChuteCore, where a headless test can read it. What is
+        // left here is the window — which is the only part that needs a screen.
+        let prompt = ConfirmPrompt(actionTitle: action.plainTitle, preview: preview)
 
         let alert = NSAlert()
         alert.alertStyle = .warning
-        alert.messageText = "\(action.plainTitle) — \(lines.count) item(s)"
-        alert.informativeText = body
+        alert.messageText = prompt.title
+        alert.informativeText = prompt.body
         alert.addButton(withTitle: "Cancel")     // first = default = Return
         alert.addButton(withTitle: button)
         // A modal from an accessory app can open behind whatever is in front; without this the
@@ -113,9 +108,6 @@ extension AppDelegate {
         NSApp.activate(ignoringOtherApps: true)
         return alert.runModal() == .alertSecondButtonReturn
     }
-
-    /// How many rows of the dry run the confirmation shows before it summarises the rest.
-    static let previewLineLimit = 15
 
     /// Selecting a few thousand files in Finder produces a command line past ARG_MAX, and the
     /// action fails with "argument list too long". Above a modest threshold the paths go into a

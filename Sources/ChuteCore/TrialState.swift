@@ -43,6 +43,9 @@ public enum Trial {
     /// Deleting THIS file does restart the trial. That is a deliberate ceiling, not an oversight
     /// — the alternative is a Keychain item, which re-prompts after every re-signing and turns a
     /// $19 utility into a support queue. Piracy is not the constraint at this price; obscurity is.
+    /// Stays `public` although its only caller is in this file: it is the default-argument
+    /// expression of PUBLIC functions below, and Swift resolves those at every call site — an
+    /// internal symbol there does not compile. Audited 2026-09-01, do not narrow again.
     public static func recordPath(home: String = "/Users/" + NSUserName()) -> String {
         home + "/Library/Application Support/Chute/trial.json"
     }

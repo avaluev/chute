@@ -110,11 +110,8 @@ enum Notify {
     /// user did not choose. Backslash FIRST: escaping quotes alone leaves a trailing backslash to
     /// escape the closing quote, and everything after it is then read as AppleScript, not text.
     private static func fallback(title: String, body: String) {
-        func escape(_ s: String) -> String {
-            s.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "'")
-        }
         Shell.launch("osascript", ["-e",
-            "display notification \"\(escape(body))\" with title \"\(escape(title))\""])
+            "display notification \"\(AppleScript.escape(body))\" with title \"\(AppleScript.escape(title))\""])
     }
 }
 

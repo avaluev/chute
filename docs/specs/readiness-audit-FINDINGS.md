@@ -1,5 +1,23 @@
 # Readiness audit — is this ready for a professional developer to accept — 2026-09-01
 
+> **STATUS 2026-09-01, after the fix session.** Nine of the ten items below are CLOSED; see the
+> DONE table in `handoff/NEXT.md` for the proof line on each. Still open: **item 1** (mint the
+> production licence key — founder only) and **item 9** (splitting `AgentCommands.swift`, which
+> was deliberately declined: 247 lines is inside this repo's own 200-400 guideline and its five
+> commands are all agent-adjacent, exactly as `FileCommands.swift` groups new/seed/note).
+>
+> Two corrections to what is written below, found by doing it:
+> · Area 5 says `Trial.recordPath` should be internal. It cannot be — it is the default-argument
+>   expression of PUBLIC functions, and Swift resolves those at every call site. It stays public
+>   with a comment saying so.
+> · Area 2 finding 3 counted THREE AppleScript-escape copies. There were FOUR — `Notify.swift:114`
+>   was missed, and it carried the same drifted `"` -> `'` mapping. All four now call
+>   `ChuteCore/AppleScript.swift`.
+>
+> The audit also missed two things this session found: `marketing/` was outside every gate (five
+> assets sold a command deleted on 2026-08-31), and `site/public/media/` served three recordings
+> of deleted features at live URLs. Both are now gated, not noted.
+
 Method: read-only. Every finding below carries a `file:line` or a command whose output proves it.
 Where a prior audit (`handoff/AUDIT-2026-08-28-*.md`, `docs/specs/review-*-FINDINGS.md`) made a
 claim, it was re-checked against the CURRENT tree rather than trusted — several were already fixed

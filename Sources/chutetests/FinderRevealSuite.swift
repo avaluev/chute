@@ -12,8 +12,8 @@ func finderRevealSuite() {
              "and so is the keystroke that starts the rename")
         // AppleScript is a string language: an unescaped quote in a path ends the literal early
         // and the rest of the path becomes code.
-        T.eq(FinderReveal.escape(#"/tmp/a"b"#), #"/tmp/a\"b"#, "a quote in a path is escaped")
-        T.eq(FinderReveal.escape(#"/tmp/a\b"#), #"/tmp/a\\b"#, "and so is a backslash")
+        T.eq(AppleScript.escape(#"/tmp/a"b"#), #"/tmp/a\"b"#, "a quote in a path is escaped")
+        T.eq(AppleScript.escape(#"/tmp/a\b"#), #"/tmp/a\\b"#, "and so is a backslash")
 
         let script = FinderReveal.revealScript(path: "/tmp/My File.md")
         T.ok(script.contains("reveal POSIX file \"/tmp/My File.md\""), "the file is revealed by path")

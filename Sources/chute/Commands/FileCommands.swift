@@ -56,6 +56,7 @@ func cmdSeed(_ a: Args) {
     let project = (dir as NSString).lastPathComponent
     let rules = a.value("rules", or: "claude,cursor,scratchpad").split(separator: ",").map(String.init)
     var written = 0
+    var failed = 0
     for rule in rules {
         guard let name = Templates.fileName(for: rule), let body = Templates.body(for: rule, project: project) else {
             Out.info("unknown rule '\(rule)' — known: \(Templates.all.joined(separator: ", "))")
@@ -67,11 +68,14 @@ func cmdSeed(_ a: Args) {
             continue
         }
         do { try body.write(toFile: path, atomically: true, encoding: .utf8) }
-        catch { Out.info("failed \(name): \(error.localizedDescription)"); continue }
+        catch { Out.info("failed \(name): \(error.localizedDescription)"); failed += 1; continue }
         Out.line("created \(path)")
         written += 1
     }
     Out.info("→ \(written) file(s) seeded")
+    // "0 seeded" reads as "nothing to do" — and it was, when every file already existed. When the
+    // writes were ATTEMPTED and all of them failed, exit 0 tells a script the opposite of the truth.
+    if written == 0 && failed > 0 { Out.fail("no rules could be written (\(failed) failed)") }
 }
 
 // MARK: - FR-16 scratchpad anchor

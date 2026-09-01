@@ -64,10 +64,4 @@ public enum SessionPhrasing {
         default:         return "\(seconds / 86_400) days"
         }
     }
-
-    public static func elide(_ s: String, _ max: Int = 34) -> String {
-        guard s.count > max else { return s }
-        let half = (max - 1) / 2
-        return String(s.prefix(half)) + "…" + String(s.suffix(half))
-    }
 }

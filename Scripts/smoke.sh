@@ -656,6 +656,25 @@ else
   bad "tokens TOTAL equals bundle's count" "could not parse (bundle='$BUNDLE_BADGE' tokens='$TOKENS_BADGE')"
 fi
 
+echo
+echo "25. licence scope"
+# A hand-kept list is not a gate — so this ASKS the tree. The root LICENSE is MIT and does not
+# cover Sources/ChuteApp or Sources/ChuteFinder (the paid app). A new source directory that
+# nobody names in LICENSE is either accidentally MIT-licensed or accidentally not; both are a
+# legal problem discovered at the worst possible moment. Adding a directory now fails here until
+# someone says which side of the split it is on.
+for d in "$ROOT"/Sources/*/; do
+  name="$(basename "$d")"
+  if grep -qF "Sources/$name/" "$ROOT/LICENSE"; then ok "LICENSE names Sources/$name"
+  else bad "LICENSE names Sources/$name" "add it to the scope note at the top of LICENSE"; fi
+done
+# Every directory the root LICENSE excludes must carry its own terms, or the exclusion says only
+# what the code is NOT licensed under and never what it IS.
+for name in ChuteApp ChuteFinder; do
+  if [ -f "$ROOT/Sources/$name/LICENSE" ]; then ok "Sources/$name carries its own LICENSE"
+  else bad "Sources/$name carries its own LICENSE" "missing"; fi
+done
+
 cd /; rm -rf "$T"
 echo
 echo "smoke: $PASS passed, $FAIL failed"

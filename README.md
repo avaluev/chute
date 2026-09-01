@@ -191,7 +191,7 @@ Chute is built to be trusted with a repo an agent is about to rampage through.
 
 ```bash
 swift build -c release                # build
-swift run chutetests                  # the unit suite
+swift run -c release chutetests       # the unit suite
 CHUTE_HEADLESS=1 ./Scripts/smoke.sh   # the CLI end to end, no GUI
 ./Scripts/smoke.sh                    # + the Finder/Terminal sections
 ./Scripts/build-app.sh                # assemble Chute.app, stamped with the git SHA
@@ -208,3 +208,21 @@ plain executable with an assert harness instead.
 
 Specs live in [`docs/`](docs/): business requirements, FR/NFR, the JTBD ledger, the customer
 journey map, and the definition of done.
+
+---
+
+## Licence
+
+Chute is open-core, and the split is in the files rather than only in this paragraph.
+
+| | |
+|---|---|
+| **MIT** | `Sources/chute/` (the CLI), `Sources/ChuteCore/`, `Sources/chutetests/`, `Scripts/`, and everything outside `Sources/` except `Resources/` |
+| **All rights reserved** | `Sources/ChuteApp/`, `Sources/ChuteFinder/`, `Resources/` — the paid app, each with its own `LICENSE` |
+
+The CLI is free and MIT, forever, and `install.sh` symlinks it straight out of the app bundle. The
+Finder right-click menu and the menu-bar session switcher are the $19 app: their source is
+published so it can be read and audited, not so it can be redistributed.
+
+The scope note at the top of [`LICENSE`](LICENSE) is the authoritative version, and
+`Scripts/smoke.sh` §25 fails if a new directory under `Sources/` is not named in it.
