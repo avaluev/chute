@@ -41,16 +41,12 @@ class ChuteFinderSync: FIFinderSync {
             atomically: true, encoding: .utf8)
     }
 
-    /// The folder an action applies to: the selected folder, the parent of a selected file, or the
-    /// folder whose background was right-clicked.
+    /// The folder an action applies to. The RULE is `ChuteCore.FinderTarget`, where a test can
+    /// read it; this end only asks Finder what is selected.
     private func targetFolder() -> (path: String, isFolder: Bool)? {
         let controller = FIFinderSyncController.default()
-        guard let url = controller.selectedItemURLs()?.first ?? controller.targetedURL() else { return nil }
-        var isDir: ObjCBool = false
-        guard FileManager.default.fileExists(atPath: url.path, isDirectory: &isDir) else { return nil }
-        return isDir.boolValue
-            ? (url.path, true)
-            : ((url.path as NSString).deletingLastPathComponent, false)
+        return FinderTarget.folder(selection: (controller.selectedItemURLs() ?? []).map(\.path),
+                                   targeted: controller.targetedURL()?.path)
     }
 
     // MARK: - Menu

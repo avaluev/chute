@@ -202,8 +202,41 @@ building it.**
 
 ---
 
+## THE RATCHET — read this before deferring a coverage finding again
+
+`Scripts/check-untested-logic.sh`, wired into `smoke.sh` §26 and therefore into CI.
+
+`chutetests` links ChuteCore only. `Sources/ChuteApp` and `Sources/ChuteFinder` have **zero** unit
+coverage. Two audits counted the decision points there and both named `ChuteFinderSync.run` as the
+highest-value extraction. **Both times it was ranked and deferred, including by me on
+2026-09-01.**
+
+On 2026-09-02 the founder selected 34 items in a Python project, chose **Copy Folder Tree ▸ All
+Levels**, and got thirteen `.pyc` files. One line:
+
+```swift
+controller.selectedItemURLs()?.first ?? controller.targetedURL()
+```
+
+It reads correctly. It is wrong for every multi-selection — `__pycache__` sorts first. 917
+assertions and 144 end-to-end checks were green, and not one of them could see that line.
+
+The rule that stops it recurring: **a file in those two targets may shrink freely and may never
+grow.** Baseline in `Scripts/untested-logic.txt`, currently **171 across 11 files**. A red run is
+not fixed by re-recording; it is fixed by moving the decision into ChuteCore as a pure function
+and testing it — the move `StatusMenu`, `ActionRequest`, `OnboardingSteps`, `ConfirmPrompt` and
+`FinderTarget` have all now made. Perturbing the old one-liner back takes ChuteFinderSync 20 → 22
+and goes red.
+
+**Next two extractions, in order**, both already sized by the audit: `SessionMenu.swift` (29 — the
+largest remaining) and `main.swift` (43, mostly wiring, but not all).
+
 ## TRAPS — paid for, repeatedly. Do not pay again
 
+- **A finding you wrote down and ranked is not a guard.** `ChuteFinderSync.run` was named as
+  untested by two audits and deferred by both, and the founder found the bug. If a finding is real
+  enough to rank, it is real enough to deserve a gate that makes it impossible to grow — even when
+  the fix itself waits.
 - **A note is not a gate.** `check-cases.mjs` printed "9 recordings no case refers to" for days.
   Three of them were videos of deleted features, publicly reachable. Nobody read the note.
 - **A hand-kept list is not a gate.** `check:claims` passed for a whole day while four files told

@@ -1,0 +1,11 @@
+10 Sources/ChuteApp/FirstRunWindow.swift
+9 Sources/ChuteApp/Notify.swift
+19 Sources/ChuteApp/Onboarding.swift
+1 Sources/ChuteApp/Panel.swift
+11 Sources/ChuteApp/RequestInbox.swift
+5 Sources/ChuteApp/ResultHUD.swift
+9 Sources/ChuteApp/ServersMenu.swift
+29 Sources/ChuteApp/SessionMenu.swift
+15 Sources/ChuteApp/SettingsWindow.swift
+43 Sources/ChuteApp/main.swift
+20 Sources/ChuteFinder/ChuteFinderSync.swift
