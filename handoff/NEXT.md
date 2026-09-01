@@ -111,10 +111,27 @@ they are back, the menu-bar badge stays dark and every session reads as idle:
 
 Chute does not write that file, here or anywhere. That is a standing decision, not an omission.
 
-## RESEARCH — two sourced documents, read before writing any launch copy
+## THE GTM MATERIAL — where each thing lives
 
-`docs/research/competitors.md` (400 lines) and `docs/research/gtm-tactics.md` (655 lines). Every
-claim is tagged `[VERIFIED]` / `[SECONDARY]` / `[UNVERIFIED]`. The three that change decisions:
+| File | What it is |
+|---|---|
+| `marketing/01-POSITIONING.md` | ICP, wedge, the motion-vs-judgement line every asset sits on |
+| `marketing/02-LANDING-COPY.md` | the words |
+| `marketing/03-LAUNCH-POSTS.md` | X, Show HN, PH, Reddit — post-for-post |
+| `marketing/04-PRICING-AND-DEMO.md` | price rationale, the 20-second demo shot list |
+| `marketing/05-CONTENT-CALENDAR.md` | the 30-day launch spike, with a blocking pre-flight gate |
+| `marketing/06-FACT-SHEET.md` | **every number, and the command that proves it.** One place. |
+| `marketing/07-WEBSITE.md` | site rebuild, the 10-shot screenshot plan, SEO/GEO/AIO |
+| `marketing/08-LINKEDIN.md` | 12 posts, full text — the 90-day compounding asset |
+
+**05 is the spike, 08 is the engine.** They share no copy on purpose: two copies of a claim drift
+the moment one is edited.
+
+## RESEARCH — five sourced documents, read before writing any launch copy
+
+Five files, 3,171 lines, every claim tagged `[VERIFIED]` / `[SECONDARY]` / `[UNVERIFIED]`:
+`competitors.md`, `gtm-tactics.md`, `solopreneur-ai-utilities.md`, `seo-geo-aio.md`, `linkedin.md`.
+The seven findings that change decisions:
 
 1. **Repo Prompt, the closest paid analogue, stopped charging 2026-05-27 and open-sourced
    2026-06-13.** Founder: *"increasingly challenging to convince someone that they should pay me
@@ -125,7 +142,22 @@ claim is tagged `[VERIFIED]` / `[SECONDARY]` / `[UNVERIFIED]`. The three that ch
 2. **`npx skills add <owner/repo>` reaches 17 agents from one repo**, claude-code and cursor among
    them — Chute's entire ICP, one artifact. This is the highest-leverage distribution move
    available and it is roughly a day's work. See `marketing/05-CONTENT-CALENDAR.md` §4a.
-3. **The $19-over-free answer is Downie** — a $19.99 one-time GUI over free `yt-dlp`, sold for
+3. **$19 is in an empty price band.** MAS clusters $3–$10, direct-sold clusters $25–$59, and
+   $15–$19 is unoccupied. The two closest comparables in kind — native, solo, one-time, AI
+   audience — both chose **$29**. Liftable: VoiceInk tiers by **Mac count, not features**
+   ($25/1, $39/2, $49/3, identical product). Chute's version: $19 one Mac / $29 three Macs.
+   **Founder's call.** Also: 7-day trial rather than 14 (value lands in ten seconds), and the
+   field's standard refund wording is "14-day money-back guarantee, no questions asked" — 30 days
+   appears only above $79, and the site currently offers 30.
+4. **Eight of eight competitor pages use a static screenshot hero. Not one uses a video.** The
+   site opens with an autoplaying mp4. The recordings stay — they are stopwatch races, which is
+   evidence — but they move below the fold. `marketing/07-WEBSITE.md` Part 1.
+5. **`"copy files for llm"` returns zero autocomplete suggestions.** The real demand cluster is
+   **"claude code context window full"** — people search the symptom, not the category. Write to
+   the symptom.
+6. **AlternativeTo has a 7-day account-age gate before you can submit.** Create the account today;
+   it is 90 seconds and everything else in SEO can wait behind it.
+7. **The $19-over-free answer is Downie** — a $19.99 one-time GUI over free `yt-dlp`, sold for
    years to people who know `yt-dlp` exists. Frequency, not capability. Never market on packing
    quality: repomix (28,148★) wins that outright and is free.
 
