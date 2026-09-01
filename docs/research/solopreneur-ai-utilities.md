@@ -11,7 +11,42 @@ Downie, Lunar, MagicMenu, Product Hunt / Show HN mechanics, agent-skills / `npx 
 - `[SECONDARY]` — an aggregator, third-party blog, or search snippet reported it.
 - `[UNVERIFIED]` — could not trace to a source. Do not put in a deck.
 
-STATUS: in progress — sections appended as research lands.
+---
+
+## 0. The eight things worth knowing (read this if you read nothing else)
+
+1. **Nobody is in Chute's slot.** No product anywhere puts file *contents* + a token count
+   on the clipboard from a Finder right-click. The nearest neighbour, **Pathly ($4.99, Mac
+   App Store)**, does the identical gesture for file *paths* and says in its own copy that
+   the point is "sharing paths with Claude & Codex." One noun away.
+2. **The slot next door is crowded and still supports paid products.** 20+ free Claude-Code
+   menu-bar apps (ClaudeBar alone has 1,443 stars) and **five paid ones alive alongside
+   them** — SessionWatcher $6.99, Conan $29, Agent Bar $5.04, AgentQuartz Pro $3. A free
+   flood does not kill a paid product in this niche. That is the single most encouraging
+   verified fact here.
+3. **Someone already built Chute's CLI and got 3 stars.** `context-root/code-clip` (March
+   2026) copies files to the clipboard with a token count and Claude XML. Abandoned since
+   2026-03-05. **The mechanism was never the moat; the gesture and the distribution are.**
+4. **Price: the field is bimodal by channel, and $19 is in an empty band.** Mac App Store
+   products cluster **$3–$10**; direct-sold products cluster **$25–$59**. The two closest
+   comparables in kind — **Conan $29** and **ChatWise $29**, both native, solo, one-time,
+   AI-audience — both landed on $29.
+5. **Steal VoiceInk's tier structure:** price by **number of Macs**, not by features.
+   $19 / 1 Mac, $29 / 3 Macs, identical product. It buys a higher tier with no feature
+   matrix and no crippled build.
+6. **The landing page spec is settled and repeats across 8/8 sites:** static screenshot of
+   the real UI as the hero (**no videos anywhere in this field**), noun-phrase headline
+   naming the surface, subhead doing the explaining, price + reassurance as one line under
+   the button, the words "once / forever / no subscription" spelled out, five numbered
+   feature screenshots, local-first stated explicitly, and a comparison page against the
+   *free/native* alternative rather than a rival.
+7. **Refund wording is standardised. Copy it verbatim:** "14-day money-back guarantee, no
+   questions asked." 14 days is the norm; 30 appears above $79. Note the Mac App Store
+   contractually forbids offering your own guarantee — one more reason to sell direct.
+8. **Nobody selling a small paid native macOS utility to AI builders publishes revenue.
+   Not one of the 22 products found.** The four public numbers here are three browser
+   extensions and one anonymous Acquire.com listing. Plan accordingly: there is no
+   comparable to model against, only a price distribution.
 
 ---
 

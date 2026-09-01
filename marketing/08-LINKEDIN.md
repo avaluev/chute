@@ -426,7 +426,7 @@ Real terminal, real numbers.
 > CPU from `ps -o pcpu` — a **lifetime average**. Read Chrome at 21.4% when a real one-second sample
 > said 0.5%.
 > Memory as summed RSS — counts shared pages once per process. A session is a tree of two dozen, so
-> it ran 1.8× high.
+> it ran 1.78x to 1.93x high — measured, not estimated.
 > CPU again, after the first fix: mach ticks read as nanoseconds. On Intel the timebase is 1/1, so
 > it is *correct on the machine most people write it on*. On Apple Silicon it under-reported by 24×.
 >
@@ -604,7 +604,8 @@ around someone else's exit reads badly.
 >
 > **A size claim hand-typed into eight files**, wrong since the bundle grew by 40%.
 >
-> 917 unit assertions and 172 end-to-end checks passed through all nine.
+> The suite was green through every one of them. It is about 900 unit assertions and about 170
+> end-to-end checks, and it has been green the whole time.
 >
 > That is not an argument against tests. It is the actual lesson: **a test suite tells you the code
 > does what you told it to do.** It cannot tell you that you told it the wrong thing, that the
