@@ -9,5 +9,5 @@ import Foundation
 /// `Scripts/build-app.sh` greps the literal below to stamp both Info.plists, so keep the
 /// declaration on one line and in this exact shape.
 public enum ChuteVersion {
-    public static let current = "0.2.0"
+    public static let current = "0.2.1"
 }

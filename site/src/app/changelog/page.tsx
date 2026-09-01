@@ -14,6 +14,18 @@ export const metadata: Metadata = {
 // 788 KB for the same binary. A bound stays true without anyone maintaining it.
 const RELEASES = [
   {
+    version: "0.2.1",
+    date: "2026-09-01",
+    notes: [
+      "The Finder menu is five rows, not eleven. Open in Terminal, Move Junk to Trash, Save Clipboard as Files, New Scratch Folder and Set Up for an Agent are gone — every one of them solved a problem a Claude Code or Cursor user does not have, because their agent already writes files and their OS already opens a terminal. The CLI still does all of it.",
+      "Add to Context Basket: collect files across several folders while you browse, then hand the whole set over at once. Nothing else on the Mac does this.",
+      "Four times faster. Copying a folder as context no longer starts a `git` subprocess to work out where the repository root is — 102.7 ms down to 24.7 ms on 40 files, and the token count went from 184.1 ms to 23.5 ms.",
+      "A third smaller. Stripping symbols before signing took the app from 3.3 MB to 2.4 MB, and the download to 1.6 MB.",
+      "The app now carries the entitlement it needs to talk to Finder under macOS's hardened runtime, and the Finder extension's sandbox exception is scoped to ~/.chute instead of the whole filesystem.",
+      "`chute sessions` and `chute seed` now exit non-zero when they fail. Both used to report success after a permission denial or a failed write.",
+    ],
+  },
+  {
     version: "0.2.0",
     date: "2026-08-28",
     notes: [
