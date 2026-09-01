@@ -61,6 +61,24 @@ fi
 [ -f "$BASELINE" ] || { echo "check-untested-logic: no baseline — run with --record" >&2; exit 1; }
 
 FAIL=0
+
+# ── A TEST MUST NOT REACH THE OWNER'S OWN DATA ──────────────────────────────────────────────
+# `ContextBuffer()` with no argument resolves to ~/.chute/buffer — the real basket. A suite that
+# constructs one and calls .clear() deletes what the owner collected. This is in the handoff's
+# TRAPS list, it was fixed once with CHUTE_BUFFER_DIR, and on 2026-09-02 it was walked into again
+# by a new test block. A trap you have already paid for twice deserves a grep.
+# Comments stripped first, or this check fires on the sentence explaining it — which it did, on
+# its very first run. A gate that flags its own documentation is a gate people learn to ignore.
+BAD_BUF="$(for f in "$ROOT"/Sources/chutetests/*.swift; do
+             sed 's://.*::' "$f" | grep -n 'ContextBuffer()' | sed "s|^|${f#"$ROOT/"}:|"
+           done)"
+if [ -n "$BAD_BUF" ]; then
+  echo "  FAIL a test constructs ContextBuffer() with no directory — that is the owner's real basket"
+  echo "$BAD_BUF" | sed 's/^/       /'
+  echo "       Use ContextBuffer(directory: <a temp dir>), as every other case in that file does."
+  FAIL=$((FAIL+1))
+fi
+
 NOW="$(mktemp)"; measure > "$NOW"; trap 'rm -f "$NOW"' EXIT
 
 while read -r was file; do

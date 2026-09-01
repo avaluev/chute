@@ -131,9 +131,14 @@ func statusMenuSuite() {
         let dir = NSTemporaryDirectory() + "chute-menu-\(UUID().uuidString)"
         defer { try? FileManager.default.removeItem(atPath: dir) }
         let buf = ContextBuffer(directory: dir)
-        buf.add("/tmp/chute-menu-fixture-a.ts")
-        buf.add("/tmp/chute-menu-fixture-b.ts")
-        buf.add("/tmp/chute-menu-fixture-c.ts")
+        // CREATED, ADDED, THEN DELETED — which is the scenario the "— missing" row exists for.
+        // These were three paths that had never existed, which worked only because `add` did not
+        // check. It does now (a path that never existed is a different thing from a file that
+        // vanished afterwards), and this fixture is the honest version of what it was testing.
+        let fixtures = ["a", "b", "c"].map { dir + "-fixture-\($0).ts" }
+        for f in fixtures { FileManager.default.createFile(atPath: f, contents: Data("x".utf8)) }
+        for f in fixtures { _ = buf.add(f) }
+        for f in fixtures { try? FileManager.default.removeItem(atPath: f) }
         let entries = buf.entries().reversed().map { $0 }
 
         let withBasket = StatusMenu.model(sessions: live, trial: .licensed(email: "a@b.c"),
@@ -146,7 +151,7 @@ func statusMenuSuite() {
             T.ok(false, "Basket owns a submenu"); return
         }
         let rowTitles = rows.filter { $0.kind != .separator }.map(\.title)
-        T.ok(rowTitles.contains { $0.contains("chute-menu-fixture-a.ts") },
+        T.ok(rowTitles.contains { $0.contains("-fixture-a.ts") },
              "a row is named for the file it is")
         T.ok(rowTitles.contains { $0.contains("— missing") },
              "and says so when the path no longer exists on disk, rather than dropping the row")

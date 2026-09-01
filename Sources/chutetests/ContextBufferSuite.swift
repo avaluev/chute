@@ -62,11 +62,21 @@ func contextBufferSuite() {
         //
         // Rule 4: a refusal is not a zero. `entries()` must not silently filter a path that no
         // longer exists on disk — it must still be there, saying so.
+        // TWO CONTRACTS, and this assertion used to conflate them. It said "a path that was never
+        // on disk is still a held entry" — and that is precisely what let
+        // `chute basket add /tmp/typo.ts` answer "→ added 1 — 1 in the basket" and exit 0.
+        // Rule 4 is about `entries()`, which must never silently drop a row; it is not a licence
+        // for `add()` to accept a path that does not exist. Split, 2026-09-02:
         buf.clear()
-        let gone = filesDir + "/never-existed.ts"
-        buf.add(gone)
-        T.eq(buf.entries().count, 1, "a path that was never on disk is still a held entry")
+        let gone = filesDir + "/vanishes.ts"
+        fm.createFile(atPath: gone, contents: Data("x".utf8))
+        _ = buf.add(gone)
+        try? fm.removeItem(atPath: gone)
+        T.eq(buf.entries().count, 1, "a file that vanishes after it was added is still a held entry")
         T.ok(buf.entries().first?.preview.hasSuffix("— missing") == true, "and its row says it is gone")
+        T.eq(buf.add(filesDir + "/never-existed.ts") == nil, true,
+             "but a path that was NEVER on disk is refused at the door")
+        T.eq(buf.entries().count, 1, "and does not become a row")
 
         // ── OLD-FORMAT AND MALFORMED FILES: IGNORED, NOT CRASHED ON ────────────────────────
         //
@@ -107,7 +117,12 @@ func contextBufferSuite() {
         //
         // A path costs nothing to store, but a basket that never forgets is a junk drawer, not
         // an active collection.
-        for i in 0..<20 { buf.add("/tmp/fake-\(i)-\(UUID().uuidString).txt") }
+        // Real files, because `add` validates existence now. Twenty of them, deleted straight
+        // after, so the cap is exercised without leaving litter in /tmp.
+        let bounded = (0..<20).map { filesDir + "/bounded-\($0).txt" }
+        for f in bounded { fm.createFile(atPath: f, contents: Data("x".utf8)) }
+        for f in bounded { _ = buf.add(f) }
+        for f in bounded { try? fm.removeItem(atPath: f) }
         T.eq(buf.entries().count, ContextBuffer.keep, "it keeps the last \(ContextBuffer.keep), not everything")
 
         // ── NOT WORLD-READABLE ──────────────────────────────────────────────────────────────
@@ -136,5 +151,30 @@ func contextBufferSuite() {
              "the basket is the real one, or somewhere under the temp directory — never elsewhere")
         T.ok(ContextBuffer.home.hasPrefix(NSHomeDirectory()),
              "and the real one is inside this user's home")
-    }
+    
+        // BOUNDARY VALIDATION, added 2026-09-02 after the acceptance run. A basket entry is a
+        // PATH, so a file that vanishes AFTER being added is legitimately "— missing" at
+        // hand-over — but a path that NEVER existed is a different thing, and
+        // `chute basket add /tmp/typo.ts` used to answer "→ added 1 — 1 in the basket", exit 0.
+        // ISOLATED, like every other buffer in this file. The first version of this block used a
+        // bare `ContextBuffer()` and called `.clear()` on it — which is the OWNER'S REAL BASKET.
+        // The handoff already carries this exact trap ("the basket tests cleared his real basket
+        // until CHUTE_BUFFER_DIR was added") and it was walked into again anyway, so
+        // `Scripts/check-untested-logic.sh --tests` now refuses a no-argument ContextBuffer
+        // anywhere under Sources/chutetests.
+        let ghostDir = NSTemporaryDirectory() + "chute-buf-ghost-\(UUID().uuidString)"
+        defer { try? FileManager.default.removeItem(atPath: ghostDir) }
+        let ghostBuf = ContextBuffer(directory: ghostDir)
+        T.eq(ghostBuf.add("/tmp/chute-no-such-file-\(UUID().uuidString).ts") == nil, true,
+             "a path that does not exist is refused rather than stored")
+        T.eq(ghostBuf.entries().count, 0, "and nothing lands in the basket")
+        let realFile = NSTemporaryDirectory() + "chute-basket-real-\(UUID().uuidString).ts"
+        FileManager.default.createFile(atPath: realFile, contents: Data("x".utf8))
+        T.eq(ghostBuf.add(realFile) != nil, true, "a file that exists still goes in")
+        // And once it is gone, the entry stays — that is the design — but the text is empty,
+        // which is what `basket copy` now refuses to report as success.
+        try? FileManager.default.removeItem(atPath: realFile)
+        T.eq(ghostBuf.entries().count, 1, "the entry survives the file, by design")
+        T.eq(ghostBuf.bundleText()?.isEmpty, true, "and yields no content to hand over")
+}
 }

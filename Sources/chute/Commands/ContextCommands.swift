@@ -122,11 +122,17 @@ func cmdBasket(_ a: Args) {
         // when nothing was added. The same rule the metrics work is built on, pointing the other
         // way: a failure is not a success.
         let before = Set(buf.entries().map(\.path))
+        // Two different failures, and telling them apart is the whole point of reporting at all.
+        // "could not add anything — is the basket writable?" was printed for a path that simply
+        // did not exist, which sends the reader to check permissions on a directory that is fine.
+        let missing = paths.filter { !FileManager.default.fileExists(atPath: $0) }
         let failed = paths.filter { buf.add($0) == nil }
         let added = buf.entries().filter { !before.contains($0.path) }.count
         let already = paths.count - added - failed.count
         guard failed.count < paths.count else {
-            Out.fail("could not add anything to the basket — is \(buf.directory) writable?")
+            Out.fail(missing.count == paths.count
+                ? "no such file: \(missing.joined(separator: ", "))"
+                : "could not add anything to the basket — is \(buf.directory) writable?")
         }
         var said = "→ added \(added)"
         if already > 0 { said += " · \(already) already there" }
@@ -139,11 +145,19 @@ func cmdBasket(_ a: Args) {
         for (i, e) in entries.enumerated() { Out.line("\(i + 1). \(e.preview)") }
     // Two formats, the ICP decision: @-mentions for the Claude Code / Cursor user who has
     // filesystem access and just needs paths pointed at; `--format context` for the chat-UI
-    // persona `chute unpack` still serves, carrying its own token count.
+    // persona who pastes into a browser, carrying its own token count. (This comment named
+    // `chute unpack` until 2026-09-02; that command was deleted on 2026-08-31.)
     case "copy":
         guard !buf.entries().isEmpty else { Out.fail("basket is empty") }
         if a.value("format", or: "mentions") == "context" {
             let text = buf.bundleText() ?? ""
+            // EVERY ENTRY GONE IS NOT AN EMPTY BASKET, and it must not read as success. Because a
+            // basket holds paths, a file can vanish between `add` and `copy`; `basket list` marks
+            // those "— missing", but this branch handed over an empty blob and announced
+            // "→ 2 file(s) · ~0 tokens", exit 0. The user pastes nothing and is told it worked.
+            guard !text.isEmpty else {
+                Out.fail("every file in the basket is gone — `chute basket list` shows which")
+            }
             Out.deliver(text, a,
                         badge: "\(buf.entries().count) file(s) · \(TokenEstimate.badge(TokenEstimate.tokens(in: text)))",
                         label: "Basket as Context")
