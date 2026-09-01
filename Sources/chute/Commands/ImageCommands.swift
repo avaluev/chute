@@ -31,7 +31,13 @@ func cmdPasteImage(_ a: Args) {
     Clipboard.write(path)
     Out.line(path)
 
-    guard !a.has("no-rename") else {
+    // TWO REASONS NOT TO CHASE A RENAME, and they take the same exit. `--no-rename` is the user
+    // asking; CHUTE_HEADLESS is there being no Finder to rename in. Measured 2026-09-02: without
+    // the second clause, `CHUTE_HEADLESS=1 chute paste-image` printed "rename it" and then polled
+    // for the full 90 seconds for a rename that could not happen — on a CI runner that is a
+    // minute and a half per invocation, and it is the same failure FinderReveal.isHeadless was
+    // introduced to fix, one line further down.
+    guard !a.has("no-rename"), !FinderReveal.isHeadless else {
         Out.info("→ saved · path copied")
         return
     }
