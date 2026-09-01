@@ -198,5 +198,24 @@ ghosts.size
   ? bad(`${ghosts.size} place(s) show a chute command that does not exist`, [...ghosts].join("; "))
   : ok(`every documented chute command is in the dispatch (${known.size} live)`)
 
+// ── the sitemap must cover the site that was actually built ─────────────────────────────────
+// `sitemap.ts` derives the 19 case URLs from CASES, but its list of STATIC routes is hand-typed —
+// so a new page under src/app is invisible to every crawler until someone remembers. This asks
+// the BUILD OUTPUT instead: every rendered page must be in the sitemap, and every sitemap entry
+// must be a page that exists. Neither half can rot without going red.
+try {
+  const xml = readFileSync(join(OUT, "sitemap.xml"), "utf8")
+  const listed = new Set([...xml.matchAll(/<loc>([^<]+)<\/loc>/g)]
+    .map((m) => m[1].replace(/^https?:\/\/[^/]+/, "")))
+  const built = HTML.map(([p]) => p.replace(/index\.html$/, ""))
+    // Next renders its own 404 at /_not-found/; a sitemap must never advertise an error page.
+    .filter((p) => !p.startsWith("/404") && !p.startsWith("/_not-found"))
+  const missing = built.filter((p) => !listed.has(p))
+  const phantom = [...listed].filter((p) => !built.includes(p))
+  if (missing.length) bad(`${missing.length} built page(s) are not in sitemap.xml`, missing.join(", "))
+  if (phantom.length) bad(`${phantom.length} sitemap entr(ies) point at nothing`, phantom.join(", "))
+  if (!missing.length && !phantom.length) ok(`sitemap.xml covers all ${built.length} built pages`)
+} catch { bad("sitemap.xml was read", "not found in out/ — is `next build` current?") }
+
 console.log(`\nclaims: ${failed ? `${failed} failed` : "every claim on the site is one the fact sheet stands behind"}`)
 process.exit(failed ? 1 : 0)
