@@ -163,6 +163,13 @@ for (const f of readdirSync(REPO + "docs")) {
     md.push([`docs/${f}`, readFileSync(REPO + "docs/" + f, "utf8")])
   }
 }
+// marketing/ WAS NOT SCANNED until 2026-09-01, and that is the whole reason five assets — the
+// positioning, the landing copy, the launch posts, the demo script and the calendar — still sold
+// `chute unpack` a day after it was deleted, with every gate green. The launch material is a
+// place a claim reaches a stranger; it belongs inside the gate, not beside it.
+for (const f of readdirSync(REPO + "marketing")) {
+  if (f.endsWith(".md")) md.push([`marketing/${f}`, readFileSync(REPO + "marketing/" + f, "utf8")])
+}
 for (const [where, text] of md) {
   for (const m of text.matchAll(/`([^`\n]+)`/g)) spans.push([where, m[1]])
   for (const m of text.matchAll(/```[a-z]*\n([\s\S]*?)```/g)) spans.push([where, m[1]])

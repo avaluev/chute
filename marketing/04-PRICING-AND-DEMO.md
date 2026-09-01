@@ -16,13 +16,17 @@ Rationale: Developer ID and notarization are now in place; the trust premise sup
 **Refund:** 30 days, no questions. Say so on the button.
 
 ## Demo video — 20 seconds, no narration
+
+> Rewritten 2026-09-01: the 10–14 s shot was *Unpack Markdown Here*, a command deleted on
+> 2026-08-31. The replacement shots are the Basket and the menu bar — the two surfaces nothing
+> else on the Mac ships, which is what a demo is for.
 | Time | Shot |
 |---|---|
 | 0–3 s | Finder, 8 TypeScript files selected. Right-click. |
 | 3–6 s | *Services ▸ Chute – Bundle Context (XML)*. Notification: "8 files · ~14k tokens". |
 | 6–10 s | Cut to Claude Code. ⌘V. The whole codebase lands in one message. |
-| 10–14 s | Cut back to Finder. Agent's answer on the clipboard → *Chute – Unpack Markdown Here* → preview list → `--force` → four files appear. |
-| 14–18 s | `chute checkpoint .` → `chute sandbox spike --yolo` → Terminal opens with claude already running. |
+| 10–14 s | Cut back to Finder, a DIFFERENT folder. Right-click → *Add to Context Basket*. Then a third folder, same thing. Menu bar → *Copy Basket as @mentions* → ⌘V. Three folders, one hand-over. |
+| 14–18 s | Menu bar opens: five terminals, one badged as waiting. Click it — that window comes forward. |
 | 18–20 s | Wordmark: **Chute — drop context into your agent.** chutedev.com · free 14-day trial, then $19. |
 
 Rules: real speed, no time-lapse. No cursor highlights, no zoom effects, no music.

@@ -1,6 +1,6 @@
 # Fact sheet — every claim, and the command that proves it
 
-**Measured 2026-08-31. Re-measure before quoting; never copy a number forward.**
+**Measured 2026-09-01. Re-measure before quoting; never copy a number forward.**
 
 > This file went stale within four hours of being written: it said `0.1.0` while the build said
 > `0.2.0`. That is not an argument against the file, it is the argument for it — the version was
@@ -58,8 +58,8 @@ more credible than the absolute one, and it survives someone reading the source.
 
 | Gate | Result | Command |
 |---|---|---|
-| Unit assertions | **898 passed** | `swift run chutetests` |
-| End-to-end | **137 passed** headless, **165** full | `CHUTE_HEADLESS=1 ./Scripts/smoke.sh` |
+| Unit assertions | **911 passed** | `swift run -c release chutetests` |
+| End-to-end | **144 passed** headless, **172** full | `CHUTE_HEADLESS=1 ./Scripts/smoke.sh` |
 | Metrics plausibility | **4 checks** — magnitude, not shape | `./Scripts/check-metrics.sh` |
 | Terminal tapes | **16** (12 hand-written, 4 generated from cases.ts) | `ls demo/tapes/*.tape \| wc -l` |
 | GUI tapes | **5** hand-written | `ls demo/gui/tapes/*.sh \| wc -l` |

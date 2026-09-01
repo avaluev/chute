@@ -1,61 +1,107 @@
 # Positioning — Chute
 
+> Rewritten 2026-09-01. The previous version sold `unpack` — "paste an answer back, get real
+> files" — as the headline. That command was deleted on 2026-08-31 because the ICP's agent
+> already writes files to disk. Three assets kept selling it for a day. See §Gate at the bottom.
+
+## Who this is for, and it is not "Mac users"
+
+**People who drive Claude Code or Cursor all day.** Their agent already reads and writes files.
+That single fact deletes most of what a general-purpose right-click suite sells, and it is the
+reason six Finder rows were removed rather than polished (`handoff/HANDOFF-2026-08-31-icp.md`).
+
+What is left is the part the agent CANNOT do for them: **telling it which files to look at.**
+The agent can read anything once it is pointed at it. Pointing is manual, it happens dozens of
+times a day, and nobody has automated it.
+
 ## One line
-**Chute — drop context into your agent.**
+
+**Chute — point your agent at the files, in one right-click.**
 
 ## One paragraph
-Chute is a macOS app for people who spend their day driving coding agents. Right-click a folder
-in Finder and every file inside it is on your clipboard as one blob with a token count.
-Right-click again and an agent's multi-file answer becomes real files — after it shows you the
-list. The menu bar tells you which of your nine terminals is actually waiting for you. It is
-offline, has no account, and costs one payment. The command-line tool underneath is free and
-MIT forever, and it is how you check the claim before you pay it.
+
+You already have an agent that can read your whole repo. You spend your day telling it *which
+part*. Chute puts that in the Finder right-click: select the folders, click once, and every file
+inside is on your clipboard as one blob with a token count — 17 times a day, 150 seconds down to
+5. It is a 2.5 MB macOS app with no account, no subscription and no network code. The `chute`
+CLI underneath is free and MIT forever, which is how you check every claim on this page before
+you pay for any of it.
+
+## The wedge — one job, one number
+
+**Copy Files as Context.** 17×/day · 150 s by hand · 5 s with Chute · **41.1 min/day.**
+
+That is over half the app's entire value in one menu row, and it is the row that makes someone
+say *do that again*. Every asset leads with it. Nothing else goes above it.
+
+Second: **Add to Context Basket** (8.2 min/day) — collect files from several folders across
+several minutes, then hand the set over at once. It is the only row in the menu that nothing
+else on the Mac ships, which makes it the demo that cannot be answered with "I'd script that".
 
 ## Category
-Not a "right-click enhancer". Not a file manager. **Context plumbing for agent workflows.**
-The category framing matters: every competitor sells Windows-style context menus to general Mac
-users. Chute sells minutes back to people who bill by the hour and run five agents at once.
 
-## The wedge
-`chute bundle` — select eight files, get one XML blob with a token count on the clipboard.
-Nobody else does this. It is the single largest time saving in the ledger (41 min/day) and it is
-the thing that makes someone say "wait, do that again".
+Not a context-menu suite. Not a file manager. **The pointing layer for coding agents.**
+Every competitor sells Windows-style right-click menus to general Mac users who existed before
+agents did. Chute sells minutes to people who bill by the hour and run five agents at once.
 
 ## Positioning statement
-> For AI product builders who run coding agents all day, **Chute.app** is a macOS app that turns
-> your Finder selection into agent-ready context and turns agent output back into files. Unlike
-> context-menu suites like MagicMenu or iRightMouse, which were designed for general Mac users
-> before agents existed, Chute is built for one loop: context in, artifacts out.
 
-**The app is the product; the CLI is the sample.** Decided 2026-08-28, replacing the two-wave
-launch in `05-CONTENT-CALENDAR.md`. The free CLI led the old plan for eight days, which trained
-the audience to want the free thing and then asked them to pay for it. It stays free and MIT
-forever — it is the proof, the objection-handler and the trial-substitute for the sceptic — but
-it is a footnote in the hero and one page at `/cli`, not the launch.
+> For developers who run Claude Code or Cursor all day, **Chute** puts "here are the files" in
+> the Finder right-click, where their hands already are. Unlike context-menu suites like
+> MagicMenu or iRightMouse — designed for general Mac users before agents existed — Chute does
+> one loop: point the agent at the files, without typing a path.
 
-**What makes this defensible now:** the four highest-value jobs in the ledger — unpack (28.5
-min/day), seed (9.9), sandbox (7.3), clean (6.6) — were CLI-only until 2026-08-28. The app
-demonstrated ~73 min/day while the free tool demonstrated ~125, so a buyer's own arithmetic told
-them not to buy. It is now **130.7 min/day for the app against 86.8 for the CLI**, and
-`site/scripts/check-cases.mjs` fails the deploy if that ever inverts again.
+**The app is the product; the CLI is the proof.** Decided 2026-08-28. The free CLI led the plan
+for eight days, which trained the audience to want the free thing and then asked them to pay for
+it. It stays free and MIT forever — it is the objection-handler, the audit trail and the
+trial-substitute for the sceptic — but it is a footnote in the hero and one page at `/cli`.
+
+## The honest arithmetic, which is also the sales argument
+
+| Surface | Min/day | What it is |
+|---|---|---|
+| Finder menu | 75.8 | 5 rows, 9 actions — the paid app |
+| Menu bar | 4.9 | which agent is waiting, zombie ports |
+| **App total** | **80.7** | **the number on the page** |
+| Free MIT CLI | 75.3 | yours for nothing, forever |
+| All 19 jobs | 156.0 | never quote this at a buyer |
+
+Derived from `site/src/lib/cases.ts`; `site/scripts/check-cases.mjs` fails the deploy if it
+drifts from `docs/03-JTBD-LEDGER.md`. **Never quote 156.** Two thirds of it is free, a buyer
+does that arithmetic in his head, and the answer he reaches is "so don't buy it."
 
 ## Proof points
-| Claim | Evidence |
+
+| Claim | Evidence anyone can run |
 |---|---|
-| The app saves 130.7 min/day | `site/src/lib/cases.ts`, re-derived from `docs/03-JTBD-LEDGER.md` on every build |
-| Safe with your repo | Preview-by-default, path-traversal refusal, checkpoint that cannot touch your worktree |
-| Actually private | No network code except the gist command you invoke yourself |
-| Not bloatware | 2.5 MB app, zero dependencies, no launch daemon, no background service |
+| ~80 minutes a day | `site/src/lib/cases.ts`, re-derived from the ledger on every build |
+| Safe in a repo an agent is about to rewrite | Preview-by-default, `clean` moves to Trash, `checkpoint` can only ever add a branch |
+| Actually private | Zero network code except the `gist` command you invoke yourself |
+| Not bloatware | 2.5 MB, zero third-party dependencies, no launch daemon, no background service |
+| The claims are checkable | 911 unit assertions · 172 end-to-end · CI on macOS 13/14/15 |
 
 ## Objections
+
 | They say | Answer |
 |---|---|
-| "Raycast already does this" | Raycast is a launcher overlay. Chute lives where the files are — the Finder right-click — and knows what an agent needs. |
-| "I'll write a shell script" | You will write four, forget the flags, and never handle binaries, token counts, or path traversal. Free 14-day trial. |
+| "My agent can already read files." | Yes. It cannot decide *which* ones. That is the 41 minutes. |
+| "I'd just type `@src/`." | Then type it 17 times today. Chute is one click for eight files in three folders, with the token count before you paste. |
+| "Raycast already does this." | Raycast is a launcher overlay. Chute lives where the files are — the Finder right-click — and knows what an agent needs. |
+| "I'll write a shell script." | You'll write four, forget the flags, and never handle binaries, token counts or path traversal. The script is `chute`, it's MIT, and it's free — take it. |
 | "Another subscription?" | One payment. No account. Works offline forever. |
-| "So the paid bit is just a right-click menu?" | Yes — that is the honest answer, and it is worth $19 because the free tool does all of it and you still won't type those paths 32 times a day. A signed, sandboxed Finder extension is also the one part you cannot reasonably build yourself. |
-| "Unsigned app?" | Fair — v0.1 is direct-download. Notarization ships with the launch build; do not launch before it. |
+| "So the paid bit is a right-click menu?" | Yes, and that is the honest answer. The free CLI does all of it and you still won't type those paths 32 times a day. A sandboxed Finder extension is also the one part you cannot reasonably build yourself. |
 
 ## Voice
-Terse. Concrete. Numbers over adjectives. Never say "revolutionary", "seamless", "powerful".
+
+Terse. Concrete. Numbers over adjectives. Banned words are enforced, not advised — the list is in
+`marketing/06-FACT-SHEET.md` and `site/scripts/check-claims.mjs` fails the deploy on any of them.
 Show a 20-second screen recording instead of a feature list.
+
+**Structural rule that matters more than any word list: pain before product.** No section, post
+or page opens with a command name.
+
+## Gate
+
+Every `chute <command>` named in `marketing/*.md` is now checked against the CLI's dispatch switch
+by `site/scripts/check-claims.mjs`. That file used to scan `README.md` and `docs/` only, which is
+exactly why five marketing assets sold a deleted command for a day with every gate green.

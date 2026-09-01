@@ -149,12 +149,19 @@ try {
   // A .webm is never named by a case: `demo` points at the mp4 and components/case-bits.tsx
   // derives the webm as the first <source>. Counting it as unreferenced prints a note that can
   // never be actioned, and a check that always complains is a check nobody reads.
+  // A NOTE, NOT A GATE, until 2026-09-01 — and it printed one for nine files that recorded three
+  // DELETED features. public/media is served, so /media/turn-an-answer-back-into-files.mp4 was a
+  // live URL demonstrating a command the product no longer has. A note nobody reads is not a
+  // check; this fails now. Posters count too — the .jpg was outside the old pattern, which is why
+  // three of them survived the sweep that removed their videos.
   const orphans = readdirSync(MEDIA)
-    .filter((f) => /\.(gif|mp4|webm)$/.test(f) && !f.startsWith("card-") && f !== "og.png")
-    .filter((f) => !referenced.has(f) && !referenced.has(f.replace(/\.webm$/, ".mp4")))
+    .filter((f) => /\.(gif|mp4|webm|jpg)$/.test(f) && !f.startsWith("card-") && f !== "og.png")
+    .filter((f) => !referenced.has(f) && !referenced.has(f.replace(/\.(webm|jpg)$/, ".mp4")))
   if (orphans.length) {
-    console.log(`  note ${orphans.length} recording(s) in public/media that no case refers to:`)
-    console.log(`       ${orphans.join(", ")}`)
+    bad(`${orphans.length} file(s) in public/media that no case refers to`,
+        `${orphans.join(", ")} — delete them, or give the case a demo that points at them`)
+  } else {
+    ok("every recording in public/media has a case behind it")
   }
 } catch { /* no media directory yet */ }
 

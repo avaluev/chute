@@ -1,216 +1,190 @@
-# Content calendar — Chute
+# GTM campaign — Chute
 
-Voice lock: terse, concrete, numbers over adjectives. Never *seamless, powerful, revolutionary,
-supercharge, effortlessly*. No invented metrics, no invented testimonials, no fake urgency.
-Every row below names the exact asset it ships with — a row with no asset does not get made.
+> Rewritten 2026-09-01. The previous calendar scheduled `turn-an-answer-back-into-files.mp4` on
+> two separate days and wrote copy around the `unpack` command in four places. That command was deleted
+> 2026-08-31; the recording was deleted 2026-09-01 along with the two other phantom demos that
+> were still publicly reachable at `chutedev.com/media/`. `site/scripts/check-claims.mjs` now
+> scans `marketing/` and `check-cases.mjs` now FAILS on an unreferenced recording, so this class
+> of rot cannot get past a deploy again.
 
-Existing drafts in `/Users/sxope/Documents/2026/Development/37.chute/marketing/03-LAUNCH-POSTS.md`
-(X demo post, Show HN, Product Hunt, r/macapps) are **scheduled by reference below, not rewritten** —
-two copies of the same claim drift apart the moment one gets edited.
+**Voice lock:** terse, concrete, numbers over adjectives. Never *seamless, powerful,
+revolutionary, supercharge, effortlessly, unlock, elevate, game-changing, blazing fast, 10x* —
+enforced by `check:claims`, not remembered. No invented metrics, no invented testimonials, no
+fake urgency, no fake scarcity, no countdown timers. **Pain before product: no post opens with a
+command name.**
 
-## 1. One wave, app-first
+**The assets rule, which is the one that kept this file honest:** every row below names the exact
+file it ships with. **A row with no asset does not get made.** Copy is scheduled *by reference*
+to `marketing/03-LAUNCH-POSTS.md` and never rewritten here — two copies of a claim drift apart
+the moment one is edited.
 
-**SUPERSEDED 2026-08-28.** This file used to run two waves: the free CLI carried days 1–8 on its
-own, and the paid app followed on day 9. It was the right plan for a product whose paid surface
-demonstrated less of the ledger than its free one — which was true until the four Finder actions
-landed. It is no longer true, and the two-wave shape had a cost that was always going to be
-paid: **eight days of teaching an audience to want the free thing, then asking them for $19.**
+---
 
-One wave now, `App+N` throughout, where **App+0 is the day the notarized DMG and the live Paddle
-checkout both exist.** Not one of them — both. A launch post pointing at a Gatekeeper wall, or at
-a Buy button that opens nothing, spends the only attention this product gets on a broken funnel.
+## 0. The three bets this campaign makes
 
-The CLI has not been demoted in the product, only in the sequence. It stays free, MIT and
-complete; it is the hero's second line, the whole of `/cli`, and the answer to every "this should
-be free" reply. It re-enters the calendar at App+16 as top-of-funnel, where it belongs.
+**Bet 1 — one job, not nine.** Every asset leads with *Copy Files as Context*: 17×/day, 150 s → 5 s,
+**41.1 min/day**. That single row is over half the app's value. The other four rows are the answer
+to "what else", never the opening.
 
-**If the certificate slips, nothing ships.** That is the deliberate difference from the old plan,
-which kept Wave 0 running so something was always going out. Posting CLI content into the silence
-before an app launch is how you arrive at App+0 having already spent the audience.
+**Bet 2 — go where the ICP already is, not where marketers go.** The buyer runs Claude Code or
+Cursor. He is in a terminal, a GitHub repo, an agent's plugin list and two subreddits. He is not
+browsing Product Hunt for a context-menu utility. §4 is the aggressive half of this plan and it
+is the half the old calendar did not have.
 
-## 2. Day-by-day
+**Bet 3 — the free MIT CLI is the ad, and the app is the product.** Not a contradiction, a
+sequence: the CLI proves every number for free, in a terminal, with no trial and no account, and
+a person who has run `chute bundle` once has already had the demo. The app sells the thing the
+CLI cannot be — the right-click where his hands already are.
 
-| Day | Channel | Asset | Job | Worked if |
+---
+
+## 1. PRE-FLIGHT — blocking, none of §2 starts until all of these are true
+
+| # | Gate | Command / proof | State 2026-09-01 |
+|---|---|---|---|
+| 1 | You can take money | Paddle live, one real card charged and refunded | **not done** |
+| 2 | A key actually unlocks | `Sources/ChuteCore/License.swift:28` is a real base64 key, not `REPLACE_ME_BEFORE_RELEASE` | **not done — every buyer's key fails silently until this lands** |
+| 3 | The link resolves | `dig +short chutedev.com` returns an address | **not done** |
+| 4 | The download is not a scary dialog | Apple Developer enrolment ($99), Developer ID, notarised | **not done** |
+| 5 | The numbers are measured, not estimated | `./demo/gui/by-hand.sh` — 3 min, founder only | **not done** |
+| 6 | Cold install on a second Mac | Download the DMG, drag, launch, right-click, see the menu. Buy with a real card, receive the key, activate, refund yourself. | — |
+| 7 | Every gate green | 911 unit · 172 e2e · 4 metrics · 19 cases · claims · demo lint | **green** |
+
+Runbook for 1–4: `docs/11-PHASE-0-RUNBOOK.md`. **Gate 2 is the one that silently destroys a
+launch** — `Scripts/release.sh` now refuses to build past the placeholder, which is the only
+reason it cannot ship. Gate 5 is what turns every number in §2 from a claim into a measurement,
+and it costs three minutes.
+
+---
+
+## 2. The 30 days
+
+One wave, app-first. `D+0` = launch day. Every row: what ships, the asset path, and **what
+"worked" means** — a row with no success criterion is a row nobody can learn from.
+
+| Day | Channel | Asset | The job | Worked if |
 |---|---|---|---|---|
-| App-1 | Gate day, no post | — | Cold-install on a second Mac: download the DMG, drag, launch, right-click, see the menu. Buy with a real card, receive the key, activate, refund yourself. | Both work first time, on a machine that has never seen this project |
-| App+0 | X — launch thread, 6 posts | `site/public/media/paste-a-whole-folder-into-your-agent.mp4`, through `demo/reframe.sh` | The app, $19, 14-day trial. The CLI is named once, in post 4. | Click-throughs to chutedev.com; first paid conversions |
-| App+1 | Show HN | site hero | Title and body reused verbatim from `03-LAUNCH-POSTS.md:18-45` — the two implementation notes are the whole reason the post works. Founder's first comment names the price and the free CLI. | Front page, not flagged; comments engage the implementation notes specifically |
-| App+2 | Reddit r/ClaudeAI | `site/public/media/turn-an-answer-back-into-files.mp4` | Workflow share. Ownership disclosed once, plainly, up front. | Comments describe their own workaround, not just "cool" |
-| App+3 | Reddit r/macapps | `site/public/media/which-agent-is-waiting-for-you.mp4` | A tools post. Price in one line, never the headline. | Net-positive; no unanswered "why should I pay" |
-| App+4 | Write-up #1 + X | — | *"Your context menu is drawn by someone else's process"* — the FinderSync/appex boundary | A commenter who ships their own extension recognises it |
-| App+5 | Newsletter — TLDR | `brand/out/og.png` | Pitch now the app is real and signed | Editor replies within 7 days |
-| App+6 | X | `site/public/media/which-agent-is-waiting-for-you.mp4` | The live badge, not a mock | Replies describing their own multi-terminal chaos |
-| App+7 | Reddit r/ChatGPTCoding | `site/public/media/turn-an-answer-back-into-files.mp4` | Secondary audience; tests expansion wave 2 | A "does this work with Codex/Cursor" comment |
-| App+8 | Write-up #2 + X | — | *"The sandbox container that remembers your old face"* — the appex code-identity trap | Someone quotes the exact error string back |
-| App+9 | Newsletter — Ben's Bites | `brand/out/card-sessions.png` | "Your agents shouldn't cost you attention" | Editor replies within 7 days |
-| App+10 | YouTube, 4 min | edit of `site/public/media/*.mp4` | One linkable explainer for the "is there a video" replies | Watch-through past 60 s |
-| App+11 | Write-up #3 + X | — | *"The git command that lies about being complete"* — the `checkpoint` bug | A commenter repeats the bug back correctly |
-| App+12 | X, 4-card series | `brand/out/quote-1..4.png` | One fact per card, zero adjectives | Each stands alone as a retweet |
-| App+13–14 | Buffer, no post | — | Answer every open thread. Confirm PH gallery uploads. | Every top-level objection answered within 24 h |
-| App+15 | Product Hunt | `brand/out/og.png` | ≥14 days after Show HN — never the same week | Top 5 for the day; real product questions |
-| App+16 | Reddit r/commandline | `demo/out/tree.gif` | **The CLI re-enters here.** A tool share for terminal people, no mention of the app unless asked. | Net-positive; a comment names a command they will run |
-| App+18 | Newsletter — Console.dev | `demo/out/tokens.gif` | The CLI-roundup pitch | Editor replies within 7 days |
+| **D−1** | Gate day, no post | — | Pre-flight §1, all seven | All seven pass on a machine that has never seen this project |
+| **D+0** | X — launch thread, 6 posts | `site/public/media/paste-a-whole-folder-into-your-agent.mp4` via `demo/reframe.sh` | The wedge, the price, the free CLI in post 4 | Click-throughs to chutedev.com; first paid conversion |
+| **D+0** | GitHub repo goes public | `README.md` | The CLI is the ad. Repo description names the ICP, not the category | Stars from accounts that also star agent tooling |
+| **D+1** | Show HN | site hero | `03-LAUNCH-POSTS.md` §Show HN **verbatim** — the deletion story and the two implementation notes are why the post works | Front page, not flagged; comments engage the `git stash create` note specifically |
+| **D+2** | r/ClaudeAI | `site/public/media/paste-a-whole-folder-into-your-agent.mp4` | Workflow share. Ownership disclosed plainly, first line | Comments describe their own workaround, not just "cool" |
+| **D+3** | r/cursor | same, reworded for `@`-mentions | Same job, second tribe | A comment comparing it to typing `@src/` |
+| **D+4** | Write-up #1 + X | — | *"Your context menu is drawn by someone else's process"* — the FinderSync/appex boundary | Someone who ships their own extension recognises it |
+| **D+5** | Newsletter pitch — TLDR | `brand/out/og.png` | Template in §5 | Editor replies within 7 days |
+| **D+6** | X | `site/public/media/which-agent-is-waiting-for-you.mp4` | The live badge, not a mock | Replies describing their own five-terminal chaos |
+| **D+7** | r/macapps | `site/public/media/stop-typing-file-paths.mp4` | A tools post. Price in one line, never the headline | Net-positive; no unanswered "why should I pay" |
+| **D+8** | Write-up #2 + X | — | *"The sandbox container that remembers your old face"* — the appex code-identity trap | Someone quotes the exact error string back |
+| **D+9** | Newsletter pitch — Ben's Bites | `brand/out/card-sessions.png` | "Your agents shouldn't cost you attention" | Editor replies within 7 days |
+| **D+10** | YouTube, 4 min | edit of `site/public/media/*.mp4` | One linkable answer to "is there a video" | Watch-through past 60 s |
+| **D+11** | Write-up #3 + X | — | *"The git command that lies about being complete"* — the `checkpoint` bug | A commenter repeats the bug back correctly |
+| **D+12** | X, 4-card series | `brand/out/quote-1..4.png` | One fact per card, zero adjectives | Each stands alone as a retweet |
+| **D+13–14** | Buffer, no post | — | Answer every open thread. Confirm PH gallery uploads | Every top-level objection answered within 24 h |
+| **D+15** | Product Hunt | `brand/out/og.png` | ≥14 days after Show HN — never the same week | Top 5 for the day; real product questions |
+| **D+16** | r/commandline | `demo/out/tree.gif` | **The CLI re-enters.** A tool share for terminal people; no mention of the app unless asked | Net-positive; a comment names a command they will run |
+| **D+18** | Newsletter pitch — Console.dev | `demo/out/tokens.gif` | The CLI-roundup pitch | Editor replies within 7 days |
+| **D+21** | Comparison page ships | `/vs` on the site | `repomix`, `files-to-prompt`, `@`-mentions, Raycast — named, linked, and honestly scored, including where they win | Organic traffic on those tool names within 30 days |
+| **D+25** | X — the numbers post | the by-hand JSON from gate 5 | "Here is the stopwatch, here is the method, here is where I was wrong" | A correction or a confirmation from someone who ran it |
+| **D+30** | Review, in writing | this file | Kill criteria §6 | A decision recorded, not a vibe |
 
-**The one number to watch in week one:** landing → download. If it is healthy and download →
-purchase is not, the page is fine and the product's first run is not — go and fix onboarding,
-not the copy. If landing → download is weak, the argument on the page is not landing and the
-demos are the first thing to look at, because they are what the argument rests on.
+---
 
 ## 3. Ready-to-post copy
 
-### A — X/Twitter (RETIRED with the two-wave plan; kept for the phrasing only)
-> The Chute CLI is free, MIT, forever:
->
-> `brew install avaluev/tap/chute`
->
-> 25 commands. Select files in Finder, bundle their contents into one blob with a token count.
-> Paste an agent's multi-file answer back into real files. Snapshot a repo before an agent runs.
->
-> Zero dependencies. Zero telemetry. No account. 2.5 MB.
->
-> The Finder menu and menu-bar switcher (Chute.app) are next, priced separately.
->
-> [attach: bundle.gif]
+Lives in `marketing/03-LAUNCH-POSTS.md`. **Do not rewrite it here.** X thread, Show HN, Product
+Hunt, r/ClaudeAI, r/macapps and r/commandline are all drafted there, post-for-post.
 
-### B — Reddit r/commandline (moved to App+16 — the CLI is retention, not the launch)
-**Title:** Wrote a 28-command CLI for people who bundle files for an LLM by hand every day (free, MIT, `brew` tap)
-> I run coding agents most of the day and kept doing the same four things by hand: copying paths
-> into a prompt, bundling several files into one message, unpacking a multi-file answer back onto
-> disk, and snapshotting a repo before letting an agent loose in it.
+---
+
+## 4. Distribution inside the ICP's own tool — the aggressive half
+
+The buyer spends his day inside Claude Code and a terminal. Everything in §2 asks him to leave
+that and read a post. These do not, and they compound while §2 decays.
+
+**4a. Ship a Claude Code plugin / skill for `chute`.** The ICP's agent already reads a plugin
+list. A skill that teaches the agent to call `chute bundle` when a user says "give yourself the
+whole folder" puts the product's name in front of the exact person, inside the exact tool, at the
+exact moment. The CLI is MIT, so this costs nothing to give away and it is the highest-leverage
+line in this file. **Design it before building it** — see the standing note on custom actions in
+`handoff/NEXT.md`; the same "is this a platform now?" question applies.
+
+**4b. Be the answer to the question they already ask.** Search `@` + context + "Claude Code" on
+X, r/ClaudeAI, r/cursor and the Cursor forum. People describe this exact friction weekly and get
+no good answer. **Reply with the free CLI line and nothing else.** No link to the paid page, no
+pitch — the tool IS the pitch, and a person who runs `chute bundle` once has had the demo. Cap:
+one reply per thread, disclose ownership every single time, never DM.
+
+**4c. `brew install avaluev/tap/chute` is a permanent ad.** It is live and it works. Every
+technical post ends with it; it costs the reader nothing, it needs no trial, and it makes the
+80.7-minute claim checkable in about forty seconds — which is a far better argument than any
+sentence on the landing page.
+
+**4d. Publish the deletion.** Six menu rows removed in one afternoon because the ICP's agent
+already did those jobs. That is a genuinely unusual post and it earns more trust than any feature
+list — it says out loud that this product has a specific user and is not trying to be everything.
+It is post 5 of the launch thread and the spine of the Show HN.
+
+**4e. The comparison page (D+21) is SEO, not combat.** `repomix`, `files-to-prompt`, plain
+`@`-mentions. Name them, link them, and say where they win — `repomix` is free, cross-platform,
+and scriptable, and someone who wants that should use it. A comparison page that never concedes
+anything converts nobody and ranks badly.
+
+---
+
+## 5. Direct outreach
+
+**Newsletter pitch, one template, four sends** (D+5 TLDR, D+9 Ben's Bites, D+18 Console.dev, and
+one reserve). Three sentences: what it does, who for, the number. One link. One image attached,
+not embedded. No follow-up before day 7, exactly one follow-up ever.
+
+> Subject: A Finder right-click that hands your coding agent the files
 >
-> `chute` is the CLI I wrote for that. `chute bundle src/ --format xml` gives you every file's
-> contents in one blob with a token estimate. `chute unpack` turns fenced code blocks in your
-> clipboard back into a real file tree — previews by default, writes with `--force`. `chute
-> checkpoint .` snapshots everything, including untracked files, without touching your real git
-> index.
->
-> 25 commands total, all covered by an e2e suite. Zero dependencies, zero network calls except
-> the gist command, no account.
->
-> `brew install avaluev/tap/chute` — MIT, free forever. Repo: github.com/avaluev/chute. Happy to
-> answer questions about any of the commands.
+> I build Chute — a 2.5 MB macOS utility for people who drive Claude Code all day. Select
+> folders in Finder, right-click once, and every file inside is on the clipboard as one blob
+> with a token count. I timed my own day at ~80 minutes going into that pointing.
+> The CLI half is MIT and free: `brew install avaluev/tap/chute`.
+> chutedev.com — happy to send a build.
 
-### C — X/Twitter launch thread (App+0), 6 posts
-**1/6** — reuse `/Users/sxope/Documents/2026/Development/37.chute/marketing/03-LAUNCH-POSTS.md:4-16`
-verbatim (the "I run coding agents ~10h/day" post). Do not rewrite it.
-> **2/6** Claude Code already reads your files. It cannot see your Finder selection, your
-> clipboard, the terminal you lost, or the port you can't find. That gap is what Chute closes.
->
-> **3/6** Chute.app adds the Finder menu (right-click → bundle, unpack, tree, paths) and a menu
-> bar that shows which of your agents is waiting on you — colour-coded per project, one click to
-> bring that terminal forward.
->
-> **4/6** $19 one-time, 14-day free trial. No subscription, no account. The 28-command CLI stays
-> free and MIT forever either way — the app buys you the Finder menu and the menu bar, nothing else
-> is paywalled.
->
-> **5/6** Every destructive command previews before it acts. `unpack` refuses to write outside its
-> target directory. `checkpoint` builds a snapshot without ever touching your real git index or
-> worktree.
->
-> **6/6** macOS 13+. 2.5 MB. Zero telemetry — the only network code is the gist command, and only
-> when you run it yourself. chutedev.com
+**No cold DMs. No influencer gifting. No paid placement before D+30** — you cannot tell whether
+paid works until you know what organic does.
 
-### D — Show HN (App+1)
-**Title (verbatim, reuse):** Show HN: Chute – Turn a Finder selection into agent-ready context
-**Body:** reuse `/Users/sxope/Documents/2026/Development/37.chute/marketing/03-LAUNCH-POSTS.md:18-45`
-verbatim — do not rewrite the two implementation notes; they are the whole reason this post works
-on HN. New for this slot, the founder's own first comment once the thread is live:
-> Founder here. The app (Finder menu + menu bar) is $19 one-time with a 14-day trial; the CLI
-> underneath it is MIT and free — `brew install avaluev/tap/chute` if you just want the 28
-> commands. Ask me anything about the sandboxing, the notarization process, or the two bugs above.
+---
 
-### E — Reddit r/ClaudeAI (day 11 / App+2)
-**Title:** How I stopped hand-bundling files for Claude Code (built a small tool, sharing the workflow)
-> I run 3–5 `claude` sessions at once and the part that actually ate my time wasn't the model, it
-> was getting context to it: selecting files in Finder, copying paths one at a time, or
-> hand-assembling a "here are 8 files" message.
->
-> What I use now: select the files in Finder, right-click → Bundle Context, and I have one XML
-> blob with a token count on the clipboard, ready to paste into Claude Code. When Claude answers
-> with several files, right-click → Unpack Markdown Here writes them back to disk (it previews the
-> file list first — I don't want anything writing blind into a repo).
->
-> It's a macOS thing I built (Chute), not affiliated with Anthropic. CLI is free/MIT
-> (`brew install avaluev/tap/chute`); the Finder integration is a $19 one-time app with a 14-day
-> trial. Posting because the bundling workflow specifically might save you the same 15–20
-> times-a-day of tab-hopping it used to cost me — curious if others have solved this differently.
+## 6. Metrics, and the kill criteria
 
-### F — Newsletter pitch email (generic template, days 4/14/16/19)
-**Subject:** A 2.5 MB macOS CLI for people running Claude Code / Codex all day
-> Hi [name],
->
-> Chute is a free, MIT command-line tool (`brew install avaluev/tap/chute`) for people who run
-> coding agents most of the day. It bundles a Finder selection into one paste-ready blob with a
-> token count, unpacks a multi-file agent answer back into real files, and snapshots a repo before
-> an agent runs — 25 commands, zero dependencies, zero telemetry, no account.
->
-> There's a paid macOS app on top (Finder menu + menu-bar agent-status switcher, $19 one-time,
-> 14-day trial) but the CLI stands alone and is what I'd suggest linking if you cover dev tools.
->
-> Repo: github.com/avaluev/chute · Site: chutedev.com. Happy to answer anything about the
-> implementation — the sandboxed Finder extension in particular has some genuinely weird macOS
-> behavior behind it.
->
-> [name]
+| Metric | Where | Means |
+|---|---|---|
+| Download → first Finder action | onboarding beat 3 | **The activation event.** If they right-click once, they keep the app |
+| `Copy Files as Context` share of all actions | — | Confirms the wedge. If it is not #1, the whole campaign leads with the wrong row |
+| Basket usage among activated users | — | Answers the open question in `handoff/NEXT.md`: keep it or delete it |
+| Trial → paid | Paddle | The only number that ends the argument |
+| Refund rate > 5 % | Paddle | Positioning overpromises — fix the landing page, not the price |
 
-## 4. Three technical write-ups
+**Kill criteria, decided now, in writing, so they are not re-litigated at D+30 with a stake in
+the ground:**
 
-All three are drawn from `/Users/sxope/Documents/2026/Development/37.chute/handoff/NEXT.md` §TRAPS
-— real bugs that cost real hours, not manufactured "engineering content."
+- **< 5 paid at D+30** with front-page HN → the price is not the problem and the copy is not the
+  problem. The job is not painful enough to pay for. Keep the CLI, stop the campaign.
+- **Activation < 40 %** → they downloaded and never right-clicked. Onboarding, not marketing.
+- **Refunds > 10 %** → a claim on the page is not true in the product. Find it before posting again.
+- **Basket unused by activated users at D+30** → delete the row, as its six predecessors were.
 
-1. **"Your context menu is drawn by someone else's process"** — the FinderSync/appex boundary.
-   Covers: `representedObject` does not survive the trip to Finder (a FinderSync menu is drawn by
-   Finder itself; only plain properties like `tag` cross that boundary, so dispatching on
-   `representedObject` made every menu item a silent no-op), and why menu icons ship as
-   pre-rendered bitmaps rather than SF Symbols — a symbol's rendering configuration dies at the
-   same boundary (see commits `d32268b`, `bb817e0` in this repo). One action table
-   (`ChuteCore/FinderActions.swift`) now feeds the menu, the app, and the tests, because two
-   copies had already drifted.
+---
 
-2. **"The sandbox container that remembers your old face"** — the appex code-identity trap. A
-   sandboxed extension's container ACL pins the code identity that created it; after any re-sign,
-   macOS refuses to launch it (`(AppSandbox) code identity <cdhash> not in ACL for container`)
-   while `pluginkit` still happily reports it registered and enabled — so the menu vanishes with
-   no error anywhere a normal person would look. The fix order matters: delete the container,
-   `pluginkit -r`, relaunch the host app, `pluginkit -a`, `-e use`, restart Finder — clearing the
-   container alone is not enough. This is the exact failure mode that makes "just re-sign it" the
-   wrong instinct for anyone shipping a sandboxed Finder/Services extension.
+## 7. Rules against spam
 
-3. **"The git command that lies about being complete"** — the `checkpoint` bug. `git stash create`
-   looks like the right primitive for a non-destructive snapshot: it builds a commit from the
-   working tree without touching `HEAD`, the index, or the worktree. It also silently excludes
-   untracked files — exactly the files an agent tends to create. The fix points `GIT_INDEX_FILE`
-   at a temp file, `git add -A` against that private index, then `write-tree` + `commit-tree`:
-   a full snapshot, the real index never touched. Found only because a test asserted the wrong
-   thing and failed loud instead of green.
+- Ownership disclosed in the first line of every post, every time, without being asked.
+- One post per subreddit per launch. Never cross-post the same text.
+- Never reply to a competitor's thread with a link.
+- Never seed a "has anyone tried" question.
+- No testimonial that a real person did not write and approve.
+- No number that is not in `site/src/lib/cases.ts` and derived from the ledger.
+- If a thread goes negative on a true point, agree with it publicly and fix the product.
 
-## 5. Rules against spam
+---
 
-**Per-subreddit framing**
-- r/ClaudeAI, r/ChatGPTCoding — a workflow share from someone who uses these agents daily, never
-  "check out my app." Disclose ownership up front, once, plainly.
-- r/macapps — a tools post. Lead with what it does, not the price. Mention $19/CLI-free in one
-  line, not the headline.
-- r/commandline — the CLI only. No mention of the paid app unless someone asks; this audience
-  wants the free tool, not a pitch.
+## 8. After day 30 — the engine, if it lived
 
-**Never post**
-- The same link to the same subreddit twice. No cross-posting the identical text to more than one
-  sub in the same week.
-- A reply that argues. Every objection gets one factual answer, then silence.
-- "Limited time," a countdown, a fake stock number, or a manufactured deadline anywhere.
-- A screenshot as the only content — always ship a real GIF/video asset (§2) or working code.
-
-**"This should be free"**
-> The CLI is free, MIT, forever — `brew install avaluev/tap/chute`. The $19 buys the sandboxed
-> Finder extension and the menu bar, which is the part that took the actual engineering (see the
-> write-ups). You can use the whole thing without ever paying anything.
-
-**"I'll write a shell script"**
-> You will write four, forget the flags, and never handle binaries, token counts, or path
-> traversal. 14-day free trial if you want to compare it to what you'd actually ship.
-
-**"Unsigned / why no notarization yet"** (only relevant before App+0)
-> Fair — the CLI is unsigned by nature (it's a script you can read). The app is notarized before
-> it ships; that's why there's no download link for it yet.
+One technical write-up a fortnight, from work actually done. One release note per shipped change.
+Nothing else. **The campaign is a spike; the write-ups are the engine** — they still bring people
+in at day 200, and a launch does not.
