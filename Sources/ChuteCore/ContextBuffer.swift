@@ -106,6 +106,13 @@ public struct ContextBuffer: Sendable {
     @discardableResult
     public func add(_ filePath: String) -> Entry? {
         guard !filePath.isEmpty else { return nil }
+        // VALIDATE AT THE BOUNDARY. A basket entry is a PATH rather than a copy of the content —
+        // that is a deliberate design decision, and it is why a file that vanishes AFTER being
+        // added is legitimately rendered "— missing" at hand-over. A path that never existed is a
+        // different thing: `chute basket add /tmp/typo.ts` reported "→ added 1 — 1 in the basket"
+        // and exited 0, so the basket filled with entries that were wrong the moment they went in.
+        // The caller already counts what actually happened, so returning nil is all this needs.
+        guard fm.fileExists(atPath: filePath) else { return nil }
         if let existing = entries().first(where: { $0.path == filePath }) { return existing }
         // 0700 / 0600 — every sensitive path here locks itself down the same way (ActionRequest,
         // RequestInbox, the env file); `createDirectory` alone would not fix an install that
@@ -143,9 +150,10 @@ public struct ContextBuffer: Sendable {
         return PathFormat.render(paths, style: .at, separator: .space)
     }
 
-    /// THE CHAT-UI FORMAT `chute unpack` still serves. Byte-identical to `chute bundle` for the
-    /// same files by construction — both call `ContextBundle.assemble` below, never a second
-    /// formatter.
+    /// THE CHAT-UI FORMAT, for a persona who pastes into a browser rather than an agent with
+    /// filesystem access. Byte-identical to `chute bundle` for the same files by construction —
+    /// both call `ContextBundle.assemble`, never a second formatter. (This comment named
+    /// `chute unpack` until 2026-09-02; that command was deleted on 2026-08-31.)
     public func bundleText() -> String? {
         let paths = entries().map(\.path)
         guard !paths.isEmpty else { return nil }
