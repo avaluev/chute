@@ -111,6 +111,37 @@ export default function Home() {
 
   return (
     <main className="min-h-screen">
+      {/* SoftwareApplication, and nothing else.
+          Thirty minutes of work, not a strategy, and the file this comment defends is the reason:
+          Google's FAQ rich results were deprecated 2026-05-07 and HowTo in 2023, Google documents
+          that no special schema is needed for its AI features, and the best controlled test found
+          the lift was algorithmic rather than schema-driven. Every "schema = 2.5x more citations"
+          figure in circulation traces to a vendor blog with no study behind it.
+          What this DOES buy is a machine-readable price, platform and rating-free offer for the
+          directories that parse it — AlternativeTo, Slant and the like. That is worth half an
+          hour. Believing it moves AI citations is not. Price and OS come from CONFIG and the
+          version from the changelog's own data, so there is no second place for them to rot. */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "SoftwareApplication",
+          name: "Chute",
+          applicationCategory: "DeveloperApplication",
+          operatingSystem: "macOS 13.0 or later",
+          url: `https://${CONFIG.domain}`,
+          downloadUrl: CONFIG.download,
+          softwareHelp: `https://${CONFIG.domain}/docs/`,
+          author: { "@type": "Person", name: CONFIG.seller.name },
+          offers: {
+            "@type": "Offer",
+            price: CONFIG.price.replace("$", ""),
+            priceCurrency: "USD",
+            category: "one-time purchase",
+            url: `https://${CONFIG.domain}/buy/`,
+          },
+        }) }}
+      />
       <Header />
 
       {/* ---------------------------------------------------------------- hero */}

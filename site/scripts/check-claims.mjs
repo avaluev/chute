@@ -198,6 +198,23 @@ ghosts.size
   ? bad(`${ghosts.size} place(s) show a chute command that does not exist`, [...ghosts].join("; "))
   : ok(`every documented chute command is in the dispatch (${known.size} live)`)
 
+// ── llms.txt must not become the ninth place a size claim is hand-typed ─────────────────────
+// Everything else in that file is generated from cases.ts and CONFIG. The bundle size cannot be,
+// because the site has never seen the app — so it is a literal, and a literal is exactly how
+// "2.5 MB" survived the bundle growing to 3.3 MB in eight files. Scripts/build-app.sh already
+// ties the fact sheet to `du -sh dist/Chute.app`; this ties llms.txt to the fact sheet, so the
+// chain runs from the artifact to every sentence about it.
+{
+  const llms = readFileSync(join(OUT, "llms.txt"), "utf8")
+  const sheetSize = readFileSync(SHEET, "utf8").match(/App bundle size \| \*\*([0-9.]+) MB\*\*/)?.[1]
+  const llmsSize = llms.match(/([0-9.]+) MB app/)?.[1]
+  if (!sheetSize || !llmsSize) bad("the size claim was read from both files", `sheet=${sheetSize} llms.txt=${llmsSize}`)
+  else if (sheetSize !== llmsSize) {
+    bad("llms.txt and the fact sheet disagree about the app size",
+        `llms.txt says ${llmsSize} MB, the fact sheet says ${sheetSize} MB`)
+  } else ok(`llms.txt's size claim matches the fact sheet (${sheetSize} MB)`)
+}
+
 // ── every LinkedIn hook must be under the truncation limit, and must say its own real length ─
 // LinkedIn truncates at ~140 characters on mobile: past that the first line — the only line most
 // people read — is cut mid-sentence. marketing/08-LINKEDIN.md states a character count beside
