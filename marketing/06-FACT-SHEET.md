@@ -58,8 +58,8 @@ more credible than the absolute one, and it survives someone reading the source.
 
 | Gate | Result | Command |
 |---|---|---|
-| Unit assertions | **911 passed** | `swift run -c release chutetests` |
-| End-to-end | **144 passed** headless, **172** full | `CHUTE_HEADLESS=1 ./Scripts/smoke.sh` |
+| Unit assertions | **927 passed** | `swift run -c release chutetests` |
+| End-to-end | **145 passed** headless, **173** full | `CHUTE_HEADLESS=1 ./Scripts/smoke.sh` |
 | Metrics plausibility | **4 checks** — magnitude, not shape | `./Scripts/check-metrics.sh` |
 | Terminal tapes | **16** (12 hand-written, 4 generated from cases.ts) | `ls demo/tapes/*.tape \| wc -l` |
 | GUI tapes | **5** hand-written | `ls demo/gui/tapes/*.sh \| wc -l` |

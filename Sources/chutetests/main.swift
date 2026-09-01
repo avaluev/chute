@@ -27,5 +27,6 @@ processIdentitySuite()
 statusMenuSuite()
 confirmPromptSuite()
 projectRootSuite()
+finderTargetSuite()
 
 T.report()

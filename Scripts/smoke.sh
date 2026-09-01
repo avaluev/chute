@@ -675,6 +675,19 @@ for name in ChuteApp ChuteFinder; do
   else bad "Sources/$name carries its own LICENSE" "missing"; fi
 done
 
+echo
+echo "26. decision logic where no test can reach it"
+# THE RATCHET. See Scripts/check-untested-logic.sh for the bug that bought it: one line in
+# ChuteFinderSync decided which folder a Finder action applies to, it was wrong for every
+# multi-selection, and 917 assertions could not see it because it lived in a target chutetests
+# cannot import. A file may shrink freely; it may never grow.
+if "$ROOT/Scripts/check-untested-logic.sh" > /tmp/chute-ratchet.$$ 2>&1; then
+  ok "$(tail -1 /tmp/chute-ratchet.$$)"
+else
+  bad "no new decision logic in ChuteApp/ChuteFinder" "$(grep FAIL /tmp/chute-ratchet.$$ | head -1)"
+fi
+rm -f /tmp/chute-ratchet.$$
+
 cd /; rm -rf "$T"
 echo
 echo "smoke: $PASS passed, $FAIL failed"

@@ -18,6 +18,7 @@ const RELEASES = [
     date: "2026-09-01",
     notes: [
       "The Finder menu is five rows, not eleven. Open in Terminal, Move Junk to Trash, Save Clipboard as Files, New Scratch Folder and Set Up for an Agent are gone — every one of them solved a problem a Claude Code or Cursor user does not have, because their agent already writes files and their OS already opens a terminal. The CLI still does all of it.",
+      "Fixed: Copy Folder Tree gave you the tree of whichever item Finder happened to list first, not the folder you were looking at. Select thirty-four things in a Python project and you got the contents of __pycache__. It now uses the folder that contains everything you selected.",
       "Add to Context Basket: collect files across several folders while you browse, then hand the whole set over at once. Nothing else on the Mac does this.",
       "Four times faster. Copying a folder as context no longer starts a `git` subprocess to work out where the repository root is — 102.7 ms down to 24.7 ms on 40 files, and the token count went from 184.1 ms to 23.5 ms.",
       "A third smaller. Stripping symbols before signing took the app from 3.3 MB to 2.4 MB, and the download to 1.6 MB.",
