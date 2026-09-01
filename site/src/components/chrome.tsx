@@ -55,6 +55,7 @@ export function Footer() {
             <Link className="hover:text-foreground" href="/cases">What it does</Link>
             <Link className="hover:text-foreground" href="/cli">Free CLI</Link>
             <Link className="hover:text-foreground" href="/docs">Commands</Link>
+            <Link className="hover:text-foreground" href="/building-with-agents">How it was built</Link>
             <Link className="hover:text-foreground" href="/buy">Buy</Link>
             <Link className="hover:text-foreground" href="/support">Support</Link>
             <Link className="hover:text-foreground" href="/refunds">Refunds</Link>

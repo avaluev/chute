@@ -29,10 +29,10 @@ command and update this file first, then the copy.
 | CLI commands | **26** | `chute help \| grep -cE '^  [a-z]'` |
 | Finder actions | **9**, drawn as **5 rows** | `chute finder-actions --menu` |
 | External dependencies | **0** | `grep -c '.package(' Package.swift` → 0 |
-| Lines of Swift | **6,873** | `find Sources -name '*.swift' \| xargs wc -l \| tail -1` |
+| Lines of Swift | **11,680** | `find Sources -name '*.swift' \| xargs wc -l \| tail -1` |
 | Minimum macOS | **13 Ventura** | `grep -o 'macOS(.v[0-9]*)' Package.swift` |
 | Architectures | Apple Silicon and Intel | `lipo -info dist/Chute.app/Contents/MacOS/ChuteApp` |
-| Version | **0.2.0** | `chute --version` |
+| Version | **0.2.1** | `chute --version` |
 | Homebrew | `brew install avaluev/tap/chute` | `brew test avaluev/tap/chute` |
 
 ## Privacy — the strongest claim, and the most precise
@@ -68,6 +68,24 @@ more credible than the absolute one, and it survives someone reading the source.
 | Case data | **19 cases** | `cd site && npm run check:cases` |
 | Site routes | **38** | `cd site && npx next build` |
 | CI | macOS 13, 14, 15 | `.github/workflows/macos-matrix.yml` |
+
+## Distribution and Gatekeeper — measured 2026-09-02
+
+| Claim | Value | Prove it |
+|---|---|---|
+| Gatekeeper verdict on the app | **`rejected`** | `spctl -a -vv dist/Chute.app` → `rejected`, `origin=Chute Local Dev` |
+| Signing identity | **self-signed, local only** | `security find-identity -v -p codesigning` → one identity, `"Chute Local Dev"` |
+| Apple Developer Program | **not enrolled** | no `Developer ID Application:` line in the output above |
+| Apple Developer Program cost | **$99/yr** | developer.apple.com/programs |
+| Break-even at $19 | **6 units/yr** | 99 ÷ 19 |
+| Steps for a stranger to open the unsigned app on macOS 26 | **6, plus a password** | walked and recorded; see `marketing/09-APPLE-AND-DISTRIBUTION.md` |
+| Homebrew ends support for casks failing Gatekeeper | **2026-09-01** | `Homebrew/brew` issue #20755 |
+| The free CLI installs with no Apple involvement | **True** | `brew install avaluev/tap/chute` — a formula, built from source, never quarantined |
+
+**The precise phrasing.** Say *"the CLI installs from source through Homebrew and never meets
+Gatekeeper"*. Do **not** say the app is notarised, signed by Apple, or that it opens without a
+warning — `spctl` says otherwise, and `site/scripts/check-claims.mjs` asks `spctl` directly rather
+than matching a word, so this row retires itself the moment the verdict changes.
 
 ## Commercial
 
@@ -131,5 +149,5 @@ post or page opens with a command name.
 | "2.5 MB" | Was true, then was not: the bundle reached **3.3 MB** unnoticed because eight files carried a hand-typed copy of this number and nothing checked any of them. `strip -x` before signing brought it to **2.4 MB** on 2026-09-01, and `Scripts/build-app.sh` now FAILS if this row and `du -sh dist/Chute.app` disagree. | "2.4 MB" — and re-derive it, never retype it |
 | "28 commands" | There are 26. | "26 commands" |
 | "Nothing is uploaded, ever" | `gist` uploads on request. | "No network code at all; `gist` shells out to your own `gh`" |
-| "Notarized" / "signed by Apple" | Not yet true. `spctl -a dist/Chute.app` says `rejected`. | Nothing — omit until the Developer ID exists |
+| "signed by Apple" | Not yet true. `spctl -a dist/Chute.app` says `rejected`. The *word* "notarised" is deliberately NOT on this list: a word list cannot tell a claim from a denial, and forbidding it blocked the site from discussing the wall at all. `check-claims.mjs` asks `spctl` and forbids the affirmative forms instead — a derived check that retires itself. | Nothing — omit until the Developer ID exists |
 | ~~"Available on Homebrew"~~ | **NOW TRUE as of 2026-08-28.** `brew install avaluev/tap/chute` installs 0.2.0 from source in ~46s with no warnings, and `brew test` passes. | Say it. |

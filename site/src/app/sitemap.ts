@@ -10,7 +10,8 @@ import { CONFIG } from "@/lib/config"
  * `trailingSlash: true` in next.config.ts means Cloudflare Pages serves `/buy/`, not `/buy.html`.
  * The URLs below must match that or every one of them is a redirect Google has to follow.
  */
-const STATIC = ["", "cases", "cli", "docs", "buy", "changelog", "support", "privacy", "terms", "refunds"]
+const STATIC = ["", "cases", "cli", "docs", "buy", "changelog", "building-with-agents",
+                "support", "privacy", "terms", "refunds"]
 
 
 // `output: "export"` has no server to run this at request time, so it must be declared
