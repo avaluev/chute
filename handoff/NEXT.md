@@ -65,6 +65,18 @@ Every item below was in `docs/specs/readiness-audit-FINDINGS.md`'s ranked ten.
 | **Marketing de-rotted, and gated.** Five assets still sold `unpack`, deleted 2026-08-31, and quoted ~90 min/day against a real 80.7. All rewritten for the ICP. `check-claims.mjs` now scans `marketing/` — it scanned only README and `docs/`, which is exactly why nothing caught it. | `npm run check:claims` |
 | **Three phantom demos deleted from `site/public/media/`** — `turn-an-answer-back-into-files`, `a-clean-room-for-a-risky-agent`, `agent-rules-in-one-click` (mp4/webm/jpg) plus an orphan `checkpoint.gif`. They were **live public URLs demonstrating features the product does not have.** `check-cases.mjs` printed a `note` about them and nobody read it; it FAILS now, and posters (`.jpg`) count, which is why three survived the last sweep. | `npm run check:cases` |
 
+**Also done 2026-09-01, second pass — performance, size and Apple hardening:**
+
+| Fix | Proof |
+|---|---|
+| **`ProjectRoot.of` stopped spawning `git`.** It ran `git rev-parse --show-toplevel` per call; what that returns is the nearest ancestor holding `.git`, which is a few `stat`s. **bundle 102.7 → 24.7 ms (4.2×); tokens 184.1 → 23.5 ms (7.8×)** — tokens paid the spawn twice. | `ProjectRootSuite`, perturbed red on the worktree case |
+| **`strip -x` before signing: 3.3 MB → 2.4 MB bundle, 1.6 MB DMG.** `-x` keeps globals so the appex's `_NSExtensionMain` survives — asserted in `build-app.sh`, not assumed. | `du -sh dist/Chute.app` |
+| **The app signed with `--options runtime` and NO entitlements** — the hardened runtime blocks every Apple Event, so `osascript` would have failed in the NOTARISED build only. `Resources/Chute.entitlements`. | `build-app.sh` fails without it; perturbed |
+| **`TokenEstimate` counted grapheme clusters.** UTF-8 bytes are what a BPE tokenizer is billed by, and are not a Unicode walk. | `CoreSuites` |
+| **Two unbounded C-string reads** in `ProcessMetrics` — `p_comm` was read off a raw pointer into a 17-byte stack tuple, bounded only by a NUL the kernel is trusted to write. | `chute ports` / `chute sessions` still name processes correctly |
+| **`uninstall.sh` never cleaned `/Applications`** — the only path a stranger takes, since that is where the DMG says to drag it. It removed nothing and printed "Chute removed." | exercised in the from-scratch reinstall above |
+| **The bundle-size claim was hand-typed into eight files** and had been wrong since the bundle hit 3.3 MB. `build-app.sh` now fails if the fact sheet and `du` disagree. | perturbed to 9.9 MB → red |
+
 **Deliberately NOT done, with the reason:** splitting `AgentCommands.swift` (audit item 9). It is
 247 lines — inside this repo's own 200–400 guideline — and its five commands (open, sandbox,
 ports, env, prompt) are all agent-adjacent, exactly like `FileCommands.swift` grouping new/seed/
@@ -72,23 +84,50 @@ note. Five files of 50 lines removes no complexity. Re-propose only with a concr
 
 ---
 
-## IN FLIGHT — one thing, and it needs a human at a Mac
+## IN FLIGHT — nothing
 
-**The narrowed appex entitlement has not been re-tested at runtime.** `Resources/ChuteFinder.entitlements:18`
-went from `absolute-path.read-write = /` to `home-relative-path.read-write = /.chute/`.
-`./Scripts/build-app.sh` assembles and signs clean, but only a real click proves the sandbox still
-lets the extension write its request file.
+The narrowed appex entitlement is **proved at runtime**, not just at build time. `uninstall.sh`
+deleted `~/.chute` at 12:51 on 2026-09-01; the SANDBOXED extension recreated it and wrote
+`~/.chute/extension-loaded.txt` at 12:52, from inside its sandbox, under
+`home-relative-path.read-write = /.chute/` and nothing wider. `chute doctor` on the fresh install:
+**9 of 10 checks pass**, the tenth being the agent-status hooks, which Chute deliberately never
+writes (see below).
+
+**The Mac now runs a from-scratch DMG install.** `~/Applications/Chute.app` and `~/.chute` were
+removed, the extension unregistered, the app rebuilt, `dist/Chute-0.2.0.dmg` (1.6 MB) created and
+mounted, and `Chute.app` copied to **`/Applications`** — the location the DMG actually tells a
+customer to use, and the one `uninstall.sh` could not clean until today. Installed stamp
+`84da70d` == HEAD.
+
+**One thing the founder must paste back.** The uninstall removed Chute's hook blocks from
+`~/.claude/settings.json` (backup: `~/.claude/settings.json.chute-backup-20260901-065152`). Until
+they are back, the menu-bar badge stays dark and every session reads as idle:
 
 ```bash
-cd /Users/sxope/Documents/2026/Development/37.chute && ./Scripts/install.sh
-# then: right-click any folder in Finder → Copy Files as Context → expect the clipboard to fill
+/Applications/Chute.app/Contents/MacOS/chute hooks snippet
+# merge the "hooks" object into ~/.claude/settings.json (or via Claude Code's /hooks), then:
+/Applications/Chute.app/Contents/MacOS/chute hooks status
 ```
 
-If it fails: the extension is registered but writing is denied. Revert that one line to
-`<key>com.apple.security.temporary-exception.files.absolute-path.read-write</key>` with
-`/Users/<you>/.chute/` — still vastly narrower than `/` — and re-test.
+Chute does not write that file, here or anywhere. That is a standing decision, not an omission.
 
----
+## RESEARCH — two sourced documents, read before writing any launch copy
+
+`docs/research/competitors.md` (400 lines) and `docs/research/gtm-tactics.md` (655 lines). Every
+claim is tagged `[VERIFIED]` / `[SECONDARY]` / `[UNVERIFIED]`. The three that change decisions:
+
+1. **Repo Prompt, the closest paid analogue, stopped charging 2026-05-27 and open-sourced
+   2026-06-13.** Founder: *"increasingly challenging to convince someone that they should pay me
+   $15 a month … when they can just prompt their agent."* He also joined OpenAI, so it is a
+   founder exit with a market justification attached. **Repo Prompt sold judgement — which files
+   matter. Chute sells motion — bytes to the clipboard. Judgement is what agents ate.** Keep every
+   asset on the motion side of that line.
+2. **`npx skills add <owner/repo>` reaches 17 agents from one repo**, claude-code and cursor among
+   them — Chute's entire ICP, one artifact. This is the highest-leverage distribution move
+   available and it is roughly a day's work. See `marketing/05-CONTENT-CALENDAR.md` §4a.
+3. **The $19-over-free answer is Downie** — a $19.99 one-time GUI over free `yt-dlp`, sold for
+   years to people who know `yt-dlp` exists. Frequency, not capability. Never market on packing
+   quality: repomix (28,148★) wins that outright and is free.
 
 ## THE THREE THINGS ONLY THE FOUNDER CAN DO
 
