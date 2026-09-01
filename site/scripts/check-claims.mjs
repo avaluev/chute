@@ -198,6 +198,24 @@ ghosts.size
   ? bad(`${ghosts.size} place(s) show a chute command that does not exist`, [...ghosts].join("; "))
   : ok(`every documented chute command is in the dispatch (${known.size} live)`)
 
+// ── the changelog's newest entry must be the version that actually ships ────────────────────
+// A changelog is the one page whose whole job is being current, and it is hand-maintained on
+// purpose (see the comment on that page). So this asks Version.swift — the single source the app
+// bundle, the DMG and `chute --version` all read — whether the top entry is the shipping build.
+// Caught within a minute of being introduced on 2026-09-01: the changelog was written for 0.2.1
+// while Version.swift still said 0.2.0.
+{
+  const version = readFileSync(REPO + "Sources/ChuteCore/Version.swift", "utf8")
+    .match(/static let current = "([^"]+)"/)?.[1]
+  const newest = readFileSync(REPO + "site/src/app/changelog/page.tsx", "utf8")
+    .match(/version: "([^"]+)"/)?.[1]
+  if (!version || !newest) bad("the version and the changelog were both read", `Version.swift=${version} changelog=${newest}`)
+  else if (version !== newest) {
+    bad("the changelog's newest entry is not the shipping version",
+        `Version.swift says ${version}, the changelog's top entry is ${newest}`)
+  } else ok(`the changelog's newest entry is ${newest}, the shipping version`)
+}
+
 // ── the sitemap must cover the site that was actually built ─────────────────────────────────
 // `sitemap.ts` derives the 19 case URLs from CASES, but its list of STATIC routes is hand-typed —
 // so a new page under src/app is invisible to every crawler until someone remembers. This asks
