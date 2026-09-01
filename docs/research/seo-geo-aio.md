@@ -31,9 +31,12 @@ Zero backlinks, zero domain authority, zero budget.
 4. **llms.txt is dead on arrival as of 2026.** Multiple log studies show ~0 fetches by real AI
    crawlers, and Google documented that it ignores the file. Cost to ship it is 10 minutes; expected
    return is ~0. Ship it only as a cheap hedge, never as a priority. `[SECONDARY]`
-5. **`SoftwareApplication` + `FAQPage` schema is worth doing** — but the evidence supports it for
-   *machine parsing and rich results*, not for a proven citation lift. Do not believe anyone who
-   quotes you a citation-lift percentage for schema; I could not find one from a primary source.
+5. **Schema is a 30-minute job, not a strategy.** Google says verbatim that no special schema.org
+   markup is needed for its AI features; FAQ rich results were dropped 2026-05-07 and HowTo in 2023;
+   the best controlled test found no schema-driven citation lift. Ship `SoftwareApplication` (it
+   makes price/platform machine-readable for the directories that parse it) and stop. Every
+   "schema = 2.5× more citations" figure in circulation traces only to vendor blogs — do not repeat
+   them.
 
 ---
 
@@ -575,3 +578,165 @@ rank 2,001 = 11 · rank 5,001 = 3 · rank 10,001 = 1. **6,677 entries have a cou
 > want*, not by tap hygiene.
 >
 > Command: `curl -s https://formulae.brew.sh/api/analytics/install-on-request/30d.json | grep -o '"formula":"avaluev/tap/chute","count":"[^"]*"'`
+
+---
+
+## 6. The ~10-hour checklist, ordered by expected return
+
+Nothing here costs money. Each item names the evidence. Times are honest estimates.
+
+### Hour 0 — 2 minutes, do it before you read the rest
+**0. Create the AlternativeTo account now.** Reported 7-day account-age requirement before you can
+submit an app (§5a) `[SECONDARY]`. AlternativeTo ranked #1 for the control "alternatives" query
+`[VERIFIED]`. If you create it on launch day you lose launch week on the best-ranking directory.
+
+### Hours 1–2 — the GitHub README (highest return, unambiguously)
+**1. Rewrite the README as a GEO-shaped landing page.** (1.5h)
+Evidence: GitHub was #1 or #2 on **every** dev-tool query I ran `[VERIFIED]`; GitHub's robots.txt
+does not block AI crawlers `[VERIFIED]`; the GEO paper's three winning tactics are Cite Sources,
+Quotation Addition, Statistics Addition, worth +30–40% position-adjusted visibility, and
+**+115.1% for a rank-5 source** `[VERIFIED]`.
+Concretely, in the README:
+- **Statistics** — real numbers, not adjectives. "Counts tokens for N files in X ms." "A 40-file
+  selection is ~Y tokens." "Chute's own repo packs to Z tokens." Statistics Addition scored 25.2 vs
+  19.3 baseline.
+- **Cite sources** — link Anthropic's context-window docs, the tokenizer you use, the Homebrew
+  analytics page. Cite Sources gave rank-5 sources +115.1%.
+- **Quote** — one attributed direct quote (a user, an issue, a docs line). Quotation Addition was
+  the single best method on both metrics (27.2 / 24.7).
+- **NO keyword stuffing.** It scored **17.7 vs a 19.3 baseline** — actively worse than nothing, and
+  10% worse than baseline on live Perplexity `[VERIFIED]`.
+- The demo GIF and the honest $19 GUI paragraph (`gtm-tactics.md` §6b) — unchanged.
+
+**2. Set all 20 GitHub topics.** (15 min)
+Evidence: `yamadashy/repomix` (28,154★) uses 20 including every model name `[VERIFIED]`. Topic
+sizes `[VERIFIED]`: `claude-code` 66,589 · `mcp` 69,840 · `developer-tools` 61,647 · `macos` 52,382 ·
+`cursor` 14,608 · `llm-tools` 5,338 · `context-engineering` 2,927.
+Suggested set: `claude-code, cursor, llm, ai, macos, cli, developer-tools, anthropic, claude,
+openai, chatgpt, gemini, prompt-engineering, context-engineering, llm-tools, tokenizer, finder,
+swift, mcp, generative-ai`.
+
+**3. Verify chutedev.com's robots.txt allows every AI crawler.** (15 min)
+Evidence: blocking `OAI-SearchBot` removes you from ChatGPT search answers; blocking
+`Claude-SearchBot`/`Claude-User` reduces Claude visibility; blocking `PerplexityBot` removes you from
+Perplexity — all from the vendors' own docs `[VERIFIED]` (§2b). Copy-pasted "block the AI scrapers"
+robots.txt from a blog post is the one way to lose this for free.
+
+### Hours 3–5 — the three pages that answer the queries that exist
+Evidence for the queries: Google Autocomplete, pulled 2026-09-01 `[VERIFIED]` (§4a). Evidence for
+the page type: indie blogs (agentsroom.dev, learncursor.dev, stacknotice.com) hold page-1 slots on
+these exact queries `[VERIFIED]`, unlike general-interest queries where Forbes/G2/LinkedIn dominate
+`[SECONDARY]`.
+
+**4. "What to do when your Claude Code context window is full."** (1.5h) — **the biggest cluster.**
+Six distinct autocomplete variants including full sentences (`what to do when claude code context
+window is full`, `claude code your context window is full`, `what happens when claude code's context
+window fills up during a long session`) `[VERIFIED]`. `code.claude.com` has no page with this title.
+Chute's token count *is* the answer. Write it as genuine advice — `/clear`, `/compact`, CLAUDE.md
+size, and "know the number before you paste" — with Chute as one of several answers.
+
+**5. "How to add multiple files to Claude Code's context."** (1h) — highest intent.
+Autocomplete confirms `how to add files to claude code context`, `how to add multiple files to
+claude code`, `how to add files to claude code cli` `[VERIFIED]`. This is Chute's product
+description as a search query. Cover `@`-mentions, drag-drop, CLI piping, and Chute.
+
+**6. "Repomix alternatives" + "gitingest alternative."** (30 min, one page)
+Autocomplete confirms both, plus `repomix alternative reddit` `[VERIFIED]`. Low volume — one honest
+page, not a suite. Directory pages currently own this slot (`aitoolnet.com`) `[VERIFIED]`, which
+means it is winnable by anyone with a real comparison. Name where repomix is better (whole-repo
+packing, CI, cross-platform); Chute wins on Finder-level selection and instant token count. GEO
+shape: real token counts for the same repo through each tool. Dishonest comparison pages get called
+out on HN (`gtm-tactics.md` §6d).
+
+### Hours 6–7 — other people's pages
+Evidence: Ahrefs' 75,000-brand study puts **branded web mentions at 0.66–0.71** vs **DR at
+0.27–0.33** — off-site mentions correlate with AI visibility ~2× more strongly than authority
+`[SECONDARY]` (§1b).
+
+**7. awesome-list PRs.** (1h) Unchanged from `gtm-tactics.md` §6a — smallest and most relevant lists
+first. Now with the added reason: they live on GitHub, which is the #1 retrieved surface for dev
+queries `[VERIFIED]`.
+
+**8. AlternativeTo submission** using the account from step 0. (30 min) Listing free; human-reviewed.
+`[SECONDARY]` Add Chute as an alternative to repomix, gitingest, code2prompt.
+
+**9. One useful comparison comment in a relevant GitHub Discussion / Issue.** (30 min)
+Evidence: a GitHub Discussion (`glincker/stacklit` #13) ranked on page 1 for "repomix alternative"
+`[VERIFIED]`. Genuine contribution only — the 90/10 rule (`gtm-tactics.md` §6f) applies here too.
+
+### Hours 8–9 — schema and the technical page
+**10. `SoftwareApplication` JSON-LD on chutedev.com.** (30 min)
+The only schema on the list with a live, non-speculative reason: it makes price / platform /
+category machine-readable for the aggregators that parse it. Google says explicitly *"There's also
+no special schema.org structured data that you need to add"* to appear in AI features `[VERIFIED]`,
+FAQ rich results were dropped 2026-05-07 and HowTo in 2023 `[SECONDARY]`, and the best controlled
+test found the effect vanished against competitor trajectories `[SECONDARY]` (§2c). So: 30 minutes,
+no more, and no claims about it.
+Keep every value identical to the visible page text — Google's one explicit ask `[VERIFIED]`.
+Fields: `applicationCategory: DeveloperApplication`, `operatingSystem: macOS`,
+`offers: {price: "19", priceCurrency: "USD"}`.
+
+**11. `/llms.txt` — 10 minutes, as a lottery ticket only.** (10 min)
+Evidence *against*: 97% of llms.txt files got zero requests across 137,000 domains in May 2026;
+0.1% of AI bot visits in a 90-day log study; a ~900-domain log study found "not a single real AI
+bot"; a 300,000-domain model found it behaved as *noise*; Google says it does not use it
+`[VERIFIED]` (§2a). Evidence *for*, and it is narrow: the AI bots that did fetch it were
+**coding agents (10%)** and training crawlers (5%), with **Claude-Code named as a top individual
+requester** `[SECONDARY]`. Chute's ICP is Claude Code users. Ten minutes. Never call it SEO.
+
+**12. The technical blog post** (1h of the 2h it deserves; finish it later).
+Unchanged from `gtm-tactics.md` §7 item 10 — Panaitiu's M1 post did 30k views. Write the hardest
+thing you actually solved. Cross-post to dev.to (surfaced on a dev query `[VERIFIED]`; Medium is in
+ChatGPT's top-cited domains `[SECONDARY]`).
+
+### Hour 10 — instrumentation, so the next ten hours are informed
+**13. Wire up the Homebrew number.** (30 min)
+`[VERIFIED]` Third-party taps are in the public analytics JSON.
+```
+curl -s https://formulae.brew.sh/api/analytics/install-on-request/30d.json \
+  | grep -o '"formula":"avaluev/tap/chute","count":"[^"]*"'
+```
+Calibration `[VERIFIED from that file]`: rank 101 of third-party formulae = 824 installs/month;
+rank 501 = 79; rank 1,001 = 31; 6,677 formulae sit at exactly 1. At the 1–3% open-source conversion
+benchmark (`gtm-tactics.md` §2), 79 installs/month ≈ 1–2 sales/month. **Know this number before you
+believe any funnel story.**
+
+**14. Search your own queries monthly.** (30 min/month, not part of the 10h)
+Run the six queries in §3a and §4a in ChatGPT, Claude and Perplexity and record whether Chute is
+cited. That is your only real GEO measurement, and it is free.
+
+### Explicitly NOT in the ten hours
+- **Programmatic pages** — no dataset to templatize; thin-page risk on a zero-authority domain (§4d).
+- **Stack Overflow** — did not surface on any dev query I ran `[VERIFIED]`; declining activity `[SECONDARY]`.
+- **StackShare, Slant** — no evidence of 2026 relevance; both refused my fetches `[UNVERIFIED]`.
+- **"copy files for llm" as a keyword** — Google Autocomplete returns **zero suggestions**
+  `[VERIFIED]`. There is no demand for that phrasing. Same for "claude code finder".
+- **Keyword-optimising anything** — scored 17.7 against a 19.3 baseline in the GEO paper and 10%
+  below baseline on live Perplexity `[VERIFIED]`.
+- **Any schema beyond SoftwareApplication + Organization** — FAQ and HowTo rich results are both
+  dead `[SECONDARY]`.
+
+---
+
+## 7. Open questions I could not resolve
+
+- **`[UNVERIFIED]` There is no published citation study restricted to developer-tool queries.**
+  Everything in §3 is inferred from live SERPs plus general studies. This is the biggest gap.
+- **`[UNVERIFIED]` No keyword volume numbers.** Autocomplete proves a query exists, not how often it
+  is typed. Every volume figure in circulation for these terms is paywalled or fabricated.
+- The GEO paper is 2024 and its engine was a `gpt-3.5-turbo` simulation with a 5-source retrieval.
+  Only the Perplexity arm tested a live commercial engine. Nothing has replicated it on ChatGPT
+  Search, Claude, AI Overviews or Copilot at 2026 scale that I could find.
+- **The head-of-distribution numbers disagree across studies** (Wikipedia at 7.8% of ChatGPT
+  citations vs "top domain rarely exceeds 5%"). They count different denominators. Do not quote
+  either externally.
+- Ahrefs' 75K-brand correlations are correlational and restricted to DR > 40 domains — i.e. the
+  study population *excludes sites like chutedev.com*. Direction is probably right; magnitude for a
+  DR-0 site is unknown.
+- AlternativeTo's 7-day account rule comes from third-party submission guides; alternativeto.net
+  returns 403 to non-browser fetches so I could not read the policy first-hand. **Cost of assuming
+  it's true is 90 seconds. Assume it's true.**
+- No AI lab has published a position on llms.txt. Absence of a commitment, not a documented refusal
+  (except Google, which documented it).
+- `[UNVERIFIED]` Every "schema markup makes you 2.5×/3.7× more likely to be cited" figure traces
+  only to SEO-vendor blogs. I could not reach a primary study. Do not repeat them.
