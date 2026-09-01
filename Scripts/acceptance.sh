@@ -238,5 +238,23 @@ if [ "$PERF" = "1" ] && [ -f "$WORK/timings" ]; then
 fi
 echo
 [ -n "$SLOW" ] && { echo "over budget:"; printf "$SLOW"; }
+# The plan states a case count. A number in a document with no command behind it is a number that
+# is already drifting, so the run that knows the real total checks it.
+PLAN="$ROOT/docs/specs/TEST-PLAN.md"
+if [ -f "$PLAN" ]; then
+  # grep -oE, not sed: BSD sed has no \+ (that is a GNU extension), so the first version of this
+  # line matched a literal plus sign and silently found nothing — a gate that could only ever
+  # report "could not parse", which is the shape of a check nobody trusts.
+  CLAIMED="$(grep -oE '^[0-9]+, all in' "$PLAN" | grep -oE '^[0-9]+' | head -1)"
+  TOTAL=$((PASS+FAIL))
+  if [ -z "$CLAIMED" ]; then
+    bad "TEST-PLAN states a case count" "could not parse it — has the sentence changed shape?"
+  elif [ "$CLAIMED" != "$TOTAL" ]; then
+    bad "TEST-PLAN's case count" "it says $CLAIMED, this run has $TOTAL"
+  else
+    ok "PLAN" "TEST-PLAN.md agrees there are $TOTAL cases"
+  fi
+fi
+
 echo "acceptance: $PASS passed, $FAIL failed"
 [ "$FAIL" -eq 0 ]
