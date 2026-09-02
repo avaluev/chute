@@ -8,10 +8,14 @@
 // Findable, not merely present: a policy three clicks deep fails. scripts/check-paddle.mjs pins
 // both the page and the footer link.
 
+import { CONFIG } from "./config";
+
+// The two numbers are CONFIG's; restating them here is how a price page and a policy page
+// disagree. The headline is prose and derives from the same number.
 export const REFUND = {
-  windowDays: 30,
-  trialDays: 14,
-  headline: "30 days, no questions asked, no reason required.",
+  windowDays: CONFIG.refundDays,
+  trialDays: CONFIG.trialDays,
+  headline: `${CONFIG.refundDays} days, no questions asked, no reason required.`,
 } as const;
 
 export interface RefundClause { heading: string; body: string[] }

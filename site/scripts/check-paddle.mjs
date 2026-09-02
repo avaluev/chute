@@ -117,7 +117,7 @@ else existsSync(join(out, "media", "og.png"))
 console.log("\n6c. Every referenced asset resolves");
 const refs = new Set();
 for (const body of Object.values(pages)) {
-  for (const m of body.matchAll(/(?:src|href)="(\/[^"]+\.(?:png|gif|jpg|jpeg|svg|webp|css|js|woff2?))"/g)) {
+  for (const m of body.matchAll(/(?:src|href)="(\/[^"]+\.(?:png|gif|jpg|jpeg|svg|webp|mp4|webm|css|js|woff2?))"/g)) {
     refs.add(m[1]);
   }
 }

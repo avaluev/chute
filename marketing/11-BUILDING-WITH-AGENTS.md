@@ -17,8 +17,8 @@ The numbers for this project, measured today:
 
 | | |
 |---|---|
-| Swift, hand-written and agent-written | **11,680 lines**, zero third-party dependencies |
-| Unit assertions | **949** |
+| Swift, hand-written and agent-written | **11,975 lines**, zero third-party dependencies |
+| Unit assertions | **1,005** |
 | End-to-end checks | **145** headless, **173** driving real Finder |
 | Menu-item acceptance | **81**, against a deliberately hostile directory tree |
 | Shell in the harness | **2,425 lines** across 14 scripts |
@@ -321,7 +321,7 @@ attention, because gates require you to know what would be wrong — which is th
 the part that does not delegate.
 
 **What it produced.** A 2.4 MB app with no dependencies, no launch daemon, no background service
-and no network code at all; a free MIT command-line tool; 949 assertions; CI across three macOS
+and no network code at all; a free MIT command-line tool; 1,005 assertions; CI across three macOS
 versions; and a public repository where every marketing claim is checked against the binary that
 implements it before it can deploy.
 

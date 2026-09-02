@@ -70,8 +70,11 @@ FAIL=0
 # Comments stripped first, or this check fires on the sentence explaining it — which it did, on
 # its very first run. A gate that flags its own documentation is a gate people learn to ignore.
 BAD_BUF="$(for f in "$ROOT"/Sources/chutetests/*.swift; do
+             [ -f "$f" ] || continue
              sed 's://.*::' "$f" | grep -n 'ContextBuffer()' | sed "s|^|${f#"$ROOT/"}:|"
            done)"
+# Over zero suite files the sweep above is vacuous. Say so instead of passing.
+[ -n "$(ls "$ROOT"/Sources/chutetests/*.swift 2>/dev/null)" ] || { echo "  FAIL no suite files found under Sources/chutetests"; exit 1; }
 if [ -n "$BAD_BUF" ]; then
   echo "  FAIL a test constructs ContextBuffer() with no directory — that is the owner's real basket"
   echo "$BAD_BUF" | sed 's/^/       /'
@@ -80,6 +83,9 @@ if [ -n "$BAD_BUF" ]; then
 fi
 
 NOW="$(mktemp)"; measure > "$NOW"; trap 'rm -f "$NOW"' EXIT
+# A renamed Sources/ChuteApp measures as nothing, every baseline row hits `continue`, and the
+# gate prints "untested decision points:  (baseline 171)" and exits 0. Zero files is a failure.
+[ -s "$NOW" ] || { echo "  FAIL nothing measured — are Sources/ChuteApp and Sources/ChuteFinder where the baseline expects?"; exit 1; }
 
 while read -r was file; do
   now="$(awk -v f="$file" '$2 == f {print $1}' "$NOW")"

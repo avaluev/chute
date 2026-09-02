@@ -65,8 +65,10 @@ xcrun notarytool history --keychain-profile "$PROFILE" >/dev/null 2>&1 \
 
 # ---------------------------------------------------------------- the gate
 step "Gate — the suites must pass before anything is published"
-swift run chutetests
+swift run -c release chutetests
 ./Scripts/smoke.sh
+# The Worker mints what License.swift verifies. Nothing else runs this before a release.
+node worker/contract.test.mjs
 
 # ---------------------------------------------------------------- build
 step "Building signed with: $SIGN_ID"
@@ -87,10 +89,13 @@ step "Packaging $DMG"
 # Submit the DMG, not a zip: stapling the DMG is what makes the DOWNLOAD open cleanly. The app
 # inside is stapled separately so it survives being copied out of a dmg that is later thrown away.
 step "Notarising — Apple usually answers in 1-3 minutes"
+LOG="$(mktemp -d)"; trap 'rm -rf "$LOG"' EXIT
+# `|| true`: under pipefail a rejection fails the pipeline and `set -e` ends the script before
+# the grep that explains it — the message written for this case never printed.
 xcrun notarytool submit "$DMG" --keychain-profile "$PROFILE" --wait \
-  | tee /tmp/chute-notary.log
-grep -q "status: Accepted" /tmp/chute-notary.log || {
-  ID="$(sed -n 's/ *id: *\([a-f0-9-]*\)/\1/p' /tmp/chute-notary.log | head -1)"
+  | tee "$LOG/notary.log" || true
+grep -q "status: Accepted" "$LOG/notary.log" || {
+  ID="$(sed -n 's/ *id: *\([a-f0-9-]*\)/\1/p' "$LOG/notary.log" | head -1)"
   echo "--- Apple's reasons ---" >&2
   [ -n "$ID" ] && xcrun notarytool log "$ID" --keychain-profile "$PROFILE" >&2
   die "notarisation was not Accepted"
@@ -104,8 +109,8 @@ xcrun stapler staple "$DMG"
 # The only check that matters: what happens on a Mac that has never seen this app. `spctl`
 # answers exactly that question, and it is the one the local build has always failed.
 step "Verifying as a stranger's Mac would"
-spctl -a -vvv -t install "$DMG" 2>&1 | tee /tmp/chute-spctl.log
-grep -q "accepted" /tmp/chute-spctl.log || die "Gatekeeper still rejects the disk image"
+spctl -a -vvv -t install "$DMG" 2>&1 | tee "$LOG/spctl.log" || true
+grep -q "accepted" "$LOG/spctl.log" || die "Gatekeeper still rejects the disk image"
 xcrun stapler validate "$DMG"
 xcrun stapler validate dist/Chute.app
 echo "notarised, stapled, and accepted by Gatekeeper: $DMG"

@@ -26,6 +26,10 @@ delayed, and one can be issued by hand in the meantime.
    cd /Users/sxope/Documents/2026/Development/37.chute/worker && npx wrangler secret put PADDLE_WEBHOOK_SECRET
    cd /Users/sxope/Documents/2026/Development/37.chute/worker && npx wrangler secret put CHUTE_LICENSE_SEED
    cd /Users/sxope/Documents/2026/Development/37.chute/worker && npx wrangler secret put RESEND_API_KEY
+   # Optional. A Paddle Billing transaction.completed carries customer_id and is not promised to
+   # embed the customer's email; with this key the Worker looks it up, without it such a
+   # transaction returns 500 and Paddle retries until it is set (a read-only API key is enough).
+   cd /Users/sxope/Documents/2026/Development/37.chute/worker && npx wrangler secret put PADDLE_API_KEY
    ```
 
 3. **Point Paddle at it.** Paddle dashboard → Developer tools → Notifications → New destination,

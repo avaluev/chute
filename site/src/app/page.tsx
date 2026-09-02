@@ -12,6 +12,11 @@ import { Header, Footer } from "@/components/chrome";
 import { CaseCard, DailyCost, Demo } from "@/components/case-bits";
 import { CASES, PAID, FREE, HEROES, minutesPerDay, bySlug } from "@/lib/cases";
 import { CONFIG } from "@/lib/config";
+import { SELLER } from "@/lib/seller";
+
+/** JSON for a <script> body. A `</script>` inside any string would end the element early;
+ *  escaping `<` is the standard belt for a sink that has no sanitiser. */
+const jsonLd = (o: object) => JSON.stringify(o).replace(/</g, "\\u003c");
 
 /**
  * The landing page is generated from lib/cases.ts, not written alongside it.
@@ -123,7 +128,7 @@ export default function Home() {
           version from the changelog's own data, so there is no second place for them to rot. */}
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify({
+        dangerouslySetInnerHTML={{ __html: jsonLd({
           "@context": "https://schema.org",
           "@type": "SoftwareApplication",
           name: "Chute",
@@ -132,7 +137,7 @@ export default function Home() {
           url: `https://${CONFIG.domain}`,
           downloadUrl: CONFIG.download,
           softwareHelp: `https://${CONFIG.domain}/docs/`,
-          author: { "@type": "Person", name: CONFIG.seller.name },
+          author: { "@type": "Person", name: SELLER.legalName },
           offers: {
             "@type": "Offer",
             price: CONFIG.price.replace("$", ""),
