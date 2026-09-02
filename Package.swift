@@ -18,6 +18,7 @@ let package = Package(
         // split (the root LICENSE is MIT and says so), and SwiftPM warns about any file in a
         // target directory it has no rule for.
         .executableTarget(name: "ChuteApp", dependencies: ["ChuteCore"], exclude: ["LICENSE"]),
-        .executableTarget(name: "chutetests", dependencies: ["ChuteCore"]),
+        // `fixtures/` is read at run time by path (AgentTranscriptSuite), not bundled.
+        .executableTarget(name: "chutetests", dependencies: ["ChuteCore"], exclude: ["fixtures"]),
     ]
 )

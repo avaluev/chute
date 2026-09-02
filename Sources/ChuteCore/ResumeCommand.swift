@@ -22,8 +22,14 @@ public enum ResumeCommand {
         "claude": { "claude --resume \($0)" },
     ]
 
+    /// The id is the ONE field from the hook file that was reaching the clipboard unquoted, and
+    /// `tmux` wraps the whole command in literal single quotes — so a `'` in it ended the quoting
+    /// and the rest ran when pasted. `cwd` and `project` were both sanitised; this is the same
+    /// rule `AgentTranscript.find` already applies to the same field: refuse rather than quote.
     public static func resume(agent: String?, sessionID: String) -> String? {
-        guard let agent, let build = resumeSyntax[agent] else { return nil }
+        guard let agent, let build = resumeSyntax[agent], !sessionID.isEmpty,
+              sessionID.allSatisfy({ $0.isASCII && ($0.isLetter || $0.isNumber || $0 == "-" || $0 == "_") })
+        else { return nil }
         return build(sessionID)
     }
 

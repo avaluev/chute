@@ -27,7 +27,13 @@ public enum Shell {
         do { try p.run() } catch {
             return ShellResult(out: "", err: "cannot run \(tool): \(error.localizedDescription)", code: 127)
         }
-        if let input { i.fileHandleForWriting.write(Data(input.utf8)) }
+        // A child that exits without reading stdin (pbcopy with no pasteboard server: ssh, CI,
+        // launchd) turns this write into EPIPE. The non-throwing `write(_:)` answered that with
+        // SIGPIPE — exit 141, no output, no error — or, with the signal ignored, an uncatchable
+        // NSFileHandleOperationException. Both are needed: ignore the signal so the write gets
+        // to fail, and use the throwing write so the failure is a value, not a crash.
+        signal(SIGPIPE, SIG_IGN)
+        if let input { try? i.fileHandleForWriting.write(contentsOf: Data(input.utf8)) }
         i.fileHandleForWriting.closeFile()
         // stderr is drained CONCURRENTLY. A pipe holds ~64 KB: a child that fills stderr while
         // this thread is still blocked reading stdout stops writing, never closes stdout, and

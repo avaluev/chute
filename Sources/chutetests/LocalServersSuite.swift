@@ -69,6 +69,18 @@ func localServersSuite() {
         T.ok(!LocalServers.killSet(listener: 90588, table: table).contains(1),
              "launchd is never in the kill set")
 
+        // A MULTIPLEXER IS NOT A SUPERVISOR. turbo/concurrently do not respawn a child that
+        // exits, so climbing through one buys nothing and takes every sibling: "Stop It" on
+        // :3001 in a Turborepo killed :3000 and :3002 too. The climb stops below them.
+        let turbo: [Int: (ppid: Int, command: String)] = [
+            100: (ppid: 1, command: "zsh"), 200: (ppid: 100, command: "turbo"),
+            300: (ppid: 200, command: "node"), 301: (ppid: 300, command: "next-server"),
+            400: (ppid: 200, command: "node"), 401: (ppid: 400, command: "next-server"),
+        ]
+        T.eq(LocalServers.killSet(listener: 301, table: turbo), [300, 301],
+             "stopping one app under turbo takes its own node, not turbo and the sibling app")
+        T.no(LocalServers.killSet(listener: 301, table: turbo).contains(401), "the sibling listener survives")
+
         // A self-parenting or cyclic table must terminate rather than hang.
         T.eq(LocalServers.killSet(listener: 5, table: [5: (ppid: 5, command: "node")]), [5],
              "a self-parenting pid terminates the climb instead of looping")

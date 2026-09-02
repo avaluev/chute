@@ -10,9 +10,9 @@ public enum Junk {
 
     public static let files: Set<String> = [".DS_Store", "Thumbs.db", ".env"]
 
-    public static let scratchPatterns = [
-        "temp_", "tmp_", "test_debug", "scratch", "untitled", "Untitled",
-    ]
+    // Not "Untitled": that is the name `New File ▸ Empty Markdown File` gives the file it just
+    // made, and `chute clean` proposed trashing the product's own output.
+    public static let scratchPatterns = ["temp_", "tmp_", "test_debug", "scratch"]
 
     public static let scratchExtensions: Set<String> = ["log", "tmp", "swp", "orig", "rej", "bak"]
 

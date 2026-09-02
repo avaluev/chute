@@ -68,12 +68,24 @@ public enum FileScan {
         let joined = expanded.hasPrefix("/")
             ? expanded
             : (fm.currentDirectoryPath as NSString).appendingPathComponent(expanded)
-        let flattened = joined.replacingOccurrences(of: "/./", with: "/")
+        // Rescanned: `replacingOccurrences` is non-overlapping, so `/a/././b` kept one dot.
+        var flattened = joined
+        while flattened.contains("/./") { flattened = flattened.replacingOccurrences(of: "/./", with: "/") }
         return flattened.hasSuffix("/.") ? String(flattened.dropLast(2)) : flattened
     }
 
-    /// NFR-12 — binaries are skipped, never corrupted into the context.
+    /// The most a single file may contribute to a bundle. Nothing bounded the BYTES of one file
+    /// — `maxFiles` bounds the count — so "Copy Files as Context" on a folder holding a 1 GB
+    /// `.sql` dump read all of it into memory three times over (the Data, the String, the joined
+    /// bundle) and then piped it to pbcopy, with a spinner and no message. 8 MiB is already
+    /// ~2 M tokens: far past anything an agent will take, so nothing real is lost to the cap.
+    public static let maxFileBytes = 8 * 1_048_576
+
+    /// NFR-12 — binaries are skipped, never corrupted into the context. So is anything over
+    /// `maxFileBytes`; both come back nil and land in the caller's `skipped` list.
     public static func readText(_ path: String) -> String? {
+        guard let size = (try? fm.attributesOfItem(atPath: path)[.size]) as? Int,
+              size <= maxFileBytes else { return nil }
         guard let data = fm.contents(atPath: path) else { return nil }
         if data.prefix(8192).contains(0) { return nil }          // NUL byte ⇒ binary
         return String(data: data, encoding: .utf8)

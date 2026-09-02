@@ -38,7 +38,11 @@ public enum PathFormat {
             case .at:       return "@" + relativize(p, to: root)
             }
         }
-        return out.joined(separator: separator == .line ? "\n" : " ")
+        // An @mention ends at the first space, so `@my docs/note.txt @a.ts` reads as four
+        // tokens to the agent. One per line whenever any path needs it; spaces in macOS paths
+        // are the norm, not the edge.
+        let oneLine = separator == .space && !(style == .at && out.contains { $0.contains(" ") })
+        return out.joined(separator: oneLine ? " " : "\n")
     }
 
     public static func relativize(_ path: String, to root: String) -> String {

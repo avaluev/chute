@@ -34,6 +34,13 @@ func processIdentitySuite() {
         let again = ProcessIdentity.arguments(me)
         T.eq(again, myArgs, "a cached read returns the exact same argv the live syscall did")
 
+        // PID REUSE. A success was cached forever by pid number, so a new browser at a recycled
+        // pid was named after a dead one's profile. The cache is keyed on the process's start
+        // time; an entry planted under our pid with a different start is a different process.
+        ProcessIdentity.plantCachedArgv(["ghost", "--user-data-dir=/dead"], pid: me, start: 1)
+        T.eq(ProcessIdentity.arguments(me), myArgs,
+             "a cache entry from a previous process at the same pid is never served")
+
         // ── userDataDir: PURE, no process, every shape it has to survive ───────────────────
         T.eq(ProcessIdentity.userDataDir(argv: ["chrome", "--user-data-dir=/Users/x/profile-a"]),
              "/Users/x/profile-a", "the '--flag=value' form, one token")

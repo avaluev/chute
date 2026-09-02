@@ -56,8 +56,25 @@ public enum ProcessIdentity {
     /// `previous` (written once per menu tick, from one thread) this dictionary can be read by a
     /// background metrics pass and a live label render at the same time, and losing a concurrent
     /// write would mean paying the 0.371 ms cost again for nothing.
-    nonisolated(unsafe) private static var argvCache: [Int32: [String]] = [:]
+    ///
+    /// KEYED ON THE PROCESS, NOT THE NUMBER. The paragraph above applied pid reuse only to
+    /// failures — a success was cached forever, so once a pid came round again (macOS wraps at
+    /// 99999, and this product's own premise is a machine that churns processes) the menu named
+    /// a new browser after a dead one's profile. The start time is the kernel's own identity for
+    /// a process: same pid, different start, different process. One small sysctl per lookup,
+    /// against the 0.371 ms copy-out it saves.
+    nonisolated(unsafe) private static var argvCache: [Int32: (start: UInt64, argv: [String])] = [:]
     private static let argvCacheLock = NSLock()
+
+    /// `p_starttime` from `KERN_PROC_PID`, as one number. nil when the process is gone.
+    static func startTime(_ pid: Int32) -> UInt64? {
+        var mib: [Int32] = [CTL_KERN, KERN_PROC, KERN_PROC_PID, pid]
+        var k = kinfo_proc()
+        var size = MemoryLayout<kinfo_proc>.stride
+        guard sysctl(&mib, 4, &k, &size, nil, 0) == 0, size > 0 else { return nil }
+        let t = k.kp_proc.p_starttime
+        return UInt64(t.tv_sec) &* 1_000_000 &+ UInt64(t.tv_usec)
+    }
 
     /// Full argv, via `sysctl(KERN_PROCARGS2)` — the only source for it that does not truncate
     /// and does not mean shelling out to `ps` once per pid.
@@ -66,17 +83,24 @@ public enum ProcessIdentity {
     /// copy-out, not a cheap lookup — fine once, expensive across a 300+ process tree re-sampled
     /// every menu tick, which is why every successful read is cached (see `argvCache` above).
     public static func arguments(_ pid: Int32) -> [String]? {
+        guard let start = startTime(pid) else { return nil }
         argvCacheLock.lock()
         let cached = argvCache[pid]
         argvCacheLock.unlock()
-        if let cached { return cached }
+        if let cached, cached.start == start { return cached.argv }
 
         guard let fetched = readProcArgs(pid) else { return nil }
 
         argvCacheLock.lock()
-        argvCache[pid] = fetched
+        argvCache[pid] = (start, fetched)
         argvCacheLock.unlock()
         return fetched
+    }
+
+    /// The suite's window into the cache: plant an entry under a pid whose process has a
+    /// different start time and prove `arguments` does not serve it.
+    public static func plantCachedArgv(_ argv: [String], pid: Int32, start: UInt64) {
+        argvCacheLock.lock(); argvCache[pid] = (start, argv); argvCacheLock.unlock()
     }
 
     /// The raw `KERN_PROCARGS2` layout: argc (4 bytes, little-endian) — the saved exec path

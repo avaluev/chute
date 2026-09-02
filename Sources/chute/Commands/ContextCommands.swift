@@ -32,7 +32,7 @@ func cmdBundle(_ a: Args) {
     let tokens = TokenEstimate.tokens(in: text)
     Out.deliver(text, a, badge: "\(files.count) file(s) · \(TokenEstimate.badge(tokens))",
                 label: "\(contextLabel(files.map(\.path))) · \(files.count) file(s) · \(TokenEstimate.badge(tokens))")
-    if !skipped.isEmpty { Out.info("→ skipped \(skipped.count) binary file(s)") }
+    if !skipped.isEmpty { Out.info("→ skipped \(skipped.count) binary or oversized file(s)") }
 }
 
 // MARK: - FR-03 tokens

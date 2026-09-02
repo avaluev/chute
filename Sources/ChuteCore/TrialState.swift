@@ -104,7 +104,9 @@ public enum Trial {
         var record = load(path: path) ?? TrialRecord(firstRun: now, lastSeen: now)
         record.licenseKey = key.filter { !$0.isWhitespace }
         record.lastSeen = max(record.lastSeen, now)
-        save(record, path: path)
+        // A key that verified but did not reach the disk is not an activation: the pane said
+        // "Licensed to …", and the next launch was back to expired.
+        guard save(record, path: path) else { return nil }
         return info
     }
 

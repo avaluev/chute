@@ -182,7 +182,10 @@ public enum LocalServers {
         "npm", "npx", "pnpm", "yarn", "bun", "node", "deno", "next", "next-server",
         "python", "python3", "uvicorn", "gunicorn", "flask", "ruby", "rails",
         "php", "java", "dotnet", "cargo", "vite", "esbuild", "webpack", "nodemon",
-        "concurrently", "tsx", "ts-node", "turbo", "rollup", "parcel",
+        "tsx", "ts-node", "rollup", "parcel",
+        // NOT `turbo` or `concurrently`. They are multiplexers, not supervisors: neither
+        // restarts a child that exits, so climbing through one buys nothing — and costs every
+        // sibling. "Stop It" on :3001 in a Turborepo took :3000 and :3002 with it.
     ]
 
     /// Parse `ps -axo pid=,ppid=,comm=` into pid → (ppid, command). Pure.
