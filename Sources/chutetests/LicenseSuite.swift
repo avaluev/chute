@@ -143,5 +143,9 @@ func licenseSuite() {
         // "Licensed to …" and the next launch was back to expired.
         T.eq(Trial.activate(validKey, path: "/dev/null/nowhere/trial.json", verify: verifyTest)?.email, nil,
              "a good key whose record cannot be saved reports failure, not a licence")
+        T.ok(Trial.activationFailure(validKey, path: "/dev/null/nowhere/trial.json", verify: verifyTest).contains("could not be saved"),
+             "and the pane's sentence names the disk, not the key")
+        T.ok(Trial.activationFailure("CHUTE-rubbish", path: tmp, verify: verifyTest).contains("not recognised"),
+             "while a bad key is told it is a bad key")
     }
 }

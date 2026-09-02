@@ -1,30 +1,14 @@
 import Foundation
+import ChuteCore
 
-/// ponytail: hand-rolled flag parsing. ~40 lines beats a dependency for 25 subcommands.
-/// Adopt swift-argument-parser only if flags outgrow this.
+/// ponytail: hand-rolled flag parsing. The grammar itself lives in ChuteCore.ArgParse so the
+/// suite can reach it; adopt swift-argument-parser only if flags outgrow this.
 struct Args {
     let positional: [String]
     private let flags: [String: String]
 
     init(_ raw: [String]) {
-        var pos: [String] = []
-        var fl: [String: String] = [:]
-        var i = 0
-        while i < raw.count {
-            let a = raw[i]
-            if a.hasPrefix("--") {
-                let key = String(a.dropFirst(2))
-                if i + 1 < raw.count, !raw[i + 1].hasPrefix("--") {
-                    fl[key] = raw[i + 1]; i += 2
-                } else {
-                    fl[key] = ""; i += 1
-                }
-            } else {
-                pos.append(a); i += 1
-            }
-        }
-        positional = pos
-        flags = fl
+        (positional, flags) = ArgParse.split(raw)
     }
 
     func has(_ key: String) -> Bool { flags[key] != nil }
@@ -46,24 +30,30 @@ struct Args {
     ///
     /// `--files-from <file>` adds one path per line. Selecting a few thousand files in Finder
     /// produces a command line that blows past ARG_MAX and the whole action fails with
-    /// "argument list too long"; a file has no such limit.
+    /// "argument list too long"; a file has no such limit. A list that was asked for and cannot
+    /// be read is an error, never a fallback: it used to become "the current directory", so a
+    /// 500-file Copy Full Paths could put one folder on the clipboard under a green HUD.
     func paths(dropping: Int = 0, defaultToCWD: Bool = false) -> [String] {
         var out = Array(positional.dropFirst(dropping))
-        if let listFile = optional("files-from"),
-           let text = try? String(contentsOfFile: listFile, encoding: .utf8) {
-            out += text.split(separator: "\n").map(String.init)
-                .map { $0.trimmingCharacters(in: .whitespaces) }
-                .filter { !$0.isEmpty }
+        if let listFile = optional("files-from") {
+            guard let text = try? String(contentsOfFile: listFile, encoding: .utf8) else {
+                Out.fail("cannot read --files-from \(listFile)")
+            }
+            out += ArgParse.pathList(text)
         }
         if out.isEmpty && defaultToCWD {
             return [FileManager.default.currentDirectoryPath]
         }
-        return out.map { FileScanAbsolute($0) }
+        return out.map { FileScan.absolute($0) }
     }
 }
 
-import ChuteCore
-func FileScanAbsolute(_ p: String) -> String { FileScan.absolute(p) }
+/// Fixed-width column, truncated to fit. One definition: `ports` and `sessions` each carried
+/// their own, and only one of them truncated, so a long project name broke one table and not
+/// the other.
+func pad(_ s: String, _ n: Int) -> String {
+    s.count >= n ? String(s.prefix(n)) : s + String(repeating: " ", count: n - s.count)
+}
 
 enum Out {
     static func info(_ s: String) { FileHandle.standardError.write(Data((s + "\n").utf8)) }
@@ -81,10 +71,7 @@ enum Out {
     /// entry is a file path now (see `ContextBuffer.swift`), and the only way in is an explicit
     /// `chute basket add <files…>` — this command's own output, which is text, was never a fit
     /// for that store anyway.
-    ///
-    /// `label` is kept only because two callers outside this file (`AgentCommands.swift`,
-    /// `SessionCommands.swift`) still pass it by name; it does nothing here any more.
-    static func deliver(_ text: String, _ args: Args, badge: String? = nil, label: String? = nil) {
+    static func deliver(_ text: String, _ args: Args, badge: String? = nil) {
         print(text)
         if !args.has("no-copy") {
             Clipboard.write(text)

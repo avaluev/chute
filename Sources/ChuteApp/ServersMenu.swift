@@ -68,10 +68,7 @@ extension AppDelegate {
     @objc func killServer(_ sender: NSMenuItem) {
         guard let port = sender.representedObject as? Int else { return }
         DispatchQueue.global(qos: .userInitiated).async {
-            let pids = LocalServers.kill(port: port)
-            notify("Local servers", pids.isEmpty
-                   ? "Nothing was listening on \(port) any more."
-                   : "Stopped \(pids.count) process(es) on port \(port).")
+            notify("Local servers", LocalServers.kill(port: port).message(port: port))
         }
     }
 }

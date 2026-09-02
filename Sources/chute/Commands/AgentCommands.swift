@@ -122,9 +122,6 @@ func cmdSandbox(_ a: Args) {
 // MARK: - FR-15 zombie ports
 
 func cmdPorts(_ a: Args) {
-    func pad(_ s: String, _ n: Int) -> String {
-        s.count >= n ? s : s + String(repeating: " ", count: n - s.count)
-    }
     func printRow(_ s: LocalServer) {
         Out.line(pad(String(s.port), 8) + pad(s.kind, 12) + pad(s.project ?? "—", 22)
                  + pad(String(s.pid), 8) + (s.loopbackOnly ? "this Mac only" : "your network"))
@@ -143,9 +140,9 @@ func cmdPorts(_ a: Args) {
             Out.info("→ re-run with --force to kill")
             return
         }
-        let pids = LocalServers.kill(port: port)
-        guard !pids.isEmpty else { Out.info("nothing is listening on \(port)"); return }
-        Out.info("→ killed \(pids.count) process(es) on port \(port)")
+        let outcome = LocalServers.kill(port: port)
+        if case .stillListening = outcome { Out.fail(outcome.message(port: port)) }
+        Out.info("→ " + outcome.message(port: port))
         return
     }
     let servers = LocalServers.discover()
@@ -236,9 +233,9 @@ func cmdPrompt(_ a: Args) {
             let clip = Clipboard.read()
             if !clip.isEmpty { body += "\n\n" + clip }
         }
-        Out.deliver(body, a, badge: "decomposition prompt", label: "Decomposition prompt")
+        Out.deliver(body, a, badge: "decomposition prompt")
     case "ponytail":
-        Out.deliver(Templates.ponytailPrompt, a, badge: "anti-bloat prompt", label: "Anti-bloat prompt")
+        Out.deliver(Templates.ponytailPrompt, a, badge: "anti-bloat prompt")
     default:
         Out.fail("usage: chute prompt decompose|ponytail")
     }

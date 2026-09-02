@@ -17,14 +17,9 @@ func pastedImageSuite() {
         let dir = NSTemporaryDirectory() + "chute-paste-\(UInt32.random(in: 0...99999))"
         try? FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(atPath: dir) }
-        let first = NameDerive.uniquePath(dir: dir, base: "Shot", ext: "png") {
-            FileManager.default.fileExists(atPath: $0)
-        }
-        try? Data("x".utf8).write(to: URL(fileURLWithPath: first))
-        let second = NameDerive.uniquePath(dir: dir, base: "Shot", ext: "png") {
-            FileManager.default.fileExists(atPath: $0)
-        }
-        T.ok(first != second, "a second paste in the same second gets its own name")
+        let first = (try? NameDerive.writeUniquely(dir: dir, base: "Shot", ext: "png", data: Data("x".utf8))) ?? ""
+        let second = (try? NameDerive.writeUniquely(dir: dir, base: "Shot", ext: "png", data: Data("y".utf8))) ?? ""
+        T.ok(!first.isEmpty && first != second, "a second paste in the same second gets its own name")
 
         // The write itself is the collision check (O_EXCL) — two concurrent invocations can both
         // pass an exists() probe, and the second must land on -2, never on top of the first.

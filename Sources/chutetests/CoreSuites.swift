@@ -54,9 +54,6 @@ func coreSuites() {
         T.eq(NameDerive.slug(fromMarkdown: "intro\n## Second\n# First\n"), "second", "first heading of any level wins")
         T.ok(NameDerive.slug(fromMarkdown: "no headings here") == nil, "nil without heading")
         T.ok((NameDerive.slug(fromMarkdown: "# " + String(repeating: "word ", count: 40)) ?? "").count <= 60, "long heading truncated")
-        let taken: Set<String> = ["/d/spec.md", "/d/spec-2.md"]
-        T.eq(NameDerive.uniquePath(dir: "/d", base: "spec", ext: "md") { taken.contains($0) }, "/d/spec-3.md", "never overwrites")
-        T.eq(NameDerive.uniquePath(dir: "/d", base: "spec", ext: "md") { _ in false }, "/d/spec.md", "plain name when free")
     }
 
     // MARK: - FR-02 context bundle

@@ -3,7 +3,21 @@ import Foundation
 /// Terminal.app via AppleScript. No Accessibility permission, no process-table polling.
 /// Fields are separated by ASCII US (0x1F) and records by RS (0x1E) because window titles
 /// legitimately contain commas, dashes, quotes and emoji.
-public struct TerminalAppAdapter: TerminalAdapter {
+public enum TerminalError: Error, CustomStringConvertible {
+    case notRunning(String)
+    case scriptFailed(String)
+
+    public var description: String {
+        switch self {
+        case .notRunning(let app): return "\(app) is not running"
+        case .scriptFailed(let m):  return "AppleScript failed: \(m)"
+        }
+    }
+}
+
+/// ponytail: no `TerminalAdapter` protocol. One conformer, three call sites, all of which
+/// construct this type by name; add the protocol back when a second terminal exists.
+public struct TerminalAppAdapter {
     public let kind: TerminalKind = .terminalApp
     public init() {}
 

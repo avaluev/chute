@@ -29,5 +29,6 @@ confirmPromptSuite()
 projectRootSuite()
 finderTargetSuite()
 treeRenderSuite()
+argParseSuite()
 
 T.report()

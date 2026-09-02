@@ -292,12 +292,30 @@ public enum LocalServers {
     /// to actually go, then KILL for the remainder. The return value is what
     /// was acted on — the caller reports it, so it must not claim a stop it
     /// did not perform.
+    /// What "Stop It" actually did. The message is decided here, once, so the menu bar and the
+    /// CLI cannot say different things about the same port — and a stop that did not happen
+    /// is never reported as one.
+    public enum KillOutcome: Equatable {
+        case nothingListening
+        case stopped([Int])
+        case stillListening([Int])
+
+        public func message(port: Int) -> String {
+            switch self {
+            case .nothingListening:      return "Nothing was listening on \(port) any more."
+            case .stopped(let pids):     return "Stopped \(pids.count) process(es) on port \(port)."
+            case .stillListening(let p): return "Port \(port) is still held by pid \(p.map(String.init).joined(separator: ", "))"
+                + " — it would not die (owned by another user? try `sudo kill -9`)."
+            }
+        }
+    }
+
     @discardableResult
-    public static func kill(port: Int) -> [Int] {
+    public static func kill(port: Int) -> KillOutcome {
         // LISTEN only. A client socket on this port belongs to somebody else.
         let listeners = Shell.run("lsof", ["-tnP", "-iTCP:\(port)", "-sTCP:LISTEN"]).out
             .split(separator: "\n").compactMap { Int($0.trimmingCharacters(in: .whitespaces)) }
-        guard !listeners.isEmpty else { return [] }
+        guard !listeners.isEmpty else { return .nothingListening }
 
         let table = parseProcessTable(Shell.run("ps", ["-axo", "pid=,ppid=,comm="]).out)
         let jobs = parseLaunchdJobs(Shell.run("launchctl", ["list"]).out)
@@ -310,19 +328,23 @@ public enum LocalServers {
         }
         let doomed = (plan.signal + plan.bootout.map(\.pid)).sorted()
         for pid in plan.signal { _ = Shell.run("kill", ["-TERM", String(pid)]) }
+        let listening = { Shell.run("lsof", ["-tnP", "-iTCP:\(port)", "-sTCP:LISTEN"]).out
+            .split(separator: "\n").compactMap { Int($0.trimmingCharacters(in: .whitespaces)) } }
 
         // Up to ~3s for a graceful exit, then force what is left. Polling the
         // LISTENER is the honest check: the port being free is the thing the
         // user asked for, not the pid table being empty.
         for _ in 0..<15 {
-            let still = Shell.run("lsof", ["-tnP", "-iTCP:\(port)", "-sTCP:LISTEN"]).out
-                .trimmingCharacters(in: .whitespacesAndNewlines)
-            if still.isEmpty { return doomed }
+            if listening().isEmpty { return .stopped(doomed) }
             Thread.sleep(forTimeInterval: 0.2)
         }
         // Only the signalled pids: kill -9 on a booted-out job's pid would be a
         // no-op at best and, if launchd already reused the pid, a wrong kill.
         for pid in plan.signal { _ = Shell.run("kill", ["-9", String(pid)]) }
-        return doomed
+        // AND LOOK AGAIN. Every `kill` result above is discarded — EPERM on a root-owned
+        // Postgres looked exactly like success, and the caller printed "killed 1 process".
+        Thread.sleep(forTimeInterval: 0.2)
+        let left = listening()
+        return left.isEmpty ? .stopped(doomed) : .stillListening(left)
     }
 }

@@ -9,8 +9,7 @@ func cmdPaths(_ a: Args) {
     let style = PathStyle(rawValue: a.value("format", or: "posix")) ?? .posix
     let sep: PathSeparator = a.value("sep", or: style == .at ? "space" : "line") == "space" ? .space : .line
     let text = PathFormat.render(files, style: style, separator: sep)
-    Out.deliver(text, a, badge: "\(files.count) path(s)",
-                label: files.count == 1 ? "1 full path" : "\(files.count) full paths")
+    Out.deliver(text, a, badge: "\(files.count) path(s)")
 }
 
 /// The text `bundle` hands over — and therefore the text `tokens` must count, and what the
@@ -30,8 +29,7 @@ func cmdBundle(_ a: Args) {
     let (text, files, skipped) = assembledBundle(expanded, a)
     guard !files.isEmpty else { Out.fail("every selected file is binary or unreadable") }
     let tokens = TokenEstimate.tokens(in: text)
-    Out.deliver(text, a, badge: "\(files.count) file(s) · \(TokenEstimate.badge(tokens))",
-                label: "\(contextLabel(files.map(\.path))) · \(files.count) file(s) · \(TokenEstimate.badge(tokens))")
+    Out.deliver(text, a, badge: "\(files.count) file(s) · \(TokenEstimate.badge(tokens))")
     if !skipped.isEmpty { Out.info("→ skipped \(skipped.count) binary or oversized file(s)") }
 }
 
@@ -63,8 +61,7 @@ func cmdTree(_ a: Args) {
     let dir = a.paths(defaultToCWD: true)[0]
     guard FileScan.isDirectory(dir) else { Out.fail("not a directory: \(dir)") }
     let depth = Int(a.value("depth", or: "3")) ?? 3
-    Out.deliver(TreeRender.render(dir, depth: depth), a,
-                label: "Folder tree · \((dir as NSString).lastPathComponent) (\(depth) deep)")
+    Out.deliver(TreeRender.render(dir, depth: depth), a)
 }
 
 // MARK: - FR-19 redact
@@ -76,8 +73,7 @@ func cmdRedact(_ a: Args) {
     guard !input.isEmpty else { Out.fail("nothing to redact") }
     let out = Redact.apply(input)
     let hits = out.components(separatedBy: "[REDACTED]").count - 1
-    Out.deliver(out, a, badge: "\(hits) secret(s) masked",
-                label: "Redacted · \(hits) secret(s) masked")
+    Out.deliver(out, a, badge: "\(hits) secret(s) masked")
 }
 
 // MARK: - FR-23 data URL
@@ -94,8 +90,7 @@ func cmdDataURL(_ a: Args) {
     let name = (file as NSString).lastPathComponent
     let url = "data:\(mime);base64,\(data.base64EncodedString())"
     let text = a.has("markdown") ? "![\(name)](\(url))" : url
-    Out.deliver(text, a, badge: "\(data.count / 1024) KB",
-                label: "Image as a data URL · \(data.count / 1024) KB")
+    Out.deliver(text, a, badge: "\(data.count / 1024) KB")
 }
 
 // MARK: - FR-22 context basket
@@ -128,7 +123,11 @@ func cmdBasket(_ a: Args) {
         let missing = paths.filter { !FileManager.default.fileExists(atPath: $0) }
         let failed = paths.filter { buf.add($0) == nil }
         let added = buf.entries().filter { !before.contains($0.path) }.count
-        let already = paths.count - added - failed.count
+        // FROM FACTS, NOT BY SUBTRACTION. `already` was "everything unaccounted for", so the
+        // five files the basket's cap evicted were reported as "already there" — the user
+        // handed an agent a context set they believed complete.
+        let already = paths.filter { before.contains($0) }.count
+        let dropped = paths.count - added - already - failed.count
         guard failed.count < paths.count else {
             Out.fail(missing.count == paths.count
                 ? "no such file: \(missing.joined(separator: ", "))"
@@ -136,6 +135,7 @@ func cmdBasket(_ a: Args) {
         }
         var said = "→ added \(added)"
         if already > 0 { said += " · \(already) already there" }
+        if dropped > 0 { said += " · \(dropped) dropped — the basket keeps \(ContextBuffer.keep)" }
         if !failed.isEmpty { said += " · \(failed.count) could not be added" }
         Out.info(said + " — \(buf.entries().count) in the basket")
         if !failed.isEmpty { failed.forEach { Out.info("  not added: \($0)") } }
@@ -159,12 +159,10 @@ func cmdBasket(_ a: Args) {
                 Out.fail("every file in the basket is gone — `chute basket list` shows which")
             }
             Out.deliver(text, a,
-                        badge: "\(buf.entries().count) file(s) · \(TokenEstimate.badge(TokenEstimate.tokens(in: text)))",
-                        label: "Basket as Context")
+                        badge: "\(buf.entries().count) file(s) · \(TokenEstimate.badge(TokenEstimate.tokens(in: text)))")
         } else {
             let text = buf.mentionText() ?? ""
-            Out.deliver(text, a, badge: "\(buf.entries().count) file(s) as @mentions",
-                        label: "Basket as @mentions")
+            Out.deliver(text, a, badge: "\(buf.entries().count) file(s) as @mentions")
         }
     case "clear":
         let n = buf.entries().count
@@ -178,14 +176,3 @@ func cmdBasket(_ a: Args) {
 /// Kept exactly as `flush` was kept as an undocumented alias for `all`: muscle memory and scripts
 /// cost more to break than the old name is worth.
 func cmdBuf(_ a: Args) { cmdBasket(a) }
-
-/// The shortest true description of what a bundle covered, for a menu row. Folder names where
-/// they are common, otherwise a count — "src/auth, src/api" is what you are scanning for; the
-/// first sixty characters of an XML blob is not.
-func contextLabel(_ files: [String]) -> String {
-    let dirs = Array(Set(files.map { ($0 as NSString).deletingLastPathComponent })).sorted()
-        .map { $0.isEmpty ? "." : ($0 as NSString).lastPathComponent }
-    if dirs.isEmpty { return "Context" }
-    if dirs.count <= 2 { return dirs.joined(separator: ", ") }
-    return "\(dirs.count) folders"
-}
