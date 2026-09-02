@@ -68,14 +68,6 @@ public enum NameDerive {
         return (dir as NSString).appendingPathComponent(name)
     }
 
-    /// NFR-08 — never overwrite. Falls back to `name-2`, `name-3`, …
-    public static func uniquePath(dir: String, base: String, ext: String,
-                                  exists: (String) -> Bool) -> String {
-        var n = 1
-        while exists(candidate(dir: dir, base: base, ext: ext, n: n)) { n += 1 }
-        return candidate(dir: dir, base: base, ext: ext, n: n)
-    }
-
     /// NFR-08 under concurrency. Probing then writing is a race two simultaneous invocations can
     /// lose — both resolve `Shot-2.png`, the second silently clobbers the first. So the WRITE is
     /// the probe: `.withoutOverwriting` is O_EXCL at the filesystem, and a collision just moves to

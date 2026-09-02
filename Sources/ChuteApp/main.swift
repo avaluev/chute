@@ -170,13 +170,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
     }
 
-    /// Only for the ⌥⌘N HUD popup, which has no live NSMenu already being tracked by AppKit
-    /// to populate in place. Every other path goes through menuWillOpen.
+    /// Only for the ⌥⌘N HUD popup. `popUp` sends `menuWillOpen` like any other open, which is
+    /// where the body is built — populating here as well ran the Terminal scan and both `lsof`
+    /// calls twice per keypress.
     func buildMenu() -> NSMenu {
         let menu = NSMenu()
         menu.delegate = self
-        let trial = Trial.touch()
-        populateBody(menu, trial: trial)
         return menu
     }
 
@@ -396,8 +395,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             DispatchQueue.main.async { (NSApp.delegate as? AppDelegate)?.showHUD() }
             return noErr
         }, 1, &eventType, nil, nil)
-        RegisterEventHotKey(UInt32(kVK_ANSI_N), UInt32(optionKey | cmdKey),
-                            hotKeyID, GetApplicationEventTarget(), 0, &hotKeyRef)
+        let status = RegisterEventHotKey(UInt32(kVK_ANSI_N), UInt32(optionKey | cmdKey),
+                                         hotKeyID, GetApplicationEventTarget(), 0, &hotKeyRef)
+        // ⌥⌘N is one of the four things /buy sells. Another app owning it left the key dead
+        // with nothing anywhere saying so.
+        HotKeyStatus.problem(status).map { NSLog("Chute: %@", $0) }
     }
 
     func showHUD() {

@@ -239,7 +239,7 @@ public enum ChuteActions {
         public let children: [String]   // action ids, empty for a plain row
     }
 
-    /// What the user sees. Fourteen actions, but a context menu is judged on how many rows it
+    /// What the user sees. Every action, but a context menu is judged on how many rows it
     /// adds to Finder's own — and Finder's own is already long. This is the one implementation;
     /// the test and `chute finder-actions --menu` both read it rather than keeping a second copy,
     /// which is how the menu drifted the first time.

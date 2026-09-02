@@ -154,7 +154,7 @@ enum SettingsWindow {
                 keyField?.stringValue = License.masked(typed)
                 notify("Chute", "Licensed to \(info.email). Thank you.")
             } else {
-                statusLabel?.stringValue = "That key was not recognised — check it was pasted whole"
+                statusLabel?.stringValue = Trial.activationFailure(typed)
                 statusLabel?.textColor = .systemRed
             }
         }

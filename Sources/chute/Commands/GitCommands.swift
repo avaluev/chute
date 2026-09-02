@@ -115,6 +115,9 @@ func cmdDiff(_ a: Args) {
     let dir = a.paths(defaultToCWD: true)[0]
     requireGitRepo(dir)
     let stat = Shell.run("git", ["diff", "--stat", "HEAD"], cwd: dir)
+    // A repo with no commit yet — exactly what `chute sandbox` makes — fails `git diff HEAD`
+    // with "ambiguous argument 'HEAD'", and this printed "(no tracked changes)" over it.
+    guard stat.ok else { Out.fail("git diff failed: \(stat.err.trimmingCharacters(in: .whitespacesAndNewlines))") }
     let untracked = Shell.run("git", ["ls-files", "--others", "--exclude-standard"], cwd: dir)
         .out.split(separator: "\n").map(String.init)
 
@@ -126,6 +129,9 @@ func cmdDiff(_ a: Args) {
     }
     if a.has("copy") {
         let patch = Shell.run("git", ["diff", "HEAD"], cwd: dir).out
+        // pbcopy with empty stdin EMPTIES the pasteboard. A clean tree asked "what changed?"
+        // and destroyed whatever the user had copied, then said "full patch copied".
+        guard !patch.isEmpty else { Out.info("→ nothing to copy — the patch is empty"); return }
         Clipboard.write(patch)
         Out.info("→ full patch copied (\(TokenEstimate.badge(TokenEstimate.tokens(in: patch))))")
     }

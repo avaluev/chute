@@ -110,6 +110,15 @@ public enum Trial {
         return info
     }
 
+    /// Why `activate` returned nil, for the pane. Two causes, two sentences: a wrong key and an
+    /// unwritable disk send the user to do different things.
+    public static func activationFailure(_ key: String, path: String = recordPath(),
+                                         verify: (String) -> LicenseInfo? = { License.verify($0) }) -> String {
+        verify(key) == nil
+            ? "That key was not recognised — check it was pasted whole"
+            : "The key is valid but could not be saved — is \((path as NSString).deletingLastPathComponent) writable?"
+    }
+
     /// How many days are left before the trial line is worth a menu row at all.
     ///
     /// The rule this file already stated — a paid app that keeps mentioning payment is nagging its

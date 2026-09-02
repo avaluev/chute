@@ -38,8 +38,8 @@ public enum ResumeCommand {
     public static func tmux(project: String, cwd: String?,
                             agent: String?, sessionID: String) -> String? {
         guard let inner = resume(agent: agent, sessionID: sessionID) else { return nil }
-        let dir = cwd.map { " -c \(shellQuote($0))" } ?? ""
-        return "tmux new-session -A -s \(shellQuote(sessionName(project)))\(dir) '\(inner)'"
+        let dir = cwd.map { " -c \(PathFormat.shellQuote($0))" } ?? ""
+        return "tmux new-session -A -s \(PathFormat.shellQuote(sessionName(project)))\(dir) '\(inner)'"
     }
 
     /// tmux session names cannot contain a colon or a period-delimited window reference, and a
@@ -52,12 +52,4 @@ public enum ResumeCommand {
         return "chute-" + (cleaned.isEmpty ? "session" : cleaned)
     }
 
-    /// Single quotes, with the one escape that single-quoting allows: close, escaped quote, reopen.
-    ///
-    /// The path this wraps arrives from a JSON file written by a shell hook and leaves on a
-    /// clipboard the user will paste into a shell. It is not ours to trust just because it came
-    /// off this machine.
-    public static func shellQuote(_ s: String) -> String {
-        "'" + s.replacingOccurrences(of: "'", with: #"'\''"#) + "'"
-    }
 }

@@ -27,7 +27,7 @@ func resumeCommandSuite() {
         // A path is not ours to trust just because it came off this machine: it reaches us from a
         // JSON file written by a shell hook, and it lands on a clipboard the user will paste into
         // a shell. Single-quoted, with the one escape single-quoting permits.
-        T.eq(ResumeCommand.shellQuote("/tmp/it's here"), #"'/tmp/it'\''s here'"#,
+        T.eq(PathFormat.shellQuote("/tmp/it's here"), #"'/tmp/it'\''s here'"#,
              "an apostrophe cannot end the quoting")
         T.ok(ResumeCommand.tmux(project: "p", cwd: "/x'; rm -rf ~; echo '", agent: "claude", sessionID: id)!
                 .contains(#"'/x'\''; rm -rf ~; echo '\'''"#),

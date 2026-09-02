@@ -28,7 +28,8 @@ func cmdSessions(_ a: Args) {
         // An empty list has two causes and a script must be able to tell them apart. `discover`
         // already printed the reason and how to fix it; this is the exit code that carries it.
         if hadError { Out.fail("could not list terminal sessions") }
-        Out.info("no terminal sessions")
+        // A JSON consumer gets JSON. Zero bytes on stdout broke `chute sessions --json | jq`.
+        if a.has("json") { Out.line("[]") } else { Out.info("no terminal sessions") }
         return
     }
 
@@ -63,9 +64,6 @@ func cmdSessions(_ a: Args) {
         return
     }
 
-    func pad(_ s: String, _ n: Int) -> String {
-        s.count >= n ? String(s.prefix(n)) : s + String(repeating: " ", count: n - s.count)
-    }
     // One `ps` for all sessions, not one per row: the list is drawn while you wait for it.
     let samples = SystemVitals.sample()
     for s in sessions {
@@ -87,7 +85,10 @@ func cmdSessions(_ a: Args) {
 /// the paid surface and the free one cannot drift. It is the free half of "make a session
 /// portable": the app finds the session for you, the CLI is where you learn the commands exist.
 func cmdResume(_ a: Args) {
-    let (sessions, _) = discoverSessions()
+    let (sessions, hadError) = discoverSessions()
+    // `discoverSessions` printed the Automation fix; sending the user to install hooks on top
+    // of it contradicts the line above. Same fix `cmdSessions` already had.
+    if hadError { Out.fail("could not list terminal sessions") }
     let target = a.positional.first
 
     // No argument: the one session that is waiting for you, if exactly one is.
@@ -141,15 +142,15 @@ func cmdResume(_ a: Args) {
 
     // tmux CONTINUES a session, it does not move one: macOS cannot transplant a running process
     // onto a new tty. The old window keeps running until you close it.
-    Out.deliver(command, a, badge: a.has("tmux") ? "the old window keeps running" : nil,
-                label: a.has("tmux") ? "Continue \(s.project) in tmux" : "Resume \(s.project)")
+    Out.deliver(command, a, badge: a.has("tmux") ? "the old window keeps running" : nil)
 }
 
 func cmdFocus(_ a: Args) {
     guard let target = a.positional.first else {
         Out.fail("usage: chute focus <key|project>   (see `chute sessions`)")
     }
-    let (sessions, _) = discoverSessions()
+    let (sessions, hadError) = discoverSessions()
+    if hadError { Out.fail("could not list terminal sessions") }
 
     // An ambiguous project name must ASK, not guess. Sending the user to an arbitrary one of four
     // studylock windows is worse than refusing: they cannot tell that it happened.

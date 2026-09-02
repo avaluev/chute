@@ -17,13 +17,13 @@ public enum ContextBundle {
     public static func xml(_ files: [BundleFile], root: String?) -> String {
         files.map { f in
             let body = f.content.replacingOccurrences(of: "</file>", with: "<\\/file>")
-            return "<file path=\"\(escapeAttribute(rel(f.path, root)))\">\n\(body)\n</file>"
+            return "<file path=\"\(escapeAttribute((root).map { PathFormat.relativize(f.path, to: $0) } ?? f.path))\">\n\(body)\n</file>"
         }.joined(separator: "\n\n")
     }
 
     public static func markdown(_ files: [BundleFile], root: String?) -> String {
         files.map { f in
-            let r = rel(f.path, root)
+            let r = (root).map { PathFormat.relativize(f.path, to: $0) } ?? f.path
             let lang = (r as NSString).pathExtension
             return "```\(lang) \(r)\n\(f.content)\n```"
         }.joined(separator: "\n\n")
@@ -35,10 +35,6 @@ public enum ContextBundle {
          .replacingOccurrences(of: "<", with: "&lt;")
     }
 
-    static func rel(_ p: String, _ root: String?) -> String {
-        guard let root, root != "/", p.hasPrefix(root + "/") else { return p }
-        return String(p.dropFirst(root.count + 1))
-    }
 }
 
 /// ONE DEFINITION OF "THE BUNDLE", reused rather than copied — `chute bundle`'s `assembledBundle`
