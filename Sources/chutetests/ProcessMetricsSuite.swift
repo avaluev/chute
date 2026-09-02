@@ -193,32 +193,26 @@ func processMetricsSuite() {
         // THE UNLINKED BINARY. The assertion above went red on 2026-09-03 for a real reason:
         // Claude Code had auto-updated, the running session's binary `versions/2.1.250` was gone
         // from disk, proc_pidpath fails with ENOENT for an unlinked executable, and the row fell
-        // back to p_comm — the bare "2.1.250" this whole rule exists to prevent. Reproduced here
-        // exactly: a version-named copy of `sleep` under a `versions/` directory, started, then
-        // deleted while it runs. The kernel's exec-args block still knows the path.
-        let program = FileManager.default.temporaryDirectory
-            .appendingPathComponent("chute-unlinked-\(getpid())", isDirectory: true)
-            .appendingPathComponent("fakeprog", isDirectory: true)
-            .appendingPathComponent("versions", isDirectory: true)
-        try? FileManager.default.createDirectory(at: program, withIntermediateDirectories: true)
-        let binary = program.appendingPathComponent("9.9.9")
-        try? FileManager.default.removeItem(at: binary)
-        try? FileManager.default.copyItem(atPath: "/bin/sleep", toPath: binary.path)
-        let child = Process()
-        child.executableURL = binary
-        child.arguments = ["30"]
-        if (try? child.run()) != nil {
-            try? FileManager.default.removeItem(at: binary)
-            let row = ProcessMetrics.listing().first { $0.pid == child.processIdentifier }
-            T.eq(row?.command, "fakeprog",
-                 "a process whose version-named binary was deleted underneath it (an agent that "
-               + "auto-updated) is still named by its program, not its version")
-            child.terminate()
-            child.waitUntilExit()
-        } else {
-            T.ok(false, "could not start the unlinked-binary fixture at \(binary.path)")
-        }
-        try? FileManager.default.removeItem(at: program.deletingLastPathComponent().deletingLastPathComponent())
+        // back to p_comm — the bare "2.1.250" this whole rule exists to prevent. The listing now
+        // falls back to the exec path the kernel keeps in the process's own argument block.
+        //
+        // NOT reproduced with a fixture, and the reason is measured: on this macOS a locally
+        // copied binary (Apple-signed or ad-hoc) whose file is unlinked while it runs is SIGKILLed
+        // within ~100 ms, every time, whichever way it was copied or deleted — the Developer-ID
+        // hardened-runtime claude binary survives, a test fixture cannot. So the reader is proved
+        // on a process that exists (ours), and the wiring is proved by the machine-wide assertion
+        // above on any Mac where an agent has updated underneath a live session.
+        var pathBuf = [CChar](repeating: 0, count: 4096)
+        let n = proc_pidpath(me, &pathBuf, 4096)
+        let executablePath = String(decoding: pathBuf.prefix(Int(n)).map { UInt8(bitPattern: $0) }, as: UTF8.self)
+        // The argument block holds the path AS EXEC'D — `.build/release/chutetests` when swift
+        // run launched it relative — so the comparison is on the name, which is all programName
+        // reads. An absolute install (the claude case) round-trips whole.
+        T.eq(ProcessMetrics.execPath(pid: me).map { ($0 as NSString).lastPathComponent },
+             (executablePath as NSString).lastPathComponent,
+             "the exec path read from the kernel's argument block names the same binary as proc_pidpath")
+        T.eq(ProcessMetrics.execPath(pid: 0), nil, "and a pid we may not read yields nil, not a guess")
+
         T.ok(rows.contains { $0.pid == me }, "our own process is in it")
         T.ok(rows.first(where: { $0.pid == me })?.command.contains("chutetests") == true,
              "under its real name: \(rows.first(where: { $0.pid == me })?.command ?? "-")")
