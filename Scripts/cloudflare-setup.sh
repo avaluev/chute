@@ -43,16 +43,19 @@ MSG
   exit 1
 fi
 
+# The token reaches curl through a config on stdin, never as an argument: `-H "Bearer …"` is
+# readable by every local process through `ps` for the life of the request, which is exactly
+# what the file mode above was protecting against.
 api() {
   local method="$1" path="$2" body="${3:-}"
-  if [ -n "$body" ]; then
-    curl -sS -X "$method" "https://api.cloudflare.com/client/v4$path" \
-      -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" --data "$body"
-  else
-    curl -sS -X "$method" "https://api.cloudflare.com/client/v4$path" \
-      -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json"
-  fi
+  {
+    printf 'header = "Authorization: Bearer %s"\n' "$TOKEN"
+    printf 'header = "Content-Type: application/json"\n'
+    [ -n "$body" ] && printf 'data = %s\n' "$(python3 -c 'import json,sys; print(json.dumps(sys.argv[1]))' "$body")"
+    true
+  } | curl -sS -X "$method" "https://api.cloudflare.com/client/v4$path" --config -
 }
+RC=0
 step() { printf '\n\033[1m→ %s\033[0m\n' "$1"; }
 die()  { echo "cloudflare-setup: $1" >&2; exit 1; }
 
@@ -80,13 +83,13 @@ print(r[0]['id'] if r else '')")"
   if [ -n "$id" ]; then
     [ "$DRY" = "1" ] && { echo "  would UPDATE $name → $TARGET"; return; }
     api PUT "/zones/$ZONE_ID/dns_records/$id" "$body" | grep -q '"success":true' \
-      && echo "  updated  $name → $TARGET (proxied)" || echo "  FAILED   $name"
+      && echo "  updated  $name → $TARGET (proxied)" || { echo "  FAILED   $name"; RC=1; }
   else
     [ "$DRY" = "1" ] && { echo "  would CREATE $name → $TARGET"; return; }
     local out; out="$(api POST "/zones/$ZONE_ID/dns_records" "$body")"
     echo "$out" | grep -q '"success":true' \
       && echo "  created  $name → $TARGET (proxied)" \
-      || echo "  FAILED   $name : $(echo "$out" | head -c 200)"
+      || { echo "  FAILED   $name : $(echo "$out" | head -c 200)"; RC=1; }
   fi
 }
 
@@ -109,3 +112,5 @@ cat <<MSG
 
 Certificates are issued by Cloudflare within a few minutes of the record appearing.
 MSG
+# A failed record write above set RC; the "Next" block is only advice if it is 0.
+exit "$RC"

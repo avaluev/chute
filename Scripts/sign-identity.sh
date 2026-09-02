@@ -40,7 +40,9 @@ else
   openssl pkcs12 -export -legacy -out "$TMP/id.p12" -inkey "$TMP/key.pem" -in "$TMP/cert.pem" \
     -name "$NAME" -macalg sha1 -keypbe PBE-SHA1-3DES -certpbe PBE-SHA1-3DES \
     -passout pass:chute 2>/dev/null
-  security import "$TMP/id.p12" -k "$KEYCHAIN" -P chute -T /usr/bin/codesign -A >/dev/null
+  # -T codesign only. `-A` granted EVERY application unprompted use of a key this Mac is then
+  # told to trust for code signing.
+  security import "$TMP/id.p12" -k "$KEYCHAIN" -P chute -T /usr/bin/codesign >/dev/null
   echo "created certificate: $NAME"
 fi
 

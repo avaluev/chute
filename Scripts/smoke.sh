@@ -340,6 +340,14 @@ for i in range(3000): open(os.path.join('$MANY', 'file_%04d.txt' % i), 'w').writ
 find "$MANY" -type f > "$T/many.txt"
 "$CHUTE" paths --files-from "$T/many.txt" --no-copy > "$T/many-out.txt" 2>/dev/null
 check "3000 selected files all come through" "$(awk 'END{print NR}' "$T/many-out.txt")" "3000"
+# A SWITCH NEVER EATS THE PATH AFTER IT. `paths --no-copy a.txt` printed the folder, and
+# `clean --force ./other` trashed files in the current directory instead.
+check "a switch does not swallow the path after it" \
+  "$("$CHUTE" paths --no-copy "$MANY/file_0001.txt" 2>/dev/null)" "$MANY/file_0001.txt"
+# A list that was asked for and cannot be read is an error, never "the current directory".
+"$CHUTE" paths --files-from "$T/no-such-list.txt" --no-copy >/dev/null 2>"$T/ff.err"; FF_RC=$?
+check "an unreadable --files-from is an error, not the cwd" "$FF_RC" "1"
+has   "and it names the file"                              "$(cat "$T/ff.err")" "no-such-list.txt"
 
 # THE BUG-REPORT LOOP: screenshot → save here → path on the clipboard, ready to paste.
 sips -s format png "$ROOT/Resources/Chute.icns" --out "$T/clip.png" >/dev/null 2>&1
@@ -348,13 +356,13 @@ if [ "$HEADLESS" = "1" ]; then
 else
   osascript -e "set the clipboard to (read (POSIX file \"$T/clip.png\") as «class PNGf»)" >/dev/null 2>&1
   OUT="$("$CHUTE" paste-image --dir "$FX" --no-rename 2>&1)"
-  SAVED="$(printf '%s' "$OUT" | grep '\.png$' | head -1)"
-  if [ -f "$SAVED" ]; then ok "paste-image writes the clipboard image to disk"
+  SHOT="$(printf '%s' "$OUT" | grep '\.png$' | head -1)"
+  if [ -f "$SHOT" ]; then ok "paste-image writes the clipboard image to disk"
   else bad "paste-image writes the clipboard image to disk" "$OUT"; fi
-  check "and copies its full path"  "$(pbpaste)" "$SAVED"
-  has   "named like a macOS screenshot" "$(basename "$SAVED")" "Screenshot "
+  check "and copies its full path"  "$(pbpaste)" "$SHOT"
+  has   "named like a macOS screenshot" "$(basename "$SHOT")" "Screenshot "
   # PNG magic bytes: the file must be a real image, not a renamed TIFF.
-  check "the file really is a PNG" "$(head -c 4 "$SAVED" | xxd -p)" "89504e47"
+  check "the file really is a PNG" "$(head -c 4 "$SHOT" | xxd -p)" "89504e47"
 
   # With no image on the clipboard it must say so, not write an empty file.
   BEFORE_COUNT="$(ls "$FX"/Screenshot*.png 2>/dev/null | wc -l | tr -d ' ')"
@@ -425,6 +433,8 @@ else
 
   # THOUSANDS of files through the real handoff: the request file has no ARG_MAX.
   printf 'MANY-SENTINEL' | pbcopy
+  # The split into 1200 arguments is the point of this line.
+  # shellcheck disable=SC2046
   put_request copy-paths "$MANY" 0 $(find "$MANY" -type f | head -1200 | tr '\n' ' ') >/dev/null
   # awk NR, not wc -l: the clipboard's last path has no trailing newline and wc undercounts it.
   if wait_for_clipboard_lines 1200; then ok "1200 files survive the extension → app handoff"
@@ -493,6 +503,13 @@ check "the bundle format is the bundle" "$CTX" "$BUN"
 # `buf` was the name until 2026-08-31; kept as an undocumented alias for muscle memory and
 # scripts. An alias nothing tests is an alias nobody knows is load-bearing.
 has   "the buf alias still reaches it" "$("$CHUTE" buf list 2>&1)" "alpha.ts"
+# THE CAP IS NAMED. The basket keeps 10; adding 15 evicted 5 and reported them as "already
+# there", so the user handed an agent a set they believed complete.
+"$CHUTE" basket clear >/dev/null 2>&1
+mkdir -p "$T/bk/cap"; for i in $(seq 1 15); do printf 'x' > "$T/bk/cap/f$i.ts"; done
+CAP_OUT="$("$CHUTE" basket add "$T"/bk/cap/f*.ts 2>&1)"
+has   "adding past the cap says how many were dropped" "$CAP_OUT" "5 dropped"
+check "and never calls them 'already there'"           "$(printf '%s' "$CAP_OUT" | grep -c 'already there')" "0"
 "$CHUTE" basket clear >/dev/null 2>&1
 has   "clear empties it"             "$("$CHUTE" basket list 2>&1)" "empty"
 
@@ -578,11 +595,18 @@ echo "22. the numbers are the right SIZE, not just the right shape"
 # Skipped headless: it needs real terminal sessions to measure, and over zero sessions it would
 # be a false green — which is the exact failure mode it exists to prevent.
 if [ "$HEADLESS" = "1" ]; then skip "metrics are plausible in magnitude"; else
-  if "$ROOT/Scripts/check-metrics.sh" >/tmp/chute-metrics.out 2>&1; then
-    ok "metrics are plausible in magnitude ($(grep -c '^  ok' /tmp/chute-metrics.out) checks)"
+  # Exit 2 is "nothing to measure". It used to exit 0 and this line printed
+  # `ok … (0 checks)` — the exact false green the gate was written to stop.
+  METRICS_OUT="$(mktemp)"
+  "$ROOT/Scripts/check-metrics.sh" >"$METRICS_OUT" 2>&1; METRICS_RC=$?
+  if [ "$METRICS_RC" = "2" ]; then
+    skip "metrics — no terminal session open to measure against"
+  elif [ "$METRICS_RC" = "0" ] && [ "$(grep -c '^  ok' "$METRICS_OUT")" -gt 0 ]; then
+    ok "metrics are plausible in magnitude ($(grep -c '^  ok' "$METRICS_OUT") checks)"
   else
-    bad "metrics are plausible in magnitude" "$(grep -A1 '^  FAIL' /tmp/chute-metrics.out | head -4)"
+    bad "metrics are plausible in magnitude" "$(grep -A1 '^  FAIL' "$METRICS_OUT" | head -4)"
   fi
+  rm -f "$METRICS_OUT"
 fi
 
 echo "23. the destructive commands preview before they act"

@@ -15,15 +15,7 @@ export const CONFIG = {
   refundDays: 30,
   contact: "hello@chutedev.com",
   supportHours: "One person, European hours. Most replies within one business day, always within three.",
-
-  /** Paddle's reviewer checks that a real, identifiable seller stands behind the product.
-   *  FILL THESE IN before submitting for verification — `npm run check:paddle` fails while any
-   *  is empty, so an unfinished identity cannot reach production. */
-  seller: {
-    name: "Alexandr Valuev",
-    country: "",   // e.g. "Estonia" — the country you invoice from
-    entity: "",    // registered company name, or "Sole trader" if you trade as yourself
-  },
+  // The seller's identity is `SELLER` in seller.ts — one definition, not a second, emptier copy here.
 
   /** Paddle. Empty until the seller account exists — the buy page checks and degrades to the
    *  trial download rather than opening a checkout that cannot complete. */

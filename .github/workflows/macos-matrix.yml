@@ -39,6 +39,9 @@ jobs:
       - name: Unit suite
         run: swift run -c release chutetests
 
+      - name: Licence key contract (Worker ↔ app)
+        run: node worker/contract.test.mjs
+
       - name: End-to-end suite (headless)
         env:
           CHUTE_HEADLESS: "1"

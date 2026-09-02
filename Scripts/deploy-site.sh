@@ -40,6 +40,9 @@ npm run check:cases
 # the live site before this existed; a rule a human has to remember gets broken.
 npm run check:claims
 npm run check:paddle
+# `next build` type-checks but does not lint; an eslint ERROR was sitting in checkout-bridge
+# with nothing failing on it.
+npm run lint
 
 BRANCH="main"
 [ "${1:-}" = "--preview" ] && BRANCH="preview"

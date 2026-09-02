@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Page, H2 } from "@/components/chrome";
 import { CONFIG } from "@/lib/config";
+import { SELLER } from "@/lib/seller";
 
 export const metadata: Metadata = {
   title: "Support — Chute",
@@ -43,9 +44,8 @@ export default function Support() {
       <H2>Who is behind this</H2>
       <p>
         Chute is made and supported by{" "}
-        <strong className="text-foreground">{CONFIG.seller.name}</strong>
-        {CONFIG.seller.entity ? `, trading as ${CONFIG.seller.entity}` : ""}
-        {CONFIG.seller.country ? `, ${CONFIG.seller.country}` : ""}. One person, not a company
+        <strong className="text-foreground">{SELLER.legalName}</strong>
+        , {SELLER.entityType}. One person, not a company
         with a support tier. Orders are fulfilled by Paddle.com Market Ltd as merchant of record.
       </p>
 

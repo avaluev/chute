@@ -14,9 +14,14 @@ cd /Users/sxope/Documents/2026/Development/37.chute && ./demo/verify.sh && make 
 cd /Users/sxope/Documents/2026/Development/37.chute/site && npm run check:cases && npm run check:claims
 ```
 
-Green 2026-09-02: **949 unit · 145 headless · 81 acceptance · 11 delivery · 19 cases · claims
-· demo/gui lint · ratchet 171/171.** Full smoke (173) and metrics (4/4) last green 2026-09-01;
-both need the founder's machine to themselves — see TRAPS.
+Green 2026-09-03: **1,005 unit · 150 headless · 81 acceptance · 11 delivery · 19 cases · claims
+· paddle · lint 0 errors · tsc · worker contract 10 · demo/gui lint · ratchet 171/171 ·
+metrics 4/4.** Full smoke (173 + 5 new cases) last green 2026-09-01 — needs the founder's
+machine to itself, see TRAPS.
+
+Also in the gate now: `node worker/contract.test.mjs` (release.sh and CI) and `npm run lint`
+(deploy-site.sh). `swift run chutetests` was RED on 2026-09-03 before anything was touched —
+see DONE 2026-09-03, first row.
 
 ---
 
@@ -101,6 +106,33 @@ note. Five files of 50 lines removes no complexity. Re-propose only with a concr
 command checker to code spans removed eleven false positives — and put the example phrase inside
 backticks, which made it a real ghost-command hit. `FAIL 2 place(s) show a chute command that does
 not exist`. The sentence was fixed, not the gate.
+
+## DONE 2026-09-03 (verified) — the audit: 5 reviewers, 55 findings, 45 fixed
+
+Every finding, its severity and its disposition — fixed, half, or not done with the reason — is
+in **`docs/specs/audit-2026-09-03-FINDINGS.md`**. Four commits after `92fd7ee`. Read that file
+before re-auditing anything; the "checked and lean" list at the bottom is what NOT to re-walk.
+
+The ones a buyer would have hit first:
+
+| Fix | Proof |
+|---|---|
+| **The suite was red before the audit began.** A Claude Code session that auto-updated under itself read as **"2.1.250"** — `proc_pidpath` fails for an unlinked executable and the row fell back to the bare version. | `ProcessMetrics.execPath(pid:)` via `KERN_PROCARGS2`; the machine-wide assertion at `ProcessMetricsSuite.swift:190` |
+| **`chute clean --force ./other` trashed the wrong folder.** No flag was a switch, so `--force` ate `./other` and `clean` ran on the cwd with the preview skipped. | `ChuteCore/ArgParse.swift`, `ArgParseSuite`, smoke "a switch does not swallow the path after it" |
+| **A buyer could pay and never get a key.** Resend failure → `200 issued` to Paddle; a notification without an embedded email → silent 200. | `worker/src/index.js`: 500 on both; `PADDLE_API_KEY` (optional) looks the customer up |
+| **"Licensed to …" with nothing on disk.** `Trial.activate` ignored a failed save. | `LicenseSuite` "a good key whose record cannot be saved reports failure" |
+| **`chute gist` uploaded quoted secrets.** `export TOKEN="…"` and `MYSQL_ROOT_PASSWORD=` both walked past `Redact`. | `CoreSuites` Redact, 3 new assertions |
+| **Every launch could destroy an image on the clipboard** — the doctor probe ran at launch and "restored" `""`. | `Diagnostics.liveEnv(endToEnd:)`, opt-in |
+
+**Deleted, net −559 lines, −1 dependency:** the xlsx inventory generator (dead, rotted), two
+unused shadcn components, `CONFIG.seller`, the one-conformer `TerminalAdapter` protocol,
+`NameDerive.uniquePath`, three byte-identical helpers, a parameter nothing read at 11 sites.
+
+**The fixture that cannot exist.** On this macOS a locally copied binary — Apple-signed or
+ad-hoc, however copied or deleted — is SIGKILLed within ~100 ms of its file being unlinked
+(0/40 survived, 400 spawns measured); the Developer-ID hardened-runtime claude binary survives.
+So the unlinked-binary case is proved by the reader on a live pid plus the machine-wide
+assertion, not by a spawned fixture. Written into the suite; do not try again.
 
 ## IN FLIGHT — nothing
 
@@ -209,10 +241,11 @@ The seven findings that change decisions:
 
 ## NEXT — in order, for one session
 
-1. **The runtime re-test above**, then the three founder items.
-2. **One error-handling pass (2 h).** Two silent exit-0s are fixed; sweep the remaining 26-command
-   surface for empty `catch`, ignored `try?`, and `guard … else { return }` where a user is
-   waiting. *Rule 4 of the measurement doctrine: a refusal is not a zero.*
+1. **The runtime re-test above**, then the three founder items. Then one full (non-headless)
+   `./Scripts/smoke.sh` on a quiet machine: the fact sheet says 178 and that number is derived
+   (173 + 5 new cases), not measured.
+2. ~~One error-handling pass~~ — **done 2026-09-03**, see the findings file. Three LOWs left
+   open there (M18, L12, L13) with reasons; P10 (`--naming`) needs a decision, not work.
 3. **Continue the coverage extraction.** `ConfirmPrompt` is the proven fourth instance of the
    `StatusMenu` move. Next highest value: `SessionMenu`'s row-retitling rule
    (`SessionMenu.swift:98-162`) and `ChuteFinderSync.run`'s four-way message branch
@@ -282,6 +315,11 @@ largest remaining) and `main.swift` (43, mostly wiring, but not all).
   is how it would stop catching the 24× error it was built for.
 - **Test suites must not touch the user's data.** The basket tests cleared his real basket until
   `CHUTE_BUFFER_DIR` was added.
+- **A test fixture that unlinks its own binary dies.** The kernel SIGKILLs a copied binary the
+  moment its file is gone (measured 2026-09-03, every copy method, every deletion method); a
+  test built on it is red 4 runs in 10 and looks like a race. Prove the reader on a live pid.
+- **`cd` persists across shell calls, and a script run from the wrong directory prints nothing.**
+  `./Scripts/smoke.sh` from `site/` produced zero output and zero error. Absolute paths, always.
 - **Running the full smoke blocks the founder** — it owns the clipboard for ~30 s and drives real
   Finder actions. Safe while he works: `swift build`, `swift run chutetests`, the site checks.
 

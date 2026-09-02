@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { CONFIG } from "@/lib/config";
+import { SELLER } from "@/lib/seller";
 
 /** The mark, drawn rather than typed: U+2913 has no glyph in JetBrains Mono and renders as a
  *  tofu box. Same shape as the app icon and the OG card. */
@@ -42,8 +43,7 @@ export function Footer() {
             Chute — drop context into your agent.
             <br />
             <span className="text-xs">
-              © {new Date().getFullYear()} {CONFIG.seller.name}
-              {CONFIG.seller.country ? ` · ${CONFIG.seller.country}` : ""} ·{" "}
+              © {new Date().getFullYear()} {SELLER.legalName} · {SELLER.address.country} ·{" "}
               <a className="hover:text-foreground" href={`mailto:${CONFIG.contact}`}>{CONFIG.contact}</a>
               <br />
               Orders fulfilled by Paddle.com Market Ltd, merchant of record.

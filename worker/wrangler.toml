@@ -7,3 +7,4 @@ compatibility_date = "2026-08-01"
 #   npx wrangler secret put PADDLE_WEBHOOK_SECRET
 #   npx wrangler secret put CHUTE_LICENSE_SEED
 #   npx wrangler secret put RESEND_API_KEY
+#   npx wrangler secret put PADDLE_API_KEY     # optional: customer lookup when the event has no email

@@ -48,9 +48,12 @@ export function CheckoutBridge() {
     // Guards a state update after unmount: React StrictMode mounts effects twice in development,
     // and loading the SDK is async.
     let live = true;
-    setState({ status: "opening" });
 
     (async () => {
+      // After a tick, not synchronously in the effect body — a state update there re-renders
+      // before the first paint has settled, and the lint rule for it is an error, not a style.
+      await Promise.resolve();
+      if (live) setState({ status: "opening" });
       if (!CONFIG.paddle.token) {
         if (live) setState({ status: "failed", reason: "Checkout is not configured yet." });
         return;

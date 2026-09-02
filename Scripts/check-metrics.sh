@@ -45,7 +45,7 @@ if [ -z "$JSON" ] || [ "$JSON" = "[]" ]; then
   # was written to stop — say the denominator out loud and refuse to score it.
   echo "  SKIP no terminal sessions are open — nothing to check against."
   echo "       Open a terminal and re-run; this gate is meaningless over 0 sessions."
-  exit 0
+  exit 2   # not 0 — smoke.sh reads 2 as "skipped" and anything else as a verdict
 fi
 COUNT=$(printf '%s' "$JSON" | python3 -c 'import json,sys; print(len(json.load(sys.stdin)))')
 echo "1. every session's figures are physically possible ($COUNT sessions)"
