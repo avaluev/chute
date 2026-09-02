@@ -189,6 +189,36 @@ func processMetricsSuite() {
         // The end-to-end form of the same thing: no row in a real listing is a bare version.
         T.no(rows.contains { ProcessMetrics.looksLikeAVersion($0.command) },
              "and nothing on this machine is labelled with a bare version number")
+
+        // THE UNLINKED BINARY. The assertion above went red on 2026-09-03 for a real reason:
+        // Claude Code had auto-updated, the running session's binary `versions/2.1.250` was gone
+        // from disk, proc_pidpath fails with ENOENT for an unlinked executable, and the row fell
+        // back to p_comm — the bare "2.1.250" this whole rule exists to prevent. Reproduced here
+        // exactly: a version-named copy of `sleep` under a `versions/` directory, started, then
+        // deleted while it runs. The kernel's exec-args block still knows the path.
+        let program = FileManager.default.temporaryDirectory
+            .appendingPathComponent("chute-unlinked-\(getpid())", isDirectory: true)
+            .appendingPathComponent("fakeprog", isDirectory: true)
+            .appendingPathComponent("versions", isDirectory: true)
+        try? FileManager.default.createDirectory(at: program, withIntermediateDirectories: true)
+        let binary = program.appendingPathComponent("9.9.9")
+        try? FileManager.default.removeItem(at: binary)
+        try? FileManager.default.copyItem(atPath: "/bin/sleep", toPath: binary.path)
+        let child = Process()
+        child.executableURL = binary
+        child.arguments = ["30"]
+        if (try? child.run()) != nil {
+            try? FileManager.default.removeItem(at: binary)
+            let row = ProcessMetrics.listing().first { $0.pid == child.processIdentifier }
+            T.eq(row?.command, "fakeprog",
+                 "a process whose version-named binary was deleted underneath it (an agent that "
+               + "auto-updated) is still named by its program, not its version")
+            child.terminate()
+            child.waitUntilExit()
+        } else {
+            T.ok(false, "could not start the unlinked-binary fixture at \(binary.path)")
+        }
+        try? FileManager.default.removeItem(at: program.deletingLastPathComponent().deletingLastPathComponent())
         T.ok(rows.contains { $0.pid == me }, "our own process is in it")
         T.ok(rows.first(where: { $0.pid == me })?.command.contains("chutetests") == true,
              "under its real name: \(rows.first(where: { $0.pid == me })?.command ?? "-")")

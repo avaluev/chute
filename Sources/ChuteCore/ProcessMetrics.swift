@@ -318,14 +318,35 @@ public enum ProcessMetrics {
 
     /// The real executable path. nil when the process died between the listing and this call —
     /// which is normal, not an error, and is why the caller has a fallback.
+    ///
+    /// AND THE UNLINKED BINARY. Caught 2026-09-03 by the suite's own end-to-end assertion, on a
+    /// Claude Code session that had auto-updated underneath itself: the running binary
+    /// `~/.local/share/claude/versions/2.1.250` no longer existed on disk, `proc_pidpath` fails
+    /// with ENOENT for a process whose executable has been unlinked, and the row fell through to
+    /// `p_comm` — which for these processes is the bare "2.1.250". Every long-lived session after
+    /// an update would read as a version number until restarted. `KERN_PROCARGS2` keeps the exec
+    /// path in the process's own argument block, which outlives the file; asked only on the
+    /// failure path, so the fast path costs nothing extra.
     private static func path(of pid: Int32) -> String? {
         var buf = [CChar](repeating: 0, count: 4096)
         // Use the RETURNED LENGTH rather than scanning for a terminator. Same reasoning as
         // `comm` above: the length is the fact the kernel actually gives us.
         let n = proc_pidpath(pid, &buf, UInt32(buf.count))
-        guard n > 0 else { return nil }
+        guard n > 0 else { return execPathFromArgs(pid) }
         let path = String(decoding: buf.prefix(Int(n)).map { UInt8(bitPattern: $0) }, as: UTF8.self)
-        return path.isEmpty ? nil : path
+        return path.isEmpty ? execPathFromArgs(pid) : path
+    }
+
+    /// `KERN_PROCARGS2` layout: an `Int32` argc, then the NUL-terminated exec path, then argv.
+    /// Only the first string is read, bounded by the size the kernel returned.
+    private static func execPathFromArgs(_ pid: Int32) -> String? {
+        var mib: [Int32] = [CTL_KERN, KERN_PROCARGS2, pid]
+        var size = 0
+        guard sysctl(&mib, 3, nil, &size, nil, 0) == 0, size > MemoryLayout<Int32>.size else { return nil }
+        var buf = [UInt8](repeating: 0, count: size)
+        guard sysctl(&mib, 3, &buf, &size, nil, 0) == 0, size > MemoryLayout<Int32>.size else { return nil }
+        let path = buf[MemoryLayout<Int32>.size..<size].prefix { $0 != 0 }
+        return path.isEmpty ? nil : String(decoding: path, as: UTF8.self)
     }
 
     /// The kernel's own name for the process. Truncated to sixteen characters — see `listing` —
