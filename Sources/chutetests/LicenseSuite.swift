@@ -139,5 +139,9 @@ func licenseSuite() {
              "activating a good key succeeds")
         T.eq(Trial.evaluate(Trial.load(path: tmp), now: start + 900 * day, verify: verifyTest),
              .licensed(email: "buyer@example.com"), "and survives a reload")
+        // A key that verifies but cannot be written is not an activation: the pane said
+        // "Licensed to …" and the next launch was back to expired.
+        T.eq(Trial.activate(validKey, path: "/dev/null/nowhere/trial.json", verify: verifyTest)?.email, nil,
+             "a good key whose record cannot be saved reports failure, not a licence")
     }
 }

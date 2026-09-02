@@ -11,8 +11,12 @@ import Foundation
 public enum AppleScript {
     /// Backslash FIRST. Escaping quotes first leaves a trailing backslash that escapes the
     /// CLOSING quote, and the rest of the payload becomes executable script.
+    /// A literal newline is legal in a macOS file name and illegal inside an AppleScript string
+    /// literal — the script fails to compile and the reveal reads "Finder did not respond".
     public static func escape(_ s: String) -> String {
         s.replacingOccurrences(of: "\\", with: "\\\\")
             .replacingOccurrences(of: "\"", with: "\\\"")
+            .replacingOccurrences(of: "\r", with: "\\r")
+            .replacingOccurrences(of: "\n", with: "\\n")
     }
 }

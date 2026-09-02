@@ -26,7 +26,11 @@ public enum TreeRender {
                      into lines: inout [String], truncated: inout Bool) {
         guard depth > 0, !truncated else { return }
         let fm = FileManager.default
-        guard let raw = try? fm.contentsOfDirectory(atPath: dir) else { return }
+        // Say so. A TCC-protected or other-owned folder drawn as a bare `name/` tells the agent
+        // it is empty, which is the one thing this function exists not to do.
+        guard let raw = try? fm.contentsOfDirectory(atPath: dir) else {
+            lines.append(prefix + "└── (unreadable)"); return
+        }
         let entries = raw
             .filter { !Junk.isJunk(name: $0, isDirectory: FileScan.isDirectory((dir as NSString).appendingPathComponent($0))) }
             .filter { !$0.hasPrefix(".") || $0 == ".github" }

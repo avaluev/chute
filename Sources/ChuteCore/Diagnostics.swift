@@ -45,7 +45,7 @@ public struct DiagnosticsEnv: Sendable {
     public var extensionID: String
     public var automationOK: Bool
     public var processList: String
-    public var endToEndPassed: Bool
+    public var endToEndPassed: Bool?   // nil: the probe was not run
     /// Whether the extension's sandbox container still accepts the installed build's code
     /// identity. nil when there is no container yet, which is a healthy first install.
     public var containerAccepts: Bool?
@@ -56,7 +56,7 @@ public struct DiagnosticsEnv: Sendable {
 
     public init(osMajor: Int, appPath: String, cliPath: String?, pluginkitList: String,
                 extensionID: String, automationOK: Bool, processList: String,
-                endToEndPassed: Bool, containerAccepts: Bool? = nil, hooksWired: Bool = false) {
+                endToEndPassed: Bool?, containerAccepts: Bool? = nil, hooksWired: Bool = false) {
         self.osMajor = osMajor; self.appPath = appPath; self.cliPath = cliPath
         self.pluginkitList = pluginkitList; self.extensionID = extensionID
         self.automationOK = automationOK; self.processList = processList
@@ -162,7 +162,8 @@ public enum Diagnostics {
             env.processList.contains("Terminal.app/Contents/MacOS/Terminal"),
             env.processList.isEmpty ? "none detected" : "running")
         add("hooks", env.hooksWired, env.hooksWired ? "wired" : "not wired — badge stays dark")
-        add("end-to-end", env.endToEndPassed, env.endToEndPassed ? "verified" : "failed")
+        add("end-to-end", env.endToEndPassed ?? true,
+            env.endToEndPassed.map { $0 ? "verified" : "failed" } ?? "not run here — `chute doctor` runs it")
         return out
     }
 
@@ -214,8 +215,13 @@ public enum Diagnostics {
          "\(NSHomeDirectory())/.local/bin/chute"]
     }
 
+    /// `endToEnd` is opt-in because the probe WRITES THE CLIPBOARD, and `Clipboard.read` is
+    /// `pbpaste` — empty for an image or a file promise — so the "restore" after the probe wrote
+    /// "" over whatever non-text the user had copied. ChuteApp ran it on every launch, with no
+    /// window and no action. `chute doctor` asks for it; the launch check does not.
     public static func liveEnv(extensionID: String = "dev.valuev.chute.finder",
-                               appPath: String = Bundle.main.bundlePath) -> DiagnosticsEnv {
+                               appPath: String = Bundle.main.bundlePath,
+                               endToEnd: Bool = false) -> DiagnosticsEnv {
         let appPath = resolvedAppPath(appPath)
         let v = ProcessInfo.processInfo.operatingSystemVersion
         let cli = cliCandidates.first { FileManager.default.isExecutableFile(atPath: $0) }
@@ -228,7 +234,7 @@ public enum Diagnostics {
             extensionID: extensionID,
             automationOK: probe.ok,
             processList: Shell.run("ps", ["-Ao", "comm"]).out,
-            endToEndPassed: endToEndProbe(),
+            endToEndPassed: endToEnd ? endToEndProbe() : nil,
             containerAccepts: extensionHasStarted(extensionID: extensionID, appPath: appPath),
             hooksWired: HookInstaller.status(settingsPath: claudeSettingsPath).values.allSatisfy { $0 })
     }

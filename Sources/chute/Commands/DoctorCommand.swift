@@ -5,7 +5,7 @@ func cmdDoctor(_ a: Args) {
     // --report builds something a user can paste into a public issue: the same checks, plus
     // versions and the extension's own load marker, redacted. It never repairs anything.
     if a.has("report") {
-        let outcomes = Diagnostics.run(Diagnostics.liveEnv())
+        let outcomes = Diagnostics.run(Diagnostics.liveEnv(endToEnd: true))
         let v = ProcessInfo.processInfo.operatingSystemVersion
         let marker = (try? String(contentsOfFile:
             (NSHomeDirectory() as NSString).appendingPathComponent(".chute/extension-loaded.txt"),

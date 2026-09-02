@@ -39,8 +39,14 @@ public enum Redact {
     /// and any inline `password=` in prose or a command line. Deliberately broad: this tool
     /// exists to be pasted into an issue, where over-redacting costs a follow-up question and
     /// under-redacting costs a rotated credential.
+    ///
+    /// The value class stops at whitespace, `;` and `&` — and NOT at a quote. It used to exclude
+    /// `"` and `'` too, so `export TOKEN="ghs_…"` and `-e MYSQL_ROOT_PASSWORD="hunter2"` walked
+    /// straight past: the `+` failed on the opening quote and nothing was masked, then `chute
+    /// gist` uploaded it. Quoting a value is the ordinary way to write one. And the key may carry
+    /// a prefix: `-e MYSQL_ROOT_PASSWORD=hunter2` has no word boundary before PASSWORD.
     static let inlineAssignment =
-        #"(?i)\b(pwd|password|passwd|secret|token|api[_-]?key)\s*=\s*[^\s;&"']+"#
+        #"(?i)\b([a-z0-9_]*(?:pwd|password|passwd|secret|token|api[_-]?key))\s*=\s*[^\s;&]+"#
 
     public static func apply(_ text: String) -> String {
         var out = text

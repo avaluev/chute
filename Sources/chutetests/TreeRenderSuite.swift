@@ -28,6 +28,16 @@ func treeRenderSuite() {
         T.ok(out.contains("b.ts"), "depth 99 reaches the bottom")
         T.ok(!TreeRender.render(root, depth: 1).contains("a.ts"), "depth 1 stops at the top level")
 
+        // An unreadable directory used to draw as a bare `name/` — indistinguishable from an
+        // empty one, which tells the agent the folder has nothing in it.
+        try? fm.createDirectory(atPath: root + "/locked", withIntermediateDirectories: true)
+        fm.createFile(atPath: root + "/locked/secret.txt", contents: Data("x".utf8))
+        chmod(root + "/locked", 0)
+        let locked = TreeRender.render(root, depth: 99)
+        chmod(root + "/locked", 0o755)
+        T.ok(locked.contains("(unreadable)"), "a directory that cannot be listed says so instead of drawing empty")
+        T.ok(!locked.contains("secret.txt"), "and lists nothing it could not actually read")
+
         // THE HANG, 2026-09-02. `links/real/loop -> ..` is an ordinary shape — node_modules/.bin,
         // a venv, a framework's Current link. FileScan.isDirectory FOLLOWS a symlink, so the
         // walker entered itself: depth 2 produced 11 lines, depth 4 gave 31, depth 8 gave 151,

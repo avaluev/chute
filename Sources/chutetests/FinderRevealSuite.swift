@@ -14,6 +14,8 @@ func finderRevealSuite() {
         // and the rest of the path becomes code.
         T.eq(AppleScript.escape(#"/tmp/a"b"#), #"/tmp/a\"b"#, "a quote in a path is escaped")
         T.eq(AppleScript.escape(#"/tmp/a\b"#), #"/tmp/a\\b"#, "and so is a backslash")
+        T.eq(AppleScript.escape("/tmp/a\nb"), #"/tmp/a\nb"#,
+             "a newline — legal in a file name, illegal inside an AppleScript literal — is escaped, not passed")
 
         let script = FinderReveal.revealScript(path: "/tmp/My File.md")
         T.ok(script.contains("reveal POSIX file \"/tmp/My File.md\""), "the file is revealed by path")

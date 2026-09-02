@@ -76,6 +76,12 @@ func diagnosticsSuite() {
         var broken = good; broken.endToEndPassed = false
         T.eq(Diagnostics.run(broken).first(where: { !$0.passed })?.check.id ?? "", "end-to-end",
              "a failing end-to-end proof is named even when every component passes")
+        // The probe writes the clipboard, so the launch check no longer runs it. Not run is
+        // not failed — and it says which it was.
+        var unprobed = good; unprobed.endToEndPassed = nil
+        let e2e = Diagnostics.run(unprobed).first { $0.check.id == "end-to-end" }
+        T.ok(e2e?.passed == true && e2e?.detail.contains("not run") == true,
+             "an end-to-end probe that was not run passes and says so: \(e2e?.detail ?? "-")")
 
         T.eq(Diagnostics.run(good).count, Diagnostics.all.count,
              "run reports an outcome per check, passed or not")

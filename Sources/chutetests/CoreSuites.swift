@@ -11,6 +11,11 @@ func coreSuites() {
         T.eq(PathFormat.render(files3, style: .posix), files3.joined(separator: "\n"), "posix absolute per line")
         T.eq(PathFormat.render(files3, style: .relative), "src/a.ts\nsrc/b.ts\nREADME.md", "relative to ancestor")
         T.eq(PathFormat.render(files3, style: .at, separator: .space), "@src/a.ts @src/b.ts @README.md", "@ mentions")
+        // An @mention ends at a space. `@my docs/note one.txt @a.ts` is four tokens to the agent.
+        T.eq(PathFormat.render(["/p/my docs/note one.txt", "/p/a.ts"], style: .at, separator: .space),
+             "@my docs/note one.txt\n@a.ts", "@ mentions go one per line the moment any path has a space")
+        T.eq(PathFormat.render(["/p/my docs/x.txt", "/p/a.ts"], style: .posix, separator: .space),
+             "/p/my docs/x.txt /p/a.ts", "the other styles keep the separator they were asked for")
         T.eq(PathFormat.render(["/tmp/my docs/it's.txt"], style: .quoted), "'/tmp/my docs/it'\\''s.txt'", "quoted escapes spaces and quotes")
         T.eq(PathFormat.render(files3, style: .posix, separator: .space), files3.joined(separator: " "), "space separator")
         T.eq(PathFormat.render([], style: .posix), "", "empty input")
@@ -90,6 +95,7 @@ func coreSuites() {
         T.eq(FileScan.absolute("/var/folders/x/./y.txt"), "/var/folders/x/y.txt",
              "a dot goes without /var being resolved to /private/var")
         T.no(FileScan.absolute("./x.txt").contains("/./"), "and no './' survives into a joined path")
+        T.eq(FileScan.absolute("/a/././b"), "/a/b", "adjacent dots are all removed, not every other one")
         T.no(FileScan.absolute(".").hasSuffix("/."), "nor a trailing one")
         T.ok(FileScan.absolute("/already/absolute.txt") == "/already/absolute.txt",
              "an absolute path is left exactly as it is")
@@ -97,6 +103,15 @@ func coreSuites() {
     }
 
     T.suite("Redact") {
+        // QUOTED VALUES. The inline rule excluded quote characters from the value, so a quoted
+        // secret — the ordinary way to write one — was walked straight past and then uploaded by
+        // `chute gist`. Not one of the twenty-four assertions below used a quote.
+        T.no(Redact.apply(#"export TOKEN="ghs_abcdefghijklmnop""#).contains("ghs_abc"),
+             "a double-quoted token is masked")
+        T.no(Redact.apply(#"docker run -e MYSQL_ROOT_PASSWORD='hunter2' mysql"#).contains("hunter2"),
+             "and a single-quoted password inside a command line")
+        T.eq(Redact.apply("Server=db;Pwd=hunter2;Database=app"), "Server=db;Pwd=[REDACTED];Database=app",
+             "the semicolon-delimited connection string still stops at the semicolon")
         T.no(Redact.apply("key: sk-ant-api03-AbCdEfGhIjKlMnOpQrStUvWxYz012345").contains("AbCdEfGh"), "anthropic key gone")
         T.ok(Redact.apply("key: sk-ant-api03-AbCdEfGhIjKlMnOpQrStUvWxYz012345").contains("[REDACTED]"), "marker present")
         T.no(Redact.apply("ghp_ABCDEFGHIJKLMNOPQRSTUVWXYZ012345").contains("ABCDEFGH"), "github token gone")
@@ -157,6 +172,19 @@ func coreSuites() {
         let dir = NSTemporaryDirectory() + "chute-scan-\(UUID().uuidString)"
         try? FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(atPath: dir) }
+
+        // THE BYTE CAP. `maxFiles` bounded the count and nothing bounded the size of one file, so
+        // "Copy Files as Context" over a folder with a 1 GB dump read the whole thing into memory
+        // three times and hung with no message. Text one byte over the cap is skipped like a
+        // binary; text at the cap is read.
+        let big = dir + "/dump.sql", fits = dir + "/fits.sql"
+        FileManager.default.createFile(atPath: big, contents: Data(repeating: 0x61, count: FileScan.maxFileBytes + 1))
+        FileManager.default.createFile(atPath: fits, contents: Data(repeating: 0x61, count: FileScan.maxFileBytes))
+        T.eq(FileScan.readText(big), nil, "a text file over maxFileBytes is skipped, not read into memory")
+        T.eq(FileScan.readText(fits)?.utf8.count, FileScan.maxFileBytes, "one exactly at the cap is read whole")
+        T.eq(FileScan.bundleFiles([big, fits]).skipped, [big], "and the bundle lists it as skipped")
+        try? FileManager.default.removeItem(atPath: big); try? FileManager.default.removeItem(atPath: fits)
+
         for name in ["keep.ts", "temp_agent.log", "notes.bak", ".env", ".DS_Store"] {
             FileManager.default.createFile(atPath: (dir as NSString).appendingPathComponent(name),
                                            contents: Data())
@@ -178,6 +206,8 @@ func coreSuites() {
         T.ok(!Junk.isAgentScratch(name: ".DS_Store"), "nor is a Finder file the user did not make")
         T.ok(Junk.isAgentScratch(name: "temp_agent.log"), "a scratch extension is")
         T.ok(Junk.isAgentScratch(name: "scratch_notes.md"), "and so is a scratch prefix")
+        T.no(Junk.isAgentScratch(name: "Untitled.md"),
+             "Untitled.md is what New File ▸ Empty Markdown creates — clean must not propose trashing it")
     }
 
     // MARK: - Move 3: `chute --version` must be able to say it is stale
@@ -216,5 +246,11 @@ func coreSuites() {
         T.eq(flood.out.trimmingCharacters(in: .whitespacesAndNewlines), "done",
              "stdout survives a 200 KB stderr flood")
         T.eq(flood.err.count, 200_000, "and every stderr byte is captured, not truncated")
+
+        // A child that never reads stdin — pbcopy where there is no pasteboard server — made the
+        // stdin write an EPIPE, and the non-throwing write turned that into SIGPIPE: exit 141,
+        // no result, no message. Returning at all is the assertion.
+        let unread = Shell.run("true", [], input: String(repeating: "x", count: 300_000))
+        T.eq(unread.code, 0, "a child that exits without reading 300 KB of stdin is a result, not a signal")
     }
 }
