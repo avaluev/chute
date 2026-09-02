@@ -332,14 +332,15 @@ public enum ProcessMetrics {
         // Use the RETURNED LENGTH rather than scanning for a terminator. Same reasoning as
         // `comm` above: the length is the fact the kernel actually gives us.
         let n = proc_pidpath(pid, &buf, UInt32(buf.count))
-        guard n > 0 else { return execPathFromArgs(pid) }
+        guard n > 0 else { return execPath(pid: pid) }
         let path = String(decoding: buf.prefix(Int(n)).map { UInt8(bitPattern: $0) }, as: UTF8.self)
-        return path.isEmpty ? execPathFromArgs(pid) : path
+        return path.isEmpty ? execPath(pid: pid) : path
     }
 
     /// `KERN_PROCARGS2` layout: an `Int32` argc, then the NUL-terminated exec path, then argv.
-    /// Only the first string is read, bounded by the size the kernel returned.
-    private static func execPathFromArgs(_ pid: Int32) -> String? {
+    /// Only the first string is read, bounded by the size the kernel returned. Public so the
+    /// suite can prove the reader on a live pid; the listing reaches it only on the failure path.
+    public static func execPath(pid: Int32) -> String? {
         var mib: [Int32] = [CTL_KERN, KERN_PROCARGS2, pid]
         var size = 0
         guard sysctl(&mib, 3, nil, &size, nil, 0) == 0, size > MemoryLayout<Int32>.size else { return nil }

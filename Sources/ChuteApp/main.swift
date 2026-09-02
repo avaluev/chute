@@ -389,7 +389,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     /// FE-02 — ⌥⌘N pops the session switcher at the pointer, wherever you are. It used to pop
     /// file actions, which needed a Finder selection the keyboard user did not have.
     func registerHotKey() {
-        var hotKeyID = EventHotKeyID(signature: OSType(0x43485554), id: 1)   // 'CHUT'
+        let hotKeyID = EventHotKeyID(signature: OSType(0x43485554), id: 1)   // 'CHUT'
         var eventType = EventTypeSpec(eventClass: OSType(kEventClassKeyboard),
                                       eventKind: UInt32(kEventHotKeyPressed))
         InstallEventHandler(GetApplicationEventTarget(), { _, _, _ -> OSStatus in
