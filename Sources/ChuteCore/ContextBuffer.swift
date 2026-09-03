@@ -50,7 +50,7 @@ public struct ContextBuffer: Sendable {
         self.directory = directory
     }
 
-    public static let home = (NSHomeDirectory() as NSString).appendingPathComponent(".chute/buffer")
+    public static var home: String { Home.chute("buffer") }
 
     /// `CHUTE_BUFFER_DIR` redirects the basket, **and is honoured only under the system temp
     /// directory.**

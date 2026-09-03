@@ -3,6 +3,21 @@ import ChuteCore
 
 func hookStateSuite() {
     T.suite("HookState") {
+
+        // ISOLATION HAS TO ACTUALLY ISOLATE. NSHomeDirectory() ignores $HOME, so the three
+        // `HOME="$T"` cases in Scripts/smoke.sh were reading the developer's REAL
+        // ~/.chute/sessions the whole time. "resume with no live session" passed only while that
+        // machine happened to have no hook records; it failed the hour they were wired.
+        let realHome = ProcessInfo.processInfo.environment["HOME"]
+        let fake = NSTemporaryDirectory() + "chute-home-\(UInt32.random(in: 0...99999))"
+        setenv("HOME", fake, 1)
+        T.ok(Home.path == fake, "$HOME wins over the password database")
+        T.ok(HookState.directory().hasPrefix(fake),
+             "so the sessions directory follows a redirected HOME")
+        T.ok(ContextBuffer.home.hasPrefix(fake), "and so does the basket")
+        if let realHome { setenv("HOME", realHome, 1) } else { unsetenv("HOME") }
+        T.no(HookState.directory().hasPrefix(fake), "and it follows HOME back again")
+
         let json = Data("""
         {"tty":"ttys004","state":"blocked","cwd":"/Users/sxope/p","session_id":"abc","ts":1756219200}
         """.utf8)

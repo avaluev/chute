@@ -45,6 +45,90 @@ func hookInstallerSuite() {
         T.eq(HookInstaller.foreignCommandCount(settingsPath: dir + "/nope.json"), 0,
              "a settings file that is not there costs nothing and warns about nothing")
 
+        // ── THE MERGE, COMPUTED BUT NEVER WRITTEN ──────────────────────────────────────────
+        //
+        // `merged` returns the user's settings with Chute's four blocks APPENDED into whatever
+        // arrays are already there. Chute still does not write ~/.claude/settings.json — the
+        // founder's rule of 2026-08-27 stands — it prints, and the user's own shell does the
+        // write. That is the difference between "here is some JSON, good luck" and one command.
+        // A SETTINGS FILE WITH FOREIGN HOOKS AND NO CHUTE — the state every new customer is in,
+        // and the only one that exercises the append. The `legacy` fixture above already carries
+        // Chute's blocks on all four events, so `merged` skips every one of them and the append
+        // is never reached: a test written against it passes whatever the append does. Proved by
+        // perturbation 2026-09-03 — replacing `blocks.append(…)` with `blocks = […]`, the exact
+        // bug this guards, left the suite green.
+        let virgin = (dir as NSString).appendingPathComponent("virgin.json")
+        try? """
+        {"model":"opus","permissions":{"allow":["Bash"]},
+         "hooks":{
+           "Stop":[{"hooks":[{"type":"command","command":"other-tool-stop"}]}],
+           "PermissionRequest":[{"matcher":"Bash","hooks":[{"type":"command","command":"other-perm"}]}],
+           "UserPromptSubmit":[{"hooks":[{"type":"command","command":"other-prompt"}]}],
+           "SessionStart":[{"hooks":[{"type":"command","command":"other-start"}]}],
+           "PreCompact":[{"hooks":[{"type":"command","command":"other-precompact"}]}]}}
+        """.write(toFile: virgin, atomically: true, encoding: .utf8)
+
+        let vText = try! HookInstaller.merged(settingsPath: virgin)
+        let vObj = (try! JSONSerialization.jsonObject(with: Data(vText.utf8))) as! [String: Any]
+        func cmds(_ d: [String: Any]) -> [String] {
+            (d["hooks"] as! [String: Any]).values.flatMap { blocks in
+                ((blocks as? [[String: Any]]) ?? []).flatMap { b in
+                    ((b["hooks"] as? [[String: Any]]) ?? []).compactMap { $0["command"] as? String }
+                }
+            }
+        }
+        let vForeign = cmds(vObj).filter { !HookInstaller.isChuteCommand($0) }
+        T.eq(Set(vForeign), Set(["other-tool-stop", "other-perm", "other-prompt",
+                                 "other-start", "other-precompact"]),
+             "every foreign hook survives the merge — the whole reason this is not a paste")
+        T.eq(cmds(vObj).filter { HookInstaller.isChuteCommand($0) }.count, 4,
+             "and Chute's four are added")
+        T.eq(entries(vObj, "Stop"), 2, "APPENDED beside the other tool's block, not over it")
+        T.eq(HookInstaller.status(settingsPath: virgin).values.filter { $0 }.count, 0,
+             "and the file on disk is untouched — merged() computes, it never writes")
+
+        let mergedText = try! HookInstaller.merged(settingsPath: path)
+        let mergedObj = (try! JSONSerialization.jsonObject(with: Data(mergedText.utf8))) as! [String: Any]
+        let mergedHooks = mergedObj["hooks"] as! [String: Any]
+
+        func commands(_ d: [String: Any]) -> [String] {
+            (d["hooks"] as! [String: Any]).values.flatMap { blocks in
+                ((blocks as? [[String: Any]]) ?? []).flatMap { b in
+                    ((b["hooks"] as? [[String: Any]]) ?? []).compactMap { $0["command"] as? String }
+                }
+            }
+        }
+        let originalForeign = commands(load(path)).filter { !HookInstaller.isChuteCommand($0) }
+        let mergedForeign  = commands(mergedObj).filter { !HookInstaller.isChuteCommand($0) }
+        T.eq(Set(mergedForeign), Set(originalForeign),
+             "NOT ONE foreign hook is lost — the whole reason this exists rather than a paste")
+        T.eq(mergedHooks.count, (load(path)["hooks"] as! [String: Any]).count,
+             "and no event disappears either")
+        T.ok(mergedObj["permissions"] != nil && mergedObj["model"] != nil,
+             "settings that have nothing to do with hooks survive untouched")
+        T.eq(entries(mergedObj, "PreCompact"), 1, "an event Chute does not use is left alone")
+
+        // Idempotent: the fixture already carries Chute's blocks, so a merge adds nothing.
+        T.eq(entries(mergedObj, "Stop"), entries(load(path), "Stop"),
+             "merging twice does not stack a second copy of Chute's block")
+
+        // The command it prints has to be safe to paste. Never a redirect straight onto the
+        // settings file — `> settings.json` truncates it BEFORE chute runs, so a failure there
+        // leaves the user with an empty agent config.
+        let applyCmd = HookInstaller.applyCommand(cli: "chute", settingsPath: "/tmp/s.json")
+        T.no(applyCmd.contains("> /tmp/s.json"), "never redirects onto the settings file itself")
+        T.ok(applyCmd.contains("mktemp"), "stages through a temp file")
+        T.ok(applyCmd.contains("cp \"/tmp/s.json\" \"/tmp/s.json.bak-"), "backs up first, quoted")
+        T.ok(applyCmd.contains("&&"), "chained so a failure stops the sequence")
+        T.ok(applyCmd.contains("--settings \"/tmp/s.json\""),
+             "names the file it rewrites rather than trusting a default")
+        // A path with a space is the case an unquoted backup destination silently mangles.
+        let spaced = HookInstaller.applyCommand(cli: "chute", settingsPath: "/a b/s.json")
+        T.eq(spaced.components(separatedBy: "\"/a b/s.json\"").count - 1, 4,
+             "all four occurrences of a spaced path are quoted (merged, cp, mv, status)")
+        T.ok(spaced.contains("cp \"/a b/s.json\" \"/a b/s.json.bak-"),
+             "including the backup destination, which is where an unquoted path loses the backup")
+
         // Status is read-only and sees the legacy wiring.
         T.eq(HookInstaller.status(settingsPath: path).values.filter { $0 }.count, 4,
              "status reports four wired events on a legacy install")

@@ -112,7 +112,7 @@ chute diff . --copy                  # what did the agent actually change?
 | `chute env inject [dir]` | Keychain → `.env`. Refuses unless `.env` is gitignored |
 | `chute sessions` | Every terminal session, grouped by state. `--json` |
 | `chute focus <key\|project\|N>` | Bring that session to the front. Asks when a name matches several |
-| `chute hooks snippet\|uninstall\|status` | Agent status hooks — printed for YOU to paste; Chute never edits your settings |
+| `chute hooks status\|snippet\|merged\|uninstall` | Agent status hooks. `merged` prints your settings with them added; Chute never writes that file — the command it gives you does |
 | `chute doctor` | Check every prerequisite and say how to fix it. `--fix --json` |
 
 Add `--no-copy` to any command to keep the clipboard untouched.
@@ -146,8 +146,10 @@ carefully. So:
 
 ```bash
 chute hooks status            # read-only: what is wired now
-chute hooks snippet           # prints the JSON — paste it into settings.json yourself,
-                              # or add the same commands via Claude Code's /hooks menu
+chute hooks snippet           # prints the JSON, AND the one command that merges it for you
+chute hooks merged            # your whole settings.json with the hooks added — on STDOUT.
+                              # Chute never writes that file; the command `snippet` prints
+                              # pipes this into place, backing yours up first
 chute hooks uninstall         # removes exactly the blocks OLD Chute versions added (≤0.1.0
                               # wrote them) — backs up first, touches nothing of yours
 ```

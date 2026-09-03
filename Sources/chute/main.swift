@@ -33,7 +33,7 @@ AGENT SESSIONS
   sessions              Every terminal session, grouped by state     --json
   focus <key|project|N> Bring that session to the front
   resume [key|N]        The command to pick that conversation up again  --tmux
-  hooks snippet|uninstall|status  Never edits your settings itself   --settings PATH --force
+  hooks status|snippet|merged|uninstall   Never edits your settings itself  --settings PATH --force
                                    (uninstall previews by default)
 
 SHARING
