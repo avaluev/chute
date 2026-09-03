@@ -33,5 +33,26 @@ func sessionColorSuite() {
              "FNV-1a index is pinned for a known path")
         T.eq(SessionColor.index(forProject: "/Users/sxope/Documents/2026/Development/31.Chrome/studylock"), 6,
              "FNV-1a index is pinned for a second known path")
+
+        // ── THE HEX PARSE ─────────────────────────────────────────────────────────────────
+        // It lived in an NSColor extension inside ChuteApp, which no test could link, and the
+        // menu draws every session dot through it.
+        func bytes(_ hex: String) -> [Int]? {
+            SessionColor.rgb(hex: hex).map { [$0.red, $0.green, $0.blue].map { Int(($0 * 255).rounded()) } }
+        }
+        T.eq(bytes("#E06C75") ?? [], [0xE0, 0x6C, 0x75], "#RRGGBB parses to its three bytes")
+        T.eq(bytes("E06C75") ?? [], [0xE0, 0x6C, 0x75], "the # is optional")
+        T.eq(bytes("#ffffff") ?? [], [255, 255, 255], "lower case is hex too")
+        T.eq(bytes("#000000") ?? [], [0, 0, 0], "black is a colour, not a failure")
+        T.ok(bytes("#E06C7") == nil, "five digits is not a colour")
+        T.ok(bytes("#E06C755") == nil, "seven digits is not a colour")
+        T.ok(bytes("") == nil, "and neither is nothing")
+        T.ok(bytes("#ZZZZZZ") == nil, "non-hex digits are refused")
+        // UInt32(_:radix:) accepts a leading sign, so this is six characters that parse.
+        T.ok(bytes("+ABCDE") == nil, "a signed number is not a colour")
+        T.ok(bytes("#-01234") == nil, "nor a negative one")
+
+        T.ok(SessionColor.palette.allSatisfy { SessionColor.rgb(hex: $0) != nil },
+             "every palette entry parses — a typo would draw that project grey")
     }
 }

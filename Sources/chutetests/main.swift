@@ -4,6 +4,7 @@ import ChuteCore
 coreSuites()
 sessionSuite()
 sessionColorSuite()
+sessionCommandsSuite()
 glyphSuite()
 hookStateSuite()
 hookInstallerSuite()
