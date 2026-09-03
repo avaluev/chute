@@ -7,8 +7,11 @@ PASS=0; FAIL=0
 ok()   { PASS=$((PASS+1)); printf '  ok   %s\n' "$1"; }
 bad()  { FAIL=$((FAIL+1)); printf '  FAIL %s\n     %s\n' "$1" "${2:-}"; }
 check(){ if [ "$2" = "$3" ]; then ok "$1"; else bad "$1" "got '$2' expected '$3'"; fi; }
-has()  { if printf '%s' "$2" | grep -qF -- "$3"; then ok "$1"; else bad "$1" "missing '$3'"; fi; }
-hasnt(){ if printf '%s' "$2" | grep -qF -- "$3"; then bad "$1" "should not contain '$3'"; else ok "$1"; fi; }
+# A HERE-STRING, NOT A PIPE. `printf | grep -q` under `set -o pipefail` reports failure whenever
+# grep matches early enough that printf dies on the closed pipe — which silently flips a PASSING
+# assertion to failing, at random, in the helper that backs almost every check in this file.
+has()  { if grep -qF -- "$3" <<<"$2"; then ok "$1"; else bad "$1" "missing '$3'"; fi; }
+hasnt(){ if grep -qF -- "$3" <<<"$2"; then bad "$1" "should not contain '$3'"; else ok "$1"; fi; }
 
 [ -x "$CHUTE" ] || { echo "build first: swift build -c release"; exit 1; }
 

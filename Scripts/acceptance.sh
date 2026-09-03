@@ -48,8 +48,10 @@ run() {
 # id, description, then the assertion verb and its argument.
 expect_ok()   { if [ "$RC" -eq 0 ]; then ok "$1" "$2"; else bad "$1" "$2" "exit $RC: $(printf '%s' "$OUT"|head -1)"; fi; }
 expect_fail() { if [ "$RC" -ne 0 ]; then ok "$1" "$2"; else bad "$1" "$2" "exit 0 — a failure reported success"; fi; }
-expect_has()  { if printf '%s' "$OUT" | grep -qF -- "$3"; then ok "$1" "$2"; else bad "$1" "$2" "missing '$3'"; fi; }
-expect_not()  { if printf '%s' "$OUT" | grep -qF -- "$3"; then bad "$1" "$2" "should not contain '$3'"; else ok "$1" "$2"; fi; }
+# Here-strings, not pipes — see Scripts/smoke.sh. `printf | grep -q` under pipefail turns a
+# successful match into a failed pipeline whenever printf loses the race to grep's early exit.
+expect_has()  { if grep -qF -- "$3" <<<"$OUT"; then ok "$1" "$2"; else bad "$1" "$2" "missing '$3'"; fi; }
+expect_not()  { if grep -qF -- "$3" <<<"$OUT"; then bad "$1" "$2" "should not contain '$3'"; else ok "$1" "$2"; fi; }
 # EVERY timed case is recorded, not just the ones that failed. `--perf` printed nothing on its
 # first real run because a `timing()` helper existed here and nothing ever called it — a flag that
 # silently does nothing is worse than no flag, and it was in the harness written to catch exactly

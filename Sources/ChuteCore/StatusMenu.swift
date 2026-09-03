@@ -155,10 +155,16 @@ public enum StatusMenu {
         // badge has no data to draw from at all.
         if !hasHookRecords, !sessions.isEmpty {
             out.append(MenuNode(.command(.copyHooksSnippet),
-                                "Agent status needs a hook — Copy the Snippet",
-                                toolTip: "No agent-status hook has ever reported in, so the badge "
-                                       + "and each session's state have nothing to go on. Paste "
-                                       + "this into ~/.claude/settings.json yourself — Chute never "
+                                "Every state below is a guess — Copy the Hook Snippet",
+                                toolTip: "No agent-status hook has ever reported in, so nothing "
+                                       + "here knows the difference between an agent that is "
+                                       + "thinking and one that is waiting for you — every "
+                                       + "session falls back to its terminal title, which is why "
+                                       + "they all read as Working. MERGE the snippet into the "
+                                       + "\"hooks\" object in ~/.claude/settings.json, or use "
+                                       + "Claude Code's /hooks menu. Do not paste it over the "
+                                       + "object: it is a complete \"hooks\" block and it would "
+                                       + "take every other tool's hooks with it. Chute never "
                                        + "edits that file.",
                                 payload: HookInstaller.manualSnippet()))
             out.append(.separator())

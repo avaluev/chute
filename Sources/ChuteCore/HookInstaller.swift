@@ -128,6 +128,31 @@ public enum HookInstaller {
         }
     }
 
+    /// How many hook commands in the user's settings are NOT Chute's — across EVERY event, not
+    /// just the four Chute uses.
+    ///
+    /// `manualSnippet()` returns a complete `"hooks"` object. That is correct for an empty
+    /// settings file and a loaded gun for anyone else: paste it over an existing `hooks` key and
+    /// every hook another tool installed is gone. Found on a real machine 2026-09-03 — 11
+    /// commands across 12 events, none of them Chute's, and the menu row that hands you the
+    /// snippet said nothing about merging. This is the number that lets the menu and the CLI warn
+    /// with a figure instead of a vague caution, which is the difference between a warning people
+    /// read and one they skim.
+    ///
+    /// Unreadable or absent settings return 0: nothing is there to lose, and a file we cannot
+    /// parse is not one to make claims about.
+    public static func foreignCommandCount(settingsPath: String) -> Int {
+        guard let obj = try? loadObject(settingsPath),
+              let hooks = obj["hooks"] as? [String: Any] else { return 0 }
+        return hooks.values.reduce(0) { total, blocks in
+            total + ((blocks as? [[String: Any]]) ?? []).reduce(0) { n, block in
+                n + ((block["hooks"] as? [[String: Any]]) ?? [])
+                    .filter { !isChuteCommand(($0["command"] as? String) ?? "") }
+                    .count
+            }
+        }
+    }
+
     /// The `hooks` object a user can paste into their own settings.json, verbatim. Chute
     /// generates the JSON but the user's hand does the writing — that is the whole contract.
     public static func manualSnippet() -> String {

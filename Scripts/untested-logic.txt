@@ -1,4 +1,5 @@
 10 Sources/ChuteApp/FirstRunWindow.swift
+1 Sources/ChuteApp/MenuBarMark.swift
 9 Sources/ChuteApp/Notify.swift
 19 Sources/ChuteApp/Onboarding.swift
 1 Sources/ChuteApp/Panel.swift

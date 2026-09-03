@@ -65,7 +65,13 @@ swiftc -O -o "$APPEX/Contents/MacOS/ChuteFinder" \
 strip -x "$APPEX/Contents/MacOS/ChuteFinder"
 # The entry point must survive the strip, or the extension loads as a plain executable and Finder
 # shows nothing. This is the same assertion CI makes on the assembled bundle.
-nm -u "$APPEX/Contents/MacOS/ChuteFinder" | grep -q _NSExtensionMain \
+# NO PIPE INTO `grep -q` UNDER `pipefail`. grep -q exits the instant it matches, the
+# producer then dies writing to a closed pipe ("write on a pipe with no reader"), and
+# pipefail reports the whole pipeline as FAILED even though the match succeeded. It is
+# timing-dependent, so it passes on a quiet machine and fires under load. Observed here
+# 2026-09-03: this exact assertion claimed _NSExtensionMain was gone from a binary that
+# `nm` shows it in. A here-string is not a pipeline, so there is nothing to fail.
+grep -q _NSExtensionMain <<<"$(nm -u "$APPEX/Contents/MacOS/ChuteFinder")" \
   || { echo "build-app: _NSExtensionMain is gone from the appex after stripping" >&2; exit 1; }
 
 cat > "$APPEX/Contents/Info.plist" <<APPEXPLIST
@@ -250,3 +256,24 @@ if [ "$CLAIMED" != "$ACTUAL" ]; then
   echo "           Fix marketing/06-FACT-SHEET.md, then every asset that quotes it." >&2
   exit 1
 fi
+
+# ── DID THIS BUILD REACH THE APP YOU ACTUALLY RUN? ────────────────────────────────────────────
+# Nothing answered that until 2026-09-03, and the gap cost a whole exchange: a new icon was built
+# into dist/, verified there, and reported as done, while the copy in /Applications — the one with
+# the Dock pin, the one the founder was looking at — was six days old and unchanged. `swift build`
+# says "Build complete", `install.sh` is a separate command, and the distance between them is
+# invisible. This closes it: after every build, any installed copy whose stamp differs is named.
+# A note, never a failure — building without installing is a legitimate thing to do.
+# COMPARE THE COMMIT, NOT THE TIMESTAMP. `$BUILT_AT` changes every minute, so matching the whole
+# stamp made this fire after every single rebuild of the same code — and a check that always
+# complains is one nobody reads. The commit is what answers the real question: is the app you
+# launch built from the code in front of you? A dirty tree cannot be distinguished any finer than
+# its commit, and that is honest: `-dirty` on both sides means "close enough to be worth checking
+# yourself", not "identical".
+for CANDIDATE in "$HOME/Applications/Chute.app" "/Applications/Chute.app"; do
+  [ -d "$CANDIDATE" ] || continue
+  INSTALLED="$(/usr/libexec/PlistBuddy -c 'Print :ChuteBuild' "$CANDIDATE/Contents/Info.plist" 2>/dev/null || echo "unreadable ?")"
+  [ "${INSTALLED%% *}" = "$BUILD" ] && continue
+  echo "note: $CANDIDATE was built from ${INSTALLED%% *}, this tree is $BUILD." >&2
+  echo "      The app you launch is not this code — run Scripts/install.sh." >&2
+done

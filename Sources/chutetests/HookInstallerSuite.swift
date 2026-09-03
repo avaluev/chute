@@ -36,6 +36,15 @@ func hookInstallerSuite() {
             ((d["hooks"] as? [String: Any])?[event] as? [Any])?.count ?? 0
         }
 
+        // THE SNIPPET IS A COMPLETE `"hooks"` OBJECT, so a user who pastes it OVER their own
+        // `hooks` key loses every hook another tool put there. Found on the founder's own machine
+        // 2026-09-03: 11 commands across 12 events, none of them Chute's, one careless paste from
+        // gone. `foreignCommandCount` is what lets the menu and the CLI say so before it happens.
+        T.eq(HookInstaller.foreignCommandCount(settingsPath: path), 3,
+             "counts the three non-Chute commands and none of its own")
+        T.eq(HookInstaller.foreignCommandCount(settingsPath: dir + "/nope.json"), 0,
+             "a settings file that is not there costs nothing and warns about nothing")
+
         // Status is read-only and sees the legacy wiring.
         T.eq(HookInstaller.status(settingsPath: path).values.filter { $0 }.count, 4,
              "status reports four wired events on a legacy install")

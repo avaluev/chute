@@ -14,9 +14,45 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 APP="$ROOT/dist/Chute.app"
 [ -d "$APP" ] || "$ROOT/Scripts/build-app.sh"
 
-mkdir -p "$HOME/Applications"
-rm -rf "$HOME/Applications/Chute.app"
-cp -R "$APP" "$HOME/Applications/Chute.app"
+# WHERE IT GOES: over the copy that is already there, whichever folder that is.
+#
+# This script wrote ~/Applications unconditionally until 2026-09-03. The founder's copy — the one
+# running, the one the Dock pointed at — was in /Applications, dragged from the DMG the way the
+# download page tells customers to. So a fresh build was installed politely beside the old one,
+# the old one kept running, and a whole exchange was spent on "I see no change" for an install
+# that had genuinely happened, just not to the app anyone was looking at. Installing over what
+# exists is the only behaviour that cannot produce that.
+#
+# A machine with no Chute yet gets ~/Applications: no password, no admin rights, the DMG's own
+# /Applications drag still works and this script will then follow it there next time.
+USER_DIR="$HOME/Applications"
+APP_DIR="$USER_DIR"
+if [ -d "/Applications/Chute.app" ] && [ ! -d "$USER_DIR/Chute.app" ]; then
+  APP_DIR="/Applications"
+elif [ -d "/Applications/Chute.app" ] && [ -d "$USER_DIR/Chute.app" ]; then
+  echo "note: a second copy exists at /Applications/Chute.app and is NOT being updated."
+  echo "      Delete it, or which Chute you get depends on which one you click."
+fi
+# APP_DIR feeds `rm -rf` below, so it is asserted rather than assumed: absolute, and not the root
+# itself. It must NOT demand two segments — /Applications is a legitimate target now and a
+# two-segment rule rejects it, which is how the first version of this guard refused the only
+# folder it was written to support.
+case "$APP_DIR" in
+  /) echo "$(basename "$0"): refusing to install to the root directory" >&2; exit 1 ;;
+  /*) ;;
+  *) echo "$(basename "$0"): refusing to install to \"$APP_DIR\" — not an absolute path" >&2; exit 1 ;;
+esac
+
+# mkdir BEFORE the writability test: ~/Applications does not exist on a fresh machine, and -w on a
+# directory that is not there is false, which would refuse the very install it is meant to allow.
+mkdir -p "$APP_DIR"
+if [ ! -w "$APP_DIR" ]; then
+  echo "$(basename "$0"): $APP_DIR is not writable — fix its permissions, or drag" >&2
+  echo "           $APP there yourself" >&2
+  exit 1
+fi
+rm -rf "$APP_DIR/Chute.app"
+cp -R "$APP" "$APP_DIR/Chute.app"
 # CLEAN UP THE ONE WE USED TO MAKE. Every install before this one wrote ~/.local/bin/chute, and
 # leaving it means the collision outlives the fix on every existing machine. Removed only when it
 # is a SYMLINK POINTING INTO Chute.app — ours, unambiguously. A real file there, or a link to
@@ -35,18 +71,18 @@ fi
 
 # You built this app; it was never downloaded. Clearing these stops macOS treating each rebuild as
 # a suspicious new arrival.
-xattr -dr com.apple.quarantine "$HOME/Applications/Chute.app" 2>/dev/null || true
-xattr -dr com.apple.provenance "$HOME/Applications/Chute.app" 2>/dev/null || true
+xattr -dr com.apple.quarantine "$APP_DIR/Chute.app" 2>/dev/null || true
+xattr -dr com.apple.provenance "$APP_DIR/Chute.app" 2>/dev/null || true
 
 /System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister \
-  -f "$HOME/Applications/Chute.app"
+  -f "$APP_DIR/Chute.app"
 /System/Library/CoreServices/pbs -flush 2>/dev/null || true
-pluginkit -a "$HOME/Applications/Chute.app/Contents/PlugIns/ChuteFinder.appex" 2>/dev/null || true
+pluginkit -a "$APP_DIR/Chute.app/Contents/PlugIns/ChuteFinder.appex" 2>/dev/null || true
 
 pkill -x ChuteApp 2>/dev/null || true
 # LaunchServices returns -600 if the old process has not finished dying yet. One retry covers it.
 sleep 1
-open "$HOME/Applications/Chute.app" 2>/dev/null || { sleep 2; open "$HOME/Applications/Chute.app"; }
+open "$APP_DIR/Chute.app" 2>/dev/null || { sleep 2; open "$APP_DIR/Chute.app"; }
 
 # Registration happens when the host app is LAUNCHED (measured: pluginkit -a and lsregister do
 # not do it), so this runs after `open`. The flag has three states; blank is registered-but-off.
@@ -65,7 +101,7 @@ killall Finder 2>/dev/null || true
 # The extension writes a marker when it loads, so "did this build ever run?" is answerable. If it
 # did not, the stale container goes to the Trash — via Finder, which needs no password — and we
 # try once more.
-APPEX_BIN="$HOME/Applications/Chute.app/Contents/PlugIns/ChuteFinder.appex/Contents/MacOS/ChuteFinder"
+APPEX_BIN="$APP_DIR/Chute.app/Contents/PlugIns/ChuteFinder.appex/Contents/MacOS/ChuteFinder"
 MARKER="$HOME/.chute/extension-loaded.txt"
 CONTAINER="$HOME/Library/Containers/dev.valuev.chute.finder"
 
@@ -81,12 +117,12 @@ if ! wait_for_extension; then
   #   3. re-register by launching the host app, which is what actually registers an appex
   #   4. restart Finder so it picks the new one up
   osascript -e "tell application \"Finder\" to delete POSIX file \"$CONTAINER\"" >/dev/null 2>&1 || true
-  pluginkit -r "$HOME/Applications/Chute.app/Contents/PlugIns/ChuteFinder.appex" 2>/dev/null || true
+  pluginkit -r "$APP_DIR/Chute.app/Contents/PlugIns/ChuteFinder.appex" 2>/dev/null || true
   pkill -x ChuteApp 2>/dev/null || true
   sleep 1
-  open "$HOME/Applications/Chute.app"
+  open "$APP_DIR/Chute.app"
   sleep 2
-  pluginkit -a "$HOME/Applications/Chute.app/Contents/PlugIns/ChuteFinder.appex" 2>/dev/null || true
+  pluginkit -a "$APP_DIR/Chute.app/Contents/PlugIns/ChuteFinder.appex" 2>/dev/null || true
   pluginkit -e use -i dev.valuev.chute.finder 2>/dev/null || true
   killall Finder 2>/dev/null || true
   if wait_for_extension; then
@@ -101,7 +137,7 @@ if ! wait_for_extension; then
     # --force since 2026-08-29: `doctor --fix` previews by default like the other destructive
     # commands, and the sentence above promises this CLEARS the folder. An instruction whose
     # command does not do what the sentence says is worse than no instruction.
-    echo "      \"$HOME/Applications/Chute.app/Contents/MacOS/chute\" doctor --fix --force"
+    echo "      \"$APP_DIR/Chute.app/Contents/MacOS/chute\" doctor --fix --force"
     echo
     echo "   Everything else is installed and working."
     echo
@@ -123,7 +159,7 @@ cat <<EOF
 
 Chute installed.
 
-  app   $HOME/Applications/Chute.app   (menu bar 🪂, hotkey ⌥⌘N)
+  app   $APP_DIR/Chute.app   (menu bar 🪂, hotkey ⌥⌘N)
   cli   brew install avaluev/tap/chute  (free, MIT, optional — the app needs no PATH)
 
 Finder right-click → Chute actions, inline in the context menu …
