@@ -103,31 +103,53 @@ def hairline(draw, x0, y, x1):
 
 
 def draw_mark(d, x, y, size):
-    """The Chute mark: a hopper narrowing into a lit slot. Returns the width it occupied.
+    """The Chute mark: a canopy, two risers, a crate. Returns the width it occupied.
 
     Vector, never a font glyph — see make_og. The proportions follow Scripts/make-icon.swift so
-    the OG card, the app icon and the menu bar are recognisably the same object.
+    the OG card and the app icon are recognisably the same object.
+
+    The mark was a hopper narrowing into a lit slot until 2026-09-03. It was replaced because a
+    blind recognition test — unprimed viewers shown the icon with no product context — read every
+    document-into-a-slot mark as a PAPER SHREDDER, 4 out of 4 at both 128px and 32px. An icon that
+    says "destroys your documents" is the wrong icon for a product that hands them to an agent.
+    The parachute read as "parachute with a package" 4/4 at every size tested, at the highest
+    confidence in the whole test. See docs/specs/audit-2026-09-03-FINDINGS.md.
     """
-    w = size * 0.78
-    lip, throat = w, w * 0.34
-    top, bottom = y + size * 0.10, y + size * 0.74
-    wall = max(3, int(size * 0.075))
+    # Vertical budget, taken from the icon's own 16px slice, which is the one a blind test
+    # confirmed: canopy, then an EQUAL span of open air, then the crate. The air is the cue —
+    # close the gap and the whole thing reads as a mushroom. It did, on the first attempt here.
+    w = size * 0.74
+    canopy_h = w * 0.56
+    top = y + size * 0.04
+    hem = top + canopy_h
+    crate_top = y + size * 0.66
+    bottom = y + size * 0.96
 
-    # Two converging walls.
-    d.line([(x, top), (x + (lip - throat) / 2, bottom)], fill=hx(C["accent"]), width=wall)
-    d.line([(x + lip, top), (x + lip - (lip - throat) / 2, bottom)], fill=hx(C["accent"]), width=wall)
+    # The canopy: a half-ellipse tall enough not to be a cap, with gore seams so it reads as a
+    # curved surface rather than a blob.
+    d.pieslice([x, top, x + w, top + canopy_h * 2], 180, 360, fill=hx(C["accent"]))
+    # Seams run from the apex DOWN to the skirt, the way a real canopy is panelled. Fanning them
+    # up from the hem instead turns the dome into a sunburst — it did, on the first attempt.
+    for i in (1, 2, 3):
+        d.line([(x + w / 2, top + canopy_h * 0.06), (x + w * i / 4.0, hem)],
+               fill=hx(C["ground800"]), width=max(1, int(size * 0.010)))
+    # The hem, one shade DOWN — a bright bar across the skirt reads as a gill line.
+    d.line([(x + w * 0.02, hem), (x + w * 0.98, hem)],
+           fill=hx(C["ground600"]), width=max(1, int(size * 0.014)))
 
-    # The lit slot at the bottom — the one bright thing, matching the icon's glow stop.
-    slot_l = x + (lip - throat) / 2
-    d.line([(slot_l, bottom), (slot_l + throat, bottom)],
-           fill=hx(C["accentGlow"]), width=max(4, int(size * 0.10)))
+    # Two risers, thin and straight, landing inboard of the crate's corners so the skirt visibly
+    # overhangs the load. Nothing that grows out of the ground has that overhang.
+    cw = w * 0.38
+    cx = x + (w - cw) / 2
+    riser = max(1, int(size * 0.016))
+    d.line([(x + w * 0.09, hem), (cx + cw * 0.22, crate_top)], fill=hx(C["accent"]), width=riser)
+    d.line([(x + w * 0.91, hem), (cx + cw * 0.78, crate_top)], fill=hx(C["accent"]), width=riser)
 
-    # A document falling in.
-    dw, dh = throat * 0.62, throat * 0.78
-    dx = slot_l + (throat - dw) / 2
-    dy = top + (bottom - top) * 0.26
-    d.rectangle([dx, dy, dx + dw, dy + dh], fill=hx(C["paper"]))
-    return lip
+    # The crate: a lit lid over a front face, because a box has faces and a card does not.
+    d.rectangle([cx, crate_top, cx + cw, bottom], fill=hx(C["paper"]))
+    d.rectangle([cx, crate_top, cx + cw, crate_top + (bottom - crate_top) * 0.24],
+                fill=(255, 255, 255))
+    return w
 
 
 def make_og():
@@ -138,7 +160,7 @@ def make_og():
     # The mark is DRAWN, not typed. "⤓" is U+2913 and JetBrains Mono has no glyph for it, so
     # typing it produced a tofu box — a missing-glyph rectangle that the --check below cannot
     # detect, because a tofu box is not a flat image. Drawing it also means the mark matches the
-    # app icon (two converging walls, a lit slot) instead of approximating it with punctuation.
+    # app icon (a canopy, two risers, a crate) instead of approximating it with punctuation.
     mark_w = draw_mark(d, margin, 150, 104)
     name_font, _ = fit_font(d, BRAND["name"], "Bold", W - 2 * margin - mark_w, 108, min_size=60)
     d.text((margin + mark_w + 34, 150), BRAND["name"], font=name_font, fill=hx(C["paper"]))

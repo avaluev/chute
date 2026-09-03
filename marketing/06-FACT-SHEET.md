@@ -10,7 +10,7 @@
 > fails the deploy if any of those strings appears on a rendered page. Strike a row through with
 > `~~…~~` when it stops being false and enforcement drops it on the next run.
 
-This file exists because three false claims reached the live site: "328 KB" (the app is 2.4 MB),
+This file exists because three false claims reached the live site: "328 KB" (the app is 2.8 MB),
 "28 commands" (there are 25), and unit-test counts that disagreed between the README and the
 handoff. A number in marketing copy with no command beside it is a number that will be wrong
 within a fortnight.
@@ -24,7 +24,7 @@ command and update this file first, then the copy.
 
 | Claim | Value | Prove it |
 |---|---|---|
-| App bundle size | **2.4 MB** | `du -sh dist/Chute.app` |
+| App bundle size | **2.8 MB** | `du -sh dist/Chute.app` |
 | CLI binary size | **727 KB** | `ls -lh dist/Chute.app/Contents/MacOS/chute` — the SHIPPED copy. `.build/release/chute` is 1.0 MB because it has not been stripped yet; only `build-app.sh` strips. |
 | CLI commands | **26** | `chute help \| grep -cE '^  [a-z]'` |
 | Finder actions | **9**, drawn as **5 rows** | `chute finder-actions --menu` |
@@ -145,8 +145,8 @@ post or page opens with a command name.
 |---|---|---|
 | "turn agent output back into files" | The `unpack` command was deleted 2026-08-31 — a Claude Code user's agent writes its own files. This exact sentence survived in the site's `<meta name="description">` and OpenGraph description until 2026-09-01, because `check-claims.mjs` stripped tags before reading. It reads metadata now. | Nothing — the job no longer exists |
 | "Paste an answer back" | Same deleted command, the hero's half-sentence version of it. | "Select the folders. Right-click once." |
-| "328 KB" | The app is 2.4 MB. This was live on the site until 2026-08-28. | "2.4 MB, no dependencies, no launch daemon" |
-| "2.5 MB" | Was true, then was not: the bundle reached **3.3 MB** unnoticed because eight files carried a hand-typed copy of this number and nothing checked any of them. `strip -x` before signing brought it to **2.4 MB** on 2026-09-01, and `Scripts/build-app.sh` now FAILS if this row and `du -sh dist/Chute.app` disagree. | "2.4 MB" — and re-derive it, never retype it |
+| "328 KB" | The app is 2.8 MB. This was live on the site until 2026-08-28. | "2.8 MB, no dependencies, no launch daemon" |
+| "2.5 MB" | Was true, then was not: the bundle reached **3.3 MB** unnoticed because eight files carried a hand-typed copy of this number and nothing checked any of them. `strip -x` before signing brought it to **2.4 MB** on 2026-09-01, and `Scripts/build-app.sh` now FAILS if this row and `du -sh dist/Chute.app` disagree. It went to **2.8 MB** on 2026-09-03: the redesigned icon is 755 KB against the old one's 359 KB, which is what ten natively-drawn slices with real gradients cost. NOTE: "2.4 MB" is deliberately NOT added to this forbidden list — it is still true of the strip change and the changelog page renders it as history, so this list would fail the deploy on a truthful sentence. | "2.8 MB" — and re-derive it, never retype it |
 | "28 commands" | There are 26. | "26 commands" |
 | "Nothing is uploaded, ever" | `gist` uploads on request. | "No network code at all; `gist` shells out to your own `gh`" |
 | "signed by Apple" | Not yet true. `spctl -a dist/Chute.app` says `rejected`. The *word* "notarised" is deliberately NOT on this list: a word list cannot tell a claim from a denial, and forbidding it blocked the site from discussing the wall at all. `check-claims.mjs` asks `spctl` and forbids the affirmative forms instead — a derived check that retires itself. | Nothing — omit until the Developer ID exists |
