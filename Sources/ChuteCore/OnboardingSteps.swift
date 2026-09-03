@@ -43,7 +43,7 @@ public enum Onboarding {
     public static let steps: [OnboardStep] = [
         OnboardStep(
             id: "what",
-            title: "A right-click menu, and a ⤓ in your menu bar",
+            title: "A right-click menu, and a 🪂 in your menu bar",
             body: "Chute puts your files where your agent can read them. Everything it does "
                 + "starts from one of those two places — there is no main window to learn.",
             command: nil,
@@ -81,7 +81,7 @@ public enum Onboarding {
         OnboardStep(
             id: "after",
             title: "Where things live from now on",
-            body: "The ⤓ in your menu bar has your sessions and your local servers. Settings is "
+            body: "The 🪂 in your menu bar has your sessions and your local servers. Settings is "
                 + "in that menu. If the Finder menu ever goes missing, `chute doctor` says why.",
             command: nil,
             done: .always),
