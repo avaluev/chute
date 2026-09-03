@@ -23,7 +23,7 @@ times a day, and nobody has automated it.
 You already have an agent that can read your whole repo. You spend your day telling it *which
 part*. Chute puts that in the Finder right-click: select the folders, click once, and every file
 inside is on your clipboard as one blob with a token count — 17 times a day, 150 seconds down to
-5. It is a 2.8 MB macOS app with no account, no subscription and no network code. The `chute`
+5. It is a 2.9 MB macOS app with no account, no subscription and no network code. The `chute`
 CLI underneath is free and MIT forever, which is how you check every claim on this page before
 you pay for any of it.
 
@@ -77,7 +77,7 @@ does that arithmetic in his head, and the answer he reaches is "so don't buy it.
 | ~80 minutes a day | `site/src/lib/cases.ts`, re-derived from the ledger on every build |
 | Safe in a repo an agent is about to rewrite | Preview-by-default, `clean` moves to Trash, `checkpoint` can only ever add a branch |
 | Actually private | Zero network code except the `gist` command you invoke yourself |
-| Not bloatware | 2.8 MB, zero third-party dependencies, no launch daemon, no background service |
+| Not bloatware | 2.9 MB, zero third-party dependencies, no launch daemon, no background service |
 | The claims are checkable | 911 unit assertions · 172 end-to-end · CI on macOS 13/14/15 |
 
 ## The competitive fact that decides how this is written

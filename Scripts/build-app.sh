@@ -251,11 +251,27 @@ echo "size: $SIZE"
 SHEET="$ROOT/marketing/06-FACT-SHEET.md"
 CLAIMED="$(sed -n 's/^| App bundle size | \*\*\([0-9.]*\) MB\*\*.*/\1/p' "$SHEET")"
 ACTUAL="${SIZE%M}"
+SIZE_BAD=0
 if [ "$CLAIMED" != "$ACTUAL" ]; then
   echo "build-app: the fact sheet says the app is ${CLAIMED} MB and it is ${ACTUAL} MB." >&2
   echo "           Fix marketing/06-FACT-SHEET.md, then every asset that quotes it." >&2
-  exit 1
+  SIZE_BAD=1
 fi
+
+# THE CLI BINARY, SAME GATE. This row had a `Prove it` command and no gate, so it drifted exactly
+# the way the bundle row did before it was gated: it read 727 KB while the shipped binary was
+# 747 KB, and `marketing/02-LANDING-COPY.md` sold that number to a reader. A number in the file
+# whose whole job is gated numbers is the last place an ungated one belongs.
+# If the binary ever passes 1 MB, `ls -lh` prints "1.0M" and this goes red rather than quiet —
+# which is the right way round: change the row's unit deliberately.
+CLI_SIZE="$(ls -lh "$APP/Contents/MacOS/chute" | awk '{print $5}')"   # e.g. 789K
+CLAIMED_CLI="$(sed -n 's/^| CLI binary size | \*\*\([0-9]*\) KB\*\*.*/\1/p' "$SHEET")"
+if [ "$CLAIMED_CLI" != "${CLI_SIZE%K}" ]; then
+  echo "build-app: the fact sheet says the CLI binary is ${CLAIMED_CLI} KB and it is ${CLI_SIZE%K} KB." >&2
+  echo "           Fix marketing/06-FACT-SHEET.md, then every asset that quotes it." >&2
+  SIZE_BAD=1
+fi
+[ "$SIZE_BAD" -eq 0 ] || exit 1
 
 # ── DID THIS BUILD REACH THE APP YOU ACTUALLY RUN? ────────────────────────────────────────────
 # Nothing answered that until 2026-09-03, and the gap cost a whole exchange: a new icon was built

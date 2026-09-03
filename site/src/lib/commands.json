@@ -88,8 +88,8 @@
     "does": "Bring that session to the front. Asks when a name matches several"
   },
   {
-    "cmd": "chute hooks snippet\\|uninstall\\|status",
-    "does": "Agent status hooks — printed for YOU to paste; Chute never edits your settings"
+    "cmd": "chute hooks status\\|snippet\\|merged\\|uninstall",
+    "does": "Agent status hooks. merged prints your settings with them added; Chute never writes that file — the command it gives you does"
   },
   {
     "cmd": "chute doctor",

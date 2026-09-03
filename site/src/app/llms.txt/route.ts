@@ -46,7 +46,7 @@ at a buyer: two thirds of it costs nothing.
 - Platform: macOS 13 Ventura or later, Apple Silicon and Intel.
 - Price: ${CONFIG.price} once. No subscription, no account, no telemetry.
 - Trial: ${CONFIG.trialDays} days. Refund: ${CONFIG.refundDays} days.
-- Size: 2.8 MB app, 1.6 MB download, zero third-party dependencies.
+- Size: 2.9 MB app, 1.6 MB download, zero third-party dependencies.
 - Network: none. There is no network code in the product except a \`gist\` command the user
   invokes, which shells out to their own \`gh\`.
 

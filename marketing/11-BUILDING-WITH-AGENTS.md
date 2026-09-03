@@ -320,7 +320,7 @@ The harness is roughly a fifth of the volume and consumed considerably more than
 attention, because gates require you to know what would be wrong — which is the expensive part and
 the part that does not delegate.
 
-**What it produced.** A 2.8 MB app with no dependencies, no launch daemon, no background service
+**What it produced.** A 2.9 MB app with no dependencies, no launch daemon, no background service
 and no network code at all; a free MIT command-line tool; 1,005 assertions; CI across three macOS
 versions; and a public repository where every marketing claim is checked against the binary that
 implements it before it can deploy.
