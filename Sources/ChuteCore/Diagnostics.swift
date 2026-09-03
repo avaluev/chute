@@ -239,9 +239,11 @@ public enum Diagnostics {
             hooksWired: HookInstaller.status(settingsPath: claudeSettingsPath).values.allSatisfy { $0 })
     }
 
-    /// Same path `chute hooks` defaults to (`Sources/chute/Commands/SessionCommands.swift`).
-    /// Read-only here too: `HookInstaller.status` only ever reads this file.
-    static let claudeSettingsPath =
+    /// Where Claude Code keeps its settings. THE one definition — `chute hooks` and the menu
+    /// bar's snippet row both read it from here, because three hand-written copies of a path is
+    /// how one of them ends up checking a file nothing writes.
+    /// Read-only, always: Chute never writes this file.
+    public static let claudeSettingsPath =
         (NSHomeDirectory() as NSString).appendingPathComponent(".claude/settings.json")
 
     /// Has the INSTALLED extension actually started? Proved by the extension itself: it writes

@@ -239,7 +239,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     /// the snippet; this only moves it to the clipboard, the same as every other buffer command.
     @objc func copyHooksSnippet(_ sender: NSMenuItem) {
         guard let snippet = sender.representedObject as? String else { return }
-        deliver(snippet, "Snippet copied")
+        // NAME THE DESTINATION, AND SAY MERGE. The snippet is a complete `"hooks"` object; pasted
+        // OVER an existing one it takes every other tool's hooks with it. A machine checked on
+        // 2026-09-03 had 11 of them. "Snippet copied" — which is all this used to say — sent the
+        // user off with a wall of shell, no destination, and no idea it was destructive.
+        let foreign = HookInstaller.foreignCommandCount(settingsPath: Diagnostics.claudeSettingsPath)
+        deliver(snippet, foreign == 0
+                ? "Copied — paste it into ~/.claude/settings.json"
+                : "Copied — MERGE into the \"hooks\" object in ~/.claude/settings.json. "
+                  + "Pasting over it would remove \(foreign) hook\(foreign == 1 ? "" : "s") "
+                  + "you already have.")
     }
 
     /// Support, without an inbox: the diagnostics go to the clipboard and a prefilled issue opens

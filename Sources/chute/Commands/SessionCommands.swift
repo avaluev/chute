@@ -177,14 +177,22 @@ func cmdFocus(_ a: Args) {
 }
 
 func cmdHooks(_ a: Args) {
-    let path = a.value("settings", or: (NSHomeDirectory() as NSString)
-        .appendingPathComponent(".claude/settings.json"))
+    let path = a.value("settings", or: Diagnostics.claudeSettingsPath)
     switch a.positional.first ?? "status" {
     case "install", "snippet":
         // Chute never edits another tool's settings. The user's hand does the writing.
         Out.line(HookInstaller.manualSnippet())
         Out.info("→ Chute does not modify \(path) — merge the \"hooks\" object above into it "
                  + "yourself (or via Claude Code's /hooks menu), then `chute hooks status`.")
+        // MERGE, not replace. The block above is a COMPLETE `"hooks"` object: pasted over an
+        // existing one it silently deletes every hook another tool installed. Saying "merge" is
+        // not enough on its own — a count is what makes someone stop and look.
+        let foreign = HookInstaller.foreignCommandCount(settingsPath: path)
+        if foreign > 0 {
+            Out.info("→ MERGE, do not replace: \(path) already has \(foreign) hook command"
+                     + "\(foreign == 1 ? "" : "s") that are not Chute's, and pasting over the "
+                     + "\"hooks\" object would remove every one of them.")
+        }
     case "uninstall":
         // Read-only preview of which event(s) carry a Chute hook — status() never touches the
         // file. (It can over-report versus the stricter match uninstall() itself applies when a

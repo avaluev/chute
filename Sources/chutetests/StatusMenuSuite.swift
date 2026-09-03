@@ -226,18 +226,27 @@ func statusMenuSuite() {
         // hooks wired has zero CURRENT records constantly, and that is not a problem.
         let needsHook = StatusMenu.model(sessions: live, trial: .licensed(email: "a@b.c"),
                                          hasHookRecords: false)
-        let hookRow = find(needsHook, "Agent status needs a hook")
+        // The row's TITLE has to answer the question the user actually arrives with, which is
+        // "why does everything say Working". It used to say "Agent status needs a hook", which is
+        // true and answers a question nobody asked; a real user read it, clicked it, and still did
+        // not connect it to the thirteen sessions below all claiming to be working.
+        let hookRow = find(needsHook, "Every state below is a guess")
         T.ok(hookRow != nil, "live sessions with zero hook records EVER get one explaining row")
+        T.ok(hookRow?.title.contains("Copy the Hook Snippet") == true,
+             "and the row still says what clicking it does")
+        T.ok(hookRow?.toolTip?.contains("MERGE") == true,
+             "the tooltip says MERGE — the payload is a whole hooks object and replacing one "
+             + "silently deletes every other tool's hooks")
         T.eq(hookRow?.kind, .command(.copyHooksSnippet), "and clicking it copies the snippet")
         T.eq(hookRow?.payload, HookInstaller.manualSnippet(),
              "carrying exactly what chute hooks snippet would print")
 
         T.no(titles(StatusMenu.model(sessions: live, trial: .licensed(email: "a@b.c")))
-                .contains { $0.contains("Agent status needs a hook") },
+                .contains { $0.contains("Every state below is a guess") },
              "the default (hooks presumed wired) shows nothing extra")
         T.no(titles(StatusMenu.model(sessions: [], trial: .licensed(email: "a@b.c"),
                                      hasHookRecords: false))
-                .contains { $0.contains("Agent status needs a hook") },
+                .contains { $0.contains("Every state below is a guess") },
              "and neither does an empty machine — nothing running, nothing to explain")
 
         // ── THE NOTIFICATIONS ROW ───────────────────────────────────────────────────────────
