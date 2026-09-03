@@ -179,6 +179,12 @@ func cmdFocus(_ a: Args) {
 func cmdHooks(_ a: Args) {
     let path = a.value("settings", or: Diagnostics.claudeSettingsPath)
     switch a.positional.first ?? "status" {
+    case "merged":
+        // The user's whole settings.json with Chute's blocks merged in, on stdout. It WRITES
+        // NOTHING — the founder's rule of 2026-08-27 stands. `hooks snippet` prints the command
+        // that pipes this into place, and the user's own shell does the write.
+        do { Out.line(try HookInstaller.merged(settingsPath: path)) }
+        catch { Out.fail("\(error)") }
     case "install", "snippet":
         // Chute never edits another tool's settings. The user's hand does the writing.
         Out.line(HookInstaller.manualSnippet())
@@ -193,6 +199,16 @@ func cmdHooks(_ a: Args) {
                      + "\(foreign == 1 ? "" : "s") that are not Chute's, and pasting over the "
                      + "\"hooks\" object would remove every one of them.")
         }
+        // NOBODY MERGES 33 KB OF JSON BY HAND CORRECTLY, and the ICP — Claude Code users — all
+        // have other hooks in that file. So print the one command that does the merge exactly:
+        // Chute computes it, the shell writes it, the rule holds.
+        // STDOUT IS THE JSON, STDERR IS THE ADVICE. `chute hooks snippet > file` is how a fixture
+        // is seeded and how anyone captures the snippet; putting the command on stdout stopped
+        // that file being valid JSON and broke four smoke assertions the moment it shipped.
+        Out.info("")
+        Out.info("→ or run this — it does the merge for you, and backs the file up first:")
+        Out.info("")
+        Out.info("  " + HookInstaller.applyCommand(cli: "chute", settingsPath: path))
     case "uninstall":
         // Read-only preview of which event(s) carry a Chute hook — status() never touches the
         // file. (It can over-report versus the stricter match uninstall() itself applies when a
@@ -225,7 +241,7 @@ func cmdHooks(_ a: Args) {
             Out.info("→ backup: \(backupPath)")
             Out.line("removed: \(r.changed.sorted().joined(separator: ", "))")
         } catch { Out.fail("\(error)") }
-    default:
+    case "status", "":
         let outdated = Set(HookInstaller.outdatedEvents(settingsPath: path))
         for (event, wired) in HookInstaller.status(settingsPath: path).sorted(by: { $0.key < $1.key }) {
             let mark = !wired ? "·" : (outdated.contains(event) ? "!" : "✓")
@@ -243,5 +259,13 @@ func cmdHooks(_ a: Args) {
               `chute resume`. Run `chute hooks snippet` and paste it again to fix that.
             """)
         }
+    default:
+        // A WORD IT DOES NOT KNOW IS AN ERROR, not a silent `status`. `chute hooks merged` run
+        // against an OLDER binary printed the status table and exited 0 — so the command that
+        // wires the hooks up appeared to have worked, changed nothing, and left the user reading
+        // four dots wondering why. That cost a debugging round on 2026-09-03. A typo earning an
+        // error message is much cheaper than a subcommand that quietly does something else.
+        Out.fail("unknown: chute hooks \(a.positional.first ?? "") — "
+                 + "expected status, snippet, merged or uninstall")
     }
 }

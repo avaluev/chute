@@ -232,14 +232,22 @@ func statusMenuSuite() {
         // not connect it to the thirteen sessions below all claiming to be working.
         let hookRow = find(needsHook, "Every state below is a guess")
         T.ok(hookRow != nil, "live sessions with zero hook records EVER get one explaining row")
-        T.ok(hookRow?.title.contains("Copy the Hook Snippet") == true,
+        T.ok(hookRow?.title.contains("Copy the Fix") == true,
              "and the row still says what clicking it does")
         T.ok(hookRow?.toolTip?.contains("MERGE") == true,
              "the tooltip says MERGE — the payload is a whole hooks object and replacing one "
              + "silently deletes every other tool's hooks")
         T.eq(hookRow?.kind, .command(.copyHooksSnippet), "and clicking it copies the snippet")
-        T.eq(hookRow?.payload, HookInstaller.manualSnippet(),
-             "carrying exactly what chute hooks snippet would print")
+        // THE PAYLOAD IS A COMMAND, NOT JSON. It was the raw `"hooks"` object until 2026-09-03,
+        // which meant clicking the row gave you a wall of shell you then had to merge by hand
+        // into a file that already had eleven other hooks in it. The founder pasted it back
+        // twice asking what it was. One command, into a terminal, done.
+        T.ok(hookRow?.payload?.contains("hooks merged") == true,
+             "the payload is the command that applies the merge")
+        T.ok(hookRow?.payload?.contains("mktemp") == true, "staged through a temp file")
+        T.no(hookRow?.payload?.contains("\"hooks\" :") == true, "and is not raw JSON any more")
+        T.no(hookRow?.payload == HookInstaller.manualSnippet(),
+             "explicitly NOT the snippet — that is the thing that did not work")
 
         T.no(titles(StatusMenu.model(sessions: live, trial: .licensed(email: "a@b.c")))
                 .contains { $0.contains("Every state below is a guess") },

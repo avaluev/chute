@@ -124,6 +124,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             recentTokens: basketTokens,
             notificationsDenied: Notify.deniedAtLastCheck,
             hasHookRecords: !HookState.readAll().isEmpty,
+            // The BUNDLED cli, not the bare name: a customer who never ran `brew install` has no
+            // `chute` on PATH, and a command that starts with one they do not have is no fix.
+            hookApplyCommand: HookInstaller.applyCommand(
+                cli: "\"\(Bundle.main.bundlePath)/Contents/MacOS/chute\"",
+                settingsPath: Diagnostics.claudeSettingsPath),
             loadFor: { SystemVitals.load(forTTY: $0, in: samples) },
             sessionCommands: { [transcripts] s in
                 SessionCommand.available(for: s, transcript: transcripts.cached(s.sessionID))
@@ -243,12 +248,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         // OVER an existing one it takes every other tool's hooks with it. A machine checked on
         // 2026-09-03 had 11 of them. "Snippet copied" — which is all this used to say — sent the
         // user off with a wall of shell, no destination, and no idea it was destructive.
-        let foreign = HookInstaller.foreignCommandCount(settingsPath: Diagnostics.claudeSettingsPath)
-        deliver(snippet, foreign == 0
-                ? "Copied — paste it into ~/.claude/settings.json"
-                : "Copied — MERGE into the \"hooks\" object in ~/.claude/settings.json. "
-                  + "Pasting over it would remove \(foreign) hook\(foreign == 1 ? "" : "s") "
-                  + "you already have.")
+        deliver(snippet, "Copied — paste it into a terminal and press return")
     }
 
     /// Support, without an inbox: the diagnostics go to the clipboard and a prefilled issue opens

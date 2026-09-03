@@ -4,7 +4,7 @@ import Foundation
 /// Reads never throw: a corrupt file must degrade one row, never break the menu.
 public enum HookState {
     public static func directory(root: String? = nil) -> String {
-        root ?? (NSHomeDirectory() as NSString).appendingPathComponent(".chute/sessions")
+        root ?? Home.chute("sessions")
     }
 
     public static func parse(_ data: Data) -> HookRecord? {

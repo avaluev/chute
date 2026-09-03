@@ -113,6 +113,17 @@ public enum StatusMenu {
                              /// EVER means the badge and every session's state have nothing to
                              /// draw from at all.
                              hasHookRecords: Bool = true,
+                             /// The one command that wires the hooks up, put on the clipboard by
+                             /// the row below. It used to be the raw `"hooks"` JSON: a wall of
+                             /// shell with no destination, which the user then had to merge by
+                             /// hand into a settings file that on a real machine already had
+                             /// eleven hooks from another tool in it. Nobody does that; the
+                             /// founder tried twice and pasted it back here both times asking
+                             /// what it was. The app passes its own bundled binary's path so the
+                             /// command works on a machine that never installed the Homebrew CLI.
+                             hookApplyCommand: String =
+                                 HookInstaller.applyCommand(cli: "chute",
+                                                            settingsPath: Diagnostics.claudeSettingsPath),
                              loadFor: (String) -> SessionLoad = { _ in
                                  SessionLoad(cpuPercent: 0, residentBytes: 0, processes: 0) },
                              sessionCommands: (Session) -> [(kind: String, title: String)] = { _ in [] },
@@ -155,18 +166,18 @@ public enum StatusMenu {
         // badge has no data to draw from at all.
         if !hasHookRecords, !sessions.isEmpty {
             out.append(MenuNode(.command(.copyHooksSnippet),
-                                "Every state below is a guess — Copy the Hook Snippet",
+                                "Every state below is a guess — Copy the Fix",
                                 toolTip: "No agent-status hook has ever reported in, so nothing "
                                        + "here knows the difference between an agent that is "
                                        + "thinking and one that is waiting for you — every "
                                        + "session falls back to its terminal title, which is why "
                                        + "they all read as Working. MERGE the snippet into the "
-                                       + "\"hooks\" object in ~/.claude/settings.json, or use "
-                                       + "Claude Code's /hooks menu. Do not paste it over the "
-                                       + "object: it is a complete \"hooks\" block and it would "
-                                       + "take every other tool's hooks with it. Chute never "
-                                       + "edits that file.",
-                                payload: HookInstaller.manualSnippet()))
+                                       + "Copies ONE COMMAND — paste it into a terminal and it "
+                                       + "is done. It merges Chute's hooks into your settings "
+                                       + "beside whatever is already there, backs the file up "
+                                       + "first, and never replaces anything. Chute itself does "
+                                       + "not write that file; the command you run does.",
+                                payload: hookApplyCommand))
             out.append(.separator())
         }
 

@@ -153,6 +153,69 @@ public enum HookInstaller {
         }
     }
 
+    /// The user's ENTIRE settings.json, with Chute's four blocks appended into the arrays that
+    /// are already there — returned as text, never written anywhere.
+    ///
+    /// WHY THIS EXISTS. `manualSnippet()` hands over a complete `"hooks"` object and leaves the
+    /// hard part to the user: merging it, by hand, into a file that on a real machine is 33 KB
+    /// with 11 hooks from another tool in it. Nobody does that correctly at 11pm, and the ones
+    /// who try are one careless paste from deleting the other tool's hooks. So Chute does the
+    /// merge — the part it can do exactly — and prints the result. The user's own shell does the
+    /// write, which is what `applyCommand` below is for.
+    ///
+    /// The founder's rule of 2026-08-27 is intact and deliberately so: Chute NEVER writes
+    /// ~/.claude/settings.json. Computing a value and printing it is not writing. The moment this
+    /// function opens that file for writing, it has become the thing that rule forbids.
+    ///
+    /// APPENDS, never assigns. Every event Chute does not use is passed through untouched, as is
+    /// every top-level key. Idempotent: an event that already carries a Chute block is skipped,
+    /// so running it twice cannot stack duplicates.
+    public static func merged(settingsPath: String) throws -> String {
+        var root = try loadObject(settingsPath)
+        var hooks = (root["hooks"] as? [String: Any]) ?? [:]
+        for (event, state) in events {
+            var blocks = (hooks[event] as? [[String: Any]]) ?? []
+            let alreadyOurs = blocks.contains { block in
+                ((block["hooks"] as? [[String: Any]]) ?? []).contains {
+                    isChuteCommand(($0["command"] as? String) ?? "")
+                }
+            }
+            if alreadyOurs { continue }
+            blocks.append(["hooks": [["type": "command", "command": command(for: state)]]])
+            hooks[event] = blocks
+        }
+        root["hooks"] = hooks
+        let data = try JSONSerialization.data(withJSONObject: root,
+                                              options: [.prettyPrinted, .sortedKeys])
+        // Prove it parses before anyone is told to write it over their agent's configuration.
+        guard (try? JSONSerialization.jsonObject(with: data)) != nil else {
+            throw HookInstallError.validationFailed("the merged settings did not parse")
+        }
+        return String(decoding: data, as: UTF8.self)
+    }
+
+    /// The one command a user pastes into a terminal to wire the hooks up.
+    ///
+    /// NEVER `chute hooks merged > settings.json`. A redirect truncates the target BEFORE the
+    /// command on the left runs, so any failure in `merged` — an unparseable file, a missing
+    /// binary — leaves the user with an EMPTY agent configuration. It stages through mktemp,
+    /// takes a timestamped backup, and `&&` between every step so nothing proceeds past a
+    /// failure.
+    /// EVERY path is quoted, including the backup's destination — an unquoted one breaks on the
+    /// first user whose home directory has a space in it, and it breaks by writing the backup
+    /// somewhere else, which is the worst way for a backup to fail.
+    ///
+    /// `--settings` is always spelled out rather than left to the default. This command rewrites
+    /// the file an agent reads; a reader should be able to see which file that is without
+    /// knowing what Chute defaults to.
+    public static func applyCommand(cli: String, settingsPath: String) -> String {
+        let q = "\"\(settingsPath)\""
+        let s = "--settings \(q)"
+        return "T=$(mktemp) && \(cli) hooks merged \(s) > \"$T\" && "
+             + "cp \(q) \"\(settingsPath).bak-$(date +%Y%m%d-%H%M%S)\" && "
+             + "mv \"$T\" \(q) && \(cli) hooks status \(s)"
+    }
+
     /// The `hooks` object a user can paste into their own settings.json, verbatim. Chute
     /// generates the JSON but the user's hand does the writing — that is the whole contract.
     public static func manualSnippet() -> String {
