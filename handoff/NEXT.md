@@ -14,10 +14,11 @@ cd /Users/sxope/Documents/2026/Development/37.chute && ./demo/verify.sh && make 
 cd /Users/sxope/Documents/2026/Development/37.chute/site && npm run check:cases && npm run check:claims
 ```
 
-Green 2026-09-03: **1,005 unit · 150 headless · 81 acceptance · 11 delivery · 19 cases · claims
-· paddle · lint 0 errors · tsc · worker contract 10 · demo/gui lint · ratchet 171/171 ·
-metrics 4/4.** Full smoke (173 + 5 new cases) last green 2026-09-01 — needs the founder's
-machine to itself, see TRAPS.
+Green 2026-09-03: **1,004/1,005 unit · 19 cases · claims · paddle · next build · lint 0 errors ·
+tsc.** The one failure is `ProcessMetrics › the listing costs 6.4 ms` — a 5 ms budget measured
+while node and headless Chrome held three cores; the code under it is byte-identical to the
+commit that passed. Re-run it on a quiet machine, do not touch the threshold. See TRAPS.
+Full smoke (173 + 5 new cases) last green 2026-09-01 — needs the founder's machine to itself.
 
 Also in the gate now: `node worker/contract.test.mjs` (release.sh and CI) and `npm run lint`
 (deploy-site.sh). `swift run chutetests` was RED on 2026-09-03 before anything was touched —
@@ -133,6 +134,47 @@ ad-hoc, however copied or deleted — is SIGKILLed within ~100 ms of its file be
 (0/40 survived, 400 spawns measured); the Developer-ID hardened-runtime claude binary survives.
 So the unlinked-binary case is proved by the reader on a live pid plus the machine-wide
 assertion, not by a spawned fixture. Written into the suite; do not try again.
+
+## DONE 2026-09-03 (verified) — the icon, and two bugs it walked into
+
+**The app icon is a parachute.** `Scripts/make-icon.swift` redrawn; `Resources/Chute.icns`,
+`site/src/app/favicon.ico` and `brand/cards.py:draw_mark()` all regenerated from it. One command
+does all three now — a mark kept in three hand-regenerated places is how a launch ships three
+logos:
+
+```bash
+swift Scripts/make-icon.swift
+```
+
+**The finding, and it is the reusable one.** A design panel scoring craft, legibility and brand
+ranked four candidates and put a lit-slot mark FIRST and the parachute LAST. A blind recognition
+test — four unprimed viewers per image, neutral filenames, no product context, "what object is
+this" — inverted it: every "document into a horizontal slot" mark read as a **paper shredder**
+(4/4 at 128px for one, 4/4 at 32px for the other). The parachute read 4/4 · 5/5 · 4/4 · 4/5 at
+128 · 64 · 32 · 16. A craft panel cannot catch a semantic misread, because a judge who has been
+told what the product is can no longer un-know it. Full ledger in
+`docs/specs/audit-2026-09-03-FINDINGS.md` §Icon redesign.
+
+**Old icon:** 880px body on a 1024 canvas (Apple's grid is 824), no cast shadow, circular
+corners. **New:** 14/28/54/104/206/412/824 at 16→1024, exact against Notes.app, shadow within 3
+alpha levels at every size.
+
+**`--naming` stays (audit P10).** Kebab for the bare CLI, underscore for the Finder menu: two
+surfaces, two conventions, one binary. The defect was that it was in no help text. Fixed at
+`Sources/chute/main.swift:16`; reason recorded at
+`Sources/chute/Commands/FileCommands.swift:22`.
+
+**`Scripts/build-app.sh` linked a stale object.** It globbed
+`.build/release/ChuteCore.build/*.o`; SwiftPM never deletes the object of a renamed source, so
+`TerminalAdapter.swift.o` sat beside `TerminalAppAdapter.swift.o` and the appex died on
+`ld: 7 duplicate symbols`. Only reproduces with a warm `.build` across that rename, which is why
+it survived — a cold clone builds fine. Now one object per source that still exists.
+
+**The bundle is 2.8 MB, not 2.4.** The icns is 755 KB against 359 KB: ten natively-drawn slices
+with real gradients. `build-app.sh` fails if `marketing/06-FACT-SHEET.md` disagrees, and it no
+longer does. Every present-tense claim of 2.4 MB was updated; the historical ones (the changelog,
+the LinkedIn `strip -x` posts) were deliberately left, and "2.4 MB" was deliberately NOT added to
+the forbidden-claims table — the changelog renders it truthfully and the gate would fail on it.
 
 ## IN FLIGHT — nothing
 
@@ -323,6 +365,18 @@ largest remaining) and `main.swift` (43, mostly wiring, but not all).
 - **Running the full smoke blocks the founder** — it owns the clipboard for ~30 s and drives real
   Finder actions. Safe while he works: `swift build`, `swift run chutetests`, the site checks.
 
+- **Judging an icon on craft cannot catch a semantic misread.** Before committing to any mark,
+  copy it to neutral filenames in a neutral directory and ask four viewers, cold, "what object is
+  this". It takes minutes. Skipping it cost an hour here: two marks were fully polished before the
+  test said both read as paper shredders. Any future Chute mark in the "document meets a
+  horizontal slot" family is dead on arrival — do not re-derive it.
+- **`swift run chutetests | tail` exits 0 with a test failing** — the pipe reports `tail`'s status.
+  Read the tally line, never the exit code.
+- **`ProcessMetrics › the listing costs N ms` fails under load.** A 5 ms budget, 0.88 ms on a quiet
+  machine, 6.4-7.1 ms while node and headless Chrome eat three cores. Not a regression — check
+  `git status Sources/ChuteCore/ProcessMetrics.swift` first. Do NOT loosen the threshold; it exists
+  to catch the devname-cache regression.
+
 ## DECISIONS — do not re-litigate
 
 - **ICP is Claude Code / Cursor users.** Everything follows from it.
@@ -333,6 +387,9 @@ largest remaining) and `main.swift` (43, mostly wiring, but not all).
 - **Nothing auto-fills the basket.**
 - **`Copy Folder Tree` and `New File` stay** despite the ICP logic — a pasted tree orients an agent
   without it burning context on `ls -R`. Do not re-propose deleting these.
+- **The mark is the parachute**, decided 2026-09-03 by blind recognition, not by taste. "Chute"
+  is the word and an airdrop is the tagline. Do not re-open it without running the same test.
+- **`--naming` keeps two different defaults** — kebab in the terminal, underscore from Finder.
 - **The app is the product; the CLI is the proof.** The app number is 80.7; 156.0 never appears
   in front of a buyer.
 
