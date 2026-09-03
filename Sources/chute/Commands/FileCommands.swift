@@ -19,6 +19,15 @@ func cmdNew(_ a: Args) {
     let ext = a.optional("ext") ?? (blank ? "md" : LanguageDetect.fileExtension(for: content))
     // --naming underscore keeps the document's own first line: "# My Notes" → "My_Notes.md".
     // The default stays the kebab slug the CLI has always produced.
+    //
+    // DECIDED 2026-09-03, after the audit asked whether to cut the flag (P10). It stays, and the
+    // two defaults stay different, because the two surfaces have different conventions and one
+    // binary serves both. A terminal user running `chute new` inside a repo is writing
+    // `docs/my-great-spec.md` — kebab is what the rest of the tree looks like. The Finder menu
+    // (FinderActions.swift:196) passes `--naming underscore` on purpose: a document made by
+    // right-clicking is named the way a person would have named it, "My_Notes.md", guessable
+    // before you click. Collapsing them makes one of the two surfaces wrong. The real defect was
+    // that the flag appeared in no help text; that is fixed in main.swift:16.
     let derived = a.value("naming", or: "slug") == "underscore"
         ? NameDerive.underscoreName(from: content)
         : NameDerive.slug(fromMarkdown: content)

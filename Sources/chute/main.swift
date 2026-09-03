@@ -13,7 +13,7 @@ CONTEXT IN
                         copy --format mentions|context      @mentions for an agent, or the files themselves
 
 FILES
-  new                   Clipboard → new file              --name N --dir D --ext E --reveal
+  new                   Clipboard → new file              --name N --dir D --ext E --naming slug|underscore --reveal
   seed [dir]            CLAUDE.md / .cursorrules / …      --rules claude,cursor,agents,scratchpad,gitignore
   note "text"           Append to SCRATCHPAD.md           --dir D
   latest [dir]          Reveal newest artifact            --quicklook
