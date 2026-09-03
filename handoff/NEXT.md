@@ -14,11 +14,14 @@ cd /Users/sxope/Documents/2026/Development/37.chute && ./demo/verify.sh && make 
 cd /Users/sxope/Documents/2026/Development/37.chute/site && npm run check:cases && npm run check:claims
 ```
 
-Green 2026-09-03: **1,004/1,005 unit · 19 cases · claims · paddle · next build · lint 0 errors ·
-tsc.** The one failure is `ProcessMetrics › the listing costs 6.4 ms` — a 5 ms budget measured
-while node and headless Chrome held three cores; the code under it is byte-identical to the
-commit that passed. Re-run it on a quiet machine, do not touch the threshold. See TRAPS.
-Full smoke (173 + 5 new cases) last green 2026-09-01 — needs the founder's machine to itself.
+Green 2026-09-04: **1,032 unit · 150 headless smoke · 81 acceptance · ratchet 172/172 ·
+19 cases · claims · paddle · next build · lint 0 errors · tsc.** All of it, no exceptions.
+`ProcessMetrics`' 5 ms budget goes red under load and green alone — the code is untouched, do
+not widen it. See TRAPS.
+Full smoke MEASURED 2026-09-04: **177/178** — the one failure is `check-metrics`' 500 MB
+magnitude check, which the TRAPS below already document as red under load; run alone seconds
+later it measured 506 MB against a 500 MB allocation, 4/4. 178 is now a counted number, not a
+derived one.
 
 Also in the gate now: `node worker/contract.test.mjs` (release.sh and CI) and `npm run lint`
 (deploy-site.sh). `swift run chutetests` was RED on 2026-09-03 before anything was touched —
@@ -55,87 +58,9 @@ New File ▸              12.9 min/day    Empty Markdown / From Clipboard / Imag
 
 ---
 
-## DONE 2026-09-01 (verified) — do not re-spend time here
+> Finished work from 2026-09-01/02 moved to `handoff/HANDOFF-2026-09-02-shipping-and-gtm.md`.
 
-Every item below was in `docs/specs/readiness-audit-FINDINGS.md`'s ranked ten.
-
-| Fix | Proof |
-|---|---|
-| **LICENSE scoped to the open-core split.** Root `LICENSE` opens with a scope note; `Sources/ChuteApp/`, `Sources/ChuteFinder/` and `Resources/` carry their own all-rights-reserved `LICENSE`. README §Licence matches. | `smoke.sh` §25 — 7 new checks, perturbed to red by deleting one line from LICENSE |
-| **Four hand-kept AppleScript escapes collapsed into one.** `ChuteCore/AppleScript.swift`; `FinderReveal`, `AgentCommands` (twice in one function), `ChuteFinderSync` and `Notify` all call it. **Two had drifted** — they mapped `"` → `'`, silently rewriting the user's text instead of escaping it. | `swift run -c release chutetests` |
-| **`chute sessions` no longer exits 0 when Automation is denied.** A script can now tell "no sessions" from "permission denied". | `SessionCommands.swift:27` |
-| **`chute seed` no longer exits 0 when every write failed.** | `FileCommands.swift:75` |
-| **The appex entitlement narrowed from `/` to `~/.chute`.** Was a read-write exception on the entire filesystem for a process that writes one folder. | `Resources/ChuteFinder.entitlements:18` — **needs one manual re-test, see IN FLIGHT** |
-| **`ConfirmPrompt` extracted to ChuteCore** — the destructive-action sheet's text, previously inside an `NSAlert` call no test could reach. 13 new assertions, both new guards perturbed to red. | `Sources/chutetests/ConfirmPromptSuite.swift` |
-| **Dead/over-wide public API.** `SessionPhrasing.elide` deleted (zero references anywhere). `ProcessMetrics.allPIDs` and `Diagnostics.endToEndProbe` → internal. `Trial.recordPath` **stays public with a comment saying why** — it is a default-argument expression of public functions and does not compile as internal. The audit was wrong on that one. | build |
-| **CI now runs the unit suite against the RELEASE build.** It ran `swift run chutetests` (debug) while every documented gate uses `-c release`; a bug that only appears under `-O` would have passed. | `.github/workflows/macos-matrix.yml:40` |
-| **Marketing de-rotted, and gated.** Five assets still sold `unpack`, deleted 2026-08-31, and quoted ~90 min/day against a real 80.7. All rewritten for the ICP. `check-claims.mjs` now scans `marketing/` — it scanned only README and `docs/`, which is exactly why nothing caught it. | `npm run check:claims` |
-| **Three phantom demos deleted from `site/public/media/`** — `turn-an-answer-back-into-files`, `a-clean-room-for-a-risky-agent`, `agent-rules-in-one-click` (mp4/webm/jpg) plus an orphan `checkpoint.gif`. They were **live public URLs demonstrating features the product does not have.** `check-cases.mjs` printed a `note` about them and nobody read it; it FAILS now, and posters (`.jpg`) count, which is why three survived the last sweep. | `npm run check:cases` |
-
-**Also done 2026-09-01, second pass — performance, size and Apple hardening:**
-
-| Fix | Proof |
-|---|---|
-| **`ProjectRoot.of` stopped spawning `git`.** It ran `git rev-parse --show-toplevel` per call; what that returns is the nearest ancestor holding `.git`, which is a few `stat`s. **bundle 102.7 → 24.7 ms (4.2×); tokens 184.1 → 23.5 ms (7.8×)** — tokens paid the spawn twice. | `ProjectRootSuite`, perturbed red on the worktree case |
-| **`strip -x` before signing: 3.3 MB → 2.4 MB bundle, 1.6 MB DMG.** `-x` keeps globals so the appex's `_NSExtensionMain` survives — asserted in `build-app.sh`, not assumed. | `du -sh dist/Chute.app` |
-| **The app signed with `--options runtime` and NO entitlements** — the hardened runtime blocks every Apple Event, so `osascript` would have failed in the NOTARISED build only. `Resources/Chute.entitlements`. | `build-app.sh` fails without it; perturbed |
-| **`TokenEstimate` counted grapheme clusters.** UTF-8 bytes are what a BPE tokenizer is billed by, and are not a Unicode walk. | `CoreSuites` |
-| **Two unbounded C-string reads** in `ProcessMetrics` — `p_comm` was read off a raw pointer into a 17-byte stack tuple, bounded only by a NUL the kernel is trusted to write. | `chute ports` / `chute sessions` still name processes correctly |
-| **`uninstall.sh` never cleaned `/Applications`** — the only path a stranger takes, since that is where the DMG says to drag it. It removed nothing and printed "Chute removed." | exercised in the from-scratch reinstall above |
-| **The bundle-size claim was hand-typed into eight files** and had been wrong since the bundle hit 3.3 MB. `build-app.sh` now fails if the fact sheet and `du` disagree. | perturbed to 9.9 MB → red |
-
-**Deliberately NOT done, with the reason:** splitting `AgentCommands.swift` (audit item 9). It is
-247 lines — inside this repo's own 200–400 guideline — and its five commands (open, sandbox,
-ports, env, prompt) are all agent-adjacent, exactly like `FileCommands.swift` grouping new/seed/
-note. Five files of 50 lines removes no complexity. Re-propose only with a concrete cost it caused.
-
----
-
-## DONE 2026-09-02 (verified) — the GTM pack, and four new guards
-
-| Fix | Proof |
-|---|---|
-| **The Apple question answered and costed.** It was two questions fused into one: taking money needs no Apple ID; the file opening on a stranger's Mac needs $99/yr. Break-even is **6 units**. `marketing/09-APPLE-AND-DISTRIBUTION.md` | `spctl -a -vv dist/Chute.app` → `rejected`, `origin=Chute Local Dev` |
-| **The escape hatch that closed.** Homebrew ends support for casks failing Gatekeeper as of **2026-09-01** and is removing `--no-quarantine` (`Homebrew/brew` #20755). Any plan with "worst case, ship a cask" in it is dead. The *formula* path is untouched — locally compiled binaries are never quarantined, which is why the free CLI already reaches strangers with no Apple ID. | `docs/11-PHASE-0-RUNBOOK.md` item 7, already DONE |
-| **The site can discuss the wall.** The FALSE table forbade the literal word "notarized", so a word list could not tell a claim from a denial — it would have blocked the only honest thing to publish while unsigned, and it missed the British spelling this repo actually uses. `check-claims.mjs` asks `spctl` and forbids 10 affirmative phrasings instead. **The row retires itself when the verdict changes.** | perturbed: "notarised and stapled" on a page → `FAIL spctl says rejected, but 3 page(s) claim otherwise` |
-| **The LinkedIn hook gate scans every `marketing/*LINKEDIN*.md`.** It was hard-coded to `08`, so the six new hooks would have been the campaign's only ungated copy — the identical shape as the bug that let five assets sell a deleted command. | 18 hooks across 2 files; perturbed both ways (wrong count, and >140 chars) → red |
-| **The FALSE table now applies to README.md.** Every other check reads the built site and is blind to the repo's own front door, which carried "Nothing is uploaded, ever" — forbidden in bold since 2026-08-28, with the precise replacement written beside it. Fixed to the precise phrasing. | perturbed: appended the string → `FAIL 1 forbidden claim(s) are in README.md` |
-| **Fact sheet de-rotted.** `Lines of Swift` said 6,873 against a real 11,680; `Version` said 0.2.0 against a shipping 0.2.1. New §Distribution carries every Gatekeeper claim with its command. | `find Sources -name '*.swift' \| xargs wc -l \| tail -1` |
-| **`/building-with-agents` renders from the markdown, not a copy of it.** `marked` reads `marketing/11-BUILDING-WITH-AGENTS.md` at build time. Two copies of an article is the same failure as two copies of a claim. | `npx next build` → 36 routes; sitemap covers all 30 |
-
-**The gate caught this session's own writing.** The article's §Part 4 explains that scoping the
-command checker to code spans removed eleven false positives — and put the example phrase inside
-backticks, which made it a real ghost-command hit. `FAIL 2 place(s) show a chute command that does
-not exist`. The sentence was fixed, not the gate.
-
-## DONE 2026-09-03 (verified) — the audit: 5 reviewers, 55 findings, 45 fixed
-
-Every finding, its severity and its disposition — fixed, half, or not done with the reason — is
-in **`docs/specs/audit-2026-09-03-FINDINGS.md`**. Four commits after `92fd7ee`. Read that file
-before re-auditing anything; the "checked and lean" list at the bottom is what NOT to re-walk.
-
-The ones a buyer would have hit first:
-
-| Fix | Proof |
-|---|---|
-| **The suite was red before the audit began.** A Claude Code session that auto-updated under itself read as **"2.1.250"** — `proc_pidpath` fails for an unlinked executable and the row fell back to the bare version. | `ProcessMetrics.execPath(pid:)` via `KERN_PROCARGS2`; the machine-wide assertion at `ProcessMetricsSuite.swift:190` |
-| **`chute clean --force ./other` trashed the wrong folder.** No flag was a switch, so `--force` ate `./other` and `clean` ran on the cwd with the preview skipped. | `ChuteCore/ArgParse.swift`, `ArgParseSuite`, smoke "a switch does not swallow the path after it" |
-| **A buyer could pay and never get a key.** Resend failure → `200 issued` to Paddle; a notification without an embedded email → silent 200. | `worker/src/index.js`: 500 on both; `PADDLE_API_KEY` (optional) looks the customer up |
-| **"Licensed to …" with nothing on disk.** `Trial.activate` ignored a failed save. | `LicenseSuite` "a good key whose record cannot be saved reports failure" |
-| **`chute gist` uploaded quoted secrets.** `export TOKEN="…"` and `MYSQL_ROOT_PASSWORD=` both walked past `Redact`. | `CoreSuites` Redact, 3 new assertions |
-| **Every launch could destroy an image on the clipboard** — the doctor probe ran at launch and "restored" `""`. | `Diagnostics.liveEnv(endToEnd:)`, opt-in |
-
-**Deleted, net −559 lines, −1 dependency:** the xlsx inventory generator (dead, rotted), two
-unused shadcn components, `CONFIG.seller`, the one-conformer `TerminalAdapter` protocol,
-`NameDerive.uniquePath`, three byte-identical helpers, a parameter nothing read at 11 sites.
-
-**The fixture that cannot exist.** On this macOS a locally copied binary — Apple-signed or
-ad-hoc, however copied or deleted — is SIGKILLed within ~100 ms of its file being unlinked
-(0/40 survived, 400 spawns measured); the Developer-ID hardened-runtime claude binary survives.
-So the unlinked-binary case is proved by the reader on a live pid plus the machine-wide
-assertion, not by a spawned fixture. Written into the suite; do not try again.
-
-## DONE 2026-09-03 (verified) — the icon, and two bugs it walked into
+## DONE 2026-09-03/04 (verified) — the icon, the menu bar, and the hooks handover
 
 **The app icon is a parachute.** `Scripts/make-icon.swift` redrawn; `Resources/Chute.icns`,
 `site/src/app/favicon.ico` and `brand/cards.py:draw_mark()` all regenerated from it. One command
@@ -175,6 +100,44 @@ with real gradients. `build-app.sh` fails if `marketing/06-FACT-SHEET.md` disagr
 longer does. Every present-tense claim of 2.4 MB was updated; the historical ones (the changelog,
 the LinkedIn `strip -x` posts) were deliberately left, and "2.4 MB" was deliberately NOT added to
 the forbidden-claims table — the changelog renders it truthfully and the gate would fail on it.
+
+**The menu bar carries the mark.** It was the SF Symbol `arrow.down.to.line` — the generic
+download arrow `brand/tokens.json` says the mark must not be. `Sources/ChuteApp/MenuBarMark.swift`
+draws it as a template image (alpha only; macOS tints it). Apple ships no parachute symbol —
+checked. The first four drafts read as a HOT AIR BALLOON, because a balloon is a dome over a box
+with short ropes; a parachute is a wide canopy, a small load, and a long steep drop. Blind test:
+4/4 parachute, 0/4 balloon.
+
+**`chute hooks merged` — one command instead of JSON you merge by hand.** The menu row used to
+copy the raw `"hooks"` object. The founder pasted it back twice asking what it was, which is the
+right reaction to a wall of shell with no destination, aimed at a 33 KB settings file that already
+had 11 hooks from another tool in it. Chute still never writes `~/.claude/settings.json` — the
+2026-08-27 rule stands. It computes the merged file and PRINTS it; the command it hands you does
+the write, staged through `mktemp`, backup first, `&&` between every step.
+
+**THREE FALSE PASSES, all found by perturbing:**
+1. The first merge test was vacuous — the fixture already carried Chute's blocks, so the append
+   path never ran and `blocks = [...]` (the exact bug) left the suite green.
+2. `Scripts/smoke.sh`'s `HOME="$T"` isolation did NOTHING. `NSHomeDirectory()` reads the password
+   database and ignores `$HOME`. All three isolated cases were reading the real
+   `~/.chute/sessions`; "resume with no live session" passed only because the machine had no hook
+   records, and failed the hour they were wired. `Sources/ChuteCore/Home.swift` now resolves
+   `.chute` state where `$HOME` wins.
+3. `nm -u … | grep -q` under `pipefail` reported the appex entry point missing from a binary that
+   has it — `grep -q` exits on match, `nm` dies on the closed pipe. Same shape backed `has`/`hasnt`
+   in smoke.sh and acceptance.sh: ~230 assertions that could flip at random. All here-strings now.
+
+**Install and build now tell the truth.** `install.sh` installs over whatever copy exists rather
+than always `~/Applications` (the founder's was in `/Applications`, so a "successful" install left
+the old app running — a whole exchange was spent on "I see no change"). `$CHUTE_APP_DIR` overrides
+it, because uninstall clears both folders and a reinstall would otherwise relocate the app.
+`build-app.sh` names any installed copy whose COMMIT differs from the build's — not the timestamp,
+which fired after every rebuild and taught you to ignore it.
+
+**Verified end to end 2026-09-04:** uninstall leaves nothing (both app folders, `~/.chute`, the
+CLI symlink, the appex registration, legacy Services) and correctly KEEPS the trial file, the
+Homebrew CLI and every foreign hook. Cold clone-equivalent build + install: 39s. `chute doctor`
+10/10.
 
 ## IN FLIGHT — nothing
 
