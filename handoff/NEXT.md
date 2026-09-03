@@ -14,14 +14,14 @@ cd /Users/sxope/Documents/2026/Development/37.chute && ./demo/verify.sh && make 
 cd /Users/sxope/Documents/2026/Development/37.chute/site && npm run check:cases && npm run check:claims
 ```
 
-Green 2026-09-04: **1,032 unit · 150 headless smoke · 81 acceptance · ratchet 172/172 ·
-19 cases · claims · paddle · next build · lint 0 errors · tsc.** All of it, no exceptions.
+Green 2026-09-04 (evening): **1,079 unit · 150 headless smoke · 81 acceptance · ratchet 161/161 ·
+check-metrics 4/4 alone · 11 demos · 19 cases · claims · worker contract · next build · lint 0
+errors · tsc.** All of it, no exceptions.
+The FULL (non-headless) smoke was NOT re-run this session — it owns the clipboard and drives real
+Finder actions. Its last measured figure is **177/178** from earlier on 2026-09-04, and nothing
+this session added or removed a smoke case.
 `ProcessMetrics`' 5 ms budget goes red under load and green alone — the code is untouched, do
 not widen it. See TRAPS.
-Full smoke MEASURED 2026-09-04: **177/178** — the one failure is `check-metrics`' 500 MB
-magnitude check, which the TRAPS below already document as red under load; run alone seconds
-later it measured 506 MB against a 500 MB allocation, 4/4. 178 is now a counted number, not a
-derived one.
 
 Also in the gate now: `node worker/contract.test.mjs` (release.sh and CI) and `npm run lint`
 (deploy-site.sh). `swift run chutetests` was RED on 2026-09-03 before anything was touched —
@@ -58,86 +58,53 @@ New File ▸              12.9 min/day    Empty Markdown / From Clipboard / Imag
 
 ---
 
-> Finished work from 2026-09-01/02 moved to `handoff/HANDOFF-2026-09-02-shipping-and-gtm.md`.
+> Finished work from 2026-09-01/02 moved to `handoff/HANDOFF-2026-09-02-shipping-and-gtm.md`;
+> from 2026-09-03/04 — the parachute mark, the menu-bar template image, `chute hooks merged`, and
+> the three false passes found by perturbing — to `handoff/HANDOFF-2026-09-03-icon-menubar-hooks.md`.
+> Both are records. The decisions they reached are in DECISIONS and TRAPS below; do not re-derive.
 
-## DONE 2026-09-03/04 (verified) — the icon, the menu bar, and the hooks handover
+## DONE 2026-09-04 (verified) — the ratchet's next two extractions, and four drifted numbers
 
-**The app icon is a parachute.** `Scripts/make-icon.swift` redrawn; `Resources/Chute.icns`,
-`site/src/app/favicon.ico` and `brand/cards.py:draw_mark()` all regenerated from it. One command
-does all three now — a mark kept in three hand-regenerated places is how a launch ships three
-logos:
+**161 decision points, down from 172.** The two extractions the ratchet named — and that had each
+already been deferred once — are done. Three rules moved out of `Sources/ChuteApp` and
+`Sources/ChuteFinder`, which `chutetests` cannot link, into ChuteCore, which it can:
 
-```bash
-swift Scripts/make-icon.swift
-```
+| Rule | Now at | Why it was worth moving |
+|---|---|---|
+| Which commands a session offers | `Sources/ChuteCore/SessionCommands.swift:52` | offering `--resume` for an agent whose syntax we guess puts a failing command on a clipboard |
+| Which modifier reveals each one | `Sources/ChuteCore/SessionCommands.swift:41` | AppKit draws ONE alternate per distinct mask — two commands sharing one means the second row is built, is correct, and is never seen. Nothing in the drawing code can notice |
+| The hex parse | `Sources/ChuteCore/SessionColor.swift:34` | it draws every session dot, and it had a live bug: `UInt32(_:radix:)` accepts a leading sign, so `"+ABCDE"` was six characters that parsed to a colour |
+| What a Finder click means | `Sources/ChuteCore/ActionRequest.swift:51` | three of its four answers are sentences the user reads, and none were reachable — the shape that shipped the `.pyc` bug |
 
-**The finding, and it is the reusable one.** A design panel scoring craft, legibility and brand
-ranked four candidates and put a lit-slot mark FIRST and the parachute LAST. A blind recognition
-test — four unprimed viewers per image, neutral filenames, no product context, "what object is
-this" — inverted it: every "document into a horizontal slot" mark read as a **paper shredder**
-(4/4 at 128px for one, 4/4 at 32px for the other). The parachute read 4/4 · 5/5 · 4/4 · 4/5 at
-128 · 64 · 32 · 16. A craft panel cannot catch a semantic misread, because a judge who has been
-told what the product is can no longer un-know it. Full ledger in
-`docs/specs/audit-2026-09-03-FINDINGS.md` §Icon redesign.
+`SessionMenu` 29 → 19, `ChuteFinderSync` 20 → 19. **+41 assertions, 1,073 total.** Every new guard
+was perturbed to red before it was believed — five for five, listed in `03ede90`.
 
-**Old icon:** 880px body on a 1024 canvas (Apple's grid is 824), no cast shadow, circular
-corners. **New:** 14/28/54/104/206/412/824 at 16→1024, exact against Notes.app, shadow within 3
-alpha levels at every size.
+**The size gate caught its own next drift.** Moving code into ChuteCore means it ships in all three
+binaries rather than one: **+112 KB**, measured against a worktree build of HEAD, so the bundle is
+**2.9 MB**. That is the price of the coverage and it was paid deliberately. Nine present-tense
+claims of 2.8 MB were updated with it.
 
-**`--naming` stays (audit P10).** Kebab for the bare CLI, underscore for the Finder menu: two
-surfaces, two conventions, one binary. The defect was that it was in no help text. Fixed at
-`Sources/chute/main.swift:16`; reason recorded at
-`Sources/chute/Commands/FileCommands.swift:22`.
+**Three more numbers in the fact sheet had drifted, ungated.** The file whose whole job is gated
+numbers was carrying: CLI binary **727 KB claimed / 747 KB shipped at HEAD** — and that number was
+being sold to a reader in `marketing/02-LANDING-COPY.md`; Lines of Swift **11,975 / 12,619**; unit
+assertions **1,005 / 1,073**. All three corrected. The CLI binary row is now gated the same way the
+bundle row is, and the gate was perturbed red. The other two are deliberately NOT gated — see
+OPEN QUESTIONS.
 
-**`Scripts/build-app.sh` linked a stale object.** It globbed
-`.build/release/ChuteCore.build/*.o`; SwiftPM never deletes the object of a renamed source, so
-`TerminalAdapter.swift.o` sat beside `TerminalAppAdapter.swift.o` and the appex died on
-`ld: 7 duplicate symbols`. Only reproduces with a warm `.build` across that rename, which is why
-it survived — a cold clone builds fine. Now one object per source that still exists.
+**`chute doctor` said "all 10 checks passed" about an app that was not on the disk.** Found while
+verifying the above, and it is the sharpest false pass this repo has had, because it is in the tool
+whose entire job is telling you the truth about your install. `Diagnostics.resolvedAppPath` GUESSED
+`~/Applications/Chute.app` whenever the CLI is not inside a bundle — which is the Homebrew CLI, the
+copy customers install. The founder's app is in `/Applications`, where the DMG says to drag it, so
+doctor reported a path that does not exist AND `✓ Finder extension actually starts — not installed`,
+a tick whose own detail contradicts it. The probe read a bundle that is not there, got nil, and nil
+means "no extension installed, someone else's check" — so it auto-passed. Fixed at the shared
+function: `resolvedAppPath` answers with the copy that EXISTS (same candidate list, same order, as
+`Scripts/build-app.sh:289`), and `app-location` asks whether the app is there rather than only
+whether its parent folder is named Applications. `d9bd5ff`.
 
-**The bundle is 2.8 MB, not 2.4.** The icns is 755 KB against 359 KB: ten natively-drawn slices
-with real gradients. `build-app.sh` fails if `marketing/06-FACT-SHEET.md` disagrees, and it no
-longer does. Every present-tense claim of 2.4 MB was updated; the historical ones (the changelog,
-the LinkedIn `strip -x` posts) were deliberately left, and "2.4 MB" was deliberately NOT added to
-the forbidden-claims table — the changelog renders it truthfully and the gate would fail on it.
-
-**The menu bar carries the mark.** It was the SF Symbol `arrow.down.to.line` — the generic
-download arrow `brand/tokens.json` says the mark must not be. `Sources/ChuteApp/MenuBarMark.swift`
-draws it as a template image (alpha only; macOS tints it). Apple ships no parachute symbol —
-checked. The first four drafts read as a HOT AIR BALLOON, because a balloon is a dome over a box
-with short ropes; a parachute is a wide canopy, a small load, and a long steep drop. Blind test:
-4/4 parachute, 0/4 balloon.
-
-**`chute hooks merged` — one command instead of JSON you merge by hand.** The menu row used to
-copy the raw `"hooks"` object. The founder pasted it back twice asking what it was, which is the
-right reaction to a wall of shell with no destination, aimed at a 33 KB settings file that already
-had 11 hooks from another tool in it. Chute still never writes `~/.claude/settings.json` — the
-2026-08-27 rule stands. It computes the merged file and PRINTS it; the command it hands you does
-the write, staged through `mktemp`, backup first, `&&` between every step.
-
-**THREE FALSE PASSES, all found by perturbing:**
-1. The first merge test was vacuous — the fixture already carried Chute's blocks, so the append
-   path never ran and `blocks = [...]` (the exact bug) left the suite green.
-2. `Scripts/smoke.sh`'s `HOME="$T"` isolation did NOTHING. `NSHomeDirectory()` reads the password
-   database and ignores `$HOME`. All three isolated cases were reading the real
-   `~/.chute/sessions`; "resume with no live session" passed only because the machine had no hook
-   records, and failed the hour they were wired. `Sources/ChuteCore/Home.swift` now resolves
-   `.chute` state where `$HOME` wins.
-3. `nm -u … | grep -q` under `pipefail` reported the appex entry point missing from a binary that
-   has it — `grep -q` exits on match, `nm` dies on the closed pipe. Same shape backed `has`/`hasnt`
-   in smoke.sh and acceptance.sh: ~230 assertions that could flip at random. All here-strings now.
-
-**Install and build now tell the truth.** `install.sh` installs over whatever copy exists rather
-than always `~/Applications` (the founder's was in `/Applications`, so a "successful" install left
-the old app running — a whole exchange was spent on "I see no change"). `$CHUTE_APP_DIR` overrides
-it, because uninstall clears both folders and a reinstall would otherwise relocate the app.
-`build-app.sh` names any installed copy whose COMMIT differs from the build's — not the timestamp,
-which fired after every rebuild and taught you to ignore it.
-
-**Verified end to end 2026-09-04:** uninstall leaves nothing (both app folders, `~/.chute`, the
-CLI symlink, the appex registration, legacy Services) and correctly KEEPS the trial file, the
-Homebrew CLI and every foreign hook. Cold clone-equivalent build + install: 39s. `chute doctor`
-10/10.
+**`site/src/lib/commands.json` was stale**, still describing `hooks snippet|uninstall|status`. It is
+generated from the binary but only when someone runs the site build. Regenerated.
 
 ## IN FLIGHT — nothing
 
@@ -154,17 +121,11 @@ mounted, and `Chute.app` copied to **`/Applications`** — the location the DMG 
 customer to use, and the one `uninstall.sh` could not clean until today. Installed stamp
 `84da70d` == HEAD.
 
-**One thing the founder must paste back.** The uninstall removed Chute's hook blocks from
-`~/.claude/settings.json` (backup: `~/.claude/settings.json.chute-backup-20260901-065152`). Until
-they are back, the menu-bar badge stays dark and every session reads as idle:
-
-```bash
-/Applications/Chute.app/Contents/MacOS/chute hooks snippet
-# merge the "hooks" object into ~/.claude/settings.json (or via Claude Code's /hooks), then:
-/Applications/Chute.app/Contents/MacOS/chute hooks status
-```
-
-Chute does not write that file, here or anywhere. That is a standing decision, not an omission.
+**The hooks are wired — this is no longer an open item.** All four blocks are back in
+`~/.claude/settings.json` and `chute hooks status` reports `✓ PermissionRequest · SessionStart ·
+Stop · UserPromptSubmit`; `chute doctor` is 10/10 with `Agent status hooks — wired`. Chute still
+never writes that file. The one-command path for the next machine is `chute hooks merged`, not the
+snippet-and-merge-by-hand route this file used to describe.
 
 ## THE GTM MATERIAL — where each thing lives
 
@@ -246,18 +207,17 @@ The seven findings that change decisions:
 
 ## NEXT — in order, for one session
 
-1. **The runtime re-test above**, then the three founder items. Then one full (non-headless)
-   `./Scripts/smoke.sh` on a quiet machine: the fact sheet says 178 and that number is derived
-   (173 + 5 new cases), not measured.
-2. ~~One error-handling pass~~ — **done 2026-09-03**, see the findings file. Three LOWs left
-   open there (M18, L12, L13) with reasons; P10 (`--naming`) needs a decision, not work.
-3. **Continue the coverage extraction.** `ConfirmPrompt` is the proven fourth instance of the
-   `StatusMenu` move. Next highest value: `SessionMenu`'s row-retitling rule
-   (`SessionMenu.swift:98-162`) and `ChuteFinderSync.run`'s four-way message branch
-   (`ChuteFinderSync.swift:179-212`). **Perturb each to red before believing it.**
+1. **The three founder items below.** Nothing in the repo is blocked on anything but those.
+2. ~~One error-handling pass~~ — **done 2026-09-03**. Three LOWs left open in the findings file
+   (M18, L12, L13) with reasons; P10 (`--naming`) was decided, not deferred.
+3. ~~The next two ratchet extractions~~ — **done 2026-09-04**, 172 → 161. Continue with
+   `main.swift`'s two real decisions; see THE RATCHET.
 4. **Then the texts and the JTBDs.** Re-read every user-facing string against the naming law at
-   `Sources/ChuteCore/FinderActions.swift:10`. Retire the ledger rows for the six deleted jobs
-   properly (struck through + dated, the way FR-06 was).
+   `Sources/ChuteCore/FinderActions.swift:10` — including the four sentences that moved into
+   ChuteCore on 2026-09-04, which are now the only copy of themselves. Retire the ledger rows for
+   the six deleted jobs properly (struck through + dated, the way FR-06 was).
+5. **Re-run the FULL smoke on a quiet machine** before the next release — this session ran the
+   headless 150 only, deliberately.
 
 **Then, and only then, custom user actions.** `ChuteAction` is pure data and `argv()` already
 substitutes `{files}`/`{dir}`, so reading `~/.chute/actions.json` is ~40 lines. But it turns an
@@ -287,14 +247,18 @@ It reads correctly. It is wrong for every multi-selection — `__pycache__` sort
 assertions and 144 end-to-end checks were green, and not one of them could see that line.
 
 The rule that stops it recurring: **a file in those two targets may shrink freely and may never
-grow.** Baseline in `Scripts/untested-logic.txt`, currently **171 across 11 files**. A red run is
+grow.** Baseline in `Scripts/untested-logic.txt`, currently **161 across 12 files** (was 172 before
+2026-09-04). A red run is
 not fixed by re-recording; it is fixed by moving the decision into ChuteCore as a pure function
 and testing it — the move `StatusMenu`, `ActionRequest`, `OnboardingSteps`, `ConfirmPrompt` and
 `FinderTarget` have all now made. Perturbing the old one-liner back takes ChuteFinderSync 20 → 22
 and goes red.
 
-**Next two extractions, in order**, both already sized by the audit: `SessionMenu.swift` (29 — the
-largest remaining) and `main.swift` (43, mostly wiring, but not all).
+**Both of 2026-09-04's extractions are done** — `SessionMenu` 29 → 19, `ChuteFinderSync` 20 → 19.
+**`main.swift` (43) is now the largest remaining by a wide margin**, and it is the next one. Mostly
+AppKit wiring, but not all: `runSessionCommand` (`main.swift:280`) decodes a payload and picks what
+to put on the clipboard, and the trial/licence branches decide what the menu is allowed to offer.
+Take those two; leave the wiring where it is.
 
 ## TRAPS — paid for, repeatedly. Do not pay again
 
@@ -333,8 +297,19 @@ largest remaining) and `main.swift` (43, mostly wiring, but not all).
   this". It takes minutes. Skipping it cost an hour here: two marks were fully polished before the
   test said both read as paper shredders. Any future Chute mark in the "document meets a
   horizontal slot" family is dead on arrival — do not re-derive it.
-- **`swift run chutetests | tail` exits 0 with a test failing** — the pipe reports `tail`'s status.
-  Read the tally line, never the exit code.
+- **`… | tail` exits 0 with the run failing** — the pipe reports `tail`'s status. Documented here
+  for `chutetests`, and paid AGAIN on 2026-09-04 for `smoke.sh`: a run reported `smoke: 148 passed,
+  2 failed` and the shell said `EXIT=0`, so it read as green. Worse, `tail -15` had thrown away the
+  two failure lines, so WHICH cases failed is now unknowable — four later runs were 150/150,
+  including one under heavier concurrent load, and the two have not reappeared. **Redirect to a
+  file, then grep it.** Never pipe a gate through `tail`.
+- **A number in the fact sheet with no gate WILL drift.** Three of them had, silently, and one was
+  being sold to a reader: CLI binary 727 KB claimed / 747 KB shipped, lines of Swift 11,975 /
+  12,619, unit assertions 1,005 / 1,073. The two gated numbers were both correct. Gate it or expect
+  it to be wrong.
+- **A ✓ whose detail contradicts it is a false pass, not a formatting quirk.** `✓ Finder extension
+  actually starts — not installed` was true for weeks. Read the DETAIL column of a green run at
+  least once.
 - **`ProcessMetrics › the listing costs N ms` fails under load.** A 5 ms budget, 0.88 ms on a quiet
   machine, 6.4-7.1 ms while node and headless Chrome eat three cores. Not a regression — check
   `git status Sources/ChuteCore/ProcessMetrics.swift` first. Do NOT loosen the threshold; it exists
@@ -365,3 +340,10 @@ largest remaining) and `main.swift` (43, mostly wiring, but not all).
 - Custom user actions: platform, or stay opinionated?
 - **A Claude Code plugin/skill for `chute`** (`05-CONTENT-CALENDAR.md` §4a) — the highest-leverage
   distribution line in the campaign, and the same "is this a platform now?" question.
+- **Should the assertion and line counts be gated MONOTONICALLY?** Both drifted unnoticed, and a
+  suite silently dropped from `Sources/chutetests/main.swift` — 30 of them are registered by hand —
+  would leave everything green with fewer assertions. An equality gate is wrong here: those numbers
+  change on every commit, and a gate that fires on every rebuild is one people learn to ignore,
+  which the build-stamp check already taught. A ratchet — may rise freely, may never fall — is the
+  shape that fits, and it is the shape `check-untested-logic.sh` already implements. ~15 lines and
+  a second baseline file. **Worth it, or is one ratchet enough?**
