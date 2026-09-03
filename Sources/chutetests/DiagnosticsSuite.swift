@@ -160,6 +160,26 @@ func diagnosticsSuite() {
         T.ok(Diagnostics.resolvedAppPath("/Users/x/.local/bin").hasSuffix(".app"),
              "anything else resolves to an app bundle, never a bin directory")
 
+        // AND IT MUST BE THE ONE THAT IS THERE. It used to return ~/Applications/Chute.app with
+        // no question asked, so `chute doctor` from the Homebrew CLI reported "all 10 checks
+        // passed" about a bundle that was not on the disk — the founder's own copy is in
+        // /Applications, which is where the DMG tells customers to put it.
+        T.eq(Diagnostics.resolvedAppPath("/Users/x/.local/bin", exists: { $0 == "/Applications/Chute.app" }),
+             "/Applications/Chute.app", "it answers with the copy that exists, not the first guess")
+        T.eq(Diagnostics.resolvedAppPath("/Users/x/.local/bin", exists: { _ in true }),
+             Diagnostics.appCandidates[0], "with both installed the per-user copy wins — install.sh's default")
+        T.ok(Diagnostics.resolvedAppPath("/Users/x/.local/bin", exists: { _ in false }).hasSuffix(".app"),
+             "with neither installed it still answers with a path, for app-location to fail on")
+
+        // ...and the check itself has to ask. A parent folder named Applications is not an install.
+        var missing = good; missing.appExists = false
+        let loc = Diagnostics.run(missing).first { $0.check.id == "app-location" }
+        T.eq(loc?.passed, false, "an app that is not there fails app-location")
+        T.ok(loc?.detail.contains("not found") == true,
+             "and says so, rather than reading a guessed path back to the user")
+        T.ok(Diagnostics.run(missing).contains { !$0.passed },
+             "so the run is not 'all checks passed' while the app is missing")
+
         // WHERE THE CLI IS LOOKED FOR. Homebrew owns the CLI now — the app stopped writing
         // ~/.local/bin/chute, because two copies on PATH at the same version is a collision the
         // app was creating and then diagnosing. The search order has to name both Homebrew
