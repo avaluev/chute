@@ -25,4 +25,18 @@ public enum SessionColor {
     public static func hex(forProject path: String) -> String {
         palette[index(forProject: path)]
     }
+
+    /// Parse `#RRGGBB` (or a bare `RRGGBB`) into components in 0...1. Nil for anything else.
+    ///
+    /// The caller draws grey when this returns nil, so a mis-typed palette entry is VISIBLE
+    /// rather than black. `UInt32(_:radix:)` alone is not enough: it accepts a leading sign, so
+    /// "+ABCDE" is six characters and parses happily to 0xABCDE. Hence the digit check.
+    public static func rgb(hex: String) -> (red: Double, green: Double, blue: Double)? {
+        var s = hex
+        if s.hasPrefix("#") { s.removeFirst() }
+        guard s.count == 6, s.allSatisfy(\.isHexDigit), let v = UInt32(s, radix: 16) else { return nil }
+        return (Double((v >> 16) & 0xFF) / 255,
+                Double((v >> 8) & 0xFF) / 255,
+                Double(v & 0xFF) / 255)
+    }
 }

@@ -173,23 +173,25 @@ class ChuteFinderSync: FIFinderSync {
     // MARK: - Running
 
     @objc func run(_ sender: NSMenuItem) {
-        let actions = ChuteActions.all
-        guard sender.tag >= 0, sender.tag < actions.count else { return }
-        let action = actions[sender.tag]
-        mark("extension-action", "clicked \(action.id)")
-
+        // WHAT the click means — is the tag still an action, does it need a selection it has not
+        // got, do we know which folder this is — is `ActionRequest.plan`, in ChuteCore, where the
+        // suite can ask it. This end reads Finder and draws the answer.
         let controller = FIFinderSyncController.default()
         let files = (controller.selectedItemURLs() ?? []).map(\.path)
-        if action.scope == .selection, files.isEmpty {
-            return notify(action: action, message: "Nothing is selected.")
+        let plan = ActionRequest.plan(tag: sender.tag, selection: files,
+                                      folder: targetFolder()?.path)
+
+        if let refusal = plan.refusal {
+            return notify(action: refusal.action, message: refusal.message)
         }
-        guard let target = targetFolder() else {
-            return notify(action: action, message: "Could not tell which folder this is.")
-        }
+        guard let sending = plan.sending else { return }
+        let action = sending.action
+        mark("extension-action", "clicked \(action.id)")
+
         do {
-            try ActionInbox.write(ActionRequest(id: action.id, dir: target.path, files: files))
+            try ActionInbox.write(sending.request)
         } catch {
-            return notify(action: action, message: "Failed — could not reach Chute: \(error.localizedDescription)")
+            return notify(action: action, message: ActionRequest.handoverFailure(error))
         }
         // Chute.app reports the outcome once the work is done; a second banner per click is noise.
         // If it never picks the request up, that silence is itself the thing worth reporting.

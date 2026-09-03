@@ -91,5 +91,46 @@ func actionRequestSuite() {
              "a dir that is not a directory is refused")
         let mixed = ActionInbox.parse(Data(#"{"id":"copy-paths","dir":"/tmp","files":["/tmp/a","relative"],"ts":1}"#.utf8))
         T.eq(mixed?.files, ["/tmp/a"], "relative file paths are dropped, not resolved against a guess")
+
+        // ── WHAT A FINDER CLICK MEANS ─────────────────────────────────────────────────────
+        //
+        // Four questions that used to be answered inside `ChuteFinderSync.run`, in a target no
+        // test can link — including three sentences the user reads.
+        let all = ChuteActions.all
+        let selectionTag = all.firstIndex { $0.scope == .selection }!
+        let folderTag = all.firstIndex { $0.scope == .folder }!
+        func plan(_ tag: Int, _ selection: [String], _ folder: String?) -> ActionRequest.Dispatch {
+            ActionRequest.plan(tag: tag, selection: selection, folder: folder, now: now)
+        }
+
+        T.eq(plan(-1, [], "/tmp"), .ignore, "a negative tag addresses no action")
+        T.eq(plan(all.count, [], "/tmp"), .ignore,
+             "and neither does one past the end — a menu built by a build that is gone")
+        T.ok(plan(all.count - 1, ["/tmp/a"], "/tmp").sending != nil, "the last tag is still valid")
+
+        T.eq(plan(selectionTag, [], "/tmp").refusal?.message, "Nothing is selected.",
+             "an action that works on a selection says so when there is none")
+        T.eq(plan(selectionTag, [], "/tmp").refusal?.action.id, all[selectionTag].id,
+             "and the refusal names the action, so the banner has a subtitle")
+        T.eq(plan(folderTag, [], "/tmp").sending?.request.id, all[folderTag].id,
+             "a folder action needs no selection — that refusal is scoped, not universal")
+
+        T.eq(plan(selectionTag, ["/tmp/a"], nil).refusal?.message,
+             "Could not tell which folder this is.",
+             "not 'no folder': the user is looking at one, we failed to read which")
+        T.ok(plan(folderTag, [], nil).refusal != nil, "and a folder action cannot proceed either")
+
+        let sent = plan(selectionTag, ["/tmp/a", "/tmp/b"], "/tmp")
+        T.eq(sent.sending?.request,
+             ActionRequest(id: all[selectionTag].id, dir: "/tmp", files: ["/tmp/a", "/tmp/b"],
+                           createdAt: now),
+             "the request carries the folder and the whole selection")
+        T.eq(sent.sending?.action.id, all[selectionTag].id,
+             "and the action alongside it — the caller never looks it up a second time")
+        T.eq(plan(folderTag, ["/tmp/a"], "/tmp").sending?.request.files, ["/tmp/a"],
+             "a folder action still carries the selection: clean on three selected files means those three")
+
+        T.ok(plan(selectionTag, [], "/tmp").sending == nil, "a refusal sends nothing")
+        T.ok(sent.refusal == nil, "and a send refuses nothing")
     }
 }

@@ -73,20 +73,18 @@ enum SessionMenu {
         return item
     }
 
-    /// Which modifier reveals which command.
-    ///
-    /// Four commands on one row means four alternates, and AppKit shows one alternate per
-    /// distinct modifier mask — so they are spread across ⌥, ⌥⇧, ⌥⌘ and ⌥⌃ rather than crammed
-    /// into a submenu that would cost the row its single-click focus. An NSMenuItem that owns a
-    /// submenu does not fire its own action, and the hero job here is *click the row, that
-    /// terminal comes forward*.
+    /// Which modifier reveals which command is `SessionCommand.modifiers`, in ChuteCore, where a
+    /// test can assert the four masks are DISTINCT — AppKit draws one alternate per mask, so two
+    /// commands that share one means the second row silently never appears. This end only
+    /// translates that set into AppKit's.
+    private static let flagMap: [(SessionCommand.Modifiers, NSEvent.ModifierFlags)] = [
+        (.option, .option), (.shift, .shift), (.command, .command), (.control, .control),
+    ]
+
     static func mask(for kind: String) -> NSEvent.ModifierFlags {
-        switch SessionCommand.Kind(rawValue: kind) {
-        case .copyResume: return [.option, .shift]
-        case .tmux:       return [.option, .command]
-        case .copyCost:   return [.option, .control]
-        default:          return [.option]
-        }
+        let wanted = SessionCommand.modifiers(for: kind)
+        return flagMap.filter { wanted.contains($0.0) }
+                      .reduce(into: NSEvent.ModifierFlags()) { $0.insert($1.1) }
     }
 
     /// Render the model into the menu AppKit handed us.
@@ -163,47 +161,11 @@ enum SessionMenu {
     }
 }
 
-/// The commands a single session offers. WHICH ones it offers is decided here, because it depends
-/// on the transcript and on whether tmux is installed; the modifier each one gets is decided by
-/// the renderer above.
-enum SessionCommand {
-    enum Kind: String { case copyID, copyResume, tmux, copyCost }
-
-    struct Payload { let key: String; let kind: Kind }
-
-    /// Only what this session can actually do. A command that cannot work is not shown greyed
-    /// out — it is not shown, because a disabled row still costs the reader a glance to dismiss.
-    static func available(for s: Session, transcript: AgentTranscript?)
-        -> [(kind: String, title: String)] {
-        guard let sessionID = s.sessionID else { return [] }   // an older hook: nothing to resume
-        var offers: [(kind: String, title: String)] = [(Kind.copyID.rawValue, "Copy Session ID")]
-
-        // Only where the agent's resume syntax is actually known. Offering "Copy Resume Command"
-        // for an agent we would have to guess at puts a failing command on someone's clipboard.
-        if ResumeCommand.resume(agent: s.agent, sessionID: sessionID) != nil {
-            offers.append((Kind.copyResume.rawValue, "Copy Resume Command"))
-            if hasTmux { offers.append((Kind.tmux.rawValue, "Continue in tmux")) }
-        }
-        if let t = transcript,
-           AgentTranscript.costLabel(output: t.outputTokens, cacheRead: t.cacheReadTokens) != nil {
-            offers.append((Kind.copyCost.rawValue, "Copy Cost So Far"))
-        }
-        return offers
-    }
-
-    /// Checked once. `tmux` is a Homebrew install on most machines and its absence is permanent
-    /// for the length of a session; offering a command that cannot run is worse than not offering.
-    static let hasTmux = Shell.which("tmux") != nil
-}
-
 extension NSColor {
+    /// The parse is `SessionColor.rgb`, in ChuteCore. It used to live here, in a target no test
+    /// can link — a six-line parser with a sign bug in it and nothing able to ask.
     convenience init?(hex: String) {
-        var s = hex
-        if s.hasPrefix("#") { s.removeFirst() }
-        guard s.count == 6, let v = UInt32(s, radix: 16) else { return nil }
-        self.init(srgbRed: CGFloat((v >> 16) & 0xFF) / 255,
-                  green:   CGFloat((v >> 8) & 0xFF) / 255,
-                  blue:    CGFloat(v & 0xFF) / 255,
-                  alpha: 1)
+        guard let c = SessionColor.rgb(hex: hex) else { return nil }
+        self.init(srgbRed: c.red, green: c.green, blue: c.blue, alpha: 1)
     }
 }

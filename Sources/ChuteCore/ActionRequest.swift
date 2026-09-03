@@ -21,6 +21,63 @@ public struct ActionRequest: Sendable, Equatable {
     }
 }
 
+/// WHAT A FINDER MENU CLICK MEANS — decided here, not in the extension.
+///
+/// `ChuteFinderSync.run` used to answer four questions inline, in a target no test can link:
+/// is this tag still an action, does this action need a selection it has not got, do we know
+/// which folder we are in, and did the handover fail. Three of those produce a sentence the user
+/// reads, and every one of those sentences was unreachable by the suite — the same shape that let
+/// `targetFolder`'s one-liner ship the `.pyc` bug. The extension now asks this and draws the
+/// answer.
+public extension ActionRequest {
+    enum Dispatch: Equatable {
+        /// The action comes along with the request so the caller never looks it up again — a
+        /// second `ChuteActions.find` at the call site is a second way for a resolved click to
+        /// end up dropped in silence.
+        case send(ActionRequest, action: ChuteAction)
+        case refuse(action: ChuteAction, message: String)
+        /// A tag that addresses no action: the menu was built by a build that is gone. Silent on
+        /// purpose — there is no action to name in a notification, so there is nothing to say.
+        case ignore
+
+        public var sending: (request: ActionRequest, action: ChuteAction)? {
+            if case .send(let request, let action) = self { return (request, action) }
+            return nil
+        }
+
+        public var refusal: (action: ChuteAction, message: String)? {
+            if case .refuse(let action, let message) = self { return (action, message) }
+            return nil
+        }
+    }
+
+    static func plan(tag: Int, selection: [String], folder: String?,
+                     actions: [ChuteAction] = ChuteActions.all,
+                     now: Date = Date()) -> Dispatch {
+        guard tag >= 0, tag < actions.count else { return .ignore }
+        let action = actions[tag]
+        guard !(action.scope == .selection && selection.isEmpty) else {
+            return .refuse(action: action, message: "Nothing is selected.")
+        }
+        // Not "no folder": the user is looking at one. We failed to read which.
+        guard let folder else {
+            return .refuse(action: action, message: "Could not tell which folder this is.")
+        }
+        // A folder-scoped action carries the selection anyway — `clean` on a folder with three
+        // files selected still means those three. Dropping it here was how the scope rule and the
+        // command template disagreed.
+        return .send(ActionRequest(id: action.id, dir: folder, files: selection, createdAt: now),
+                     action: action)
+    }
+
+    /// The one sentence the extension shows when the handover itself fails. It says "could not
+    /// reach Chute" and never "Chute is not running", which from inside the sandbox cannot be
+    /// told apart from Chute being busy behind a confirmation sheet.
+    static func handoverFailure(_ error: Error) -> String {
+        "Failed — could not reach Chute: \(error.localizedDescription)"
+    }
+}
+
 public enum ActionInbox {
     public static func directory(root: String? = nil) -> String {
         root ?? "/Users/" + NSUserName() + "/.chute/requests"
