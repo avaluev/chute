@@ -87,9 +87,52 @@ Severity is the reviewer's. **Fixed** means committed with a guard. **Not done**
 | P7 | `ResumeCommand.shellQuote` ≡ `PathFormat.shellQuote`; `ContextBundle.rel` ≡ `PathFormat.relativize`; two `pad` helpers in the CLI, only one truncating. | **Collapsed**. |
 | P8 | `FileScanAbsolute` — a free function that only delegated. | **Deleted**. |
 | P9 | "Fourteen actions" in two comments, against nine declared. | **Fixed**. |
-| P10 | `--naming slug\|underscore` — undocumented; no product surface takes the default. | **Not done** — lower confidence; `slug` is still the bare-CLI default for `chute new`. Decide, then cut. |
+| P10 | `--naming slug\|underscore` — undocumented; no product surface takes the default. | **Decided 2026-09-03 — flag kept, documented.** The two surfaces have different conventions and one binary serves both: a terminal user in a repo wants `docs/my-great-spec.md`, the Finder menu wants `My_Notes.md` and passes `--naming underscore` on purpose (`Sources/ChuteCore/FinderActions.swift:196`). Cutting it makes one surface wrong. The real defect was that it was in no help text — fixed at `Sources/chute/main.swift:16`, reason recorded at `Sources/chute/Commands/FileCommands.swift:22`. |
 | P11 | Three `SettingsWindow` wrappers that only forward to `UI.*`. | **Not done** — ChuteApp, no test can reach it, no behaviour at stake. |
 
 Checked and lean, do not re-audit: every npm dependency is imported; no zero-caller public
 function in ChuteCore; no hand-rolled stdlib; the `rm -rf` guards in install/uninstall/fixtures;
 worker signature verification; checkout parameters; internal links; `check-claims` denominators.
+
+---
+
+## Icon redesign — 2026-09-03
+
+The app icon was replaced. `Scripts/make-icon.swift` now draws THE PARACHUTE: a canopy, taut
+risers, and a crate of the user's work riding down under it. One command —
+`cd <repo> && swift Scripts/make-icon.swift` — renders the ten-slice iconset, cuts
+`Resources/Chute.icns`, and rewrites `site/src/app/favicon.ico` from the same pixels, so the tab
+icon and the Dock icon cannot drift. `brand/cards.py:draw_mark()` was redrawn to match.
+
+**What the old icon was doing wrong, measured, not asserted.** Its body was 880px on a 1024
+canvas where Apple's grid is 824 — 7% oversized, and visibly larger than Finder, Notes and Mail
+sitting beside it in a Dock. It cast no shadow at all: zero alpha outside the body, a sticker by
+the strict definition, next to system icons that all cast one. Its corners were circular, not the
+continuous squircle. At 16px it was unreadable.
+
+**The finding worth keeping.** A design panel scoring on craft, legibility and brand ranked four
+candidates and put a lit-slot mark first and the parachute LAST. A blind recognition test — four
+unprimed viewers per image, neutral filenames, no product context, "what object is this" — then
+inverted the ranking completely:
+
+| candidate | 128px | 64px | 32px | 16px |
+|---|---|---|---|---|
+| hopper (chute + document + bin) | paper shredder 4/4 | — | shredder 2/4, receipt printer 2/4 | — |
+| slot (sheet into a lit aperture) | shredder 2/4 | — | paper shredder 4/4 | — |
+| **parachute** | **4/4, conf. 95** | **5/5, conf. 93** | **4/4, conf. 88** | **4/5, conf. 72** |
+| the icon being replaced | download tray / chute 4/4 | — | — | unreadable |
+
+Every mark in the "document meets a horizontal slot" family reads to a stranger as a machine that
+DESTROYS documents. For a product whose promise is handing your files to an agent, that is
+disqualifying however well it is drawn — and a craft panel cannot see it, because a judge who has
+been told what the product is can no longer un-know it. **Blind-test the mark before committing to
+it.** It costs minutes; it is the only check that catches this class of failure.
+
+The 16px slice took eight rounds of its own. It read as a broccoli floret (2/5) until the risers
+went from two pixels wide to ONE — two pixels converging over four rows is a filled cone, and the
+cone is the floret — and the hem was made to overhang the crate by three pixels each side.
+Nothing that grows out of the ground has that overhang. After that: 4/5 parachute, 0/5 vegetable.
+
+Verified against `/System/Applications/Notes.app`, measured on this machine rather than quoted:
+opaque body 14/28/54/104/206/412/824 at 16/32/64/128/256/512/1024 — exact at every size; drop
+shadow within 3 alpha levels of Notes at every size; `iconutil -c icns` exit 0.

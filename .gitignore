@@ -23,3 +23,9 @@ CloudFlare_API.md
 
 # Playwright MCP leaves snapshots and screenshots where it is run from.
 .playwright-mcp/
+
+# Build intermediates for the app icon. Only Resources/Chute.icns and site/src/app/favicon.ico
+# are committed — both are regenerated from Scripts/make-icon.swift, which writes these two
+# directories on the way there.
+Resources/Chute.iconset/
+Resources/icon-review/
