@@ -41,11 +41,12 @@ enum SessionMenu {
     /// zero is a badge you learn to ignore.
     static func applyBadge(to button: NSStatusBarButton?, count: Int) {
         guard let button else { return }
-        let symbol = NSImage(systemSymbolName: "arrow.down.to.line",
-                             accessibilityDescription: count == 0
-                                ? "Chute" : "Chute — \(count) waiting for you")
-        symbol?.isTemplate = true
-        button.image = symbol
+        // The mark is Chute's own parachute, not `arrow.down.to.line` — see MenuBarMark. A user
+        // who has just seen the Dock icon should recognise the thing in their menu bar.
+        // `accessibilityDescription` is set on the button rather than the image, because the
+        // image is built once and shared while the description changes with the count.
+        button.image = MenuBarMark.image
+        button.setAccessibilityLabel(count == 0 ? "Chute" : "Chute — \(count) waiting for you")
         button.imagePosition = count == 0 ? .imageOnly : .imageLeading
         button.title = count == 0 ? "" : " \(count)"
     }

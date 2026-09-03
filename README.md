@@ -50,7 +50,7 @@ The Chute.app (Finder menu, menu-bar switcher, hotkey):
 ./Scripts/install.sh
 ```
 
-Installs `~/Applications/Chute.app` (menu bar `⤓`, hotkey `⌥⌘N`). The CLI comes from Homebrew.
+Installs `~/Applications/Chute.app` (menu bar 🪂, hotkey `⌥⌘N`). The CLI comes from Homebrew.
 
 Remove it completely at any time:
 
@@ -131,7 +131,7 @@ chute focus 3           # or by the number sessions printed
 chute doctor            # what is not wired up yet, and the exact fix
 ```
 
-The menu bar `⤓` carries the count of sessions that want you. Click it for the list, colour-coded
+The menu bar 🪂 carries the count of sessions that want you. Click it for the list, colour-coded
 per project. Click a row to bring that terminal forward, or use `chute focus <name|N>` from
 anywhere.
 

@@ -7,7 +7,7 @@ same engine, and this is the one page that says which job each of them is actual
 |---|---|---|
 | **`chute` CLI** | 26 commands, MIT, free forever. Every capability lives here first. | free |
 | **Finder right-click** | 9 actions in 5 rows. Every one of them shells out to the CLI. | paid |
-| **Menu bar (⤓)** | Session switcher, local servers, licence, diagnostics. Uses ChuteCore in-process. | paid |
+| **Menu bar (🪂)** | Session switcher, local servers, licence, diagnostics. Uses ChuteCore in-process. | paid |
 
 The rule that keeps them honest: **the app is a surface, never a second implementation**
 (`/Users/sxope/Documents/2026/Development/37.chute/Sources/ChuteApp/main.swift:6`). Anything the
@@ -113,7 +113,7 @@ the CLI.)
 | `paste-image` | 3 | ✅ | — | |
 | `help` / `--version` | — | — | — | |
 
-**Menu-bar-only capabilities** (no CLI equivalent, because they are the surface itself): the ⤓
+**Menu-bar-only capabilities** (no CLI equivalent, because they are the surface itself): the 🪂
 badge count, the live CPU/memory columns, the licence field, and ⌥⌘N.
 
 ---

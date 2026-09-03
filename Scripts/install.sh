@@ -123,7 +123,7 @@ cat <<EOF
 
 Chute installed.
 
-  app   $HOME/Applications/Chute.app   (menu bar ⤓, hotkey ⌥⌘N)
+  app   $HOME/Applications/Chute.app   (menu bar 🪂, hotkey ⌥⌘N)
   cli   brew install avaluev/tap/chute  (free, MIT, optional — the app needs no PATH)
 
 Finder right-click → Chute actions, inline in the context menu …
