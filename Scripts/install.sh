@@ -25,9 +25,16 @@ APP="$ROOT/dist/Chute.app"
 #
 # A machine with no Chute yet gets ~/Applications: no password, no admin rights, the DMG's own
 # /Applications drag still works and this script will then follow it there next time.
+# $CHUTE_APP_DIR overrides all of it. Needed because uninstall-then-install RELOCATES the app:
+# uninstall clears both folders, so the chooser below sees nothing and falls back to the default,
+# and someone who kept Chute in /Applications quietly gets it in ~/Applications with a dead Dock
+# pin. An env var is the honest fix — the alternative is remembering the old location across an
+# uninstall whose entire job is to leave nothing behind.
 USER_DIR="$HOME/Applications"
-APP_DIR="$USER_DIR"
-if [ -d "/Applications/Chute.app" ] && [ ! -d "$USER_DIR/Chute.app" ]; then
+APP_DIR="${CHUTE_APP_DIR:-$USER_DIR}"
+if [ -n "${CHUTE_APP_DIR:-}" ]; then
+  :                                     # explicit beats clever; skip the chooser entirely
+elif [ -d "/Applications/Chute.app" ] && [ ! -d "$USER_DIR/Chute.app" ]; then
   APP_DIR="/Applications"
 elif [ -d "/Applications/Chute.app" ] && [ -d "$USER_DIR/Chute.app" ]; then
   echo "note: a second copy exists at /Applications/Chute.app and is NOT being updated."
