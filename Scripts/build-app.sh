@@ -44,15 +44,23 @@ cp "$ROOT/Resources/Chute.icns" "$APP/Contents/Resources/Chute.icns"
 # from Swift.
 APPEX="$APP/Contents/PlugIns/ChuteFinder.appex"
 mkdir -p "$APPEX/Contents/MacOS"
-# Links ChuteCore's objects so the appex draws its menu from the SAME action table the CLI and
-# the tests use. -I .build/release finds the module; the .o files supply the code (SwiftPM does not
-# emit a static archive for a plain target).
 # Links ChuteCore's objects so the appex draws its menu from the SAME action table the CLI and the
 # tests use. -I .build/release finds the module; the .o files supply the code (SwiftPM does not emit
 # a static archive for a plain target).
+#
+# ONE OBJECT PER SOURCE FILE THAT STILL EXISTS — never `*.o`. SwiftPM does not delete the object
+# of a source you renamed or removed; it leaves it in .build forever. This was `*.o` until
+# 2026-09-03, and TerminalAdapter.swift had been renamed to TerminalAppAdapter.swift, so the link
+# picked up both objects and died with "ld: 7 duplicate symbols" — on a machine with a warm
+# .build only. A cold clone builds fine, which is why it survived: the person who shipped last had
+# no stale object, and the next rename would have broken the release build again.
+OBJS=()
+for src in "$ROOT"/Sources/ChuteCore/*.swift; do
+    OBJS+=("$ROOT/.build/release/ChuteCore.build/$(basename "$src").o")
+done
 swiftc -O -o "$APPEX/Contents/MacOS/ChuteFinder" \
     "$ROOT/Sources/ChuteFinder/ChuteFinderSync.swift" \
-    -I "$ROOT/.build/release" "$ROOT"/.build/release/ChuteCore.build/*.o \
+    -I "$ROOT/.build/release" "${OBJS[@]}" \
     -Xlinker -e -Xlinker _NSExtensionMain
 strip -x "$APPEX/Contents/MacOS/ChuteFinder"
 # The entry point must survive the strip, or the extension loads as a plain executable and Finder
