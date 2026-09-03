@@ -53,16 +53,21 @@ public struct DiagnosticsEnv: Sendable {
     /// `HookInstaller.status` only reads that file, Chute never writes it. Defaults to false,
     /// which is the common case: most machines never ran `chute hooks snippet`.
     public var hooksWired: Bool
+    /// Is there actually a bundle at `appPath`? `appPath` can be a GUESS — see `resolvedAppPath`
+    /// — and a check that reads a guess back to the user is a check that passes on nothing.
+    public var appExists: Bool
 
     public init(osMajor: Int, appPath: String, cliPath: String?, pluginkitList: String,
                 extensionID: String, automationOK: Bool, processList: String,
-                endToEndPassed: Bool?, containerAccepts: Bool? = nil, hooksWired: Bool = false) {
+                endToEndPassed: Bool?, containerAccepts: Bool? = nil, hooksWired: Bool = false,
+                appExists: Bool = true) {
         self.osMajor = osMajor; self.appPath = appPath; self.cliPath = cliPath
         self.pluginkitList = pluginkitList; self.extensionID = extensionID
         self.automationOK = automationOK; self.processList = processList
         self.endToEndPassed = endToEndPassed
         self.containerAccepts = containerAccepts
         self.hooksWired = hooksWired
+        self.appExists = appExists
     }
 }
 
@@ -127,9 +132,15 @@ public enum Diagnostics {
         // The app must sit DIRECTLY in an Applications folder; a nested path will not load.
         // `contains` would pass /Users/x/Applications/Sub/Chute.app, which does not work.
         let appParent = (env.appPath as NSString).deletingLastPathComponent
+        // AND it must EXIST. This check used to ask only whether the parent folder was called
+        // Applications, and `resolvedAppPath` hands it a guess when the CLI is not inside a
+        // bundle — so `chute doctor` from the Homebrew CLI printed "all 10 checks passed" and an
+        // app path that was not on the disk. Everything downstream inherited the guess: the
+        // extension-health probe read a bundle that is not there, got nil, and nil auto-passes.
         add("app-location",
-            (appParent as NSString).lastPathComponent == "Applications",
-            env.appPath)
+            (appParent as NSString).lastPathComponent == "Applications" && env.appExists,
+            env.appExists ? env.appPath
+                          : "not found — looked in \(appCandidates.joined(separator: " and "))")
         add("cli", env.cliPath != nil, env.cliPath ?? "not found")
 
         // pluginkit prints one line per extension, prefixed "+" (enabled) or "-" (disabled).
@@ -173,13 +184,27 @@ public enum Diagnostics {
     /// Where Chute.app actually is. `Bundle.main.bundlePath` answers this for the app, but the CLI
     /// is a symlink in ~/.local/bin pointing INTO the bundle, so from there it reports
     /// "/Users/x/.local/bin" and the app-location check fails on a perfectly good install.
-    public static func resolvedAppPath(_ appPath: String) -> String {
+    public static func resolvedAppPath(_ appPath: String,
+                                       exists: (String) -> Bool = {
+                                           FileManager.default.fileExists(atPath: $0)
+                                       }) -> String {
         if appPath.hasSuffix(".app") { return appPath }
         let exe = URL(fileURLWithPath: Bundle.main.executablePath ?? "")
             .resolvingSymlinksInPath().path
         if let r = exe.range(of: ".app/") { return String(exe[..<r.lowerBound]) + ".app" }
-        return (NSHomeDirectory() as NSString).appendingPathComponent("Applications/Chute.app")
+        // A GUESS IS NOT AN ANSWER. This returned ~/Applications/Chute.app unconditionally, so a
+        // customer who followed the DMG and dragged Chute to /Applications — which is what the DMG
+        // says to do — got a report about a folder they had never used. Same candidate list, same
+        // order, as Scripts/build-app.sh:289 and Scripts/install.sh.
+        return appCandidates.first(where: exists) ?? appCandidates[0]
     }
+
+    /// The two places an install can be. Order matters only when both exist, and then the per-user
+    /// one wins, because that is the one `install.sh` writes by default.
+    public static let appCandidates = [
+        (NSHomeDirectory() as NSString).appendingPathComponent("Applications/Chute.app"),
+        "/Applications/Chute.app",
+    ]
 
     /// WHICH BUILD IS ACTUALLY INSTALLED, read back from the bundle `Scripts/build-app.sh` stamped.
     ///
@@ -236,7 +261,8 @@ public enum Diagnostics {
             processList: Shell.run("ps", ["-Ao", "comm"]).out,
             endToEndPassed: endToEnd ? endToEndProbe() : nil,
             containerAccepts: extensionHasStarted(extensionID: extensionID, appPath: appPath),
-            hooksWired: HookInstaller.status(settingsPath: claudeSettingsPath).values.allSatisfy { $0 })
+            hooksWired: HookInstaller.status(settingsPath: claudeSettingsPath).values.allSatisfy { $0 },
+            appExists: FileManager.default.fileExists(atPath: appPath))
     }
 
     /// Where Claude Code keeps its settings. THE one definition — `chute hooks` and the menu
