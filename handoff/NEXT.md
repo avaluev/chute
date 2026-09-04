@@ -76,6 +76,23 @@ about itself was checked against the thing it describes, and five were false.
 | The menu said `Working (7)` with nothing working | Terminal's `busy` flag and a title glyph that is never cleared | `87c2cef` |
 | Settings carried a forbidden claim, a dead domain and three overclaims | About, License, General — and `chute help`, and `README.md` | `815be8a` |
 
+**Reinstalled clean at the founder's request, 2026-09-04.** `uninstall.sh` left nothing — both
+app folders, `~/.chute`, the CLI symlink, the appex registration — and correctly KEPT the trial
+file (`~/Library/Application Support/Chute/trial.json`, outside `~/.chute`) and the Homebrew CLI.
+Reinstalled with `CHUTE_APP_DIR=/Applications` so it stayed where the Dock points; without that
+env var an uninstall-then-install RELOCATES it to `~/Applications`, which is what the variable
+exists for. Installed stamp == HEAD, `chute doctor` 9/10 — the tenth is the hooks the uninstall
+strips and Chute never writes. The sandboxed extension recreated `~/.chute` on load, so the
+narrowed-entitlement runtime proof still holds on a from-scratch install.
+
+**THE ONE THAT NEARLY COST THE FOUNDER HIS SETTINGS.** The command `chute hooks snippet` prints
+began with the bare word `chute`. PATH resolves that to Homebrew's **0.2.0**, which does not know
+`hooks merged`, falls through to `status`, prints `→ settings: …` and **exits zero**. Every link
+in that chain is `&&`. Pasted, it would have written status text over a 33 KB `settings.json`
+carrying eleven hooks from other tools. Fixed at the cause (`hooks snippet` names the binary that
+printed it, as ChuteApp already did for the menu row) and at the class (`applyCommand` refuses
+anything not starting with `{`, checked before the backup and the move). `8494f99`.
+
 **Antigravity** (`agy`) is recognised and named. It ships no hooks, so it sits under
 "Running — no status" permanently; that is the whole of what a terminal can tell Chute about it.
 
@@ -255,6 +272,11 @@ Take those two; leave the wiring where it is.
   covered the site, then the README, and the same forbidden sentence sat in the app's About tab the
   whole time — where a customer who has just paid reads it. When you add a check for a claim, ask
   where else that claim is rendered, and sweep the product first.
+- **`&&` cannot catch a failure that exits zero.** A chained shell command is only as safe as
+  the exit codes in it. `chute hooks merged` on an OLDER binary printed the wrong thing and
+  succeeded; the chain dutifully moved it into place. When a generated command consumes the output
+  of another command, check the OUTPUT, not just the status — and have the generator name the
+  exact binary it means, never a bare word PATH will resolve for it.
 - **A note is not a gate.** `check-cases.mjs` printed "9 recordings no case refers to" for days.
   Three of them were videos of deleted features, publicly reachable. Nobody read the note.
 - **A hand-kept list is not a gate.** `check:claims` passed for a whole day while four files told
@@ -350,3 +372,8 @@ Take those two; leave the wiring where it is.
   the missing direction is every command that RUNS being named. ~5 lines, next to the
   `finder-actions --json` check that already invokes the binary. Third gate of the day — deliberately
   left for a decision rather than added on the spot.
+- **Should `chute doctor` compare the PATH CLI's version against the app's?** The founder's Mac
+  runs app 0.2.1 and Homebrew 0.2.0, and that mismatch is what made the apply command dangerous.
+  The command no longer trusts PATH, so the danger is gone — but "your CLI is older than your app"
+  is a real state doctor currently reports as `✓ Command line tool`. One check, and the fix line
+  writes itself (`brew upgrade chute`).
