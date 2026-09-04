@@ -344,5 +344,41 @@ try {
     : ok(`README.md carries none of the ${FALSE_CLAIMS.length} forbidden claims`)
 }
 
+// ── AND THE APP ITSELF, which is the one surface nobody thought to sweep ────────────────────
+//
+// The block above was added on 2026-09-02 because the README carried "Nothing is uploaded, ever".
+// On 2026-09-04 the Settings > About tab was found carrying the SAME forbidden string — it had
+// been there the whole time, in the one place a PAYING CUSTOMER reads it, while the site, the
+// README and every marketing file were swept on every deploy. A sweep that stops at the docs is a
+// sweep that trusts the product to be honest on its own.
+//
+// Comments are stripped first. A gate that fires on the comment explaining the gate is a gate
+// people learn to ignore — `Scripts/check-untested-logic.sh` was taught this on its first run.
+{
+  const swift = []
+  const walk = (dir) => {
+    for (const name of readdirSync(dir)) {
+      const full = join(dir, name)
+      if (statSync(full).isDirectory()) walk(full)
+      else if (name.endsWith(".swift")) swift.push(full)
+    }
+  }
+  walk(REPO + "Sources")
+  const code = (f) => readFileSync(f, "utf8").split("\n").map((l) => l.replace(/\/\/.*$/, "")).join("\n")
+  const hits = []
+  for (const f of swift) {
+    const body = code(f).toLowerCase()
+    for (const c of FALSE_CLAIMS) {
+      if (body.includes(c.toLowerCase())) hits.push(`"${c}" in ${f.slice(REPO.length)}`)
+    }
+  }
+  swift.length === 0
+    ? bad("no Swift sources found to sweep", `looked in ${REPO}Sources`)
+    : hits.length
+      ? bad(`${hits.length} forbidden claim(s) are in the app's own strings`,
+            hits.join(", ") + " — see the FALSE table in marketing/06-FACT-SHEET.md")
+      : ok(`${swift.length} Swift files carry none of the ${FALSE_CLAIMS.length} forbidden claims`)
+}
+
 console.log(`\nclaims: ${failed ? `${failed} failed` : "every claim on the site is one the fact sheet stands behind"}`)
 process.exit(failed ? 1 : 0)

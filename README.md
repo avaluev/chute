@@ -113,7 +113,9 @@ chute diff . --copy                  # what did the agent actually change?
 | `chute sessions` | Every terminal session, grouped by state. `--json` |
 | `chute focus <key\|project\|N>` | Bring that session to the front. Asks when a name matches several |
 | `chute hooks status\|snippet\|merged\|uninstall` | Agent status hooks. `merged` prints your settings with them added; Chute never writes that file — the command it gives you does |
-| `chute doctor` | Check every prerequisite and say how to fix it. `--fix --json` |
+| `chute resume [key\|N]` | The command to pick that conversation up again. `--tmux` |
+| `chute doctor` | Check the install and say how to fix what fails. `--fix --json` |
+| `chute onboard` | What Chute is, and the first thing to try |
 
 Add `--no-copy` to any command to keep the clipboard untouched.
 
