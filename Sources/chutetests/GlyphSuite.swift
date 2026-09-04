@@ -7,35 +7,36 @@ func glyphSuite() {
         let fresh = HookRecord(tty: "ttys004", state: .blocked, timestamp: now.addingTimeInterval(-60))
         let stale = HookRecord(tty: "ttys004", state: .blocked, timestamp: now.addingTimeInterval(-7 * 3600))
 
-        T.eq(StateResolver.resolve(hook: fresh, title: "✳ anything", busy: true, isAgent: true, now: now),
-             .blocked, "a fresh hook beats the title and the busy flag")
+        T.eq(StateResolver.resolve(hook: fresh, isAgent: true, now: now),
+             .blocked, "a fresh hook is the only thing that can name a state")
 
-        T.eq(StateResolver.resolve(hook: stale, title: "plain", busy: true, isAgent: true, now: now),
-             .working, "a hook older than six hours is ignored")
+        // THE 2026-09-04 BUG. Both of these used to fall through to the title glyph, which Claude
+        // Code writes and never clears — three sessions whose hooks said `waiting` at 02:06, 02:34
+        // and 03:10 still carried a working glyph at 10:37, so the menu said `Working (7)`.
+        T.eq(StateResolver.resolve(hook: stale, isAgent: true, now: now),
+             .unknown, "a hook older than six hours is ignored, and nothing replaces it")
 
         let future = HookRecord(tty: "ttys004", state: .blocked,
                                 timestamp: now.addingTimeInterval(3600))
-        T.eq(StateResolver.resolve(hook: future, title: "plain", busy: true, isAgent: true, now: now),
-             .working, "a future-dated hook (clock skew) is ignored, never trusted forever")
+        T.eq(StateResolver.resolve(hook: future, isAgent: true, now: now),
+             .unknown, "a future-dated hook (clock skew) is ignored, never trusted forever")
 
-        T.eq(StateResolver.resolve(hook: nil, title: "✳ refactoring", busy: true, isAgent: true, now: now),
-             .working, "known glyph resolves without a hook")
+        // THE BADGE. `.waiting` is what puts a number on the menu bar icon, so guessing it here
+        // was Chute telling the founder someone needed them when nothing had said so.
+        T.eq(StateResolver.resolve(hook: nil, isAgent: true, now: now),
+             .unknown, "an agent that has reported nothing is unknown, never 'waiting for you'")
 
-        T.eq(StateResolver.resolve(hook: nil, title: "☂ unknown glyph", busy: true, isAgent: true, now: now),
-             .working, "unknown glyph falls through to the busy flag")
+        // And the other row from that screenshot: a tab with no agent, running something —
+        // Terminal calls it busy, which is not the same as an agent working.
+        T.eq(StateResolver.resolve(hook: nil, isAgent: false, now: now),
+             .idle, "a tab running node or vim is not an agent working")
 
-        T.eq(StateResolver.resolve(hook: nil, title: "no glyph", busy: false, isAgent: true, now: now),
-             .waiting, "an idle agent is waiting for you")
-
-        T.eq(StateResolver.resolve(hook: nil, title: "-zsh", busy: false, isAgent: false, now: now),
-             .idle, "a plain shell is idle, never 'waiting'")
-
-        T.eq(StateResolver.resolve(hook: nil, title: "-zsh", busy: true, isAgent: false, now: now),
-             .working, "a busy shell is working")
-
-        T.ok(GlyphTable.state(fromTitle: "✳ x") != nil, "✳ is a known glyph")
-        T.ok(GlyphTable.state(fromTitle: "◑ x") != nil, "◑ is a known glyph")
-        T.ok(GlyphTable.state(fromTitle: "hello") == nil, "plain text has no glyph")
-        T.ok(GlyphTable.state(fromTitle: "") == nil, "empty title is nil, not a crash")
+        // The staleness edge, both sides of it.
+        let justInside = HookRecord(tty: "t", state: .waiting, timestamp: now.addingTimeInterval(-6 * 3600 + 1))
+        let justOutside = HookRecord(tty: "t", state: .waiting, timestamp: now.addingTimeInterval(-6 * 3600))
+        T.eq(StateResolver.resolve(hook: justInside, isAgent: true, now: now), .waiting,
+             "one second inside the window still counts")
+        T.eq(StateResolver.resolve(hook: justOutside, isAgent: true, now: now), .unknown,
+             "exactly at the window it does not")
     }
 }

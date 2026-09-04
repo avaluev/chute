@@ -32,6 +32,7 @@ public enum SessionPhrasing {
         case "cursor": return "Cursor"
         case "gemini": return "Gemini"
         case "aider":  return "aider"          // it spells itself lowercase
+        case "agy":    return "Antigravity"
         default:       return agent.prefix(1).uppercased() + agent.dropFirst()
         }
     }

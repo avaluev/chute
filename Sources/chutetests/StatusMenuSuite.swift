@@ -15,6 +15,19 @@ func statusMenuSuite() {
                     tty: tty, project: project, title: project, agent: "claude",
                     busy: state == .working, state: state, since: Date(), sessionID: id)
         }
+        // AN AGENT THAT REPORTS NOTHING IS NOT IDLE. `.unknown` used to be filed under "Idle",
+        // which is the 2026-09-04 bug in the other direction — and idle rows collapse into a
+        // submenu above three, so a running session could end up hidden behind a disclosure.
+        let threeStates = [session("a", .working, tty: "ttys001"),
+                           session("b", .unknown, tty: "ttys002"),
+                           session("c", .idle, tty: "ttys003")]
+        let grouped = titles(StatusMenu.model(sessions: threeStates, trial: .licensed(email: "a@b.c")))
+        T.ok(grouped.contains { $0.hasPrefix("Running — no status") },
+             "an agent with no status gets its own header")
+        T.ok(grouped.contains { $0.hasPrefix("Idle") }, "and the plain shell keeps Idle")
+        T.no(grouped.contains { $0.hasPrefix("Idle  (2)") },
+             "the unreadable session is not counted as an idle terminal")
+
         func titles(_ nodes: [StatusMenu.MenuNode]) -> [String] {
             nodes.filter { $0.kind != .separator }.map(\.title)
         }
