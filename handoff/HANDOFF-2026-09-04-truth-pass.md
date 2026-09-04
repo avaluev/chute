@@ -85,3 +85,66 @@ so the site's command table silently omitted two real commands. Both added; 26 a
 **`site/src/lib/commands.json` was stale**, still describing `hooks snippet|uninstall|status`. It is
 generated from the binary but only when someone runs the site build. Regenerated.
 
+---
+
+# Later the same day — the status removed, reviewed and cleaned
+
+## DONE 2026-09-04 (verified) — the truth pass
+
+Full record: `handoff/HANDOFF-2026-09-04-truth-pass.md`. One theme — every claim the repo makes
+about itself was checked against the thing it describes, and five were false.
+
+| What was wrong | Where | Commit |
+|---|---|---|
+| Two ratchet extractions still deferred | `SessionMenu` 29, `ChuteFinderSync` 20 → **161 total, was 172** | `03ede90` |
+| Four fact-sheet numbers had drifted, one of them sold to a reader | bundle, CLI binary, lines, assertions | `8da1614` |
+| `chute doctor` said "all 10 checks passed" about an app not on the disk | `resolvedAppPath` guessed `~/Applications` | `d9bd5ff` |
+| The menu said `Working (7)` with nothing working | Terminal's `busy` flag and a title glyph that is never cleared | `87c2cef` |
+| Settings carried a forbidden claim, a dead domain and three overclaims | About, License, General — and `chute help`, and `README.md` | `815be8a` |
+
+**Reinstalled clean at the founder's request, 2026-09-04.** `uninstall.sh` left nothing — both
+app folders, `~/.chute`, the CLI symlink, the appex registration — and correctly KEPT the trial
+file (`~/Library/Application Support/Chute/trial.json`, outside `~/.chute`) and the Homebrew CLI.
+Reinstalled with `CHUTE_APP_DIR=/Applications` so it stayed where the Dock points; without that
+env var an uninstall-then-install RELOCATES it to `~/Applications`, which is what the variable
+exists for. Installed stamp == HEAD, `chute doctor` 9/10 — the tenth is the hooks the uninstall
+strips and Chute never writes. The sandboxed extension recreated `~/.chute` on load, so the
+narrowed-entitlement runtime proof still holds on a from-scratch install.
+
+**THE ONE THAT NEARLY COST THE FOUNDER HIS SETTINGS.** The command `chute hooks snippet` prints
+began with the bare word `chute`. PATH resolves that to Homebrew's **0.2.0**, which does not know
+`hooks merged`, falls through to `status`, prints `→ settings: …` and **exits zero**. Every link
+in that chain is `&&`. Pasted, it would have written status text over a 33 KB `settings.json`
+carrying eleven hooks from other tools. Fixed at the cause (`hooks snippet` names the binary that
+printed it, as ChuteApp already did for the menu row) and at the class (`applyCommand` refuses
+anything not starting with `{`, checked before the backup and the move). `8494f99`.
+
+**Then the status was removed entirely, at the founder's request** (`2849347`). Fixing the states
+was correct and still left five of seven sessions reading `—`, which is honest and useless. The
+four groups, the header line, the "Every state below is a guess" nag row, the collapsing idle
+submenu, the "waited 4m" suffix and **the menu bar badge count** are all gone. The menu is a flat
+list of terminals sorted by project: what Chute can see for itself when it opens — project, agent,
+what that terminal costs — and clicking one brings it forward. Hooks still earn their keep through
+the session id (resume, tmux, cost); they just no longer put a word on screen. Ratchet 161 → 156.
+
+**Reviewed, cleaned and reinstalled** (`49ca130`). Code review of the day's 16 commits: no
+hardcoded credentials in tracked source, no TODO/FIXME, no `print`/`console`, nothing over 800
+lines or 50 lines per function. Two findings, both fixed. **CRITICAL: a live Cloudflare API token
+sat in the repo root** as `CloudFlare_API+.md` — never committed, gitignored, but readable by every
+agent session, and `~/.secrets/` already held `CloudFlare_API.LEAKED.md` from the day before at the
+same size. Moved to `~/.secrets/` (0700/0600). **ROTATE IT.** MEDIUM: two force-unwraps in
+`HookInstallerSuite` — a `!` crashes the harness and a crash prints no tally.
+
+Dead code deleted, all orphaned by removing the status: `HookState.attention`/`liveTTYs`,
+`SessionPhrasing.waitedFor`, and `MenuNode.header` with its renderer — each had tests, and a
+function whose only caller is its own test is dead code wearing a coverage badge. 1,078 → 1,065
+assertions, ratchet 156 → 154. Four stale scratch files removed from `handoff/`; **the six AUDIT
+files were kept deliberately** — they carry unresolved findings.
+
+**Antigravity** (`agy`) is recognised and named. It ships no hooks, so it sits under
+"Running — no status" permanently; that is the whole of what a terminal can tell Chute about it.
+
+**Three gates added or fixed**, each perturbed to red: the CLI binary size (±2%, after an exact
+compare cried wolf on a 1 KB move within the hour), the forbidden-claims sweep over
+`Sources/**/*.swift`, and the app-location existence check.
+
