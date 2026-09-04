@@ -93,6 +93,14 @@ carrying eleven hooks from other tools. Fixed at the cause (`hooks snippet` name
 printed it, as ChuteApp already did for the menu row) and at the class (`applyCommand` refuses
 anything not starting with `{`, checked before the backup and the move). `8494f99`.
 
+**Then the status was removed entirely, at the founder's request** (`2849347`). Fixing the states
+was correct and still left five of seven sessions reading `—`, which is honest and useless. The
+four groups, the header line, the "Every state below is a guess" nag row, the collapsing idle
+submenu, the "waited 4m" suffix and **the menu bar badge count** are all gone. The menu is a flat
+list of terminals sorted by project: what Chute can see for itself when it opens — project, agent,
+what that terminal costs — and clicking one brings it forward. Hooks still earn their keep through
+the session id (resume, tmux, cost); they just no longer put a word on screen. Ratchet 161 → 156.
+
 **Antigravity** (`agy`) is recognised and named. It ships no hooks, so it sits under
 "Running — no status" permanently; that is the whole of what a terminal can tell Chute about it.
 
@@ -308,6 +316,11 @@ Take those two; leave the wiring where it is.
   this". It takes minutes. Skipping it cost an hour here: two marks were fully polished before the
   test said both read as paper shredders. Any future Chute mark in the "document meets a
   horizontal slot" family is dead on arrival — do not re-derive it.
+- **A PIPE HIDES AN EXIT STATUS — three times in one day.** `… | tail`, `… | grep`, any of them:
+  the pipeline reports the LAST command's status, so `./Scripts/build-app.sh | grep '^size:'`
+  returns grep's 0 while the size gate exits 1, and an `&&` chain after it runs anyway. That is how
+  a 3.0 MB app was installed with the fact sheet still claiming 2.9. Redirect to a file and grep
+  the file. This trap was already written here when it was walked into twice more.
 - **`… | tail` exits 0 with the run failing** — the pipe reports `tail`'s status. Documented here
   for `chutetests`, and paid AGAIN on 2026-09-04 for `smoke.sh`: a run reported `smoke: 148 passed,
   2 failed` and the shell said `EXIT=0`, so it read as green. Worse, `tail -15` had thrown away the
@@ -336,6 +349,13 @@ Take those two; leave the wiring where it is.
 - **Nothing auto-fills the basket.**
 - **`Copy Folder Tree` and `New File` stay** despite the ICP logic — a pasted tree orients an agent
   without it burning context on `ls -R`. Do not re-propose deleting these.
+- **Chute does not display session STATE.** Removed 2026-09-04 after the founder asked twice. It
+  claimed `Working (7)` over seven sessions of which none was working, because Terminal's `busy`
+  flag and Claude Code's title glyph were both being read as evidence and neither is. Fixing the
+  resolver left most sessions reading `—`. A status Chute cannot always know is a status it should
+  not always claim: hooks report at turn boundaries, and an agent that ships no hooks (Antigravity)
+  never reports at all. **Do not re-add groups, a badge count, or a "no status" label.** The menu is
+  a list of terminals. The hooks stay for the session id, which is what resume, tmux and cost need.
 - **The mark is the parachute**, decided 2026-09-03 by blind recognition, not by taste. "Chute"
   is the word and an airdrop is the tagline. Do not re-open it without running the same test.
 - **`--naming` keeps two different defaults** — kebab in the terminal, underscore from Finder.
