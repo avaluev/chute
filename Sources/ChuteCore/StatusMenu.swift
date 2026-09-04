@@ -41,7 +41,6 @@ public enum StatusMenu {
         case reportProblem
         case openSettings
         case openSetup
-        case copyHooksSnippet
         case quit
         case bufferReveal
         case bufferMentions
@@ -89,7 +88,6 @@ public enum StatusMenu {
 
     /// IDLE COLLAPSES PAST THREE. These are the sessions you never act on, and on a machine with
     /// eleven terminals open they push the group you actually opened the menu for off the top.
-    public static let collapseIdleAbove = 3
 
     /// The whole menu, in order.
     ///
@@ -103,27 +101,10 @@ public enum StatusMenu {
                              /// The basket's "Copy Basket as Context" row needs a token count, and
                              /// getting one means reading files off disk — a side effect this
                              /// function otherwise never has. The caller does that read once and
-                             /// hands back a number, the same way `hasHookRecords` hands in a fact
-                             /// rather than letting this function go read `~/.chute/sessions`.
+                             /// hands back a number rather than letting this function go and
+                             /// read files, which would make it untestable for the sake of a row.
                              recentTokens: Int = 0,
                              notificationsDenied: Bool = false,
-                             /// Has ANY hook record ever been written to `~/.chute/sessions`?
-                             /// Distinct from zero CURRENT records — a quiet machine with hooks
-                             /// wired has zero of those constantly and that is not a problem. Zero
-                             /// EVER means the badge and every session's state have nothing to
-                             /// draw from at all.
-                             hasHookRecords: Bool = true,
-                             /// The one command that wires the hooks up, put on the clipboard by
-                             /// the row below. It used to be the raw `"hooks"` JSON: a wall of
-                             /// shell with no destination, which the user then had to merge by
-                             /// hand into a settings file that on a real machine already had
-                             /// eleven hooks from another tool in it. Nobody does that; the
-                             /// founder tried twice and pasted it back here both times asking
-                             /// what it was. The app passes its own bundled binary's path so the
-                             /// command works on a machine that never installed the Homebrew CLI.
-                             hookApplyCommand: String =
-                                 HookInstaller.applyCommand(cli: "chute",
-                                                            settingsPath: Diagnostics.claudeSettingsPath),
                              loadFor: (String) -> SessionLoad = { _ in
                                  SessionLoad(cpuPercent: 0, residentBytes: 0, processes: 0) },
                              sessionCommands: (Session) -> [(kind: String, title: String)] = { _ in [] },
@@ -160,60 +141,31 @@ public enum StatusMenu {
             out.append(.separator())
         }
 
-        // THE BADGE CANNOT WORK AND NOTHING SAYS SO. `updateBadgeFromHooks` reports 0 whenever no
-        // hook record has ever existed — the same picture as "nothing needs you". Sessions are
-        // visibly running, so silence here reads as "you're all caught up" when the truth is the
-        // badge has no data to draw from at all.
-        if !hasHookRecords, !sessions.isEmpty {
-            out.append(MenuNode(.command(.copyHooksSnippet),
-                                "Every state below is a guess — Copy the Fix",
-                                toolTip: "No agent-status hook has ever reported in, so nothing "
-                                       + "here knows the difference between an agent that is "
-                                       + "thinking and one that is waiting for you — every "
-                                       + "session falls back to its terminal title, which is why "
-                                       + "they all read as Working. MERGE the snippet into the "
-                                       + "Copies ONE COMMAND — paste it into a terminal and it "
-                                       + "is done. It merges Chute's hooks into your settings "
-                                       + "beside whatever is already there, backs the file up "
-                                       + "first, and never replaces anything. Chute itself does "
-                                       + "not write that file; the command you run does.",
-                                payload: hookApplyCommand))
-            out.append(.separator())
+        // ── ONE FLAT LIST OF TERMINALS, AND NO STATE ────────────────────────────────────
+        //
+        // There were four groups here — "Waiting for You", "Working", "Running — no status" and
+        // "Idle" — and a nag row above them. The founder asked for them gone, twice, and he is
+        // right: a status Chute cannot always know is a status it should not always claim. The
+        // hooks report at turn boundaries and nothing reports at all for an agent that ships no
+        // hooks, so any session can sit in a state that stopped being true hours ago. On
+        // 2026-09-04 that produced `Working (7)` over seven sessions, none of them working.
+        //
+        // What is left is what Chute can see for itself at the moment the menu opens: which
+        // project, which agent, and what that terminal is costing. Click a row, that terminal
+        // comes forward. The hooks still earn their keep — the session id is what makes
+        // "Copy Resume Command", "Continue in tmux" and "Copy Cost So Far" possible — they just
+        // no longer put a word on the screen that nothing can stand behind.
+        //
+        // Sorted by project, then tty, so the list does not reshuffle between two openings.
+        // It used to be ordered by urgency, and urgency is exactly what is gone.
+        for s in sessions.sorted(by: {
+            ($0.project.lowercased(), $0.tty) < ($1.project.lowercased(), $1.tty)
+        }) {
+            out.append(contentsOf: rows(for: s, loadFor: loadFor,
+                                        sessionCommands: sessionCommands, colorFor: colorFor,
+                                        detailFor: detailFor))
         }
-
-        let waiting = sessions.filter { $0.state == .blocked || $0.state == .waiting }
-        let working = sessions.filter { $0.state == .working }
-        // `.unknown` USED TO BE FILED UNDER "Idle", which is the same lie in the other direction:
-        // an agent that reports nothing is not idle, it is unreadable. It gets its own header, and
-        // it is not collapsed the way idle shells are — these are sessions someone may want to
-        // click. An Antigravity tab lives here permanently: `agy` ships no hooks.
-        let unknown = sessions.filter { $0.state == .unknown }
-        let idle    = sessions.filter { $0.state == .idle }
-
-        for (title, group) in [("Waiting for You", waiting), ("Working", working),
-                               ("Running — no status", unknown)] where !group.isEmpty {
-            out.append(MenuNode(.header(count: group.count), title))
-            for s in group {
-                out.append(contentsOf: rows(for: s, loadFor: loadFor,
-                                            sessionCommands: sessionCommands, colorFor: colorFor,
-                                            detailFor: detailFor))
-            }
-            out.append(.separator())
-        }
-
-        if !idle.isEmpty {
-            out.append(MenuNode(.header(count: idle.count), "Idle"))
-            let built = idle.flatMap {
-                rows(for: $0, loadFor: loadFor, sessionCommands: sessionCommands,
-                     colorFor: colorFor, detailFor: detailFor)
-            }
-            if idle.count <= collapseIdleAbove {
-                out.append(contentsOf: built)
-            } else {
-                out.append(MenuNode(.submenu(built), "\(idle.count) idle terminals"))
-            }
-            out.append(.separator())
-        }
+        if !sessions.isEmpty { out.append(.separator()) }
 
         if sessions.isEmpty && problem == nil {
             out.append(MenuNode(.note, "No terminal sessions"))
@@ -233,14 +185,10 @@ public enum StatusMenu {
                      colorFor: (String) -> String,
                      detailFor: (Session) -> String) -> [MenuNode] {
         let hex = colorFor(s.project)
-        let elapsed: String = {
-            switch s.state {
-            case .blocked, .waiting: return "   " + SessionPhrasing.waitedFor(s.since)
-            default: return ""
-            }
-        }()
+        // No "waited 4m" any more: it only ever appeared for `.blocked` and `.waiting`, which are
+        // states Chute no longer claims. What stays is what is true when the menu opens.
         let load = loadFor(s.tty)
-        let prefix = "\(s.project)   \(detailFor(s))\(elapsed)"
+        let prefix = "\(s.project)   \(detailFor(s))"
         var out: [MenuNode] = [
             MenuNode(.session(key: s.key, tty: s.tty, colorHex: hex, prefix: prefix),
                      prefix + suffix(load),

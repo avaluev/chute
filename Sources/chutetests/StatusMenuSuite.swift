@@ -15,18 +15,25 @@ func statusMenuSuite() {
                     tty: tty, project: project, title: project, agent: "claude",
                     busy: state == .working, state: state, since: Date(), sessionID: id)
         }
-        // AN AGENT THAT REPORTS NOTHING IS NOT IDLE. `.unknown` used to be filed under "Idle",
-        // which is the 2026-09-04 bug in the other direction — and idle rows collapse into a
-        // submenu above three, so a running session could end up hidden behind a disclosure.
-        let threeStates = [session("a", .working, tty: "ttys001"),
-                           session("b", .unknown, tty: "ttys002"),
-                           session("c", .idle, tty: "ttys003")]
-        let grouped = titles(StatusMenu.model(sessions: threeStates, trial: .licensed(email: "a@b.c")))
-        T.ok(grouped.contains { $0.hasPrefix("Running — no status") },
-             "an agent with no status gets its own header")
-        T.ok(grouped.contains { $0.hasPrefix("Idle") }, "and the plain shell keeps Idle")
-        T.no(grouped.contains { $0.hasPrefix("Idle  (2)") },
-             "the unreadable session is not counted as an idle terminal")
+        // ── ONE FLAT LIST, NO STATE ─────────────────────────────────────────────────────
+        //
+        // There were four groups and a nag row. The founder asked for them gone, twice: a status
+        // Chute cannot always know is a status it should not always claim, and on 2026-09-04 the
+        // menu said `Working (7)` over seven sessions of which none was working.
+        let threeStates = [session("c", .idle, tty: "ttys003"),
+                           session("a", .working, tty: "ttys001"),
+                           session("b", .unknown, tty: "ttys002")]
+        let flatMenu = StatusMenu.model(sessions: threeStates, trial: .licensed(email: "a@b.c"))
+        T.eq(flatMenu.filter { if case .header = $0.kind { return true }; return false }.count, 0,
+             "no state headers at all — not Working, not Idle, not one of them")
+        T.eq(flatMenu.filter { if case .session = $0.kind { return true }; return false }.count, 3,
+             "every terminal is listed, at the top level, whatever it is doing")
+        // Stable order, or the list reshuffles between two openings of the same menu.
+        let projects = flatMenu.compactMap { node -> String? in
+            if case .session = node.kind { return node.title.components(separatedBy: " ").first }
+            return nil
+        }
+        T.eq(projects, ["a", "b", "c"], "sorted by project, not by urgency — urgency is gone")
 
         func titles(_ nodes: [StatusMenu.MenuNode]) -> [String] {
             nodes.filter { $0.kind != .separator }.map(\.title)
@@ -48,10 +55,10 @@ func statusMenuSuite() {
         let licensed = StatusMenu.model(sessions: live, trial: .licensed(email: "a@b.c"))
         let expired  = StatusMenu.model(sessions: live, trial: .expired)
 
-        T.ok(titles(licensed).contains { $0.contains("Waiting for You") },
-             "a licensed menu shows the sessions that want you")
-        T.no(titles(expired).contains { $0.contains("Waiting for You") },
-             "an expired trial does not — the switcher is what was bought")
+        T.ok(licensed.contains { if case .session = $0.kind { return true }; return false },
+             "a licensed menu lists the terminals")
+        T.no(expired.contains { if case .session = $0.kind { return true }; return false },
+             "an expired trial lists none — the switcher is what was bought")
         T.ok(find(expired, "Trial ended — Buy Chute") != nil, "and says so, once, at the top")
         T.ok(find(expired, "chute CLI is still free") != nil,
              "and keeps the open-core promise at the moment it would be easiest to break")
@@ -108,26 +115,6 @@ func statusMenuSuite() {
         for menu in [licensed, expired, day3] {
             T.no(titles(menu).contains { $0.localizedCaseInsensitiveContains("refresh") },
                  "nothing in this menu is called Refresh")
-        }
-
-        // ── IDLE COLLAPSES PAST THREE ───────────────────────────────────────────────────────
-        //
-        // On a machine with eleven terminals open, the sessions you never act on push the group
-        // you actually opened the menu for off the top.
-        let threeIdle = (1...3).map { session("p\($0)", .idle, tty: "ttys00\($0)") }
-        let fiveIdle  = (1...5).map { session("p\($0)", .idle, tty: "ttys00\($0)") }
-        let flat = StatusMenu.model(sessions: threeIdle, trial: .licensed(email: "a@b.c"))
-        let rolled = StatusMenu.model(sessions: fiveIdle, trial: .licensed(email: "a@b.c"))
-        T.eq(flat.filter { if case .session = $0.kind { return true }; return false }.count, 3,
-             "three idle terminals are listed in place")
-        T.ok(find(rolled, "5 idle terminals") != nil, "five collapse into one row")
-        T.eq(rolled.filter { if case .session = $0.kind { return true }; return false }.count, 0,
-             "and none of them is left at the top level")
-        if case .submenu(let kids)? = find(rolled, "5 idle terminals")?.kind {
-            T.eq(kids.filter { if case .session = $0.kind { return true }; return false }.count, 5,
-                 "all five are still reachable, one level down")
-        } else {
-            T.ok(false, "the collapsed row owns a submenu")
         }
 
         // ── THE BASKET — THE BUG THAT PROMPTED ALL OF THIS ──────────────────────────────────
@@ -203,21 +190,10 @@ func statusMenuSuite() {
                        session("a", .blocked, tty: "ttys001"),
                        session("b", .working, tty: "ttys002")],
             trial: .licensed(email: "a@b.c"))
-        let headers = mixed.compactMap { node -> String? in
-            if case .header = node.kind { return node.title }
-            return nil
-        }
-        T.eq(headers, ["Waiting for You", "Working", "Idle"],
-             "the groups run most urgent first")
+        T.eq(mixed.filter { if case .header = $0.kind { return true }; return false }.count, 0,
+             "a blocked session gets no header either — nothing is ranked any more")
         T.ok(find(mixed, "Quit Chute") != nil, "and Quit is last")
         T.eq(mixed.last?.title, "Quit Chute", "literally last, so it is where the hand expects it")
-
-        // A group with nothing in it is not announced. An empty "Working (0)" is a row that costs
-        // a glance and says nothing.
-        let onlyIdle = StatusMenu.model(sessions: [session("c", .idle, tty: "ttys003")],
-                                        trial: .licensed(email: "a@b.c"))
-        T.no(onlyIdle.contains { if case .header = $0.kind { return $0.title == "Working" }; return false },
-             "an empty group is not given a header")
 
         // ── NOTHING RUNNING, AND SOMETHING WRONG ────────────────────────────────────────────
         let none = StatusMenu.model(sessions: [], trial: .licensed(email: "a@b.c"))
@@ -231,44 +207,6 @@ func statusMenuSuite() {
              "and clicking it goes where the fix is")
         T.no(titles(broken).contains { $0.contains("No terminal sessions") },
              "and it does NOT also claim there are no sessions — we could not look")
-
-        // ── THE BADGE CANNOT WORK AND NOTHING SAYS SO ───────────────────────────────────────
-        //
-        // `updateBadgeFromHooks` reports 0 when no hook record has EVER existed — the same
-        // picture as "nothing needs you". The two must not be conflated: a quiet machine with
-        // hooks wired has zero CURRENT records constantly, and that is not a problem.
-        let needsHook = StatusMenu.model(sessions: live, trial: .licensed(email: "a@b.c"),
-                                         hasHookRecords: false)
-        // The row's TITLE has to answer the question the user actually arrives with, which is
-        // "why does everything say Working". It used to say "Agent status needs a hook", which is
-        // true and answers a question nobody asked; a real user read it, clicked it, and still did
-        // not connect it to the thirteen sessions below all claiming to be working.
-        let hookRow = find(needsHook, "Every state below is a guess")
-        T.ok(hookRow != nil, "live sessions with zero hook records EVER get one explaining row")
-        T.ok(hookRow?.title.contains("Copy the Fix") == true,
-             "and the row still says what clicking it does")
-        T.ok(hookRow?.toolTip?.contains("MERGE") == true,
-             "the tooltip says MERGE — the payload is a whole hooks object and replacing one "
-             + "silently deletes every other tool's hooks")
-        T.eq(hookRow?.kind, .command(.copyHooksSnippet), "and clicking it copies the snippet")
-        // THE PAYLOAD IS A COMMAND, NOT JSON. It was the raw `"hooks"` object until 2026-09-03,
-        // which meant clicking the row gave you a wall of shell you then had to merge by hand
-        // into a file that already had eleven other hooks in it. The founder pasted it back
-        // twice asking what it was. One command, into a terminal, done.
-        T.ok(hookRow?.payload?.contains("hooks merged") == true,
-             "the payload is the command that applies the merge")
-        T.ok(hookRow?.payload?.contains("mktemp") == true, "staged through a temp file")
-        T.no(hookRow?.payload?.contains("\"hooks\" :") == true, "and is not raw JSON any more")
-        T.no(hookRow?.payload == HookInstaller.manualSnippet(),
-             "explicitly NOT the snippet — that is the thing that did not work")
-
-        T.no(titles(StatusMenu.model(sessions: live, trial: .licensed(email: "a@b.c")))
-                .contains { $0.contains("Every state below is a guess") },
-             "the default (hooks presumed wired) shows nothing extra")
-        T.no(titles(StatusMenu.model(sessions: [], trial: .licensed(email: "a@b.c"),
-                                     hasHookRecords: false))
-                .contains { $0.contains("Every state below is a guess") },
-             "and neither does an empty machine — nothing running, nothing to explain")
 
         // ── THE NOTIFICATIONS ROW ───────────────────────────────────────────────────────────
         // Only ever shown when a fallback notification was actually refused.

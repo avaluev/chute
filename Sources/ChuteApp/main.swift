@@ -27,7 +27,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     var liveVitals: SessionMenu.LiveVitals?
     var vitalsTimer: Timer?
     var vitalsSampling = false
-    var watcher: DispatchSourceFileSystemObject?
     var requestWatcher: DispatchSourceFileSystemObject?
 
     func applicationDidFinishLaunching(_ n: Notification) {
@@ -54,9 +53,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         } else {
             Onboard.showIfFirstRun()
         }
-        startWatching()
         startWatchingRequests()
-        updateBadgeFromHooks()
     }
 
     /// Catches discover() failures instead of collapsing them into an unexplained empty menu:
@@ -100,8 +97,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         menu.removeAllItems()
 
         let (sessions, problem) = trial.isUnlocked ? discoverSessionsForMenu() : ([], nil)
-        SessionMenu.applyBadge(to: statusItem.button,
-                               count: trial.isUnlocked ? SessionMenu.attentionCount(sessions) : 0)
+        SessionMenu.applyBadge(to: statusItem.button)
         lastSessions = sessions
 
         // ONE `SystemVitals.sample()` FOR THE WHOLE MENU. Sampling per row would be thirteen
@@ -123,12 +119,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             recent: basketEntries,
             recentTokens: basketTokens,
             notificationsDenied: Notify.deniedAtLastCheck,
-            hasHookRecords: !HookState.readAll().isEmpty,
-            // The BUNDLED cli, not the bare name: a customer who never ran `brew install` has no
-            // `chute` on PATH, and a command that starts with one they do not have is no fix.
-            hookApplyCommand: HookInstaller.applyCommand(
-                cli: "\"\(Bundle.main.bundlePath)/Contents/MacOS/chute\"",
-                settingsPath: Diagnostics.claudeSettingsPath),
             loadFor: { SystemVitals.load(forTTY: $0, in: samples) },
             sessionCommands: { [transcripts] s in
                 SessionCommand.available(for: s, transcript: transcripts.cached(s.sessionID))
@@ -166,7 +156,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         case .reportProblem:             return #selector(reportProblem)
         case .openSettings:              return #selector(openSettings)
         case .openSetup:                 return #selector(openSetup)
-        case .copyHooksSnippet:          return #selector(copyHooksSnippet(_:))
         case .quit:                      return #selector(NSApplication.terminate(_:))
         case .bufferReveal:              return #selector(bufferReveal(_:))
         case .bufferMentions:            return #selector(bufferMentions)
@@ -219,7 +208,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     /// The chat-UI format — the bundle `chute unpack` still serves, byte-identical to
-    /// `chute bundle` for the same files. Same non-destructive read as `bufferMentions` above.
     @objc func bufferFlush() {
         let buf = ContextBuffer()
         guard let text = buf.bundleText() else { say("Basket is empty"); return }
@@ -238,18 +226,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     @objc func openSetup() { FirstRunWindow.show() }
-
-    /// The row StatusMenu emits when there are live sessions but zero hook records have ever
-    /// existed — the badge and every session's state have nothing to draw from. The payload IS
-    /// the snippet; this only moves it to the clipboard, the same as every other buffer command.
-    @objc func copyHooksSnippet(_ sender: NSMenuItem) {
-        guard let snippet = sender.representedObject as? String else { return }
-        // NAME THE DESTINATION, AND SAY MERGE. The snippet is a complete `"hooks"` object; pasted
-        // OVER an existing one it takes every other tool's hooks with it. A machine checked on
-        // 2026-09-03 had 11 of them. "Snippet copied" — which is all this used to say — sent the
-        // user off with a wall of shell, no destination, and no idea it was destructive.
-        deliver(snippet, "Copied — paste it into a terminal and press return")
-    }
 
     /// Support, without an inbox: the diagnostics go to the clipboard and a prefilled issue opens
     /// in the browser. One public answer then serves everyone who searches for the same thing.
@@ -371,27 +347,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         vitalsTimer?.invalidate()
         vitalsTimer = nil
         liveVitals = nil
-    }
-
-    /// Badge updates are event-driven off the hook directory — no polling, no AppleScript.
-    func startWatching() {
-        let dir = HookState.directory()
-        try? FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
-        let fd = open(dir, O_EVTONLY)
-        guard fd >= 0 else { return }
-        let src = DispatchSource.makeFileSystemObjectSource(
-            fileDescriptor: fd, eventMask: [.write, .extend], queue: .main)
-        src.setEventHandler { [weak self] in self?.updateBadgeFromHooks() }
-        src.setCancelHandler { close(fd) }
-        src.resume()
-        watcher = src
-    }
-
-    func updateBadgeFromHooks() {
-        let n = HookState.attention(HookState.readAll(),
-                                    live: HookState.liveTTYs(),
-                                    now: Date()).count
-        SessionMenu.applyBadge(to: statusItem.button, count: n)
     }
 
     /// FE-02 — ⌥⌘N pops the session switcher at the pointer, wherever you are. It used to pop
