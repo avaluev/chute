@@ -10,7 +10,7 @@
 > fails the deploy if any of those strings appears on a rendered page. Strike a row through with
 > `~~…~~` when it stops being false and enforcement drops it on the next run.
 
-This file exists because three false claims reached the live site: "328 KB" (the app is 2.9 MB),
+This file exists because three false claims reached the live site: "328 KB" (the app is 3.0 MB),
 "28 commands" (there are 25), and unit-test counts that disagreed between the README and the
 handoff. A number in marketing copy with no command beside it is a number that will be wrong
 within a fortnight.
@@ -24,12 +24,12 @@ command and update this file first, then the copy.
 
 | Claim | Value | Prove it |
 |---|---|---|
-| App bundle size | **2.9 MB** | `du -sh dist/Chute.app` |
-| CLI binary size | **790 KB** | `ls -lh dist/Chute.app/Contents/MacOS/chute` — the SHIPPED copy. `.build/release/chute` is 1.0 MB because it has not been stripped yet; only `build-app.sh` strips. |
+| App bundle size | **3.0 MB** | `du -sh dist/Chute.app` |
+| CLI binary size | **805 KB** | `ls -lh dist/Chute.app/Contents/MacOS/chute` — the SHIPPED copy. `.build/release/chute` is 1.0 MB because it has not been stripped yet; only `build-app.sh` strips. |
 | CLI commands | **26** | `chute help \| grep -cE '^  [a-z]'` |
 | Finder actions | **9**, drawn as **5 rows** | `chute finder-actions --menu` |
 | External dependencies | **0** | `grep -c '.package(' Package.swift` → 0 |
-| Lines of Swift | **12,770** | `find Sources -name '*.swift' \| xargs wc -l \| tail -1` |
+| Lines of Swift | **12,630** | `find Sources -name '*.swift' \| xargs wc -l \| tail -1` |
 | Minimum macOS | **13 Ventura** | `grep -o 'macOS(.v[0-9]*)' Package.swift` |
 | Architectures | Apple Silicon and Intel | `lipo -info dist/Chute.app/Contents/MacOS/ChuteApp` |
 | Version | **0.2.1** | `chute --version` |
@@ -58,7 +58,7 @@ more credible than the absolute one, and it survives someone reading the source.
 
 | Gate | Result | Command |
 |---|---|---|
-| Unit assertions | **1,091 passed** | `swift run -c release chutetests` |
+| Unit assertions | **1,078 passed** | `swift run -c release chutetests` |
 | End-to-end | **150 passed** headless, **178** full | `CHUTE_HEADLESS=1 ./Scripts/smoke.sh` |
 | Menu-item acceptance | **81 checks** — every Finder action against a hostile tree | `./Scripts/acceptance.sh` |
 | Metrics plausibility | **4 checks** — magnitude, not shape | `./Scripts/check-metrics.sh` |
@@ -145,8 +145,8 @@ post or page opens with a command name.
 |---|---|---|
 | "turn agent output back into files" | The `unpack` command was deleted 2026-08-31 — a Claude Code user's agent writes its own files. This exact sentence survived in the site's `<meta name="description">` and OpenGraph description until 2026-09-01, because `check-claims.mjs` stripped tags before reading. It reads metadata now. | Nothing — the job no longer exists |
 | "Paste an answer back" | Same deleted command, the hero's half-sentence version of it. | "Select the folders. Right-click once." |
-| "328 KB" | The app is 2.9 MB. This was live on the site until 2026-08-28. | "2.9 MB, no dependencies, no launch daemon" |
-| "2.5 MB" | Was true, then was not: the bundle reached **3.3 MB** unnoticed because eight files carried a hand-typed copy of this number and nothing checked any of them. `strip -x` before signing brought it to **2.4 MB** on 2026-09-01, and `Scripts/build-app.sh` now FAILS if this row and `du -sh dist/Chute.app` disagree. It went to **2.8 MB** on 2026-09-03: the redesigned icon is 755 KB against the old one's 359 KB, which is what ten natively-drawn slices with real gradients cost. It went to **2.9 MB** on 2026-09-04, when the ratchet moved `SessionCommand`, the hex parse and the Finder dispatch rule out of the two untestable targets and into ChuteCore — which is linked into all three binaries, so code that shipped once now ships three times. 112 KB is what that coverage costs, and it was a deliberate trade. NOTE: "2.4 MB" is deliberately NOT added to this forbidden list — it is still true of the strip change and the changelog page renders it as history, so this list would fail the deploy on a truthful sentence. | "2.9 MB" — and re-derive it, never retype it |
+| "328 KB" | The app is 3.0 MB. This was live on the site until 2026-08-28. | "3.0 MB, no dependencies, no launch daemon" |
+| "2.5 MB" | Was true, then was not: the bundle reached **3.3 MB** unnoticed because eight files carried a hand-typed copy of this number and nothing checked any of them. `strip -x` before signing brought it to **2.4 MB** on 2026-09-01, and `Scripts/build-app.sh` now FAILS if this row and `du -sh dist/Chute.app` disagree. It went to **2.8 MB** on 2026-09-03: the redesigned icon is 755 KB against the old one's 359 KB, which is what ten natively-drawn slices with real gradients cost. It went to **2.9 MB** on 2026-09-04, when the ratchet moved `SessionCommand`, the hex parse and the Finder dispatch rule out of the two untestable targets and into ChuteCore — which is linked into all three binaries, so code that shipped once now ships three times. 112 KB is what that coverage costs, and it was a deliberate trade. It reached **3.0 MB** later the same day — `AboutText` and the rewritten Settings copy, again linked into all three binaries. NOTE the pattern: this row moves whenever a rounded `du -sh` crosses a boundary, and each move is a sweep of nine files. That is the price of the number being true. NOTE: "2.4 MB" is deliberately NOT added to this forbidden list — it is still true of the strip change and the changelog page renders it as history, so this list would fail the deploy on a truthful sentence. | "3.0 MB" — and re-derive it, never retype it |
 | "28 commands" | There are 26. | "26 commands" |
 | "Nothing is uploaded, ever" | `gist` uploads on request. | "No network code at all; `gist` shells out to your own `gh`" |
 | "signed by Apple" | Not yet true. `spctl -a dist/Chute.app` says `rejected`. The *word* "notarised" is deliberately NOT on this list: a word list cannot tell a claim from a denial, and forbidding it blocked the site from discussing the wall at all. `check-claims.mjs` asks `spctl` and forbids the affirmative forms instead — a derived check that retires itself. | Nothing — omit until the Developer ID exists |
