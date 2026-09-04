@@ -63,68 +63,25 @@ New File ▸              12.9 min/day    Empty Markdown / From Clipboard / Imag
 > the three false passes found by perturbing — to `handoff/HANDOFF-2026-09-03-icon-menubar-hooks.md`.
 > Both are records. The decisions they reached are in DECISIONS and TRAPS below; do not re-derive.
 
-## DONE 2026-09-04 (verified) — the ratchet's next two extractions, and four drifted numbers
+## DONE 2026-09-04 (verified) — the truth pass
 
-**161 decision points, down from 172.** The two extractions the ratchet named — and that had each
-already been deferred once — are done. Three rules moved out of `Sources/ChuteApp` and
-`Sources/ChuteFinder`, which `chutetests` cannot link, into ChuteCore, which it can:
+Full record: `handoff/HANDOFF-2026-09-04-truth-pass.md`. One theme — every claim the repo makes
+about itself was checked against the thing it describes, and five were false.
 
-| Rule | Now at | Why it was worth moving |
+| What was wrong | Where | Commit |
 |---|---|---|
-| Which commands a session offers | `Sources/ChuteCore/SessionCommands.swift:52` | offering `--resume` for an agent whose syntax we guess puts a failing command on a clipboard |
-| Which modifier reveals each one | `Sources/ChuteCore/SessionCommands.swift:41` | AppKit draws ONE alternate per distinct mask — two commands sharing one means the second row is built, is correct, and is never seen. Nothing in the drawing code can notice |
-| The hex parse | `Sources/ChuteCore/SessionColor.swift:34` | it draws every session dot, and it had a live bug: `UInt32(_:radix:)` accepts a leading sign, so `"+ABCDE"` was six characters that parsed to a colour |
-| What a Finder click means | `Sources/ChuteCore/ActionRequest.swift:51` | three of its four answers are sentences the user reads, and none were reachable — the shape that shipped the `.pyc` bug |
+| Two ratchet extractions still deferred | `SessionMenu` 29, `ChuteFinderSync` 20 → **161 total, was 172** | `03ede90` |
+| Four fact-sheet numbers had drifted, one of them sold to a reader | bundle, CLI binary, lines, assertions | `8da1614` |
+| `chute doctor` said "all 10 checks passed" about an app not on the disk | `resolvedAppPath` guessed `~/Applications` | `d9bd5ff` |
+| The menu said `Working (7)` with nothing working | Terminal's `busy` flag and a title glyph that is never cleared | `87c2cef` |
+| Settings carried a forbidden claim, a dead domain and three overclaims | About, License, General — and `chute help`, and `README.md` | `815be8a` |
 
-`SessionMenu` 29 → 19, `ChuteFinderSync` 20 → 19. **+41 assertions, 1,073 total.** Every new guard
-was perturbed to red before it was believed — five for five, listed in `03ede90`.
+**Antigravity** (`agy`) is recognised and named. It ships no hooks, so it sits under
+"Running — no status" permanently; that is the whole of what a terminal can tell Chute about it.
 
-**The size gate caught its own next drift.** Moving code into ChuteCore means it ships in all three
-binaries rather than one: **+112 KB**, measured against a worktree build of HEAD, so the bundle is
-**2.9 MB**. That is the price of the coverage and it was paid deliberately. Nine present-tense
-claims of 2.8 MB were updated with it.
-
-**Three more numbers in the fact sheet had drifted, ungated.** The file whose whole job is gated
-numbers was carrying: CLI binary **727 KB claimed / 747 KB shipped at HEAD** — and that number was
-being sold to a reader in `marketing/02-LANDING-COPY.md`; Lines of Swift **11,975 / 12,619**; unit
-assertions **1,005 / 1,073**. All three corrected. The CLI binary row is now gated the same way the
-bundle row is, and the gate was perturbed red. The other two are deliberately NOT gated — see
-OPEN QUESTIONS.
-
-**`chute doctor` said "all 10 checks passed" about an app that was not on the disk.** Found while
-verifying the above, and it is the sharpest false pass this repo has had, because it is in the tool
-whose entire job is telling you the truth about your install. `Diagnostics.resolvedAppPath` GUESSED
-`~/Applications/Chute.app` whenever the CLI is not inside a bundle — which is the Homebrew CLI, the
-copy customers install. The founder's app is in `/Applications`, where the DMG says to drag it, so
-doctor reported a path that does not exist AND `✓ Finder extension actually starts — not installed`,
-a tick whose own detail contradicts it. The probe read a bundle that is not there, got nil, and nil
-means "no extension installed, someone else's check" — so it auto-passed. Fixed at the shared
-function: `resolvedAppPath` answers with the copy that EXISTS (same candidate list, same order, as
-`Scripts/build-app.sh:289`), and `app-location` asks whether the app is there rather than only
-whether its parent folder is named Applications. `d9bd5ff`.
-
-**The menu said `Working (7)` when nothing was working.** Reported by the founder from his own
-menu bar; one of the seven rows was `38.LifespanOS · no agent running`. Two proxies were being read
-as evidence of what an agent is doing and BOTH are wrong: Terminal's `busy` flag only means "a
-process other than the shell is running in this tab", and the glyph Claude Code writes into the
-title (`✳`, `◑`) is **never cleared when a turn ends** — three of the seven had hook records saying
-`waiting` at 02:06, 02:34 and 03:10 and still carried a working glyph at 10:37. The glyph was
-consulted exactly when the hook aged out, which is when it is most stale. Both deleted, with
-`GlyphTable` and the `busy`/`title` parameters, so neither can be consulted again. **A hook, or
-nothing.** `.unknown` gets its own menu group, `Running — no status`, rather than being filed under
-Idle — which is the same lie pointing the other way, and idle rows collapse into a submenu above
-three, so a running session could hide behind a disclosure triangle. The badge stopped lying too:
-`.waiting` feeds it and was being guessed for any agent tab Terminal did not call busy. `87c2cef`.
-
-**Antigravity is recognised.** `agy` → "Antigravity", matched as a substring because an update
-renames the binary under the running process (`agy.1788445358670789000.old`). It ships **no hooks**
-— `agy help` has no such subcommand — so it sits under "Running — no status" permanently. That is
-the whole of what a terminal can tell Chute about it. `--conversation <ID>` exists as a resume
-syntax, but the ID only ever arrives through a hook, so `ResumeCommand` was deliberately NOT given
-an `agy` entry: it could never fire.
-
-**`site/src/lib/commands.json` was stale**, still describing `hooks snippet|uninstall|status`. It is
-generated from the binary but only when someone runs the site build. Regenerated.
+**Three gates added or fixed**, each perturbed to red: the CLI binary size (±2%, after an exact
+compare cried wolf on a 1 KB move within the hour), the forbidden-claims sweep over
+`Sources/**/*.swift`, and the app-location existence check.
 
 ## IN FLIGHT — nothing
 
@@ -294,6 +251,10 @@ Take those two; leave the wiring where it is.
 - **A gate that fires on noise is a gate people learn to ignore.** The CLI-binary gate added on
   2026-09-04 09:xx fired on a 1 KB move at 10:xx — on the very next commit. It compares at ±2% now,
   the band `du -sh` already gives the bundle row. Match the gate's precision to the claim's.
+- **A gate that sweeps the docs and not the product is half a gate.** The forbidden-claims sweep
+  covered the site, then the README, and the same forbidden sentence sat in the app's About tab the
+  whole time — where a customer who has just paid reads it. When you add a check for a claim, ask
+  where else that claim is rendered, and sweep the product first.
 - **A note is not a gate.** `check-cases.mjs` printed "9 recordings no case refers to" for days.
   Three of them were videos of deleted features, publicly reachable. Nobody read the note.
 - **A hand-kept list is not a gate.** `check:claims` passed for a whole day while four files told
@@ -383,3 +344,9 @@ Take those two; leave the wiring where it is.
   for a day. Comparing the record's `cwd` against the tab's project does NOT distinguish the two —
   checked on ttys001, where the shell had simply `cd`'d to the parent directory. **One line, and
   the founder's call.**
+- **`chute help` and `README.md` have no gate between them.** The README generates the site's
+  command table (`brand/gen-commands.mjs` reads the README, NOT the binary), and it had drifted to
+  24 rows against 26 commands. `check-claims.mjs` already proves every command NAMED anywhere runs;
+  the missing direction is every command that RUNS being named. ~5 lines, next to the
+  `finder-actions --json` check that already invokes the binary. Third gate of the day — deliberately
+  left for a decision rather than added on the spot.
