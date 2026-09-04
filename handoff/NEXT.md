@@ -103,6 +103,26 @@ function: `resolvedAppPath` answers with the copy that EXISTS (same candidate li
 `Scripts/build-app.sh:289`), and `app-location` asks whether the app is there rather than only
 whether its parent folder is named Applications. `d9bd5ff`.
 
+**The menu said `Working (7)` when nothing was working.** Reported by the founder from his own
+menu bar; one of the seven rows was `38.LifespanOS · no agent running`. Two proxies were being read
+as evidence of what an agent is doing and BOTH are wrong: Terminal's `busy` flag only means "a
+process other than the shell is running in this tab", and the glyph Claude Code writes into the
+title (`✳`, `◑`) is **never cleared when a turn ends** — three of the seven had hook records saying
+`waiting` at 02:06, 02:34 and 03:10 and still carried a working glyph at 10:37. The glyph was
+consulted exactly when the hook aged out, which is when it is most stale. Both deleted, with
+`GlyphTable` and the `busy`/`title` parameters, so neither can be consulted again. **A hook, or
+nothing.** `.unknown` gets its own menu group, `Running — no status`, rather than being filed under
+Idle — which is the same lie pointing the other way, and idle rows collapse into a submenu above
+three, so a running session could hide behind a disclosure triangle. The badge stopped lying too:
+`.waiting` feeds it and was being guessed for any agent tab Terminal did not call busy. `87c2cef`.
+
+**Antigravity is recognised.** `agy` → "Antigravity", matched as a substring because an update
+renames the binary under the running process (`agy.1788445358670789000.old`). It ships **no hooks**
+— `agy help` has no such subcommand — so it sits under "Running — no status" permanently. That is
+the whole of what a terminal can tell Chute about it. `--conversation <ID>` exists as a resume
+syntax, but the ID only ever arrives through a hook, so `ResumeCommand` was deliberately NOT given
+an `agy` entry: it could never fire.
+
 **`site/src/lib/commands.json` was stale**, still describing `hooks snippet|uninstall|status`. It is
 generated from the binary but only when someone runs the site build. Regenerated.
 
@@ -266,6 +286,14 @@ Take those two; leave the wiring where it is.
   untested by two audits and deferred by both, and the founder found the bug. If a finding is real
   enough to rank, it is real enough to deserve a gate that makes it impossible to grow — even when
   the fix itself waits.
+- **A proxy is not evidence, and a stale proxy is a lie with a timestamp.** Terminal's `busy` flag
+  and Claude Code's title glyph both looked like "the agent is working" and neither is. The glyph
+  is the sharper lesson: it was CORRECT when it was written and was never withdrawn, so it aged
+  into a false positive — and it was only ever consulted once the trustworthy source had aged out.
+  Before treating an observation as a state, ask what clears it.
+- **A gate that fires on noise is a gate people learn to ignore.** The CLI-binary gate added on
+  2026-09-04 09:xx fired on a 1 KB move at 10:xx — on the very next commit. It compares at ±2% now,
+  the band `du -sh` already gives the bundle row. Match the gate's precision to the claim's.
 - **A note is not a gate.** `check-cases.mjs` printed "9 recordings no case refers to" for days.
   Three of them were videos of deleted features, publicly reachable. Nobody read the note.
 - **A hand-kept list is not a gate.** `check:claims` passed for a whole day while four files told
@@ -347,3 +375,11 @@ Take those two; leave the wiring where it is.
   which the build-stamp check already taught. A ratchet — may rise freely, may never fall — is the
   shape that fits, and it is the shape `check-untested-logic.sh` already implements. ~15 lines and
   a second baseline file. **Worth it, or is one ratchet enough?**
+- **Is six hours the right staleness window for a hook record?** `StateResolver.staleAfterDefault`.
+  At six hours, a session you left waiting overnight reads `Running — no status` in the morning
+  rather than `waiting`, and drops off the badge — on the founder's machine right now that is three
+  real "waiting for you" sessions shown as unknown. Raising it to 24 h recovers them; the risk it
+  guards is a tty NUMBER being reused by a new tab, which would then wear the old session's state
+  for a day. Comparing the record's `cwd` against the tab's project does NOT distinguish the two —
+  checked on ttys001, where the shell had simply `cd`'d to the parent directory. **One line, and
+  the founder's call.**
