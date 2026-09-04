@@ -32,6 +32,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     func applicationDidFinishLaunching(_ n: Notification) {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         statusItem.button?.toolTip = "Chute — drop context into your agent"
+        // DRAW THE MARK HERE, WHERE THE ITEM IS MADE. A `variableLength` status item with no image
+        // and no title is ZERO POINTS WIDE — it exists, it is in the menu bar, and there is
+        // nothing to see or click. Until 2026-09-04 the only thing that set the image was
+        // `updateBadgeFromHooks()`, called at the end of launch to draw the count; removing the
+        // count removed the icon with it, and Chute launched invisible. The other call site is
+        // `menuWillOpen`, which cannot help: it needs the click that needs the icon.
+        //
+        // So it is set at creation, once, and never again — the mark is static now. An invariant
+        // that lives next to the thing it is about cannot be orphaned by deleting a refresh.
+        SessionMenu.applyBadge(to: statusItem.button)
         // Placeholder menu, populated by menuWillOpen on click — no AppleScript on the launch path.
         let menu = NSMenu()
         menu.delegate = self
@@ -97,7 +107,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         menu.removeAllItems()
 
         let (sessions, problem) = trial.isUnlocked ? discoverSessionsForMenu() : ([], nil)
-        SessionMenu.applyBadge(to: statusItem.button)
         lastSessions = sessions
 
         // ONE `SystemVitals.sample()` FOR THE WHOLE MENU. Sampling per row would be thirteen
