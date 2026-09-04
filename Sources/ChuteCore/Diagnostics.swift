@@ -110,10 +110,10 @@ public enum Diagnostics {
               why: "The badge on the menu bar icon, and each session's blocked/waiting/working "
                 + "state, come entirely from hooks Claude Code calls. Without them the badge stays "
                 + "dark and every session looks idle, even a busy one.",
-              fix: "agent status hooks are not wired — the badge will stay dark, and every "
-                + "session reads \"no status\". `chute hooks merged` prints your settings "
-                + "with them added and gives you the command that writes it; Chute never "
-                + "edits that file itself.",
+              fix: "agent status hooks are not wired — the badge stays dark and every "
+                + "session reads \"no status\". `chute hooks snippet` prints the JSON and, "
+                + "under it, the one command that merges it in, backing the file up first; "
+                + "Chute never edits that file itself.",
               severity: .note),
         Check(id: "end-to-end", title: "End-to-end proof",
               why: "Every component can be healthy and the product still not work. This runs a real command and reads the result back.",

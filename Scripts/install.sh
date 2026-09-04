@@ -178,7 +178,7 @@ The menu bar badge only counts BLOCKED and WAITING sessions once Claude Code hoo
 Chute never edits ~/.claude/settings.json — wiring them is done by your own hand, if you want it:
 
   chute hooks status     (read-only: what is wired now)
-  chute hooks merged     (prints your settings with them added, and the command that writes it)
+  chute hooks snippet    (prints the JSON, and the one command that merges it in for you)
 
 First use of the hotkey or a Finder action will ask for Automation permission. That prompt is
 macOS asking whether Chute may read your Finder selection. Nothing leaves your machine.
