@@ -99,8 +99,7 @@ public struct TerminalAppAdapter {
                 title: title,
                 agent: agent,
                 busy: busy,
-                state: StateResolver.resolve(hook: hook, title: title, busy: busy,
-                                             isAgent: agent != nil, now: now),
+                state: StateResolver.resolve(hook: hook, isAgent: agent != nil, now: now),
                 since: hook?.timestamp,
                 sessionID: hook?.sessionID,
                 cwd: hook?.cwd
@@ -118,7 +117,12 @@ public struct TerminalAppAdapter {
     /// executable is sometimes "claude", sometimes "cursor-agent", sometimes wrapped in
     /// `caffeinate ◂ claude`. A false positive costs a row in the wrong group; a false negative
     /// hides the session the user opened the menu to find.
-    public static let knownAgents = ["claude", "codex", "cursor", "gemini", "aider"]
+    /// "agy" is the Antigravity CLI, and it is short on purpose: an update leaves the running
+    /// binary renamed, so the founder's tab reported `agy.1788445358670789000.old` and read as a
+    /// plain shell. The substring test catches both. Antigravity ships no hooks — `agy help` has
+    /// no such subcommand — so naming it is all Chute can honestly do: it will sit under
+    /// "Running — no status" until Antigravity has something to report.
+    public static let knownAgents = ["claude", "codex", "cursor", "gemini", "aider", "agy"]
 
     public static func agentName(in processes: String) -> String? {
         knownAgents.filter { processes.contains($0) }.max { $0.count < $1.count }

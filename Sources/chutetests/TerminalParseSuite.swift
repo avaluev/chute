@@ -48,10 +48,25 @@ func terminalParseSuite() {
         // The longest match wins, so "claude" inside "claude-code" cannot mask a different agent
         // and the order of the table cannot change the answer.
         T.eq(TerminalAppAdapter.agentName(in: "login-zsh, node"), nil, "no agent is nil, not \"\"")
+
+        // ANTIGRAVITY. The founder's tab reported `agy.1788445358670789000.old` — an update had
+        // renamed the binary under the running process — and it read as a plain shell, so the menu
+        // said "no agent running" while an agent was plainly running in it.
+        T.eq(TerminalAppAdapter.agentName(in: "login-zsh, agy"), "agy", "the Antigravity CLI is an agent")
+        T.eq(TerminalAppAdapter.agentName(in: "login-zsh, agy.1788445358670789000.old"), "agy",
+             "and still is after an update renames the binary under it")
+        T.eq(SessionPhrasing.detail(agent: "agy", transcript: nil), "Antigravity",
+             "and it is called Antigravity, not agy")
+        // It ships no hooks (`agy help` has no such subcommand), so it can never report a state.
+        // The honest answer is unknown — never "working" off Terminal's busy flag.
+        T.eq(StateResolver.resolve(hook: nil, isAgent: true,
+                                   now: Date(timeIntervalSince1970: 1_756_219_200)),
+             .unknown, "an agent with no hooks reports nothing, and Chute says so")
         T.no(sessions[1].isAgent, "a plain shell is not an agent")
         T.eq(sessions[1].state, .idle, "plain idle shell")
         T.eq(sessions[2].state, .blocked, "the hook for ttys004 wins")
-        T.eq(sessions[0].state, .working, "glyph resolves the hookless agent")
+        T.eq(sessions[0].state, .unknown,
+             "a hookless agent is unknown — its title glyph is not cleared when the turn ends")
         T.eq(sessions[2].key, "Terminal:210583:ttys004", "key built from kind, window and tty")
 
         // Malformed input must degrade, never crash.

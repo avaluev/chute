@@ -183,9 +183,15 @@ public enum StatusMenu {
 
         let waiting = sessions.filter { $0.state == .blocked || $0.state == .waiting }
         let working = sessions.filter { $0.state == .working }
-        let idle    = sessions.filter { $0.state == .idle || $0.state == .unknown }
+        // `.unknown` USED TO BE FILED UNDER "Idle", which is the same lie in the other direction:
+        // an agent that reports nothing is not idle, it is unreadable. It gets its own header, and
+        // it is not collapsed the way idle shells are — these are sessions someone may want to
+        // click. An Antigravity tab lives here permanently: `agy` ships no hooks.
+        let unknown = sessions.filter { $0.state == .unknown }
+        let idle    = sessions.filter { $0.state == .idle }
 
-        for (title, group) in [("Waiting for You", waiting), ("Working", working)] where !group.isEmpty {
+        for (title, group) in [("Waiting for You", waiting), ("Working", working),
+                               ("Running — no status", unknown)] where !group.isEmpty {
             out.append(MenuNode(.header(count: group.count), title))
             for s in group {
                 out.append(contentsOf: rows(for: s, loadFor: loadFor,

@@ -264,10 +264,21 @@ fi
 # whose whole job is gated numbers is the last place an ungated one belongs.
 # If the binary ever passes 1 MB, `ls -lh` prints "1.0M" and this goes red rather than quiet —
 # which is the right way round: change the row's unit deliberately.
-CLI_SIZE="$(ls -lh "$APP/Contents/MacOS/chute" | awk '{print $5}')"   # e.g. 789K
+# ±2%, NOT exact. The bundle row above is gated by `du -sh`, which rounds to 0.1 MB — on a 2.9 MB
+# bundle that is a 3.4% band, and it is why that gate only ever fires on real drift. `ls -lh` gives
+# KB, and an exact compare fired on the very next commit for a 1 KB move. A gate that goes red on
+# every rebuild is one people learn to ignore — the build-stamp check already taught this repo that
+# — so this one asks the question the claim actually makes: is the number still true to the reader?
+CLI_SIZE="$(ls -lh "$APP/Contents/MacOS/chute" | awk '{print $5}')"   # e.g. 790K
 CLAIMED_CLI="$(sed -n 's/^| CLI binary size | \*\*\([0-9]*\) KB\*\*.*/\1/p' "$SHEET")"
-if [ "$CLAIMED_CLI" != "${CLI_SIZE%K}" ]; then
-  echo "build-app: the fact sheet says the CLI binary is ${CLAIMED_CLI} KB and it is ${CLI_SIZE%K} KB." >&2
+CLI_ACTUAL="${CLI_SIZE%K}"
+# A non-numeric actual means ls printed "1.0M": the row's unit is wrong, which is a red, not a pass.
+if [ -z "$CLAIMED_CLI" ] || ! [ "$CLI_ACTUAL" -eq "$CLI_ACTUAL" ] 2>/dev/null; then
+  echo "build-app: could not read the CLI binary size (sheet='${CLAIMED_CLI}' actual='${CLI_SIZE}')." >&2
+  echo "           If the binary passed 1 MB, change the row's unit deliberately." >&2
+  SIZE_BAD=1
+elif [ "$(( (CLI_ACTUAL - CLAIMED_CLI) * (CLI_ACTUAL - CLAIMED_CLI) * 2500 ))" -gt "$(( CLAIMED_CLI * CLAIMED_CLI ))" ]; then
+  echo "build-app: the fact sheet says the CLI binary is ${CLAIMED_CLI} KB and it is ${CLI_ACTUAL} KB (past ±2%)." >&2
   echo "           Fix marketing/06-FACT-SHEET.md, then every asset that quotes it." >&2
   SIZE_BAD=1
 fi
