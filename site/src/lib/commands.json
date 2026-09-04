@@ -92,7 +92,15 @@
     "does": "Agent status hooks. merged prints your settings with them added; Chute never writes that file — the command it gives you does"
   },
   {
+    "cmd": "chute resume [key\\|N]",
+    "does": "The command to pick that conversation up again. --tmux"
+  },
+  {
     "cmd": "chute doctor",
-    "does": "Check every prerequisite and say how to fix it. --fix --json"
+    "does": "Check the install and say how to fix what fails. --fix --json"
+  },
+  {
+    "cmd": "chute onboard",
+    "does": "What Chute is, and the first thing to try"
   }
 ]

@@ -42,17 +42,29 @@ enum SettingsWindow {
 
     private static func general() -> NSView {
         let v = NSStackView(views: [
-            heading("Three surfaces, one tool"),
+            heading("Where Chute is"),
+            // The counts are READ, never typed. A number written into a sentence is a number that
+            // goes stale — this app shipped "every prerequisite" over ten checks, and the fact
+            // sheet has a whole table of hand-typed numbers that drifted.
             body("""
-                 Right-click in Finder for the file actions. ⌥⌘N anywhere for the quick menu. \
-                 The `chute` command in any terminal.
+                 Finder — right-click files or a folder for the \(ChuteActions.all.count) actions.
 
-                 Chute never writes to another tool's configuration. To wire the agent status \
-                 hooks, run `chute hooks snippet` and paste the result yourself.
+                 Menu bar — your agent sessions. ⌥⌘N opens the same menu wherever you are.
+
+                 Terminal — the `chute` command.
                  """),
-            heading("Diagnostics"),
-            body("`chute doctor` checks every prerequisite and prints the exact fix for anything "
-                 + "that is not wired up yet."),
+            heading("Agent status hooks"),
+            body("""
+                 Chute never edits ~/.claude/settings.json. `chute hooks merged` prints that file \
+                 with Chute's hooks added and gives you the command that writes it, backup first.
+
+                 Without the hooks Chute cannot tell what an agent is doing: the menu bar badge \
+                 stays dark and every session reads "no status".
+                 """),
+            heading("If something is not working"),
+            body("`chute doctor` runs \(Diagnostics.all.count) checks — the extension, the "
+                 + "Automation permission, the hooks — and prints the fix for each one that "
+                 + "fails. `chute doctor --fix` applies the ones it can."),
         ])
         return pad(v)
     }
@@ -81,29 +93,26 @@ enum SettingsWindow {
 
         let v = NSStackView(views: [
             status,
-            body("The `chute` command-line tool is free forever and MIT licensed. This licence "
-                 + "covers the app: the Finder menu, the menu-bar switcher and the hotkey."),
+            body("The `chute` command line tool is MIT licensed and free. This licence is for "
+                 + "the app around it: the Finder actions, the session switcher and ⌥⌘N."),
             heading("Licence key"),
             row,
-            body("Paste the key from your purchase email. It is checked on this Mac — Chute never "
-                 + "contacts a server to verify a licence, and never will."),
+            // NOT "never contacts a server, and never will" — a promise about the future that
+            // nobody can check. This says the thing a reader can verify from the source in one
+            // grep, which is more convincing than the absolute version anyway.
+            body("Paste the key from your purchase email. Chute checks its signature here on "
+                 + "this Mac; there is no network code in the app, so there is nothing for it "
+                 + "to phone home to."),
             buy,
         ])
         return pad(v)
     }
 
     private static func about() -> NSView {
-        let v = NSStackView(views: [
-            heading("Chute \(ChuteVersion.current)"),
-            body("Drop context into your agent."),
-            body("""
-                 Offline. No account. No telemetry. Nothing is uploaded, ever, except by the \
-                 `gist` command when you explicitly ask for it.
-
-                 chutedev.com
-                 """),
-        ])
-        return pad(v)
+        // The words are `ChuteCore.AboutText`, where the suite can read them. This end decides
+        // nothing — see that file for why the old sentence had to go.
+        let a = AboutText.about(version: ChuteVersion.current, build: Diagnostics.installedBuild())
+        return pad(NSStackView(views: [heading(a.heading)] + a.body.map(body)))
     }
 
     // MARK: - Plumbing
@@ -124,7 +133,9 @@ enum SettingsWindow {
             statusLabel?.stringValue = days == 1 ? "Trial — last day" : "Trial — \(days) days left"
             statusLabel?.textColor = .labelColor
         case .expired:
-            statusLabel?.stringValue = "Trial ended — the app is locked until it is licensed"
+            // Precise about WHAT stopped. The CLI is untouched by the trial, and saying so at the
+            // exact moment the app locks is the open-core promise being kept rather than claimed.
+            statusLabel?.stringValue = "Trial ended — the Finder actions and the switcher are off. `chute` still works."
             statusLabel?.textColor = .systemOrange
         }
     }

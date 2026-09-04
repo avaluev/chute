@@ -43,7 +43,7 @@ SHARING
   env inject [dir]      Keychain → .env                   --keys A,B --force  (dry run by default)
 
 SETUP
-  doctor                Check every prerequisite and say how to fix it   --fix --force --json
+  doctor                Check the install and say how to fix what fails  --fix --force --json
                                    (--fix previews by default)
   onboard               What Chute is, and the first thing to try
 
