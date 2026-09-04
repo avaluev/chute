@@ -101,6 +101,20 @@ list of terminals sorted by project: what Chute can see for itself when it opens
 what that terminal costs — and clicking one brings it forward. Hooks still earn their keep through
 the session id (resume, tmux, cost); they just no longer put a word on screen. Ratchet 161 → 156.
 
+**Reviewed, cleaned and reinstalled** (`49ca130`). Code review of the day's 16 commits: no
+hardcoded credentials in tracked source, no TODO/FIXME, no `print`/`console`, nothing over 800
+lines or 50 lines per function. Two findings, both fixed. **CRITICAL: a live Cloudflare API token
+sat in the repo root** as `CloudFlare_API+.md` — never committed, gitignored, but readable by every
+agent session, and `~/.secrets/` already held `CloudFlare_API.LEAKED.md` from the day before at the
+same size. Moved to `~/.secrets/` (0700/0600). **ROTATE IT.** MEDIUM: two force-unwraps in
+`HookInstallerSuite` — a `!` crashes the harness and a crash prints no tally.
+
+Dead code deleted, all orphaned by removing the status: `HookState.attention`/`liveTTYs`,
+`SessionPhrasing.waitedFor`, and `MenuNode.header` with its renderer — each had tests, and a
+function whose only caller is its own test is dead code wearing a coverage badge. 1,078 → 1,065
+assertions, ratchet 156 → 154. Four stale scratch files removed from `handoff/`; **the six AUDIT
+files were kept deliberately** — they carry unresolved findings.
+
 **Antigravity** (`agy`) is recognised and named. It ships no hooks, so it sits under
 "Running — no status" permanently; that is the whole of what a terminal can tell Chute about it.
 
@@ -397,3 +411,7 @@ Take those two; leave the wiring where it is.
   The command no longer trusts PATH, so the danger is gone — but "your CLI is older than your app"
   is a real state doctor currently reports as `✓ Command line tool`. One check, and the fix line
   writes itself (`brew upgrade chute`).
+- **The six `handoff/AUDIT-2026-08-28-*.md` are unreferenced and carry open markers.** Nothing
+  links them and each has 1-5 unresolved-looking findings. They are either worth triaging into
+  TRAPS and gates, or worth deleting on purpose — but not worth leaving as 99 KB of records nobody
+  reads. Twenty minutes with `grep -n "\[ \]"` settles it.
