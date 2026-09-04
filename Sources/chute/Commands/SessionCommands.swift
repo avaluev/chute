@@ -97,8 +97,8 @@ func cmdResume(_ a: Args) {
         Out.fail("""
         no session carries an id yet.
           Chute learns it from the hooks, which have to be added to your own Claude Code
-          settings — run `chute hooks merged` and follow the command it gives you. Until
-          then the menu can tell you a session is waiting, but not which conversation it is.
+          settings — run `chute hooks snippet` and use the command it prints. Until then
+          the menu can tell you a session is waiting, but not which conversation it is.
         """)
     }
 
@@ -256,7 +256,7 @@ func cmdHooks(_ a: Args) {
             → \(outdated.count) hook(s) are an older version of the snippet.
               They still report state, so the badge and the waiting times are correct — but they
               do not record the session id, so the menu cannot show the model, the cost, or
-              `chute resume`. Run `chute hooks merged` and follow the command it gives you.
+              `chute resume`. Run `chute hooks snippet` and use the command it prints.
             """)
         }
     default:
