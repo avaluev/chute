@@ -29,7 +29,7 @@ command and update this file first, then the copy.
 | CLI commands | **26** | `chute help \| grep -cE '^  [a-z]'` |
 | Finder actions | **9**, drawn as **5 rows** | `chute finder-actions --menu` |
 | External dependencies | **0** | `grep -c '.package(' Package.swift` → 0 |
-| Lines of Swift | **12,702** | `find Sources -name '*.swift' \| xargs wc -l \| tail -1` |
+| Lines of Swift | **12,770** | `find Sources -name '*.swift' \| xargs wc -l \| tail -1` |
 | Minimum macOS | **13 Ventura** | `grep -o 'macOS(.v[0-9]*)' Package.swift` |
 | Architectures | Apple Silicon and Intel | `lipo -info dist/Chute.app/Contents/MacOS/ChuteApp` |
 | Version | **0.2.1** | `chute --version` |
@@ -58,7 +58,7 @@ more credible than the absolute one, and it survives someone reading the source.
 
 | Gate | Result | Command |
 |---|---|---|
-| Unit assertions | **1,081 passed** | `swift run -c release chutetests` |
+| Unit assertions | **1,091 passed** | `swift run -c release chutetests` |
 | End-to-end | **150 passed** headless, **178** full | `CHUTE_HEADLESS=1 ./Scripts/smoke.sh` |
 | Menu-item acceptance | **81 checks** — every Finder action against a hostile tree | `./Scripts/acceptance.sh` |
 | Metrics plausibility | **4 checks** — magnitude, not shape | `./Scripts/check-metrics.sh` |
