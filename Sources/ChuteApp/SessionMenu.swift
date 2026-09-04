@@ -60,14 +60,6 @@ enum SessionMenu {
 
     /// `NSMenuItem.sectionHeader(title:)` arrived in macOS 14 and is what the system's own menus
     /// use; before that the only way was a disabled item. The deployment target is macOS 13, so
-    /// both exist and the newer one is used wherever it can be.
-    static func header(_ title: String, count: Int) -> NSMenuItem {
-        let text = "\(title)  (\(count))"
-        if #available(macOS 14, *) { return NSMenuItem.sectionHeader(title: text) }
-        let item = NSMenuItem(title: text, action: nil, keyEquivalent: "")
-        item.isEnabled = false
-        return item
-    }
 
     /// Which modifier reveals which command is `SessionCommand.modifiers`, in ChuteCore, where a
     /// test can assert the four masks are DISTINCT — AppKit draws one alternate per mask, so two
@@ -98,9 +90,6 @@ enum SessionMenu {
             switch node.kind {
             case .separator:
                 menu.addItem(.separator())
-
-            case .header(let count):
-                menu.addItem(header(node.title, count: count))
 
             case .servers:
                 servers(menu)

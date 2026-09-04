@@ -24,8 +24,7 @@ func statusMenuSuite() {
                            session("a", .working, tty: "ttys001"),
                            session("b", .unknown, tty: "ttys002")]
         let flatMenu = StatusMenu.model(sessions: threeStates, trial: .licensed(email: "a@b.c"))
-        T.eq(flatMenu.filter { if case .header = $0.kind { return true }; return false }.count, 0,
-             "no state headers at all — not Working, not Idle, not one of them")
+        // There is no `.header` case left to assert against — it was deleted with the groups.
         T.eq(flatMenu.filter { if case .session = $0.kind { return true }; return false }.count, 3,
              "every terminal is listed, at the top level, whatever it is doing")
         // Stable order, or the list reshuffles between two openings of the same menu.
@@ -190,8 +189,8 @@ func statusMenuSuite() {
                        session("a", .blocked, tty: "ttys001"),
                        session("b", .working, tty: "ttys002")],
             trial: .licensed(email: "a@b.c"))
-        T.eq(mixed.filter { if case .header = $0.kind { return true }; return false }.count, 0,
-             "a blocked session gets no header either — nothing is ranked any more")
+        T.eq(mixed.filter { if case .session = $0.kind { return true }; return false }.count, 3,
+             "a blocked session is listed like any other — nothing is ranked any more")
         T.ok(find(mixed, "Quit Chute") != nil, "and Quit is last")
         T.eq(mixed.last?.title, "Quit Chute", "literally last, so it is where the hand expects it")
 

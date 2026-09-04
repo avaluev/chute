@@ -125,9 +125,15 @@ func hookInstallerSuite() {
         // looking at what landed in the temp file can.
         T.ok(applyCmd.contains("head -c1"),
              "refuses to install anything that does not start with a JSON object")
-        let brace = applyCmd.range(of: "head -c1")!
-        T.ok(applyCmd.range(of: "cp \"/tmp/s.json\"")!.lowerBound > brace.lowerBound,
-             "and it checks BEFORE the backup and the move, not after")
+        // Not force-unwrapped: a `!` here CRASHES the harness instead of failing a case, and a
+        // crash prints no tally at all — the one output this suite exists to produce.
+        if let check = applyCmd.range(of: "head -c1"),
+           let backup = applyCmd.range(of: "cp \"/tmp/s.json\"") {
+            T.ok(backup.lowerBound > check.lowerBound,
+                 "and it checks BEFORE the backup and the move, not after")
+        } else {
+            T.ok(false, "the command carries both the JSON check and the backup")
+        }
         T.ok(applyCmd.contains("--settings \"/tmp/s.json\""),
              "names the file it rewrites rather than trusting a default")
         // A path with a space is the case an unquoted backup destination silently mangles.
