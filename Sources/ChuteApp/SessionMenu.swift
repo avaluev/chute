@@ -25,30 +25,26 @@ enum SessionMenu {
         }
     }
 
-    static func attentionCount(_ sessions: [Session]) -> Int {
-        sessions.filter { $0.state == .blocked || $0.state == .waiting }.count
-    }
-
-    /// Draw the menu bar extra: a TEMPLATE IMAGE, plus a count when something wants you.
+    /// Draw the menu bar extra: the mark, and nothing else.
     ///
-    /// It used to draw the literal text "⤓ 3". A glyph rendered as text is drawn in the text
-    /// colour AppKit happens to give a status item and does not participate in the menu bar's own
-    /// tinting — so it came out wrong against a light menu bar, against a tinted desktop, and in
-    /// the reduced-contrast settings. Every one of Apple's own extras is a template image, which
-    /// the system recolours for the appearance it is actually drawing.
+    /// IT USED TO CARRY A COUNT of the sessions that were blocked or waiting. That number came
+    /// from hook records, which report at turn boundaries and never at all for an agent that
+    /// ships no hooks — so it could sit at "2 waiting" long after both had been answered, and it
+    /// read zero on a machine whose hooks had never been wired, which is the same picture as
+    /// "nothing needs you". The founder asked for the status to go; a count of statuses is a
+    /// status. What is in the menu bar is Chute's own parachute, and it means Chute is running.
     ///
-    /// Zero shows no number at all rather than "0": nothing is waiting, and a badge that reads
-    /// zero is a badge you learn to ignore.
-    static func applyBadge(to button: NSStatusBarButton?, count: Int) {
+    /// A template image, not text: a glyph drawn as text takes whatever colour AppKit gives a
+    /// status item and does not participate in the menu bar's own tinting, so it came out wrong
+    /// against a light bar, a tinted desktop and the reduced-contrast setting. Every one of
+    /// Apple's own extras is a template image, which the system recolours for the appearance it
+    /// is actually drawing.
+    static func applyBadge(to button: NSStatusBarButton?) {
         guard let button else { return }
-        // The mark is Chute's own parachute, not `arrow.down.to.line` — see MenuBarMark. A user
-        // who has just seen the Dock icon should recognise the thing in their menu bar.
-        // `accessibilityDescription` is set on the button rather than the image, because the
-        // image is built once and shared while the description changes with the count.
         button.image = MenuBarMark.image
-        button.setAccessibilityLabel(count == 0 ? "Chute" : "Chute — \(count) waiting for you")
-        button.imagePosition = count == 0 ? .imageOnly : .imageLeading
-        button.title = count == 0 ? "" : " \(count)"
+        button.setAccessibilityLabel("Chute")
+        button.imagePosition = .imageOnly
+        button.title = ""
     }
 
     /// `lockFocus`/`unlockFocus` is deprecated and draws against whatever context happens to be
