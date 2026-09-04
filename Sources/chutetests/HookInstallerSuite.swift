@@ -120,6 +120,14 @@ func hookInstallerSuite() {
         T.ok(applyCmd.contains("mktemp"), "stages through a temp file")
         T.ok(applyCmd.contains("cp \"/tmp/s.json\" \"/tmp/s.json.bak-"), "backs up first, quoted")
         T.ok(applyCmd.contains("&&"), "chained so a failure stops the sequence")
+        // The one failure in this chain that exits ZERO: an older `chute` on PATH that does not
+        // know `merged`, runs `status`, and prints "→ settings: …". `&&` cannot catch that; only
+        // looking at what landed in the temp file can.
+        T.ok(applyCmd.contains("head -c1"),
+             "refuses to install anything that does not start with a JSON object")
+        let brace = applyCmd.range(of: "head -c1")!
+        T.ok(applyCmd.range(of: "cp \"/tmp/s.json\"")!.lowerBound > brace.lowerBound,
+             "and it checks BEFORE the backup and the move, not after")
         T.ok(applyCmd.contains("--settings \"/tmp/s.json\""),
              "names the file it rewrites rather than trusting a default")
         // A path with a space is the case an unquoted backup destination silently mangles.

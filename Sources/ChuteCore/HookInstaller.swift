@@ -211,7 +211,15 @@ public enum HookInstaller {
     public static func applyCommand(cli: String, settingsPath: String) -> String {
         let q = "\"\(settingsPath)\""
         let s = "--settings \(q)"
+        // THE `{` CHECK IS NOT DECORATION. Every link in this chain is `&&`, which stops on a
+        // non-zero exit — and the failure this guards against exits ZERO. `chute` on PATH may be
+        // an OLDER copy than the one printing this: 0.2.0 does not know the word `merged` and
+        // falls through to `status`, which prints "→ settings: …" and exits 0. The chain would
+        // then `mv` that text over the user's settings.json — 33 KB with eleven hooks from other
+        // tools in it. Measured on the founder's Mac, 2026-09-04, where PATH had 0.2.0 and the
+        // app had 0.2.1. The caller naming its own binary fixes the cause; this fixes the class.
         return "T=$(mktemp) && \(cli) hooks merged \(s) > \"$T\" && "
+             + "[ \"$(head -c1 \"$T\")\" = \"{\" ] && "
              + "cp \(q) \"\(settingsPath).bak-$(date +%Y%m%d-%H%M%S)\" && "
              + "mv \"$T\" \(q) && \(cli) hooks status \(s)"
     }

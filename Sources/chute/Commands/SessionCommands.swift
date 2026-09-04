@@ -208,7 +208,12 @@ func cmdHooks(_ a: Args) {
         Out.info("")
         Out.info("→ or run this — it does the merge for you, and backs the file up first:")
         Out.info("")
-        Out.info("  " + HookInstaller.applyCommand(cli: "chute", settingsPath: path))
+        // THE BINARY THAT IS PRINTING THIS, not the bare word. `chute` on PATH can be an older
+        // Homebrew copy than the app's own bundled CLI — on the founder's Mac it was 0.2.0, which
+        // does not know `hooks merged` and silently runs `status` instead. Naming ourselves means
+        // the command always runs the version that generated it.
+        let me = Bundle.main.executablePath ?? "chute"
+        Out.info("  " + HookInstaller.applyCommand(cli: "\"\(me)\"", settingsPath: path))
     case "uninstall":
         // Read-only preview of which event(s) carry a Chute hook — status() never touches the
         // file. (It can over-report versus the stricter match uninstall() itself applies when a
