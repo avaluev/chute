@@ -297,6 +297,15 @@ Take those two; leave the wiring where it is.
   this". It takes minutes. Skipping it cost an hour here: two marks were fully polished before the
   test said both read as paper shredders. Any future Chute mark in the "document meets a
   horizontal slot" family is dead on arrival — do not re-derive it.
+- **A `variableLength` status item with no image and no title is ZERO POINTS WIDE.** It is in the
+  menu bar, it is real, and there is nothing to see or click. Removing the badge count on
+  2026-09-04 deleted `updateBadgeFromHooks()` from the launch path — and that call, whose name says
+  "badge", was the ONLY thing that set the icon at startup. The other call site is `menuWillOpen`,
+  which cannot help: it needs the click that needs the icon. Chute launched invisible. The image is
+  set where the item is CREATED now, one line below it: an invariant that lives next to the thing
+  it is about cannot be orphaned by deleting a refresh. **`screencapture` cannot check this** — it
+  returns pure black without Screen Recording permission, clock and all, so it looks exactly like
+  an empty menu bar. Ask a human to look.
 - **A PIPE HIDES AN EXIT STATUS — three times in one day.** `… | tail`, `… | grep`, any of them:
   the pipeline reports the LAST command's status, so `./Scripts/build-app.sh | grep '^size:'`
   returns grep's 0 while the size gate exits 1, and an `&&` chain after it runs anyway. That is how
