@@ -72,29 +72,6 @@ public enum HookState {
     /// tty names that still have a process attached. A hook file outlives the window that wrote
     /// it (up to `staleAfter`), so liveness — not the file existing — is what makes a badge count
     /// trustworthy. `ps -o tty=` prints "??" when there is no controlling terminal, never an
-    /// empty string, so filter on the alphanumeric shape rather than on emptiness.
-    public static func liveTTYs() -> Set<String> {
-        var out: Set<String> = []
-        for line in Shell.run("ps", ["-Ao", "tty="]).out.split(separator: "\n") {
-            let tty = line.trimmingCharacters(in: .whitespaces)
-            guard !tty.isEmpty, tty.allSatisfy({ $0.isLetter || $0.isNumber }) else { continue }
-            out.insert(Session.normalise(tty: tty))
-        }
-        return out
-    }
-
-    /// Records that genuinely want the user: live terminal, fresh hook, attention-seeking state.
-    /// Same staleness rule as `StateResolver.resolve` — a hook from the future is untrustworthy,
-    /// not fresh, so a negative age fails the window too.
-    public static func attention(_ records: [String: HookRecord], live: Set<String>, now: Date,
-                                 staleAfter: TimeInterval = StateResolver.staleAfterDefault) -> [HookRecord] {
-        records.values.filter { r in
-            guard live.contains(r.tty) else { return false }
-            let age = now.timeIntervalSince(r.timestamp)
-            guard age >= 0, age < staleAfter else { return false }
-            return r.state == .blocked || r.state == .waiting
-        }
-    }
 
     public static func stateName(_ s: SessionState) -> String {
         switch s {

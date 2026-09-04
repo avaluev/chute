@@ -7,18 +7,6 @@ import Foundation
 public enum SessionPhrasing {
     /// "3h" told you a number and left you to guess what it counted. These read as a sentence:
     /// "waiting 3 hours for you". Hours and minutes are spelled out because a menu is read, not
-    /// parsed — abbreviations belong in a table.
-    public static func waitedFor(_ since: Date?) -> String {
-        guard let since else { return "waiting for you" }
-        let minutes = Int(Date().timeIntervalSince(since) / 60)
-        switch minutes {
-        case ..<1:   return "just asked you"
-        case 1:      return "waiting 1 minute for you"
-        case ..<60:  return "waiting \(minutes) minutes for you"
-        case ..<120: return "waiting 1 hour for you"
-        default:     return "waiting \(minutes / 60) hours for you"
-        }
-    }
 
     /// The product's name for an agent, from the process name Terminal reports.
     ///

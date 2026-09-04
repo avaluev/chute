@@ -50,8 +50,6 @@ public enum StatusMenu {
 
     public enum Kind: Sendable, Equatable {
         case separator
-        /// A macOS section header. Carries its own count, which is part of what it says.
-        case header(count: Int)
         /// A terminal session. `key` is `Session.key`; the renderer focuses it.
         ///
         /// `tty` and `prefix` are carried for the live refresh: while the menu is open a timer

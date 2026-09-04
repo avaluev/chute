@@ -79,7 +79,7 @@ is the method" linking to the fact sheet.
 **Tagline:** Point your coding agent at the files, in one right-click
 
 **Description:**
-> Your agent can read your whole repo. You spend the day telling it which part. Chute is a 3.0 MB
+> Your agent can read your whole repo. You spend the day telling it which part. Chute is a 2.9 MB
 > macOS utility that puts that in the Finder right-click: select folders, click once, and every
 > file inside is on your clipboard as one blob with a token count. Collect files from several
 > folders into a basket and hand them over at once. See which of your five terminals is actually
@@ -119,7 +119,7 @@ is the method" linking to the fact sheet.
 > Not another right-click suite — it does one loop. Select folders, right-click, every file
 > inside is on the clipboard as one blob with a token estimate. Or collect files across folders
 > into a basket and hand them over at once, which as far as I can find nothing else on the Mac
-> does. 3.0 MB, zero dependencies, no launch daemon, no telemetry, no account, no subscription.
+> does. 2.9 MB, zero dependencies, no launch daemon, no telemetry, no account, no subscription.
 > The CLI half is MIT. Happy to answer questions.
 
 ---

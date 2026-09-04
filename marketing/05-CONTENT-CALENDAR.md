@@ -183,7 +183,7 @@ not embedded. No follow-up before day 7, exactly one follow-up ever.
 
 > Subject: A Finder right-click that hands your coding agent the files
 >
-> I build Chute — a 3.0 MB macOS utility for people who drive Claude Code all day. Select
+> I build Chute — a 2.9 MB macOS utility for people who drive Claude Code all day. Select
 > folders in Finder, right-click once, and every file inside is on the clipboard as one blob
 > with a token count. I timed my own day at ~80 minutes going into that pointing.
 > The CLI half is MIT and free: `brew install avaluev/tap/chute`.
