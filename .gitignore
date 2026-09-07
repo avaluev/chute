@@ -29,3 +29,8 @@ CloudFlare_API.md
 # directories on the way there.
 Resources/Chute.iconset/
 Resources/icon-review/
+
+# handoff-journal plugin — write-once journal, generated head
+handoff/journal/**/*.tmp-*
+handoff/NEXT.md.tmp-*
+.claude/.cache/
