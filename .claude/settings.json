@@ -10,7 +10,11 @@
       "Bash(git add --all)",
       "Bash(git add --all:*)",
       "Bash(git add --update)",
-      "Bash(git add --update:*)"
+      "Bash(git add --update:*)",
+      "Bash(rm -rf:*)",
+      "Edit(.env*)",
+      "Write(.env*)",
+      "Read(.env*)"
     ]
   }
 }
