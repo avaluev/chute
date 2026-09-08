@@ -67,11 +67,39 @@ enum SettingsWindow {
         // The words are `ChuteCore.AboutText`, where the suite can read them. This end decides
         // nothing — see that file for why the old sentence had to go.
         let a = AboutText.about(version: ChuteVersion.current, build: Diagnostics.installedBuild())
-        return pad(NSStackView(views: [heading(a.heading)] + a.body.map(body)))
+        // A SELECTABLE FIELD WITH .link ATTRIBUTES, not a row of NSButtons. AppKit opens a link in
+        // a selectable text field on click with no target, no action and no handler object — so
+        // four contact rows cost this file zero decision points, which matters because
+        // Scripts/check-untested-logic.sh holds it to a budget it only just earned by losing the
+        // licence tab. The labels and URLs are AboutText.contacts, where the suite can read them.
+        let links = AboutText.contacts.map { linkField(label: $0.label, handle: $0.handle, url: $0.url) }
+        return pad(NSStackView(views:
+            [heading(a.heading)] + a.body.map(body)
+            + [heading(AboutText.contactHeading), body(AboutText.contactLead)] + links))
     }
 
     // MARK: - Plumbing
     // heading / body / pad live in Panel.swift — FirstRunWindow needs the same three.
+
+    /// "LinkedIn   in/valuev" where the handle is a live link. `isSelectable` is what makes an
+    /// NSTextField hand a click to the URL — without it the attribute renders blue and does
+    /// nothing, which is worse than plain text because it looks broken.
+    private static func linkField(label: String, handle: String, url: String) -> NSTextField {
+        let line = NSMutableAttributedString(
+            string: label + "   ",
+            attributes: [.font: NSFont.systemFont(ofSize: 12, weight: .medium),
+                         .foregroundColor: NSColor.secondaryLabelColor])
+        line.append(NSAttributedString(
+            string: handle,
+            attributes: [.font: NSFont.systemFont(ofSize: 12),
+                         .link: url,
+                         .foregroundColor: NSColor.linkColor]))
+        let f = NSTextField(labelWithAttributedString: line)
+        f.isSelectable = true
+        f.allowsEditingTextAttributes = true
+        f.toolTip = url
+        return f
+    }
 
     private static func heading(_ s: String) -> NSTextField { UI.heading(s) }
     private static func body(_ s: String) -> NSTextField { UI.body(s) }
