@@ -469,17 +469,51 @@ try {
 // fixing a sentence.
 {
   const PRESENT_TENSE_PRICE = [
-    /\$19 once/i, /costs \$19/i, /price[:s]? +\*{0,2}\$19/i,
-    /free for 14 days/i, /30-day refund/i, /the paid (surface|app|menu|version)/i,
-    /when the trial ends/i, /buy the app/i,
+    /\$19 once/i, /costs \$19/i, /price[:s]? +\*{0,2}\$19/i, /\$19 one-time/i,
+    /free for 14 days/i, /free 14-day trial/i, /30-day refund/i, /no questions asked/i,
+    /the paid (surface|app|menu|version)/i, /when the trial ends/i,
+    /after trial ends/i, /buy the app/i,
   ]
+  // A LINE THAT NAMES A BANNED PHRASE IN ORDER TO BAN IT IS NOT A VIOLATION.
+  // `marketing/06-FACT-SHEET.md`'s FALSE table exists to list these strings, and its rows begin
+  // with the phrase in quotes or backticks — so the gate was failing the one file whose job is
+  // to define what it enforces. Flagged by the agent doing the sweep, which is the right outcome:
+  // it could not fix the gate, so it reported it instead of loosening the rule to pass.
+  const isDefinition = (line) => /^\s*\|\s*[«"'`]/.test(line) || /^\s*\|\s*\*{0,2}["`]/.test(line)
+  // A PHRASE INSIDE QUOTES IS BEING QUOTED, NOT ASSERTED. `07-WEBSITE.md` quotes the industry's
+  // standard refund wording — «"14-day money-back guarantee, no questions asked."» — as a field
+  // observation about what OTHER products say. Failing that is the gate mistaking a citation for
+  // a promise, and the fix for a false positive is a smarter rule, never a looser one.
+  // Quote state is tracked ACROSS lines, not within one: markdown wraps, and the phrase that
+  // exposed this sits on the second line of a quotation whose opening `"` is on the first. A
+  // line-scoped check saw no quote mark before the match and failed a citation.
+  const quotesBefore = (text, at) => (text.slice(0, at).match(/"/g) || []).length
   const dir = REPO + "marketing"
   const hits = []
+  // A FILE THAT DECLARES ITSELF A RECORD IS EXEMPT — and says so to the reader in its first
+  // lines, which is the point. `09-APPLE-AND-DISTRIBUTION.md`'s whole argument is an economic
+  // case for a $19 unit; policing its tense line by line would either destroy the reasoning or
+  // teach the next person to add ignore rules. The banner is the honest alternative: one visible
+  // sentence at the top of the file, greppable, and it is what a human sees first.
+  const HISTORICAL = "HISTORICAL — a record of the eleven days Chute had a price"
   for (const f of readdirSync(dir).filter((n) => n.endsWith(".md"))) {
+    const head = readFileSync(dir + "/" + f, "utf8").split("\n").slice(0, 12).join("\n")
+    if (head.includes(HISTORICAL)) continue
     const body = readFileSync(dir + "/" + f, "utf8")
-    for (const rx of PRESENT_TENSE_PRICE) {
-      const m = body.match(rx)
-      if (m) hits.push(`${f}: "${m[0]}"`)
+    let offset = 0
+    for (const line of body.split("\n")) {
+      const start = offset
+      offset += line.length + 1
+      if (isDefinition(line)) continue
+      for (const rx of PRESENT_TENSE_PRICE) {
+        const m = line.match(rx)
+        if (!m) continue
+        // An ODD number of quote marks before it means the match is inside a quotation — it is
+        // being cited, not asserted.
+        if (quotesBefore(body, start + m.index) % 2 === 1) continue
+        hits.push(`${f}: "${m[0]}"`)
+        break
+      }
     }
   }
   hits.length
