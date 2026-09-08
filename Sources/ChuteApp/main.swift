@@ -130,6 +130,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             recent: basketEntries,
             recentTokens: basketTokens,
             notificationsDenied: Notify.deniedAtLastCheck,
+            // Read once per menu open, not per row. Decides whether an `.unknown` Claude Code
+            // session is told its hooks are missing or simply that it has not reported yet —
+            // the difference between a chore and a fact. `values.contains(false)` rather than
+            // `allSatisfy`, so a partially-wired install counts as not wired.
+            hooksWired: !HookInstaller.status(settingsPath: Diagnostics.claudeSettingsPath).values.contains(false),
             loadFor: { SystemVitals.load(forTTY: $0, in: samples) },
             sessionCommands: { [transcripts] s in
                 SessionCommand.available(for: s, transcript: transcripts.cached(s.sessionID))

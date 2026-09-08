@@ -116,3 +116,40 @@ func phrasingGapsSuite() {
              "a real agent is unaffected")
     }
 }
+
+/// THREE DIFFERENT FACTS THAT USED TO SHARE ONE SENTENCE.
+///
+/// Every `.unknown` row read "no hook — Chute cannot see this". True of Antigravity, and WRONG
+/// about Claude Code on a machine whose hooks are wired: on 2026-09-08 the founder's menu showed
+/// ten of them, six being Claude Code sessions with all four hooks installed and reporting. They
+/// had simply not reached a turn boundary since their records were deleted. The row sent the
+/// reader to fix something that was not broken, which is worse than saying nothing.
+func unknownReasonSuite() {
+    T.suite("unknownReason") {
+        T.eq(SessionPhrasing.unknownReason(agent: "agy", hooksWired: true),
+             "no hook — Chute cannot see this",
+             "Antigravity ships no hooks: permanent, and nothing the reader can do")
+        T.eq(SessionPhrasing.unknownReason(agent: "agy", hooksWired: false),
+             "no hook — Chute cannot see this",
+             "and wiring Claude Code's hooks would not change that, so it must not be implied")
+
+        T.eq(SessionPhrasing.unknownReason(agent: "claude", hooksWired: true),
+             "hooks wired — nothing reported yet",
+             "a wired Claude Code session has not reported YET — it is not misconfigured")
+        T.eq(SessionPhrasing.unknownReason(agent: "claude", hooksWired: false),
+             "hooks not wired — open Setup…",
+             "and this is the one case that IS the reader's to fix, so it names the door")
+
+        // Only Claude Code can report at all: Chute's hooks ARE Claude Code's hooks.
+        T.eq(SessionPhrasing.hookCapableAgents, ["claude"],
+             "one agent can report a state; claiming otherwise would blame the wrong thing")
+        for other in ["codex", "cursor", "gemini", "aider"] {
+            T.eq(SessionPhrasing.unknownReason(agent: other, hooksWired: true),
+                 "no hook — Chute cannot see this",
+                 "\(other) has no hook mechanism here, wired or not")
+        }
+        T.eq(SessionPhrasing.unknownReason(agent: nil, hooksWired: true),
+             "no hook — Chute cannot see this",
+             "and no agent at all falls to the same honest answer")
+    }
+}

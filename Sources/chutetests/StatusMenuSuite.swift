@@ -364,9 +364,29 @@ func statusMenuSuite() {
         T.eq(bareNode?.dim, true, "dimmed — there is no cwd standing behind this name")
 
         // 4. AN AGENT WITH NO HOOK (Antigravity, today): the state cell says so, never a duration.
-        let noHookRow = sessionRows(StatusMenu.model(sessions: [session("agy-project", .unknown, tty: "ttys078")])).first
-        T.eq(noHookRow?.state, "no hook — Chute cannot see this", "an agent with no hook says so, not a guess")
+        //
+        // THIS TEST USED TO LIE ABOUT ITS OWN FIXTURE. It was captioned "Antigravity" while the
+        // `session` helper hardcodes `agent: "claude"`, so it asserted Antigravity's sentence
+        // against a Claude Code row — and passed only because every `.unknown` row got the same
+        // sentence regardless of agent. That is exactly the conflation the product had: six
+        // wired Claude Code sessions were told they had no hook. The fixture is now the agent the
+        // caption claims, and the Claude Code cases are asserted separately below.
+        let agy = Session(key: "Terminal:1:ttys078", kind: .terminalApp, windowID: 1, tabIndex: 1,
+                          tty: "ttys078", project: "agy-project", title: "t", agent: "agy",
+                          busy: false, state: .unknown, since: nil)
+        let noHookRow = sessionRows(StatusMenu.model(sessions: [agy])).first
+        T.eq(noHookRow?.state, "no hook — Chute cannot see this",
+             "an agent that ships no hooks says so, not a guess")
         T.no(noHookRow?.state.contains(where: \.isNumber) ?? true, "and it never carries a duration")
+
+        // 4b. A CLAUDE CODE SESSION IS A DIFFERENT FACT, and gets a different sentence.
+        let claudeUnknown = [session("chute", .unknown, tty: "ttys088")]
+        T.eq(sessionRows(StatusMenu.model(sessions: claudeUnknown, hooksWired: true)).first?.state,
+             "hooks wired — nothing reported yet",
+             "a wired session has not reported YET — it is not misconfigured, and must not be nagged")
+        T.eq(sessionRows(StatusMenu.model(sessions: claudeUnknown, hooksWired: false)).first?.state,
+             "hooks not wired — open Setup…",
+             "and the one case the reader can fix names the door")
 
         // 5. A PLAIN SHELL, NO AGENT: "no agent running", sorted to the bottom by state order.
         let plainShell = Session(key: "Terminal:1:ttys079", kind: .terminalApp, windowID: 1, tabIndex: 1,

@@ -45,6 +45,34 @@ public enum SessionPhrasing {
         return parts.joined(separator: " · ")
     }
 
+    /// The agents that can report a state at all.
+    ///
+    /// Chute's hooks are CLAUDE CODE's hooks — four events in `~/.claude/settings.json`. No other
+    /// agent has an equivalent, so for every one of them `.unknown` is permanent and honest, not
+    /// a thing the reader can go and fix.
+    public static let hookCapableAgents = ["claude"]
+
+    /// WHY THIS SESSION HAS NO STATE — and whether that is the reader's problem.
+    ///
+    /// Every `.unknown` row used to read "no hook — Chute cannot see this", which is true of
+    /// Antigravity and WRONG about Claude Code on a machine whose hooks are wired. On 2026-09-08
+    /// the founder's menu showed ten of those, six of them Claude Code sessions with all four
+    /// hooks installed and reporting — they had simply not reached a turn boundary since their
+    /// records were deleted. The row told them to go fix something that was not broken, which is
+    /// worse than saying nothing: it spends the reader's afternoon.
+    ///
+    /// Three different facts, three different sentences:
+    ///   · the agent ships no hooks — permanent, nothing to do
+    ///   · hooks are wired and this session has not reported yet — wait, or prompt it
+    ///   · hooks are not wired — THIS one is the reader's to fix, and it names the door
+    public static func unknownReason(agent: String?, hooksWired: Bool) -> String {
+        guard let agent, hookCapableAgents.contains(agent) else {
+            return "no hook — Chute cannot see this"
+        }
+        return hooksWired ? "hooks wired — nothing reported yet"
+                          : "hooks not wired — open Setup…"
+    }
+
     /// "just now", "3 min", "2 h", "yesterday". Short, because it sits at the end of a menu row
     /// beside something more important than itself.
     public static func ago(_ date: Date, now: Date = Date()) -> String {

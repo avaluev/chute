@@ -157,6 +157,10 @@ public enum StatusMenu {
                              /// read files, which would make it untestable for the sake of a row.
                              recentTokens: Int = 0,
                              notificationsDenied: Bool = false,
+                             /// Whether Chute's hooks are installed in ~/.claude/settings.json.
+                             /// Injected, not read here: `model` does no I/O, and the answer
+                             /// decides what an `.unknown` Claude Code row is allowed to blame.
+                             hooksWired: Bool = true,
                              loadFor: (String) -> SessionLoad = { _ in
                                  SessionLoad(cpuPercent: 0, residentBytes: 0, processes: 0) },
                              sessionCommands: (Session) -> [(kind: String, title: String)] = { _ in [] },
@@ -209,7 +213,7 @@ public enum StatusMenu {
             lastState = s.state
             out.append(contentsOf: rows(for: s, now: now, loadFor: loadFor,
                                         sessionCommands: sessionCommands, colorFor: colorFor,
-                                        detailFor: detailFor))
+                                        detailFor: detailFor, hooksWired: hooksWired))
         }
         if !sessions.isEmpty { out.append(.separator()) }
 
@@ -255,7 +259,8 @@ public enum StatusMenu {
                      loadFor: (String) -> SessionLoad,
                      sessionCommands: (Session) -> [(kind: String, title: String)],
                      colorFor: (String) -> String,
-                     detailFor: (Session) -> String) -> [MenuNode] {
+                     detailFor: (Session) -> String,
+                     hooksWired: Bool = true) -> [MenuNode] {
         let hex = stateToken(s.state)
         let (figures, note, noteToken) = loadColumns(loadFor(s.tty))
 
@@ -282,7 +287,7 @@ public enum StatusMenu {
         case .idle:
             state = "no agent running"
         case .unknown:
-            state = "no hook — Chute cannot see this"
+            state = SessionPhrasing.unknownReason(agent: s.agent, hooksWired: hooksWired)
         }
 
         let row = SessionRow(project: name, path: path, state: state, agent: detailFor(s),

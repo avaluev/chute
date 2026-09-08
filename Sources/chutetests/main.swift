@@ -39,5 +39,6 @@ inlineCodeSuite()
 sessionCwdSuite()
 phrasingGapsSuite()
 menuBarPipSuite()
+unknownReasonSuite()
 
 T.report()
