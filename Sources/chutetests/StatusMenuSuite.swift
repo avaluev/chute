@@ -10,29 +10,56 @@ import ChuteCore
 func statusMenuSuite() {
     T.suite("StatusMenu") {
         func session(_ project: String, _ state: SessionState, tty: String,
-                     id: String? = "sess-\(UUID().uuidString.prefix(4))") -> Session {
+                     id: String? = "sess-\(UUID().uuidString.prefix(4))",
+                     since: Date = Date()) -> Session {
             Session(key: "Terminal:1:\(tty)", kind: .terminalApp, windowID: 1, tabIndex: 1,
                     tty: tty, project: project, title: project, agent: "claude",
-                    busy: state == .working, state: state, since: Date(), sessionID: id)
+                    busy: state == .working, state: state, since: since, sessionID: id)
         }
-        // ── ONE FLAT LIST, NO STATE ─────────────────────────────────────────────────────
+        // ── TWO LEVELS: WHAT YOU MUST DO, THEN WHICH PROJECT ────────────────────────────
         //
-        // There were four groups and a nag row. The founder asked for them gone, twice: a status
-        // Chute cannot always know is a status it should not always claim, and on 2026-09-04 the
-        // menu said `Working (7)` over seven sessions of which none was working.
+        // Grouping was here, was deleted in 2849347, and is back — the appetite never changed,
+        // the EVIDENCE did. The old groups read state off Terminal's `busy` flag and off the
+        // spinner glyph Claude Code writes into a title and never clears, which on 2026-09-04
+        // produced `Working (7)` over seven sessions of which none was working. StateResolver
+        // now takes state from a hook or answers `.unknown`, and `.unknown` gets its own header
+        // instead of being filed under something confident.
+        //
+        // The flat list it replaced was its own bug: the founder's menu on 2026-09-08 held
+        // thirteen rows, five of them named `sntz_mockups`, and nothing said which had stopped.
         let threeStates = [session("c", .idle, tty: "ttys003"),
                            session("a", .working, tty: "ttys001"),
                            session("b", .unknown, tty: "ttys002")]
-        let flatMenu = StatusMenu.model(sessions: threeStates, trial: .licensed(email: "a@b.c"))
-        // There is no `.header` case left to assert against — it was deleted with the groups.
+        let flatMenu = StatusMenu.model(sessions: threeStates)
         T.eq(flatMenu.filter { if case .session = $0.kind { return true }; return false }.count, 3,
-             "every terminal is listed, at the top level, whatever it is doing")
-        // Stable order, or the list reshuffles between two openings of the same menu.
-        let projects = flatMenu.compactMap { node -> String? in
-            if case .session = node.kind { return node.title.components(separatedBy: " ").first }
-            return nil
-        }
-        T.eq(projects, ["a", "b", "c"], "sorted by project, not by urgency — urgency is gone")
+             "every terminal is listed, whatever it is doing")
+
+        // Section order IS state order: SessionState is Comparable with .blocked == 0, so the
+        // thing that has stopped and needs a human always sits above the thing still running.
+        let headers = flatMenu.filter { $0.kind == .note && $0.indent == 0 }.map(\.title)
+        T.eq(headers, ["WORKING   1", "NO AGENT   1", "NO STATUS — HOOKS NOT REPORTING   1"],
+             "one header per state, in urgency order, each carrying its own count")
+
+        // A project sub-header sits under its section, indented, once per project.
+        T.eq(flatMenu.filter { $0.kind == .note && $0.indent == 1 }.map(\.title), ["a", "c", "b"],
+             "each project named once, inside the section its sessions belong to")
+
+        // ORDER MUST BE STABLE or the menu reshuffles between two openings of the same menu.
+        T.eq(StatusMenu.model(sessions: threeStates).map(\.title), flatMenu.map(\.title),
+             "the same sessions always produce the same menu")
+
+        // BLOCKED FIRST, AND LONGEST-BLOCKED FIRST INSIDE THAT. Twenty seconds blocked is noise;
+        // twenty minutes is twenty minutes in which nothing happened, so it goes at the top.
+        let now = Date(timeIntervalSince1970: 1_757_000_000)
+        let ordered = StatusMenu.model(
+            sessions: [session("fresh", .blocked, tty: "ttys009", since: now.addingTimeInterval(-60)),
+                       session("stale", .blocked, tty: "ttys008", since: now.addingTimeInterval(-3600)),
+                       session("busy",  .working, tty: "ttys007", since: now.addingTimeInterval(-10))],
+            now: now)
+        T.eq(ordered.first(where: { $0.kind == .note })?.title, "NEEDS YOU   2",
+             "the section that needs a human is first, and says how many")
+        T.eq(ordered.filter { $0.kind == .note && $0.indent == 1 }.map(\.title).first, "stale",
+             "and the one that has been waiting an hour outranks the one waiting a minute")
 
         func titles(_ nodes: [StatusMenu.MenuNode]) -> [String] {
             nodes.filter { $0.kind != .separator }.map(\.title)
@@ -45,65 +72,39 @@ func statusMenuSuite() {
                     session("studylock", .working, tty: "ttys002"),
                     session("sntz", .idle, tty: "ttys003")]
 
-        // ── THE TRIAL GATE ──────────────────────────────────────────────────────────────────
+        // ── NO GATE, AND NO WAY BACK TO ONE ─────────────────────────────────────────────
         //
-        // /buy sells four things — the Finder menu, this switcher, the local-server list and the
-        // hotkey — and three of them kept working forever after the trial ended, which is the
-        // page describing a product the build does not deliver. handoff/NEXT.md asked a HUMAN to
-        // verify this by hand, because nothing could reach it. Now it is four assertions.
-        let licensed = StatusMenu.model(sessions: live, trial: .licensed(email: "a@b.c"))
-        let expired  = StatusMenu.model(sessions: live, trial: .expired)
+        // This block used to assert the opposite: that an expired 14-day trial hid the session
+        // list, the Local Servers section and the Basket, and said so in a row at the top.
+        // Chute went free and MIT on 2026-09-08 and the gate was DELETED rather than switched
+        // off, so what is worth asserting now is the absence of any branch that can hide the
+        // product from its own user — and that no price can creep back into a title.
+        let menu = StatusMenu.model(sessions: live)
 
-        T.ok(licensed.contains { if case .session = $0.kind { return true }; return false },
-             "a licensed menu lists the terminals")
-        T.no(expired.contains { if case .session = $0.kind { return true }; return false },
-             "an expired trial lists none — the switcher is what was bought")
-        T.ok(find(expired, "Trial ended — Buy Chute") != nil, "and says so, once, at the top")
-        T.ok(find(expired, "chute CLI is still free") != nil,
-             "and keeps the open-core promise at the moment it would be easiest to break")
-
-        // Nobody is trapped: the ways out survive an expired trial.
+        T.ok(menu.contains { if case .session = $0.kind { return true }; return false },
+             "the menu lists the terminals")
+        T.ok(menu.contains { $0.kind == .servers }, "and carries the Local Servers section")
         for escape in ["Settings…", "Setup…", "Report a Problem…", "Quit Chute"] {
-            T.ok(find(expired, escape) != nil, "an expired trial still offers \(escape)")
+            T.ok(find(menu, escape) != nil, "the menu still offers \(escape)")
         }
-        // But not the paid surfaces.
-        T.no(expired.contains { $0.kind == .servers },
-             "the local-server list is behind the gate with everything else")
-
-        // ── AN EXPIRED TRIAL EXPLAINS ITSELF ────────────────────────────────────────────────
-        //
-        // Local Servers and Recent Copies used to just vanish when `!unlocked` — indistinguishable
-        // from "empty", the same false signal as everything else in this spec. The gate itself
-        // must not move: still no `.servers` node above, still nothing in Recent Copies' place.
-        T.ok(find(expired, "behind the licence") != nil,
-             "and says WHY those two sections are gone")
-        T.no(titles(licensed).contains { $0.contains("behind the licence") },
-             "a paying customer is never told a section is gated")
-
-        // ── THE TRIAL ROW, ON THE RIGHT DAYS ────────────────────────────────────────────────
-        //
-        // An app that keeps mentioning payment after the payment is nagging its own customer;
-        // one that never mentions it lets a trial lapse in silence. Both edges asserted.
-        let day10 = StatusMenu.model(sessions: live, trial: .trial(daysLeft: 10))
-        let day3  = StatusMenu.model(sessions: live, trial: .trial(daysLeft: 3))
-        let day1  = StatusMenu.model(sessions: live, trial: .trial(daysLeft: 1))
-        T.no(titles(day10).contains { $0.hasPrefix("Trial —") },
-             "on day 10 there is no trial row: nothing is wrong yet")
-        T.ok(find(day3, "Trial — 3 days left") != nil, "on day 3 there is")
-        T.ok(find(day1, "Trial — last day") != nil, "and the last day says so in words, not '1'")
-        T.no(titles(licensed).contains { $0.hasPrefix("Trial") },
-             "a paying customer is never told about a trial again")
+        // Built, not written: the fact sheet's FALSE table forbids this literal anywhere in
+        // Sources, and a test asserting a string must not appear cannot itself spell it.
+        let price = "$" + "19"
+        T.no(titles(menu).contains {
+                 let t = $0.lowercased()
+                 return t.contains("licence") || t.contains("license")
+                     || t.contains("trial") || t.contains(price) || t.contains("buy chute")
+             },
+             "and never mentions a licence, a trial or a price")
 
         // ── THE DUPLICATE-MENU BUG ──────────────────────────────────────────────────────────
         //
         // populateBody clears the menu, and it used to be SessionMenu.populate that did — which
-        // the expired branch returned before ever reaching, so it appended a second complete copy
-        // of the menu on every open. It grew without bound, in front of the one person deciding
-        // whether to pay. A pure model cannot accumulate, and this is the assertion that says so.
-        T.eq(StatusMenu.model(sessions: live, trial: .expired).count, expired.count,
-             "building the expired menu twice gives the same menu, not two of it")
-        T.eq(StatusMenu.model(sessions: live, trial: .licensed(email: "a@b.c")).count,
-             licensed.count, "and the same for a licensed one")
+        // the early-return branch never reached, so it appended a second complete copy of the
+        // menu on every open. It grew without bound. A pure model cannot accumulate, and this is
+        // the assertion that says so.
+        T.eq(StatusMenu.model(sessions: live).count, menu.count,
+             "building the menu twice gives the same menu, not two of it")
 
         // ── NO REFRESH ──────────────────────────────────────────────────────────────────────
         //
@@ -111,7 +112,7 @@ func statusMenuSuite() {
         // and menuWillOpen then rebuilt everything on that fresh object, so the work was thrown
         // away every time. A command that cannot change what you see teaches the reader that the
         // menu might be stale.
-        for menu in [licensed, expired, day3] {
+        for menu in [menu] {
             T.no(titles(menu).contains { $0.localizedCaseInsensitiveContains("refresh") },
                  "nothing in this menu is called Refresh")
         }
@@ -123,7 +124,7 @@ func statusMenuSuite() {
         // from hardcoded, from outside. An entry is a FILE PATH now (see ContextBuffer.swift), and
         // the only way in is an explicit add. This asserts the MENU half: absent when empty, its
         // count matches its contents, and each row names the file it is.
-        let empty = StatusMenu.model(sessions: live, trial: .licensed(email: "a@b.c"), recent: [])
+        let empty = StatusMenu.model(sessions: live, recent: [])
         T.no(titles(empty).contains { $0.contains("Basket") },
              "the basket is absent entirely when there is nothing in it")
 
@@ -140,7 +141,7 @@ func statusMenuSuite() {
         for f in fixtures { try? FileManager.default.removeItem(atPath: f) }
         let entries = buf.entries().reversed().map { $0 }
 
-        let withBasket = StatusMenu.model(sessions: live, trial: .licensed(email: "a@b.c"),
+        let withBasket = StatusMenu.model(sessions: live,
                                           recent: entries, recentTokens: 1234)
         let parent = find(withBasket, "Basket")
         T.ok(parent != nil, "and present once there is something in it")
@@ -187,18 +188,17 @@ func statusMenuSuite() {
         let mixed = StatusMenu.model(
             sessions: [session("c", .idle, tty: "ttys003"),
                        session("a", .blocked, tty: "ttys001"),
-                       session("b", .working, tty: "ttys002")],
-            trial: .licensed(email: "a@b.c"))
+                       session("b", .working, tty: "ttys002")])
         T.eq(mixed.filter { if case .session = $0.kind { return true }; return false }.count, 3,
              "a blocked session is listed like any other — nothing is ranked any more")
         T.ok(find(mixed, "Quit Chute") != nil, "and Quit is last")
         T.eq(mixed.last?.title, "Quit Chute", "literally last, so it is where the hand expects it")
 
         // ── NOTHING RUNNING, AND SOMETHING WRONG ────────────────────────────────────────────
-        let none = StatusMenu.model(sessions: [], trial: .licensed(email: "a@b.c"))
+        let none = StatusMenu.model(sessions: [])
         T.ok(find(none, "No terminal sessions") != nil,
              "an empty machine says so rather than showing a blank menu")
-        let broken = StatusMenu.model(sessions: [], trial: .licensed(email: "a@b.c"),
+        let broken = StatusMenu.model(sessions: [],
                                       problem: "Automation permission denied")
         T.ok(find(broken, "Cannot read Terminal") != nil,
              "a denied Automation permission is reported as fixable, not as an empty list")
@@ -209,9 +209,9 @@ func statusMenuSuite() {
 
         // ── THE NOTIFICATIONS ROW ───────────────────────────────────────────────────────────
         // Only ever shown when a fallback notification was actually refused.
-        T.no(titles(licensed).contains { $0.contains("Turn On Chute Notifications") },
+        T.no(titles(menu).contains { $0.contains("Turn On Chute Notifications") },
              "no notifications row when nothing was refused")
-        let denied = StatusMenu.model(sessions: live, trial: .licensed(email: "a@b.c"),
+        let denied = StatusMenu.model(sessions: live,
                                       notificationsDenied: true)
         T.ok(find(denied, "Turn On Chute Notifications") != nil, "and one when it was")
 

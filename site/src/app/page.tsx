@@ -35,7 +35,7 @@ const FAQ = [
   { q: "Claude Code can already read my files. Why do I need this?",
     a: "It can. It cannot see your Finder selection, your clipboard, the terminal you lost, or the port you can\u2019t find. Chute is everything the agent can\u2019t reach from inside its own window." },
   { q: "What does it cost?",
-    a: "Nothing, and there is nothing to unlock. Every part of Chute \u2014 the app, the Finder extension and all 26 commands \u2014 is MIT licensed. It was $19 with a 14-day trial for eleven days in 2026; the trial clock, the licence check and the store account are deleted, not disabled." },
+    a: "Nothing, and there is nothing to unlock. Every part of Chute \u2014 the app, the Finder extension and all 26 commands \u2014 is MIT licensed. It was a paid app for eleven days in 2026; the trial clock, the licence check and the store account are deleted, not disabled." },
   { q: "Does it phone home?",
     a: "No. There is no network code at all except the gist command, which uploads only the files you name, only when you run it, and redacts them first. Nothing else in Chute opens a socket. Check it yourself: grep -rn URLSession Sources/" },
   { q: "macOS says it cannot verify the app. Is something wrong?",

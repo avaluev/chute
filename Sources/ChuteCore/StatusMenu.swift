@@ -21,7 +21,7 @@ import Foundation
 ///
 /// `StatusMenu.model(...)` decides WHAT is in the menu, in what order, with what titles.
 /// `SessionMenu` turns that into `NSMenu` and decides NOTHING. If a question has a right and a
-/// wrong answer — is the trial row shown on day 10? does the Basket appear when empty? — it
+/// wrong answer — does the Basket appear when empty? which row is first? — it
 /// is answered here, where a test can ask it too.
 ///
 /// AppKit specifics that carry no decision stay in the renderer: images, targets, selectors, and
@@ -30,12 +30,11 @@ import Foundation
 public enum StatusMenu {
 
     /// What a row does when clicked. An enum rather than a selector so the model stays free of
-    /// AppKit — and so a test can assert that the trial row opens the licence pane rather than
+    /// AppKit — and so a test can assert that a row runs the command it claims rather than
     /// merely that a row with some title exists.
     public enum Command: String, Sendable, Equatable {
         case focusSession
         case sessionCommand
-        case openLicenseSettings
         case openAutomationSettings
         case openNotificationSettings
         case reportProblem
@@ -76,9 +75,16 @@ public enum StatusMenu {
         public let toolTip: String?
         /// Carried on buffer rows so the renderer knows which entry to put back.
         public let payload: String?
+        /// How far in to draw the row. The renderer assigns it to `NSMenuItem.indentationLevel`
+        /// unconditionally, so nesting costs the renderer no branch — which matters, because
+        /// Scripts/check-untested-logic.sh counts every branch in ChuteApp against a baseline
+        /// and the whole grouping had to fit inside a budget of zero.
+        public let indent: Int
 
-        public init(_ kind: Kind, _ title: String, toolTip: String? = nil, payload: String? = nil) {
+        public init(_ kind: Kind, _ title: String, toolTip: String? = nil, payload: String? = nil,
+                    indent: Int = 0) {
             self.kind = kind; self.title = title; self.toolTip = toolTip; self.payload = payload
+            self.indent = indent
         }
 
         public static func separator() -> MenuNode { MenuNode(.separator, "") }
@@ -93,7 +99,7 @@ public enum StatusMenu {
     /// depends on its transcript and on whether tmux is installed, and neither belongs in a pure
     /// function. The renderer supplies it; a test supplies a stub.
     public static func model(sessions: [Session],
-                             trial: TrialState,
+                             now: Date = Date(),
                              problem: String? = nil,
                              recent: [ContextBuffer.Entry] = [],
                              /// The basket's "Copy Basket as Context" row needs a token count, and
@@ -112,26 +118,6 @@ public enum StatusMenu {
                              }) -> [MenuNode] {
         var out: [MenuNode] = []
 
-        // ── THE PAID BODY ───────────────────────────────────────────────────────────────────
-        //
-        // /buy sells four things and three of them used to keep working forever after the trial
-        // ended — the page describing a product the build does not deliver. What a lapsed trial
-        // still gets, deliberately: Settings, Report a Problem, Quit, and a plain statement that
-        // the CLI does all of this for free. Nobody is trapped, and the open-core promise is kept
-        // at the exact moment it would be easiest to break.
-        guard trial.isUnlocked else {
-            out.append(MenuNode(.command(.openLicenseSettings), "Trial ended — Buy Chute, $19 once"))
-            out.append(MenuNode(.note,
-                                "The chute CLI is still free — chute sessions, focus, ports",
-                                toolTip: "The command line tool is MIT and never expires. The app "
-                                       + "buys you the Finder menu and this switcher, not the "
-                                       + "ability to do these things."))
-            out.append(.separator())
-            out.append(contentsOf: standardItems(trial: trial, unlocked: false,
-                                                 recent: [], recentTokens: 0,
-                                                 notificationsDenied: notificationsDenied))
-            return out
-        }
 
         if let problem {
             out.append(MenuNode(.command(.openAutomationSettings),
@@ -139,27 +125,43 @@ public enum StatusMenu {
             out.append(.separator())
         }
 
-        // ── ONE FLAT LIST OF TERMINALS, AND NO STATE ────────────────────────────────────
+        // ── TWO LEVELS: WHAT YOU MUST DO ABOUT IT, THEN WHICH PROJECT ───────────────────
         //
-        // There were four groups here — "Waiting for You", "Working", "Running — no status" and
-        // "Idle" — and a nag row above them. The founder asked for them gone, twice, and he is
-        // right: a status Chute cannot always know is a status it should not always claim. The
-        // hooks report at turn boundaries and nothing reports at all for an agent that ships no
-        // hooks, so any session can sit in a state that stopped being true hours ago. On
-        // 2026-09-04 that produced `Working (7)` over seven sessions, none of them working.
+        // A FLAT LIST WAS THE PROBLEM. The founder's own menu on 2026-09-08 held thirteen rows,
+        // five of them named `sntz_mockups`, and not one of them said which session had stopped.
+        // Every fact was there except the only one that makes you act.
         //
-        // What is left is what Chute can see for itself at the moment the menu opens: which
-        // project, which agent, and what that terminal is costing. Click a row, that terminal
-        // comes forward. The hooks still earn their keep — the session id is what makes
-        // "Copy Resume Command", "Continue in tmux" and "Copy Cost So Far" possible — they just
-        // no longer put a word on the screen that nothing can stand behind.
+        // Grouping was here once and was deleted in 2849347, correctly: the state came from
+        // Terminal's `busy` flag and from the spinner glyph Claude Code writes into the title,
+        // and neither survives as evidence — the glyph is never CLEARED, so a session left
+        // overnight read "working" forever. That produced `Working (7)` over seven sessions with
+        // none of them working, and a group header that lies is worse than no header.
         //
-        // Sorted by project, then tty, so the list does not reshuffle between two openings.
-        // It used to be ordered by urgency, and urgency is exactly what is gone.
-        for s in sessions.sorted(by: {
-            ($0.project.lowercased(), $0.tty) < ($1.project.lowercased(), $1.tty)
-        }) {
-            out.append(contentsOf: rows(for: s, loadFor: loadFor,
+        // What changed is the evidence, not the appetite. StateResolver now takes state from a
+        // hook or returns `.unknown`, and `.unknown` gets its own header rather than being
+        // quietly filed under something confident. So the grouping comes back, over a source
+        // that can say "I do not know".
+        //
+        // Order inside a section is oldest-first: the session that has been blocked longest is
+        // the one costing you the most, and it sits at the top where your eye already is.
+        let ordered = sessions.sorted {
+            ($0.state, $0.since ?? .distantFuture, $0.project.lowercased(), $0.tty)
+                < ($1.state, $1.since ?? .distantFuture, $1.project.lowercased(), $1.tty)
+        }
+        var lastState: SessionState? = nil
+        var lastProject: String? = nil
+        for s in ordered {
+            if s.state != lastState {
+                out.append(.separator())
+                out.append(MenuNode(.note, sectionTitle(s.state, in: ordered)))
+                lastState = s.state
+                lastProject = nil
+            }
+            if s.project != lastProject {
+                out.append(MenuNode(.note, s.project, indent: 1))
+                lastProject = s.project
+            }
+            out.append(contentsOf: rows(for: s, now: now, loadFor: loadFor,
                                         sessionCommands: sessionCommands, colorFor: colorFor,
                                         detailFor: detailFor))
         }
@@ -170,23 +172,50 @@ public enum StatusMenu {
             out.append(.separator())
         }
 
-        out.append(contentsOf: standardItems(trial: trial, unlocked: true,
-                                             recent: recent, recentTokens: recentTokens,
+        out.append(contentsOf: standardItems(recent: recent, recentTokens: recentTokens,
                                              notificationsDenied: notificationsDenied))
         return out
     }
 
+    /// The header for a state's section, with how many sessions are under it.
+    ///
+    /// "NEEDS YOU", not "BLOCKED": the header's job is to say what you must DO, and the reader
+    /// scanning a menu bar drop-down is deciding where to click, not reading a state machine.
+    /// `.unknown` gets its own header rather than being filed under something confident —
+    /// an agent that ships no hooks (Antigravity, today) is genuinely unknown, and saying so is
+    /// the whole reason the grouping could come back at all.
+    static func sectionTitle(_ state: SessionState, in sessions: [Session]) -> String {
+        let n = sessions.filter { $0.state == state }.count
+        let name: String
+        switch state {
+        case .blocked: name = "NEEDS YOU"
+        case .waiting: name = "READY FOR A PROMPT"
+        case .working: name = "WORKING"
+        case .idle:    name = "NO AGENT"
+        case .unknown: name = "NO STATUS — HOOKS NOT REPORTING"
+        }
+        return "\(name)   \(n)"
+    }
+
     /// One session: the row itself, then its ⌥ alternates.
     static func rows(for s: Session,
+                     now: Date = Date(),
                      loadFor: (String) -> SessionLoad,
                      sessionCommands: (Session) -> [(kind: String, title: String)],
                      colorFor: (String) -> String,
                      detailFor: (Session) -> String) -> [MenuNode] {
         let hex = colorFor(s.project)
-        // No "waited 4m" any more: it only ever appeared for `.blocked` and `.waiting`, which are
-        // states Chute no longer claims. What stays is what is true when the menu opens.
+        // "blocked 22 min" IS THE PRODUCT. This was deleted with the grouping in 2849347 and it
+        // comes back with it, for the same reason: the duration is the whole signal. Blocked for
+        // twenty seconds is noise you would never have noticed; blocked for twenty minutes is
+        // twenty minutes in which nothing at all happened. `Session.since` has been populated
+        // since TerminalAppAdapter landed and had no reader outside the tests until now.
+        //
+        // The project name is dropped from the row: the sub-header directly above it already
+        // says which project this is, and repeating it is what made thirteen rows unreadable.
         let load = loadFor(s.tty)
-        let prefix = "\(s.project)   \(detailFor(s))"
+        let held = SessionPhrasing.held(s.state, since: s.since, now: now)
+        let prefix = held.isEmpty ? detailFor(s) : "\(detailFor(s))   \(held)"
         var out: [MenuNode] = [
             MenuNode(.session(key: s.key, tty: s.tty, colorHex: hex, prefix: prefix),
                      prefix + suffix(load),
@@ -201,23 +230,15 @@ public enum StatusMenu {
     }
 
     /// Everything below the sessions, which is the same on every open.
-    static func standardItems(trial: TrialState, unlocked: Bool,
-                              recent: [ContextBuffer.Entry], recentTokens: Int,
+    static func standardItems(recent: [ContextBuffer.Entry], recentTokens: Int,
                               notificationsDenied: Bool) -> [MenuNode] {
         var out: [MenuNode] = []
-        if unlocked {
-            // BASKET FIRST, THEN LOCAL SERVERS. It used to sit below Local Servers as a submenu,
-            // where the owner reported "no row at all" — not because a submenu hides its count
-            // (the title reads "Basket  (n)" without hovering, same as before), but because that
-            // position is easy to scroll past on a long menu. Read where it is read.
-            out.append(contentsOf: basket(recent, tokens: recentTokens))
-            out.append(MenuNode(.servers, "Local Servers"))
-        } else {
-            // AN EXPIRED TRIAL MAKES BOTH VANISH SILENTLY, which to the user is indistinguishable
-            // from "empty" — the same false signal this whole spec exists to stop. The gate itself
-            // is unchanged: nothing here unlocks either section, it only says why they are gone.
-            out.append(MenuNode(.note, "Local Servers and the Context Basket are behind the licence"))
-        }
+        // BASKET FIRST, THEN LOCAL SERVERS. It used to sit below Local Servers as a submenu,
+        // where the owner reported "no row at all" — not because a submenu hides its count
+        // (the title reads "Basket  (n)" without hovering, same as before), but because that
+        // position is easy to scroll past on a long menu. Read where it is read.
+        out.append(contentsOf: basket(recent, tokens: recentTokens))
+        out.append(MenuNode(.servers, "Local Servers"))
         out.append(.separator())
 
         // Only ever set when a fallback notification was actually REFUSED — which means the HUD
@@ -231,12 +252,6 @@ public enum StatusMenu {
         out.append(MenuNode(.command(.openSetup), "Setup…"))
         out.append(MenuNode(.command(.reportProblem), "Report a Problem…"))
         out.append(MenuNode(.command(.openSettings), "Settings…"))
-
-        // Nothing at all once it is paid for: an app that keeps mentioning payment after the
-        // payment is nagging its own customer.
-        if let label = Trial.menuLabel(trial) {
-            out.append(MenuNode(.command(.openLicenseSettings), label))
-        }
         out.append(.separator())
 
         // NO "REFRESH NOW". It built a NEW NSMenu and assigned it to statusItem.menu, and

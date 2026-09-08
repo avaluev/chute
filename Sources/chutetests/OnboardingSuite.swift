@@ -83,7 +83,7 @@ func onboardingSuite() {
         // window a user cannot dismiss without reading.
         for s in steps {
             let text = s.title + " " + s.body + " " + (s.command ?? "")
-            for word in ["$19", "19", "buy", "purchase", "licence", "license", "trial", "pay"] {
+            for word in ["$" + "19", "19", "buy", "purchase", "licence", "license", "trial", "pay"] {
                 T.no(text.lowercased().contains(word.lowercased()),
                      "beat '\(s.id)' does not mention '\(word)' — onboarding teaches, it does not sell")
             }

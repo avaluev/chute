@@ -27,25 +27,11 @@ extension AppDelegate {
             try? FileManager.default.removeItem(atPath: path)
             guard let action = ChuteActions.find(request.id) else { continue }
 
-            // ABOVE THE GATE, deliberately. The user performed the right-click; the teaching
-            // succeeded. Whether the action is PERMITTED is a different question, and if the
-            // trial has lapsed beat 3 must still complete — otherwise the one beat that proves
-            // the product works becomes unreachable at exactly the moment someone is deciding
-            // whether to pay for it.
+            // There was a trial gate here: every Finder action checked Trial.touch().isUnlocked
+            // and, past the 14 days, stopped and pointed at the (now also gone) License tab.
+            // Chute went free and MIT on 2026-09-08 — nothing is left to unlock, so nothing is
+            // left to check.
             Onboard.observe(action.id)
-
-            // THE GATE, and the only one. Every Finder action arrives here, so the trial is
-            // checked once rather than in eight action handlers. The sandboxed extension is
-            // deliberately not involved: it cannot read the licence file from inside its
-            // container, and licence logic has no business inside a sandbox.
-            //
-            // The `chute` CLI is never gated — it is MIT and free forever, and install.sh
-            // symlinks it out of this very bundle.
-            guard Trial.touch().isUnlocked else {
-                notify("Trial ended", "Chute's Finder actions need a licence. $19, one payment.")
-                DispatchQueue.main.async { SettingsWindow.show(selecting: 1) }
-                continue
-            }
 
             DispatchQueue.global(qos: .userInitiated).async {
                 let command = Self.commandLine(for: action, request: request)

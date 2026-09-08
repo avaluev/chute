@@ -38,8 +38,8 @@ export default function Terms() {
       <H2>Price</H2>
       <p>
         There is none. No purchase, no subscription, no licence key, no account, and no trial that
-        ends. Chute was sold for $19 with a 14-day trial for eleven days in 2026; that product was
-        withdrawn and the licensing machinery deleted rather than switched off.
+        ends. Chute was sold for eleven days in 2026; that product was withdrawn and the licensing
+        machinery deleted rather than switched off.
       </p>
 
       <H2>Warranty</H2>

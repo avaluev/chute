@@ -53,4 +53,22 @@ public enum SessionPhrasing {
         default:         return "\(seconds / 86_400) days"
         }
     }
+
+    /// "blocked 22 min" / "ready 3 min" / "" for a state Chute makes no claim about.
+    ///
+    /// Empty for `.idle` and `.unknown` ON PURPOSE. A shell with no agent has not been "idle for
+    /// 4 h" in any sense the reader cares about, and putting a confident duration next to a state
+    /// Chute admits it does not know is exactly the dressed-up guess that got the old status
+    /// badge deleted.
+    public static func held(_ state: SessionState, since: Date?, now: Date = Date()) -> String {
+        guard let since, now >= since else { return "" }
+        let word: String
+        switch state {
+        case .blocked: word = "blocked"
+        case .waiting: word = "ready"
+        case .working: word = "working"
+        case .idle, .unknown: return ""
+        }
+        return "\(word) \(ago(since, now: now))"
+    }
 }

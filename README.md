@@ -255,16 +255,14 @@ journey map, and the definition of done.
 
 ## Licence
 
-Chute is open-core, and the split is in the files rather than only in this paragraph.
+**MIT. All of it** — the CLI, the menu-bar app, the Finder extension, the scripts, the site.
 
-| | |
-|---|---|
-| **MIT** | `Sources/chute/` (the CLI), `Sources/ChuteCore/`, `Sources/chutetests/`, `Scripts/`, and everything outside `Sources/` except `Resources/` |
-| **All rights reserved** | `Sources/ChuteApp/`, `Sources/ChuteFinder/`, `Resources/` — the paid app, each with its own `LICENSE` |
+Chute was open-core for eleven days: the app was paid, with a trial and an offline licence key,
+and `Sources/ChuteApp/`, `Sources/ChuteFinder/` and `Resources/` each carried their own
+all-rights-reserved `LICENSE`. That ended on 2026-09-08. The licence check, the trial clock and
+the Cloudflare Worker that minted keys were **deleted rather than switched off**, and
+`Scripts/smoke.sh` now fails the build if `isUnlocked`, `Trial.` or `License.` reappears anywhere
+in `Sources/` — so the gate cannot come back by accident.
 
-The CLI is free and MIT, forever, and `install.sh` symlinks it straight out of the app bundle. The
-Finder right-click menu and the menu-bar session switcher are the $19 app: their source is
-published so it can be read and audited, not so it can be redistributed.
-
-The scope note at the top of [`LICENSE`](LICENSE) is the authoritative version, and
-`Scripts/smoke.sh` §25 fails if a new directory under `Sources/` is not named in it.
+[`LICENSE`](LICENSE) is the authoritative version and is now the plain MIT text with no scope
+preamble, which is also what makes GitHub report this repository as MIT rather than "Other".

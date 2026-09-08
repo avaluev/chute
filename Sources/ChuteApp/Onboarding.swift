@@ -16,9 +16,10 @@ enum Onboard {
     nonisolated(unsafe) private static var outcomes: [String: Bool] = [:]
     nonisolated(unsafe) private static var index = 0
 
-    /// Called from the request inbox for every Finder action that arrives, ABOVE the trial gate.
-    /// The user performed the right-click; the teaching succeeded. Whether the action was
-    /// PERMITTED is a separate question, and a lapsed trial must not make beat 3 unreachable.
+    /// Called from the request inbox for every Finder action that arrives. The user performed
+    /// the right-click; the teaching succeeded. This used to run ABOVE a trial gate that could
+    /// still turn the action away — Chute went free and MIT on 2026-09-08, so beat 3 always
+    /// completes now.
     static func observe(_ actionID: String) {
         observed.insert(actionID)
         DispatchQueue.main.async { if window?.isVisible == true { render() } }

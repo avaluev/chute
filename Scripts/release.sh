@@ -21,22 +21,6 @@ VERSION="$(sed -n 's/.*static let current = "\([^"]*\)".*/\1/p' Sources/ChuteCor
 [ -n "$VERSION" ] || { echo "release: no version in Sources/ChuteCore/Version.swift" >&2; exit 1; }
 TAG="v$VERSION"
 
-# THE LICENCE KEY BLOCKS THE RELEASE, and nothing else could catch it. `License.verify` defaults to
-# `productionPublicKey`, which is still the literal `REPLACE_ME_BEFORE_RELEASE` — not valid base64,
-# so EVERY licence key a buyer pastes fails, silently, and they are told nothing useful. The unit
-# suite cannot see it: `LicenseSuite` deliberately verifies against its own generated keypair so it
-# never needs the production secret, which is correct for a test and blind for a release.
-#
-# So the gate lives here, at the one moment it matters. Mint the real pair with
-# `node worker/keygen.mjs new`, put the PUBLIC half in Version's sibling
-# Sources/ChuteCore/License.swift:28, and keep the private half as a Cloudflare Worker secret.
-KEY="$(sed -n 's/.*productionPublicKey = "\([^"]*\)".*/\1/p' Sources/ChuteCore/License.swift)"
-if [ "$KEY" = "REPLACE_ME_BEFORE_RELEASE" ] || [ -z "$KEY" ]; then
-  echo "release: Sources/ChuteCore/License.swift:28 is still the placeholder public key." >&2
-  echo "         Every licence key would fail verification for every buyer." >&2
-  echo "         Mint one with: node worker/keygen.mjs new" >&2
-  exit 1
-fi
 DMG="$ROOT/dist/Chute-$VERSION.dmg"
 PROFILE="${CHUTE_NOTARY_PROFILE:-chute}"
 
@@ -67,8 +51,6 @@ xcrun notarytool history --keychain-profile "$PROFILE" >/dev/null 2>&1 \
 step "Gate — the suites must pass before anything is published"
 swift run -c release chutetests
 ./Scripts/smoke.sh
-# The Worker mints what License.swift verifies. Nothing else runs this before a release.
-node worker/contract.test.mjs
 
 # ---------------------------------------------------------------- build
 step "Building signed with: $SIGN_ID"

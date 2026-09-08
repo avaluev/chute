@@ -84,46 +84,38 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
     }
 
-    /// THE PAID BODY OF THE MENU BAR, behind the same gate as the Finder actions.
+    /// THE BODY OF THE MENU, rebuilt on every open.
     ///
-    /// It was not gated. `/buy` sells four things — the Finder menu, the session switcher, the
-    /// local-server list and the ⌥⌘N hotkey — and three of them kept working forever after the
-    /// trial ended. That is not generosity, it is the page describing a product the build does
-    /// not deliver, which is the same defect as a privacy page claiming analytics that are not
-    /// there.
-    ///
-    /// What a lapsed trial still gets, deliberately: Settings, Report a Problem, Refresh, Quit —
-    /// nobody is trapped — and a plain statement that `chute sessions`, `chute focus` and
-    /// `chute ports` still do all of this for free from the terminal. The convenience is what is
-    /// bought; the capability was never taken away. That line is the open-core promise being
-    /// kept at the exact moment it would be easiest to break.
-    func populateBody(_ menu: NSMenu, trial: TrialState) {
+    /// It used to be gated behind a 14-day trial: a lapsed trial got Settings, Report a Problem
+    /// and Quit, and everything else vanished. Chute went free and MIT on 2026-09-08 and the
+    /// gate was deleted rather than switched off, so there is no longer a branch here that can
+    /// hide the product from its own user.
+    func populateBody(_ menu: NSMenu) {
         // CLEARED HERE, AND ONLY HERE. menuWillOpen populates the menu AppKit hands us IN PLACE,
         // so whatever was on it from last time is still there. SessionMenu used to do this —
-        // which meant the expired-trial branch, which returned before ever reaching it, appended
+        // which meant the early-return branch, which never reached it, appended
         // a second complete copy of the menu on every open. It grew without bound, in front of
         // the one person who was deciding whether to pay. `StatusMenuSuite` now asserts that
         // building the menu twice produces the same menu rather than two of it.
         menu.removeAllItems()
 
-        let (sessions, problem) = trial.isUnlocked ? discoverSessionsForMenu() : ([], nil)
+        let (sessions, problem) = discoverSessionsForMenu()
         lastSessions = sessions
 
         // ONE `SystemVitals.sample()` FOR THE WHOLE MENU. Sampling per row would be thirteen
         // process listings for a menu the user is already waiting on.
-        let samples = trial.isUnlocked ? SystemVitals.sample() : []
+        let samples = SystemVitals.sample()
 
         // Read once, used twice: the entries for the rows, and — only when there are any — the
         // files' own content for the token count on "Copy Basket as Context". StatusMenu.model
         // stays free of disk reads; this is the one place that does them, same as `samples` above.
         let basketBuf = ContextBuffer()
-        let basketEntries = trial.isUnlocked ? basketBuf.entries().reversed().map { $0 } : []
+        let basketEntries = basketBuf.entries().reversed().map { $0 }
         let basketTokens = basketEntries.isEmpty ? 0
             : TokenEstimate.tokens(in: basketBuf.bundleText() ?? "")
 
         let model = StatusMenu.model(
             sessions: sessions,
-            trial: trial,
             problem: problem,
             recent: basketEntries,
             recentTokens: basketTokens,
@@ -159,7 +151,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         switch command {
         case .focusSession:              return #selector(focusSession(_:))
         case .sessionCommand:            return #selector(runSessionCommand(_:))
-        case .openLicenseSettings:       return #selector(openLicenseSettings)
         case .openAutomationSettings:    return #selector(openAutomationSettings)
         case .openNotificationSettings:  return #selector(openNotificationSettings)
         case .reportProblem:             return #selector(reportProblem)
@@ -249,7 +240,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     @objc func openSettings() { SettingsWindow.show() }
-    @objc func openLicenseSettings() { SettingsWindow.show(selecting: 1) }
 
     @objc func openNotificationSettings() {
         NSWorkspace.shared.open(Notify.settingsURL)
@@ -322,10 +312,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     // statusItem.menu here: the object already being tracked for display is this one, so a swap
     // takes effect on the NEXT open, and the user sees the previous (stale) session list.
     func menuWillOpen(_ menu: NSMenu) {
-        let trial = Trial.touch()
-        populateBody(menu, trial: trial)
-        // Nothing to re-sample when the rows are not there.
-        if trial.isUnlocked { startVitalsRefresh() }
+        populateBody(menu)
+        startVitalsRefresh()
     }
 
     /// While the menu is open, every row's CPU and memory figure is re-sampled every two seconds

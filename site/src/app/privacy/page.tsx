@@ -46,7 +46,7 @@ export default function Privacy() {
       <p>
         There is none. Chute is free and MIT licensed: there is no store, no checkout, no payment
         processor and no customer record, because nothing is sold. Until 2026-09-08 this section
-        described Paddle as merchant of record for a $19 licence. That product no longer exists,
+        described Paddle as merchant of record for a paid licence. That product no longer exists,
         and neither does the data it would have collected.
       </p>
 

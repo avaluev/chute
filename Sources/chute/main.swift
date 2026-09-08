@@ -52,7 +52,7 @@ Everything is offline and nothing is uploaded, with one explicit exception: `gis
 files you name (redacted first) to GitHub.
 
 This CLI is free and MIT, forever. The Finder right-click menu and the menu-bar session
-switcher are the paid app — 14 days free, then $19 once: chutedev.com
+switcher live in the app, which is free and MIT too: chutedev.com
 """
 
 let argv = Array(CommandLine.arguments.dropFirst())

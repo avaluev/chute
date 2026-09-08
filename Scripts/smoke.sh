@@ -247,26 +247,22 @@ run_action copy-paths >/dev/null 2>&1
 has   "copy-paths lands on the clipboard"  "$(pbpaste)" "$FX/src/a.ts"
 has   "copy-paths includes every selected file" "$(pbpaste)" "$FX/src/deep/b.ts"
 
-# OPEN CORE, ASSERTED. The CLI is MIT and free forever; only Chute.app is licensed. If a trial
-# check ever leaks into ChuteCore paths the CLI reaches, `brew install chute` starts expiring and
-# the whole top of the funnel dies quietly. So: plant an EXPIRED trial record and prove the CLI
-# does not care. install.sh symlinks ~/.local/bin/chute out of the app bundle, which is exactly
-# how such a leak would reach a free user.
-TRIALDIR="$T/Library/Application Support/Chute"; mkdir -p "$TRIALDIR"
-python3 - "$TRIALDIR/trial.json" <<'PY'
-import json, sys, time
-long_ago = time.time() - 400 * 86400
-json.dump({"firstRun": long_ago - 978307200, "lastSeen": time.time() - 978307200}, open(sys.argv[1], "w"))
-PY
-if HOME="$T" "$CHUTE" paths "$FX/src/a.ts" --no-copy >/dev/null 2>&1; then
-  ok "the CLI still runs with an expired trial on disk"
+# OPEN CORE, ASSERTED. The CLI is MIT and free forever, and there is no Trial/License type left
+# anywhere in Sources to gate on — so the strongest, cheapest version of this guarantee is not
+# "plant an expired trial and prove the CLI shrugs", it's "prove the gate can't come back by
+# accident": no code path in Sources references isUnlocked/Trial./License. at all.
+# COMMENTS ARE STRIPPED FIRST, and that is not a loophole — it is the point. Deleting a gate
+# leaves behind prose explaining that it existed and why it went, which is exactly the comment
+# this repo wants written. A gate that fired on its own changelog would teach the next person to
+# delete the explanation rather than the code. `sed 's://.*::'` is the same comment-stripping
+# check-untested-logic.sh has used all along.
+GATED="$(for f in $(find "$ROOT/Sources" -name '*.swift'); do
+           sed 's://.*::' "$f" | grep -qE 'isUnlocked|Trial\.|License\.' && echo "$f"
+         done)"
+if [ -n "$GATED" ]; then
+  bad "nothing in Sources gates on a trial or a licence" "$(echo "$GATED" | head -3)"
 else
-  bad "the CLI still runs with an expired trial on disk" "$(tail -1 /tmp/chute-a.err 2>/dev/null)"
-fi
-if HOME="$T" "$CHUTE" bundle "$FX/src/a.ts" --no-copy >/dev/null 2>&1; then
-  ok "including the paid-looking wedge command"
-else
-  bad "including the paid-looking wedge command" "bundle refused to run"
+  ok "nothing in Sources gates on a trial or a licence"
 fi
 hasnt "and the CLI binary carries no licence prompt" "$("$CHUTE" help 2>&1)" "licence"
 
@@ -706,22 +702,21 @@ else
 fi
 
 echo
-echo "25. licence scope"
-# A hand-kept list is not a gate — so this ASKS the tree. The root LICENSE is MIT and does not
-# cover Sources/ChuteApp or Sources/ChuteFinder (the paid app). A new source directory that
-# nobody names in LICENSE is either accidentally MIT-licensed or accidentally not; both are a
-# legal problem discovered at the worst possible moment. Adding a directory now fails here until
-# someone says which side of the split it is on.
-for d in "$ROOT"/Sources/*/; do
-  name="$(basename "$d")"
-  if grep -qF "Sources/$name/" "$ROOT/LICENSE"; then ok "LICENSE names Sources/$name"
-  else bad "LICENSE names Sources/$name" "add it to the scope note at the top of LICENSE"; fi
-done
-# Every directory the root LICENSE excludes must carry its own terms, or the exclusion says only
-# what the code is NOT licensed under and never what it IS.
-for name in ChuteApp ChuteFinder; do
-  if [ -f "$ROOT/Sources/$name/LICENSE" ]; then ok "Sources/$name carries its own LICENSE"
-  else bad "Sources/$name carries its own LICENSE" "missing"; fi
+echo "25. every test suite is registered"
+# Sources/chutetests is a plain executable target, not a .testTarget (Package.swift explains why:
+# no XCTest without a full Xcode toolchain). That means a new SomethingSuite.swift COMPILES,
+# LINKS, and NEVER RUNS unless a human also adds a line to Sources/chutetests/main.swift — nothing
+# checked that until now. A suite that does not run is worse than no suite: it is a green tick
+# over nothing, and the person who wrote it believes it is protecting them.
+for f in "$ROOT"/Sources/chutetests/*.swift; do
+  case "$(basename "$f")" in main.swift|Harness.swift) continue ;; esac
+  for fn in $(sed 's://.*::' "$f" | sed -n 's/^func \([A-Za-z0-9_]*\)() *{.*/\1/p'); do
+    if grep -q "^$fn()" "$ROOT/Sources/chutetests/main.swift"; then
+      ok "$fn() runs"
+    else
+      bad "$fn() runs" "add \`$fn()\` to Sources/chutetests/main.swift — it compiles but never runs"
+    fi
+  done
 done
 
 echo

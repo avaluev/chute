@@ -98,6 +98,11 @@ enum SessionMenu {
                 let item = NSMenuItem(title: node.title, action: nil, keyEquivalent: "")
                 item.isEnabled = false
                 item.toolTip = node.toolTip
+                // Section headers ("NEEDS YOU 2") sit at 0 and their project sub-headers at 1.
+                // Assigned unconditionally: Scripts/check-untested-logic.sh counts every branch
+                // in this target against a baseline of 15 for this file, and the two-level menu
+                // had a budget of exactly zero new ones.
+                item.indentationLevel = node.indent
                 menu.addItem(item)
 
             case .session(let key, let tty, let hex, let prefix):
