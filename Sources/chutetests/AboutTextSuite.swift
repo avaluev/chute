@@ -6,11 +6,13 @@ func aboutTextSuite() {
         let withBuild = AboutText.about(version: "0.2.1", build: "87c2cef")
         T.eq(withBuild.heading, "Chute 0.2.1", "the heading is the version")
         T.eq(withBuild.body.first, "build 87c2cef", "the build stamp is shown when the bundle has one")
-        T.eq(withBuild.body.count, 2, "stamp and privacy, nothing else")
+        T.eq(withBuild.body.count, 4, "stamp, why, privacy, star reason — nothing else")
 
         let noBuild = AboutText.about(version: "0.2.1", build: nil)
-        T.eq(noBuild.body.count, 1, "an unstamped bundle shows no stamp line rather than 'unknown'")
-        T.eq(noBuild.body.first, AboutText.privacy, "and still says the privacy sentence")
+        T.eq(noBuild.body.count, 3, "an unstamped bundle shows no stamp line rather than 'unknown'")
+        T.eq(noBuild.body.first, AboutText.why, "and still opens with the first-person why, before privacy")
+        T.ok(noBuild.body.contains(AboutText.privacy), "and still says the privacy sentence")
+        T.ok(noBuild.body.contains(AboutText.starReason), "and still makes the one ask")
 
         // THE CLAUSE THAT MAKES THE CLAIM HONEST. The privacy sentence is only true because it
         // names the one command that uploads and says whose credentials it uses. Drop that half
@@ -19,9 +21,27 @@ func aboutTextSuite() {
         T.ok(AboutText.privacy.contains("your own `gh`"), "and it says whose credentials it uses")
         T.ok(AboutText.privacy.contains("redacting keys and tokens"), "and what it strips first")
         T.ok(AboutText.privacy.contains("no telemetry"), "the three absences are still stated")
-        T.no(AboutText.privacy.lowercased().contains("never uploads"),
-             "no absolute upload claim survives — `gist` uploads")
-    
+
+        // THE SWEEP COVERS EVERY NEW SENTENCE IN THE TAB, NOT JUST `privacy` — an absolute upload
+        // claim would be just as false coming from `why` or `starReason` as it was from the old
+        // sentence this suite was written to catch.
+        let allAboutProse = [AboutText.why, AboutText.privacy, AboutText.starReason, AboutText.starTitle]
+            .joined(separator: " ")
+        T.no(allAboutProse.lowercased().contains("never uploads"),
+             "no absolute upload claim survives anywhere in the About tab — `gist` uploads")
+
+        // ── THE FIRST-PERSON OPENING ────────────────────────────────────────────────────────
+        T.ok(!AboutText.why.isEmpty, "the opening exists")
+        T.ok(AboutText.why.lowercased().contains("i "), "written in first person, by the author")
+
+        // ── THE STAR CTA ─────────────────────────────────────────────────────────────────────
+        T.eq(AboutText.starURL.scheme, "https", "the star URL parses and is https")
+        T.eq(AboutText.starURL.host, "github.com", "and points at GitHub")
+        T.ok(AboutText.starReason.lowercased().contains("telemetry")
+             && AboutText.starReason.lowercased().contains("signal"),
+             "the CTA copy names its reason, not a plea")
+        T.ok(!AboutText.starTitle.isEmpty, "the button has a title")
+
         // ── THE CONTACT ROWS ────────────────────────────────────────────────────────────────
         T.eq(AboutText.contacts.count, 3, "three ways to reach a human")
         for c in AboutText.contacts {

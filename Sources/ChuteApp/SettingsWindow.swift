@@ -9,14 +9,27 @@ import ChuteCore
 enum SettingsWindow {
     nonisolated(unsafe) static var window: NSWindow?
 
+    /// MEASURED, NOT CHOSEN. `UI.pad` pins the stack's bottom with `lessThanOrEqualTo`, so content
+    /// taller than the window is not a broken constraint — it is silently CLIPPED, and the reader
+    /// never learns there was more. The About tab grew from 314pt to 535pt of content when the
+    /// first-person opening and the star CTA landed on 2026-09-08, which put the button and all
+    /// three contact rows below the fold of the old 420pt window.
+    ///
+    /// 535 + 48 (the 24pt inset, twice) + 28 (the tab bar) = 611. This is that, rounded up for one
+    /// notch of larger accessibility text. Re-measure before trimming it: build the About stack,
+    /// call `fittingSize.height`, and read the number rather than judging it by eye in one theme
+    /// at one text size. The window stays resizable, which is the mitigation for everything past
+    /// that notch.
+    static let size = NSSize(width: 520, height: 640)
+
     static func show(selecting tab: Int = 0) {
         if let w = window {
             NSApp.activate(ignoringOtherApps: true)
             w.makeKeyAndOrderFront(nil)
             return
         }
-        let w = Panel.make(title: "Chute Settings", width: 520, height: 420)
-        let tabs = NSTabView(frame: NSRect(x: 0, y: 0, width: 520, height: 420))
+        let w = Panel.make(title: "Chute Settings", width: size.width, height: size.height)
+        let tabs = NSTabView(frame: NSRect(origin: .zero, size: size))
         tabs.autoresizingMask = [.width, .height]
         tabs.addTabViewItem(item("General", general()))
         tabs.addTabViewItem(item("About", about()))
@@ -69,13 +82,36 @@ enum SettingsWindow {
         let a = AboutText.about(version: ChuteVersion.current, build: Diagnostics.installedBuild())
         // A SELECTABLE FIELD WITH .link ATTRIBUTES, not a row of NSButtons. AppKit opens a link in
         // a selectable text field on click with no target, no action and no handler object — so
-        // four contact rows cost this file zero decision points, which matters because
+        // three contact rows cost this file zero decision points, which matters because
         // Scripts/check-untested-logic.sh holds it to a budget it only just earned by losing the
         // licence tab. The labels and URLs are AboutText.contacts, where the suite can read them.
         let links = AboutText.contacts.map { linkField(label: $0.label, handle: $0.handle, url: $0.url) }
-        return pad(NSStackView(views:
-            [heading(a.heading)] + a.body.map(body)
-            + [heading(AboutText.contactHeading), body(AboutText.contactLead)] + links))
+        // The star CTA is the one row that IS an NSButton — see starButton() for why a button and
+        // not a fourth link. Every element here is upcast to NSView explicitly: `a.body.map(body)`
+        // and `links` are concretely typed [NSTextField], and Swift's Array is invariant, so
+        // mixing them with an NSButton in one literal needs the cast spelled out rather than left
+        // to inference.
+        let views: [NSView] =
+            [heading(a.heading)] + a.body.map { body($0) as NSView }
+            + [starButton()]
+            + [heading(AboutText.contactHeading), body(AboutText.contactLead)]
+            + links.map { $0 as NSView }
+        return pad(NSStackView(views: views))
+    }
+
+    /// THE STAR CTA. `AboutText.starReason` is the copy that sits above this in the stack — the
+    /// reason comes first, the button second, so it reads as an argument and not a plea. Target
+    /// and action need an `NSObject`, and `SettingsWindow` is an enum, so `Handler` below carries
+    /// the one-line `@objc` handler — the same shape as `AppDelegate.openNotificationSettings` at
+    /// `Sources/ChuteApp/main.swift:245-247`. `AboutText.starURL` is a `URL`, not a `String`, so
+    /// there is nothing here to guard or force-unwrap: zero decision points either way.
+    private static func starButton() -> NSButton {
+        NSButton(title: AboutText.starTitle, target: Handler.shared, action: #selector(Handler.openStar))
+    }
+
+    final class Handler: NSObject {
+        nonisolated(unsafe) static let shared = Handler()
+        @objc func openStar() { NSWorkspace.shared.open(AboutText.starURL) }
     }
 
     // MARK: - Plumbing
@@ -105,7 +141,7 @@ enum SettingsWindow {
     private static func body(_ s: String) -> NSTextField { UI.body(s) }
     private static func pad(_ stack: NSStackView) -> NSView { UI.pad(stack, inset: 24) }
 
-    // refreshLicenseTab() and Handler (key-field activation, Buy button) lived here to drive the
-    // License tab above. Both went with it — there is nothing left in this file that talks to
-    // Trial or License.
+    // refreshLicenseTab() and a DIFFERENT Handler (key-field activation, Buy button) lived here to
+    // drive the License tab above. Both went with it on 2026-09-08 — the Handler above this
+    // comment is new, for the star button, and talks to neither Trial nor License.
 }

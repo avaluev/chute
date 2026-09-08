@@ -16,9 +16,27 @@ public enum AboutText {
         var body: [String] = []
         // The build stamp is what a bug report needs and what nobody remembers to ask for.
         if let build { body.append("build \(build)") }
+        // ORDER MATTERS: why, then privacy, then the ask — a reader meets the person before the
+        // spec sheet, and meets the spec sheet before being asked for anything.
+        body.append(why)
         body.append(privacy)
+        body.append(starReason)
         return ("Chute \(version)", body)
     }
+
+    /// THE OPENING. Everything below this line used to be the whole tab — accurate and written by
+    /// nobody in particular. This is written by the one person who built it, in first person,
+    /// because a spec sheet answers "what does it do" and never "why does this exist".
+    public static let why = """
+        I run five to thirteen coding agents at once. Every terminal tab looks identical, and the \
+        one that stopped twenty minutes ago to ask a yes-or-no question looks exactly like the one \
+        that is still working. I was losing hours to tabs that had been finished for a while and \
+        had no way to say so.
+
+        Chute answers one question, asked forty times a day: which one needs me. It does not \
+        summarise your code, rank your agents, or have an opinion about your work. It reads what \
+        your agents already write down, and puts it where you can see it without switching windows.
+        """
 
     /// WHERE A HUMAN ANSWERS.
     ///
@@ -52,4 +70,23 @@ public enum AboutText {
         with your own GitHub credentials, on the files you name, after redacting keys and tokens. \
         Chute itself never opens a socket.
         """
+
+    /// THE ONE ASK THE APP MAKES.
+    ///
+    /// The strongest true reason to ask was already sitting in `privacy`, above: Chute has no
+    /// analytics, no account and no telemetry, so a star is the only signal the author ever gets
+    /// that this was worth building. `starReason` restates that same fact as the argument for the
+    /// click — a reader can check it against the paragraph they just read, so this is a reason,
+    /// not an invented marketing line.
+    ///
+    /// A REAL BUTTON, not a fourth `linkField` row: the three contact rows above are for reaching
+    /// a person, this is a call to action, and it should not read as a fourth way to talk to one.
+    /// `starURL` is a `URL`, not a `String`, so `SettingsWindow`'s click handler needs no `guard`
+    /// and no force-unwrap — that file is held to a hard cap on decision points.
+    public static let starReason =
+        "Chute has no analytics, no account and no telemetry — which means a star is the only "
+        + "signal I ever get that this was worth building. It costs you a click."
+
+    public static let starTitle = "★ Star Chute on GitHub"
+    public static let starURL = URL(string: "https://github.com/avaluev/chute")!
 }
