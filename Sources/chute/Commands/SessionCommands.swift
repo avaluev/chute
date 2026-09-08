@@ -10,8 +10,11 @@ import ChuteCore
 func discoverSessions() -> (sessions: [Session], hadError: Bool) {
     let hooks = HookState.readAll()
     do {
+        // `project` is `String?` now (ProjectName.of can come back with nothing at all). `?? ""`
+        // sorts a nameless session first within its state rather than failing to compile — the
+        // real ordering readers see is StatusMenu.model's own sort, this is only discovery order.
         let sessions = try TerminalAppAdapter().discover(hooks: hooks, now: Date())
-            .sorted { ($0.state, $0.project) < ($1.state, $1.project) }
+            .sorted { ($0.state, $0.project ?? "") < ($1.state, $1.project ?? "") }
         return (sessions, false)
     } catch TerminalError.notRunning {
         return ([], false)
@@ -41,14 +44,17 @@ func cmdSessions(_ a: Args) {
             // promise, and it is also where discoverability lives for the ⌥ commands.
             let t = s.sessionID.flatMap { AgentTranscript.read(sessionID: $0) }
             var row: [String: Any] = [
-                "key": s.key, "project": s.project, "title": s.title, "tty": s.tty,
+                "key": s.key, "title": s.title, "tty": s.tty,
                 "state": HookState.stateName(s.state), "isAgent": s.isAgent,
                 "windowID": s.windowID, "tabIndex": s.tabIndex,
-                "color": SessionColor.hex(forProject: s.project),
+                // `s.project ?? ""` — an ungrouped, empty-string colour is a real answer from
+                // FNV-1a, not a crash; the row simply omits "project" below when there is none.
+                "color": SessionColor.hex(forProject: s.project ?? ""),
                 "cpuPercent": load.cpuPercent, "memoryBytes": load.residentBytes,
                 "processes": load.processes]
             // Absent rather than null: a consumer that checks for the key gets a straight answer,
             // and every one of these is genuinely unknown when the hook has not been updated.
+            if let p = s.project { row["project"] = p }
             if let a = s.agent { row["agent"] = a }
             if let c = s.cwd { row["cwd"] = c }
             if let id = s.sessionID { row["sessionId"] = id }
@@ -70,7 +76,9 @@ func cmdSessions(_ a: Args) {
         let load = SystemVitals.load(forTTY: s.tty, in: samples)
         let detail = SessionPhrasing.detail(agent: s.agent,
                                             transcript: s.sessionID.flatMap { AgentTranscript.read(sessionID: $0) })
-        Out.line(pad(s.state.label, 9) + pad(s.project, 18) + pad(detail, 34)
+        // "—" for no project derived, matching `chute ports`' own fallback for the same shape of
+        // absence (AgentCommands.swift's `pad(s.project ?? "—", 22)` for LocalServer).
+        Out.line(pad(s.state.label, 9) + pad(s.project ?? "—", 18) + pad(detail, 34)
                  + " " + pad(s.tty, 9) + load.label)
     }
     let needs = sessions.filter { $0.state == .blocked || $0.state == .waiting }.count
@@ -114,7 +122,7 @@ func cmdResume(_ a: Args) {
         else {
             Out.info("\(candidates.count) sessions can be resumed — name one:")
             for (i, s) in candidates.enumerated() {
-                Out.info("  \(i + 1). \(s.project)  \(SessionPhrasing.detail(agent: s.agent, transcript: nil))  (\(s.tty))")
+                Out.info("  \(i + 1). \(s.project ?? "—")  \(SessionPhrasing.detail(agent: s.agent, transcript: nil))  (\(s.tty))")
             }
             Out.fail("ambiguous — re-run with a number, e.g. `chute resume 1`")
         }
@@ -126,7 +134,10 @@ func cmdResume(_ a: Args) {
 
     let command: String?
     if a.has("tmux") {
-        command = ResumeCommand.tmux(project: s.project, cwd: s.cwd, agent: s.agent, sessionID: id)
+        // "session" when nothing was derived — `ResumeCommand.sessionName` already collapses an
+        // empty cleaned string to the same word, so this is not inventing a new fallback.
+        command = ResumeCommand.tmux(project: s.project ?? "session", cwd: s.cwd, agent: s.agent,
+                                     sessionID: id)
         if command == nil, Shell.which("tmux") == nil { Out.info("note: tmux is not installed") }
     } else {
         command = ResumeCommand.resume(agent: s.agent, sessionID: id)
@@ -173,7 +184,7 @@ func cmdFocus(_ a: Args) {
 
     do { try TerminalAppAdapter().focus(hit) }
     catch { Out.fail("\(error)") }
-    Out.info("→ focused \(hit.project) (\(hit.tty))")
+    Out.info("→ focused \(hit.project ?? "—") (\(hit.tty))")
 }
 
 func cmdHooks(_ a: Args) {

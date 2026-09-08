@@ -95,7 +95,11 @@ public struct TerminalAppAdapter {
                 windowID: windowID,
                 tabIndex: Int(f[2]) ?? 1,
                 tty: tty,
-                project: project(fromWindowName: f[1]),
+                // ONE DERIVATION, both surfaces — see ProjectName.swift's header comment for the
+                // incident (badge and menu naming the same session two different things) this
+                // closes. `hook?.cwd` is the authoritative source when it exists; the window
+                // title (`f[1]`) is only ever the last resort inside `ProjectName.of` itself.
+                project: ProjectName.of(cwd: hook?.cwd, windowTitle: f[1]),
                 title: title,
                 agent: agent,
                 busy: busy,
@@ -128,13 +132,10 @@ public struct TerminalAppAdapter {
         knownAgents.filter { processes.contains($0) }.max { $0.count < $1.count }
     }
 
-    /// Terminal window names read "36.macai — ◑ Chut — caffeinate ◂ claude — 245×76".
-    /// The first em-dash segment is the working directory's leaf, which is the project.
-    public static func project(fromWindowName name: String) -> String {
-        let head = name.components(separatedBy: " — ").first?
-            .trimmingCharacters(in: .whitespaces) ?? ""
-        return head.isEmpty ? "—" : head
-    }
+    // `project(fromWindowName:)` used to live here. DELETED — its body lives on, verbatim, as
+    // `ProjectName.titleHead`, which is where `parse` above now gets its last-resort fallback.
+    // One derivation, in one file, is the whole point of ProjectName.swift; keeping a second copy
+    // here just because this was its original address would have defeated that.
 }
 
 /// Whether the app owning this bundle executable path is running.

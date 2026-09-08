@@ -97,9 +97,14 @@ func signalSuite() {
         T.ok(SignalReader.project(cwd: nil) == nil, "nil cwd has no project")
         T.ok(SignalReader.project(cwd: "") == nil, "empty cwd has no project")
         T.ok(SignalReader.project(cwd: "/") == nil, "bare root has no project")
-        T.eq(SignalReader.project(cwd: "/Users/sxope/Documents/2026/Development/37.chute"),
+        // A SYNTHETIC path, not a real one on this machine. `project(cwd:)` now forwards to
+        // `ProjectName.of`, which walks the filesystem for a `.git` root — a real absolute path
+        // would make this assertion's answer depend on whether THAT path happens to sit inside a
+        // repo on whichever machine runs the suite. "/nonexistent-chute-test-root" has no `.git`
+        // ancestor anywhere, on any machine, so the cwd-leaf fallback is what fires, always.
+        T.eq(SignalReader.project(cwd: "/nonexistent-chute-test-root/37.chute"),
              "37.chute", "normal path takes the last component")
-        T.eq(SignalReader.project(cwd: "/Users/sxope/Documents/2026/Development/37.chute/"),
+        T.eq(SignalReader.project(cwd: "/nonexistent-chute-test-root/37.chute/"),
              "37.chute", "a trailing slash is stripped first")
 
         // ── exitCode for all five states ────────────────────────────────────────────────

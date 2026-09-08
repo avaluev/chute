@@ -98,17 +98,13 @@ public enum SignalReader {
                      counts: counts, hooksInstalled: hooksInstalled)
     }
 
-    /// Last path component of a hook's `cwd`. Not `NSString.lastPathComponent` verbatim: that
-    /// method treats "/" as its own last component instead of "no project", and every caller here
-    /// needs the no-project case to collapse cleanly to `nil` rather than to a slash-shaped string
-    /// nothing displays.
+    /// One-line forward to `ProjectName.of(cwd:)`. This used to duplicate the leaf-of-path logic
+    /// itself — see `ProjectName.swift`'s header comment for the incident that caused: the badge
+    /// (this function) and the menu (`TerminalAppAdapter`) derived a session's name two different
+    /// ways, and nothing kept them in sync. There is now exactly one derivation to get wrong, and
+    /// both surfaces call it.
     public static func project(cwd: String?) -> String? {
-        guard var path = cwd, !path.isEmpty else { return nil }
-        if path.hasSuffix("/") { path.removeLast() }
-        guard !path.isEmpty, let slash = path.lastIndex(of: "/") else {
-            return path.isEmpty ? nil : path
-        }
-        return String(path[path.index(after: slash)...])
+        ProjectName.of(cwd: cwd)
     }
 
     /// idle 0 and unknown 0 both mean "nothing to report, that's fine" for a shell script's `$?`.

@@ -11,16 +11,17 @@ import ChuteCore
 /// That split is why this file exists in this shape. Fifty-one menu decisions used to live here,
 /// in a target the test suite cannot link, and Recent Copies shipped broken through the gap.
 enum SessionMenu {
-    /// The rows whose numbers change while the menu is open, so a two-second timer can retitle
-    /// them in place. Only the suffix is rebuilt: the description half of a row cannot change
-    /// while a menu is being looked at, so the prefix is captured once.
+    /// The rows whose numbers change while the menu is open, so a two-second timer can rebuild
+    /// them in place. Only col 3 (`SessionRow.figures`/`.note`) is rebuilt — the description half
+    /// of a row cannot change while a menu is being looked at — via `SessionRow.replacingLoad`,
+    /// which touches exactly those two fields and nothing else in the row.
     final class LiveVitals {
-        var rows: [(item: NSMenuItem, tty: String, prefix: String)] = []
+        var rows: [(item: NSMenuItem, tty: String, row: StatusMenu.SessionRow, dim: Bool)] = []
 
         func apply(samples: [ProcessSample]) {
-            for row in rows {
-                row.item.title = row.prefix
-                    + StatusMenu.suffix(SystemVitals.load(forTTY: row.tty, in: samples))
+            for entry in rows {
+                let updated = entry.row.replacingLoad(SystemVitals.load(forTTY: entry.tty, in: samples))
+                entry.item.attributedTitle = sessionRowTitle(updated, dim: entry.dim)
             }
         }
     }
@@ -60,44 +61,95 @@ enum SessionMenu {
     /// three; roughly one man in twelve cannot separate this red from this green, and they are
     /// squarely in this product's audience. `systemRed`/`systemGreen`/`systemOrange` are dynamic
     /// catalog colours, so they re-resolve for light, dark and Increase Contrast on their own.
-    private static let ink: [String: NSColor] = [
-        "blocked": .systemRed, "waiting": .systemGreen, "working": .systemOrange,
-        "idle": .tertiaryLabelColor, "unknown": .tertiaryLabelColor,
-    ]
-    /// diameter, and how much of the middle to cut out (0 = filled disc, 0.34 = ring).
-    /// `corner` of 0 is a SQUARE, a large value is a circle. Blocked and waiting were both a 9pt
-    /// filled disc — identical shapes differing only red vs. green — which quietly broke the rule
-    /// three comments above it. Caught while writing the design brief, not by a test, because
-    /// nothing asserted the rule the code claimed to follow. Blocked is now a square, matching
-    /// the square pip MenuBarMark already draws on the icon for the same state.
-    private static let form: [String: (d: CGFloat, hole: CGFloat, corner: CGFloat)] = [
-        "blocked": (9, 0, 0),        // filled SQUARE — the one that stops you
-        "waiting": (9, 0, 99),       // filled circle — finished, wants a prompt
-        "working": (9, 0.34, 99),    // ring — running, nothing for you to do
-        "idle":    (5, 0, 99),       // a small dot — a shell, nothing to say
-        "unknown": (5, 0.34, 99),    // a small ring — Chute does not know
+    /// THE TRAFFIC LIGHT lives in `ChuteCore.SessionDot`, where a test can render it and count
+    /// the pixels it painted. It was here, in a target `chutetests` cannot link, and it shipped
+    /// with the blocked and waiting dots drawing NOTHING — branch-free and wrong, so neither the
+    /// suite nor the decision-point ratchet could see it. Read that file's header before touching
+    /// the geometry; the failure it describes is not obvious from the code.
+    static func dot(_ token: String) -> NSImage { SessionDot.image(token) }
+
+    // ── THE TWO-LINE, THREE-COLUMN ROW ──────────────────────────────────────────────────────
+    //
+    // `MenuNode.row` arrives from ChuteCore already decided down to the character — every string
+    // in it is pre-truncated to its column's budget (`PathAbbrev`, `StatusMenu.clampedProjectName`)
+    // and pre-measured against the real tab stops. So building the attributed title here is
+    // table lookups and interpolation, the same trick `dot()` above already uses — no branch,
+    // which is what keeps this file inside `Scripts/check-untested-logic.sh`'s budget of 15.
+    //
+    // Tab stops are MEASURED, not guessed — docs/specs/MENUBAR-LAYOUT-CALIBRATION.md, 2026-09-08,
+    // superseding the narrower 132/366 in the original plan. Locations are from the TEXT ORIGIN,
+    // which is why every row — including the column header — carries a 12×12 image (`dot("none")`
+    // for the header): a row with no image starts its text 12pt further left and takes the whole
+    // column system out of alignment with it. The 12×12 canvas itself must stay a constant size
+    // for the same reason — see the comment on `dot()` above, which this still relies on verbatim.
+    private static let rowParagraphStyle: NSParagraphStyle = {
+        let p = NSMutableParagraphStyle()
+        p.tabStops = [NSTextTab(textAlignment: .left, location: StatusMenu.col2TabStop),
+                      NSTextTab(textAlignment: .right, location: StatusMenu.col3TabStop)]
+        p.defaultTabInterval = 0
+        p.lineBreakMode = .byTruncatingTail
+        p.lineSpacing = 1
+        return p
+    }()
+
+    /// col 3 line 2's colour key — a total lookup, so a runaway's warning and an ordinary peak
+    /// note never share a branch. "" (the quiet, empty case) maps to `.clear`: an empty string
+    /// paints nothing regardless of colour, so this never needs a guard to skip it.
+    private static let noteInk: [String: NSColor] = [
+        "alarm": .systemOrange, "quiet": .tertiaryLabelColor, "": .clear,
     ]
 
-    static func dot(_ token: String) -> NSImage {
-        // A CONSTANT CANVAS, whatever the dot's size. AppKit lays a menu item's text out from
-        // the right edge of its image, so a 5pt image and a 9pt image put their titles in two
-        // different columns and the whole list develops a ragged left margin. The glyph shrinks
-        // inside the box; the box never does.
-        let box = NSSize(width: 12, height: 12)
-        let colour = ink[token] ?? .tertiaryLabelColor
-        let f = form[token] ?? (5, 0, 99)
-        return NSImage(size: box, flipped: false) { rect in
-            let r = NSRect(x: rect.midX - f.d / 2, y: rect.midY - f.d / 2, width: f.d, height: f.d)
-            let path = NSBezierPath(roundedRect: r, xRadius: f.corner, yRadius: f.corner)
-            let hole = r.insetBy(dx: f.d * f.hole, dy: f.d * f.hole)
-            path.append(NSBezierPath(roundedRect: hole, xRadius: f.corner, yRadius: f.corner))
-            // evenOdd turns the second oval into a hole rather than a second disc. A zero-inset
-            // hole is the same rect twice, which cancels to nothing — so "filled" needs no branch.
-            path.windingRule = .evenOdd
-            colour.setFill()
-            path.fill()
-            return true
-        }
+    /// The `?? ` fallback for a `.session` node whose row is unexpectedly nil — see the call site
+    /// in `render` for why a nil-coalesce is preferred here over an `if let`.
+    private static let blankRow = StatusMenu.SessionRow(project: "", path: "", state: "",
+                                                         agent: "", figures: "", note: "",
+                                                         noteToken: "")
+
+    private static func run(_ s: String, _ font: NSFont, _ color: NSColor) -> NSAttributedString {
+        NSAttributedString(string: s, attributes: [.font: font, .foregroundColor: color,
+                                                   .paragraphStyle: rowParagraphStyle])
+    }
+
+    /// THE COLUMN HEADER: the same `SessionRow` shape session rows use, uppercased, one font and
+    /// one colour for every cell — so the header and a session row share one alignment system
+    /// with no special case for either.
+    private static func headerTitle(_ row: StatusMenu.SessionRow) -> NSAttributedString {
+        let f = NSFont.systemFont(ofSize: 11, weight: .semibold)
+        let out = NSMutableAttributedString()
+        out.append(run(row.project.uppercased(), f, .tertiaryLabelColor))
+        out.append(run("\t" + row.state.uppercased(), f, .tertiaryLabelColor))
+        out.append(run("\t" + row.figures.uppercased(), f, .tertiaryLabelColor))
+        return out
+    }
+
+    /// A SESSION ROW, or its ⌥ face — six cells, two lines, three columns, straight out of
+    /// docs/specs/MENUBAR-LAYOUT-CALIBRATION.md's own font table. `dim` softens col 1 alone: a
+    /// project name Chute is not sure of (no `cwd` behind it — see `MenuNode.dim`'s doc comment
+    /// in StatusMenu.swift) reads secondary rather than bold, so a weak derivation is visibly
+    /// weaker instead of silently wrong. MONOSPACED DIGITS IN COL 3 ARE LOAD-BEARING: `LiveVitals`
+    /// rewrites that column every two seconds, and proportional figures make a right-aligned
+    /// column jitter under the reader's eye.
+    private static func sessionRowTitle(_ row: StatusMenu.SessionRow, dim: Bool) -> NSAttributedString {
+        let nameColor: NSColor = dim ? .tertiaryLabelColor : .labelColor
+        let out = NSMutableAttributedString()
+        out.append(run(row.project, .systemFont(ofSize: 13, weight: .semibold), nameColor))
+        out.append(run("\t" + row.state, .systemFont(ofSize: 13, weight: .semibold), .labelColor))
+        out.append(run("\t" + row.figures,
+                       .monospacedDigitSystemFont(ofSize: 12, weight: .regular), .secondaryLabelColor))
+        out.append(run("\n" + row.path,
+                       .monospacedSystemFont(ofSize: 10.5, weight: .regular), .tertiaryLabelColor))
+        out.append(run("\t" + row.agent, .systemFont(ofSize: 11, weight: .regular), .secondaryLabelColor))
+        out.append(run("\t" + row.note, .systemFont(ofSize: 11, weight: .regular),
+                       noteInk[row.noteToken] ?? .clear))
+        return out
+    }
+
+    /// One sentence, not three tab-separated fragments — VoiceOver reads this instead of the
+    /// attributed title's raw tab characters. Empty cells (the header's own blank line 2) simply
+    /// drop out rather than reading as an empty pause.
+    private static func accessibilitySentence(_ row: StatusMenu.SessionRow) -> String {
+        [row.project, row.state, row.agent, row.figures, row.note]
+            .filter { !$0.isEmpty }.joined(separator: ". ") + "."
     }
 
     /// `NSMenuItem.sectionHeader(title:)` arrived in macOS 14 and is what the system's own menus
@@ -140,14 +192,18 @@ enum SessionMenu {
                 let item = NSMenuItem(title: node.title, action: nil, keyEquivalent: "")
                 item.isEnabled = false
                 item.toolTip = node.toolTip
-                // Section headers ("NEEDS YOU 2") sit at 0 and their project sub-headers at 1.
-                // Assigned unconditionally: Scripts/check-untested-logic.sh counts every branch
-                // in this target against a baseline of 15 for this file, and the two-level menu
-                // had a budget of exactly zero new ones.
+                // Nesting is gone now that the two-level state/project grouping is deleted, so
+                // this is always 0 — assigned unconditionally regardless, at no branch cost.
                 item.indentationLevel = node.indent
+                // A `.note` carrying a row IS the one column-header node — see `MenuNode.row`'s
+                // doc comment. `.map` resolves that with no `if`: every OTHER `.note` (`"No
+                // terminal sessions"`, …) has a nil row and keeps its plain `item.title`.
+                item.image = dot("none")
+                item.attributedTitle = node.row.map(headerTitle)
+                item.setAccessibilityLabel(node.row.map(accessibilitySentence))
                 menu.addItem(item)
 
-            case .session(let key, let tty, let hex, let prefix):
+            case .session(let key, let tty, let hex):
                 let item = NSMenuItem(title: node.title,
                                       action: selector(.focusSession), keyEquivalent: "")
                 item.target = target
@@ -155,13 +211,20 @@ enum SessionMenu {
                 item.image = dot(hex)
                 item.toolTip = node.toolTip
                 item.indentationLevel = node.indent
+                item.attributedTitle = node.row.map { sessionRowTitle($0, dim: node.dim) }
+                item.setAccessibilityLabel(node.row.map(accessibilitySentence))
                 menu.addItem(item)
-                live?.rows.append((item, tty, prefix))
+                // `?? blankRow` rather than `if let`: ChuteCore always attaches a row to a
+                // `.session` node, and a nil-coalesce costs this file no decision point where an
+                // `if let` would (see Scripts/check-untested-logic.sh's budget of 15 for this file).
+                live?.rows.append((item, tty, node.row ?? blankRow, node.dim))
 
             case .sessionCommand(let key, let kind, let hex):
                 // `isAlternate` requires the SAME key-equivalent character as the item above it
                 // (here: none) and a modifier mask that differs — AppKit then swaps them as the
-                // modifier is held. One row in, one row out; the menu does not change height.
+                // modifier is held. One row in, one row out; the menu does not change height —
+                // `SessionRow.replacingLoad` and the shared row builder are what guarantee the
+                // alternate is exactly as tall as the row it replaces (see StatusMenu.rows).
                 let alt = NSMenuItem(title: node.title,
                                      action: selector(.sessionCommand), keyEquivalent: "")
                 alt.keyEquivalentModifierMask = mask(for: kind)
@@ -170,6 +233,8 @@ enum SessionMenu {
                 alt.target = target
                 alt.representedObject = SessionCommand.Payload(
                     key: key, kind: SessionCommand.Kind(rawValue: kind) ?? .copyID)
+                alt.attributedTitle = node.row.map { sessionRowTitle($0, dim: node.dim) }
+                alt.setAccessibilityLabel(node.row.map(accessibilitySentence))
                 menu.addItem(alt)
 
             case .command(let command):

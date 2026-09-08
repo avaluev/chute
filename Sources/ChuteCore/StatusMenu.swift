@@ -1,4 +1,10 @@
 import Foundation
+// AppKit, IN CHUTECORE — the same call `MenuBarMark.swift` already made. `NSFont`/
+// `NSAttributedString` are how `clampedProjectName` below MEASURES a name in the real row font
+// instead of only counting its characters — and the reason this lives here rather than in
+// ChuteApp is exactly why MenuBarMark does the same thing: `chutetests` links ChuteCore, so a
+// decision that needs AppKit to be MADE correctly still has to live somewhere a test can reach it.
+import AppKit
 
 /// EVERY DECISION THE MENU BAR MAKES, AS DATA A TEST CAN READ.
 ///
@@ -51,12 +57,14 @@ public enum StatusMenu {
         case separator
         /// A terminal session. `key` is `Session.key`; the renderer focuses it.
         ///
-        /// `tty` and `prefix` are carried for the live refresh: while the menu is open a timer
-        /// re-samples every two seconds and retitles each row in place. Only the SUFFIX changes —
-        /// the description half cannot change while a menu is being looked at — so the prefix is
-        /// computed once, here, rather than rebuilt from a transcript on every tick.
-        case session(key: String, tty: String, colorHex: String, prefix: String)
-        /// The ⌥ face of a session row.
+        /// `tty` is carried for the live refresh: while the menu is open a timer re-samples every
+        /// two seconds and rebuilds the row's attributed title from `MenuNode.row` with fresh
+        /// load figures — see `SessionMenu.LiveVitals`. The row itself (project, path, state,
+        /// agent, load) lives on `MenuNode.row`, not here, so there is exactly one place a test —
+        /// or the live-refresh timer — reads it from.
+        case session(key: String, tty: String, colorHex: String)
+        /// The ⌥ face of a session row. Its `MenuNode.row` is the parent row with line 1's verb
+        /// swapped for the command's own title — see `rows(for:)`.
         case sessionCommand(key: String, kind: String, colorHex: String)
         /// Anything that just runs a command.
         case command(Command)
@@ -75,19 +83,59 @@ public enum StatusMenu {
         public let toolTip: String?
         /// Carried on buffer rows so the renderer knows which entry to put back.
         public let payload: String?
-        /// How far in to draw the row. The renderer assigns it to `NSMenuItem.indentationLevel`
-        /// unconditionally, so nesting costs the renderer no branch — which matters, because
-        /// Scripts/check-untested-logic.sh counts every branch in ChuteApp against a baseline
-        /// and the whole grouping had to fit inside a budget of zero.
+        /// How far in to draw the row. Nesting is gone now that the two-level state/project
+        /// grouping is deleted, so every session row is 0 — kept as a field rather than deleted
+        /// outright because the renderer still assigns it to `NSMenuItem.indentationLevel`
+        /// unconditionally, at no branch cost.
         public let indent: Int
+        /// The six-cell, two-line row a `.session`, `.sessionCommand`, or the one column-header
+        /// `.note` carries — `nil` for everything else. The renderer resolves this with `.map`
+        /// rather than an `if`, which is what keeps SessionMenu.swift inside its 15-decision-point
+        /// budget: a `.note` with a row IS the column header, structurally, with no flag needed to
+        /// say so.
+        public let row: SessionRow?
+        /// Whether col 1 (the project name and the path beneath it) reads secondary rather than
+        /// bold — true exactly when there is no `cwd` to stand behind the name. Decided here,
+        /// where `StatusMenuSuite` can read it, rather than as an `if s.cwd == nil` inside
+        /// SessionMenu.swift, which is exactly the kind of decision Phase 1's whole split exists
+        /// to keep out of an untestable target.
+        public let dim: Bool
 
         public init(_ kind: Kind, _ title: String, toolTip: String? = nil, payload: String? = nil,
-                    indent: Int = 0) {
+                    indent: Int = 0, row: SessionRow? = nil, dim: Bool = false) {
             self.kind = kind; self.title = title; self.toolTip = toolTip; self.payload = payload
-            self.indent = indent
+            self.indent = indent; self.row = row; self.dim = dim
         }
 
         public static func separator() -> MenuNode { MenuNode(.separator, "") }
+    }
+
+    /// THE COLUMN MODEL. `MenuNode.title` cannot express a three-column, two-line row — this can.
+    /// Every string here arrives ALREADY TRUNCATED to its column's budget: that is the one thing
+    /// that can silently wreck this layout, and only ChuteCore is linked by `chutetests`, so it is
+    /// the only place it can be tested (see this file's own header comment on the split).
+    public struct SessionRow: Sendable, Equatable {
+        public let project, path: String      // col 1, line 1 / line 2
+        public let state, agent: String       // col 2, line 1 / line 2
+        public let figures, note: String      // col 3, line 1 / line 2
+        /// "alarm" | "quiet" | "" — the renderer's colour key for `note`, a total dictionary
+        /// lookup so a runaway session's warning and an ordinary peak note never share a branch.
+        public let noteToken: String
+
+        public init(project: String, path: String, state: String, agent: String,
+                    figures: String, note: String, noteToken: String) {
+            self.project = project; self.path = path; self.state = state; self.agent = agent
+            self.figures = figures; self.note = note; self.noteToken = noteToken
+        }
+
+        /// `LiveVitals` rewrites ONLY the load columns, every two seconds while the menu is open —
+        /// the description half of a row cannot change while it is being looked at, so this is
+        /// the one place a row ever mutates, and it touches exactly the three fields that can.
+        public func replacingLoad(_ load: SessionLoad) -> SessionRow {
+            let (figures, note, noteToken) = StatusMenu.loadColumns(load)
+            return SessionRow(project: project, path: path, state: state, agent: agent,
+                              figures: figures, note: note, noteToken: noteToken)
+        }
     }
 
     /// IDLE COLLAPSES PAST THREE. These are the sessions you never act on, and on a machine with
@@ -125,53 +173,41 @@ public enum StatusMenu {
             out.append(.separator())
         }
 
-        // ── TWO LEVELS: WHAT YOU MUST DO ABOUT IT, THEN WHICH PROJECT ───────────────────
+        // ── COLUMNS, NOT HEADERS ─────────────────────────────────────────────────────────
         //
-        // A FLAT LIST WAS THE PROBLEM. The founder's own menu on 2026-09-08 held thirteen rows,
-        // five of them named `sntz_mockups`, and not one of them said which session had stopped.
-        // Every fact was there except the only one that makes you act.
+        // "NEEDS YOU (2)" section headers and per-project sub-headers are DELETED, 2026-09-08,
+        // along with the whole flat-list-of-spaces row they were compensating for. Three aligned
+        // columns say, on every row, what a header used to say once per group — which state,
+        // which agent, which load — so the header was repeating information the row already had.
+        // Sort order and the dot still carry the urgency (see `stateToken` below); a separator
+        // still marks where one state's rows end and the next begins.
         //
-        // Grouping was here once and was deleted in 2849347, correctly: the state came from
-        // Terminal's `busy` flag and from the spinner glyph Claude Code writes into the title,
-        // and neither survives as evidence — the glyph is never CLEARED, so a session left
-        // overnight read "working" forever. That produced `Working (7)` over seven sessions with
-        // none of them working, and a group header that lies is worse than no header.
-        //
-        // What changed is the evidence, not the appetite. StateResolver now takes state from a
-        // hook or returns `.unknown`, and `.unknown` gets its own header rather than being
-        // quietly filed under something confident. So the grouping comes back, over a source
-        // that can say "I do not know".
-        //
-        // Order inside a section is oldest-first: the session that has been blocked longest is
-        // the one costing you the most, and it sits at the top where your eye already is.
+        // Order is oldest-first WITHIN a state: the session that has been blocked longest is the
+        // one costing you the most, and it sits at the top where your eye already is. Sorting on
+        // the project name too, ahead of tty, only breaks ties when everything else is equal —
+        // `?? ""` because `project` is the derivation, which can come back with nothing.
         let ordered = sessions.sorted {
-            ($0.state, $0.since ?? .distantFuture, $0.project.lowercased(), $0.tty)
-                < ($1.state, $1.since ?? .distantFuture, $1.project.lowercased(), $1.tty)
+            ($0.state, $0.since ?? .distantFuture, ($0.project ?? "").lowercased(), $0.tty)
+                < ($1.state, $1.since ?? .distantFuture, ($1.project ?? "").lowercased(), $1.tty)
         }
+
+        // A HEADER OVER NOTHING IS FURNITURE — printed only when there is at least one row under
+        // it to label. It is a `.note` carrying a `SessionRow`, not a new `Kind` case: see the
+        // doc on `MenuNode.row` for why that is what keeps SessionMenu.swift's decision count flat.
+        if !ordered.isEmpty {
+            out.append(MenuNode(.note, "PROJECT · AGENT · STATE · LOAD",
+                                row: SessionRow(project: "PROJECT", path: "", state: "AGENT · STATE",
+                                                agent: "", figures: "LOAD", note: "", noteToken: "")))
+        }
+
         var lastState: SessionState? = nil
-        var lastProject: String? = nil
         for s in ordered {
-            if s.state != lastState {
-                out.append(.separator())
-                out.append(MenuNode(.note, sectionTitle(s.state, in: ordered)))
-                lastState = s.state
-                lastProject = nil
-            }
-            // A SUB-HEADER ONLY WHEN IT ACTUALLY GROUPS SOMETHING. The founder's menu showed
-            // seven project sub-headers over eight rows, which is a stutter rather than a
-            // hierarchy — and it read backwards, because the sub-header was indented one step
-            // further than the rows it was meant to contain. A project with a single session in
-            // a section prints its name on the row instead, at the same depth as every other row.
-            let sameHere = ordered.filter { $0.state == s.state && $0.project == s.project }.count
-            let grouped = sameHere > 1
-            if grouped && s.project != lastProject {
-                out.append(MenuNode(.note, s.project, indent: 1))
-            }
-            lastProject = s.project
-            out.append(contentsOf: rows(for: s, now: now,
-                                        showProject: !grouped,
-                                        indent: grouped ? 2 : 1,
-                                        loadFor: loadFor,
+            // A separator marks a STATE BOUNDARY, never the top of the list — the column header
+            // immediately above the first row already opens the section, so `lastState == nil`
+            // (only true for the very first session) emits none.
+            if let lastState, s.state != lastState { out.append(.separator()) }
+            lastState = s.state
+            out.append(contentsOf: rows(for: s, now: now, loadFor: loadFor,
                                         sessionCommands: sessionCommands, colorFor: colorFor,
                                         detailFor: detailFor))
         }
@@ -211,63 +247,75 @@ public enum StatusMenu {
         }
     }
 
-    /// The header for a state's section, with how many sessions are under it.
-    ///
-    /// "NEEDS YOU", not "BLOCKED": the header's job is to say what you must DO, and the reader
-    /// scanning a menu bar drop-down is deciding where to click, not reading a state machine.
-    /// `.unknown` gets its own header rather than being filed under something confident —
-    /// an agent that ships no hooks (Antigravity, today) is genuinely unknown, and saying so is
-    /// the whole reason the grouping could come back at all.
-    static func sectionTitle(_ state: SessionState, in sessions: [Session]) -> String {
-        let n = sessions.filter { $0.state == state }.count
-        let name: String
-        switch state {
-        case .blocked: name = "NEEDS YOU"
-        case .waiting: name = "READY FOR A PROMPT"
-        case .working: name = "WORKING"
-        case .idle:    name = "NO AGENT"
-        case .unknown: name = "NO STATUS — HOOKS NOT REPORTING"
-        }
-        return "\(name)   \(n)"
-    }
-
-    /// One session: the row itself, then its ⌥ alternates.
+    /// One session: the row itself, then its ⌥ alternates — same identity, same numbers, only
+    /// the verb on line 1 changes between them (see `SessionMenu.swift`'s own note on why an
+    /// alternate must be exactly as tall as the row it replaces).
     static func rows(for s: Session,
                      now: Date = Date(),
-                     showProject: Bool = true,
-                     indent: Int = 1,
                      loadFor: (String) -> SessionLoad,
                      sessionCommands: (Session) -> [(kind: String, title: String)],
                      colorFor: (String) -> String,
                      detailFor: (Session) -> String) -> [MenuNode] {
         let hex = stateToken(s.state)
-        // "blocked 22 min" IS THE PRODUCT. This was deleted with the grouping in 2849347 and it
-        // comes back with it, for the same reason: the duration is the whole signal. Blocked for
-        // twenty seconds is noise you would never have noticed; blocked for twenty minutes is
-        // twenty minutes in which nothing at all happened. `Session.since` has been populated
-        // since TerminalAppAdapter landed and had no reader outside the tests until now.
-        //
-        // The project name is dropped from the row: the sub-header directly above it already
-        // says which project this is, and repeating it is what made thirteen rows unreadable.
-        let load = loadFor(s.tty)
-        let held = SessionPhrasing.held(s.state, since: s.since, now: now)
-        // The project name is printed HERE unless a sub-header directly above already carries it.
-        // Seven sub-headers over eight rows is not structure, it is a stutter — so the header
-        // only appears when it actually groups something, and the row says the project the rest
-        // of the time. `showProject` is decided in model(), which can see the whole section.
-        let head = showProject ? "\(s.project)   \(detailFor(s))" : detailFor(s)
-        let prefix = held.isEmpty ? head : "\(head)   \(held)"
+        let (figures, note, noteToken) = loadColumns(loadFor(s.tty))
+
+        // NAME AND PATH ARE TWO DIFFERENT CONFIDENCE LEVELS, and the row says so instead of
+        // hiding it. `s.project` is ChuteCore's best derivation (git root leaf → cwd leaf →
+        // window-title head); `s.cwd` is what the hook itself reported. A name that only came
+        // from the title, with no cwd behind it, is exactly the "silently wrong" case this whole
+        // redesign exists to end — see docs/specs/… on mockup 2c — so it is not silent here: no
+        // cwd means the path cell says so, DIMMED, rather than implying Chute knows where this
+        // session lives when all it has is a string another process wrote into a window title.
+        let dim = s.cwd == nil
+        // "tty ttys004" when nothing at all was derived — still an identifier, never a blank.
+        let name = s.project.map { clampedProjectName($0) } ?? "tty \(s.tty)"
+        let path = s.cwd.map { PathAbbrev.path($0) } ?? "no project derived"
+
+        // "blocked 22 min" IS THE PRODUCT — the duration is the whole signal a header used to
+        // carry. `.idle`/`.unknown` never get a duration: `SessionPhrasing.held` already refuses
+        // one for both (a state Chute is not sure of, or not urgent, earns no fake precision), so
+        // those two cases are spelled out here instead of asking `held` for an empty string twice.
+        let state: String
+        switch s.state {
+        case .blocked, .waiting, .working:
+            state = SessionPhrasing.held(s.state, since: s.since, now: now)
+        case .idle:
+            state = "no agent running"
+        case .unknown:
+            state = "no hook — Chute cannot see this"
+        }
+
+        let row = SessionRow(project: name, path: path, state: state, agent: detailFor(s),
+                             figures: figures, note: note, noteToken: noteToken)
+        // The tooltip carries the FULL, UNTRUNCATED name and path — `s.project`/`s.cwd` here, not
+        // `name`/`path` above, which are already cut to their column's budget. Whatever col 1 had
+        // to cut to fit is still one hover away. `?? name`/`?? path` only matters when there was
+        // nothing to cut in the first place — both already hold the same fallback text.
+        let toolTip = "\(s.project ?? name) — \(s.cwd ?? path)\n\(s.title) · terminal \(s.tty)"
+                    + " · click to bring it forward\n Hold ⌥ for this session's commands."
         var out: [MenuNode] = [
-            MenuNode(.session(key: s.key, tty: s.tty, colorHex: hex, prefix: prefix),
-                     prefix + suffix(load),
-                     toolTip: "\(s.title) · terminal \(s.tty) · click to bring it forward"
-                            + "\n Hold ⌥ for this session's commands.", indent: indent)
+            MenuNode(.session(key: s.key, tty: s.tty, colorHex: hex), flatTitle(row),
+                     toolTip: toolTip, row: row, dim: dim)
         ]
         for c in sessionCommands(s) {
+            // THE ⌥ FACE: same project, same path, same agent, same load — only line 1's col 2
+            // and col 3 change, to the command's own title and its key glyphs. Built from the
+            // parent row so the renderer never has to know this rule; it just draws a `SessionRow`.
+            let altRow = SessionRow(project: row.project, path: row.path, state: c.title,
+                                    agent: row.agent, figures: keyGlyphs(for: c.kind),
+                                    note: row.note, noteToken: row.noteToken)
             out.append(MenuNode(.sessionCommand(key: s.key, kind: c.kind, colorHex: hex),
-                                "\(s.project)   \(c.title)", indent: indent))
+                                flatTitle(altRow), row: altRow, dim: dim))
         }
         return out
+    }
+
+    /// The accessibility/title fallback for a row: every non-empty cell, in reading order, joined
+    /// the same way a sentence would be. `MenuNode.title` stays populated with this so VoiceOver
+    /// and the four existing suite scans (prices, "Refresh", …) that read `.title` keep working.
+    static func flatTitle(_ row: SessionRow) -> String {
+        [row.project, row.path, row.state, row.agent, row.figures, row.note]
+            .filter { !$0.isEmpty }.joined(separator: " · ")
     }
 
     /// Everything below the sessions, which is the same on every open.
@@ -340,12 +388,85 @@ public enum StatusMenu {
         load.cpuPercent >= runawayCPUPercent || load.residentBytes >= runawayBytes
     }
 
-    /// What a row says about its own cost: the numbers, plus a ⚠ when they are alarming. The
-    /// warning is not a substitute for the figures — it sits beside them. "8.4 GB" tells you how
-    /// much; "⚠" tells you that is the one to look at.
-    public static func suffix(_ load: SessionLoad) -> String {
-        let label = load.label
-        guard !label.isEmpty else { return "" }
-        return "   \(label)\(isRunaway(load) ? "  ⚠" : "")"
+    /// Two cells, replacing `suffix`'s one string. `suffix` built "12% CPU · 1.5 GB memory ⚠" as a
+    /// single run appended after the row's text — a shape with nowhere for a warning WORD to sit
+    /// beside a right-aligned number column. `figures` is col 3's bold, monospaced-digit first
+    /// line; `note` is its dim second line — `runaway ⚠` or `peaked 6.1 GB`, never both, because a
+    /// live runaway is worth more of a reader's eye right now than what the session once peaked
+    /// at. Empty when there is no live process at all — not "0%", which would claim a measurement
+    /// that was never taken.
+    public static func loadColumns(_ load: SessionLoad)
+        -> (figures: String, note: String, noteToken: String) {
+        guard load.processes > 0 else { return (figures: "", note: "", noteToken: "") }
+        let figures = "\(Int(load.cpuPercent.rounded()))% · \(SystemVitals.bytes(load.residentBytes))"
+        if isRunaway(load) { return (figures, "runaway ⚠", "alarm") }
+        if let peak = load.peakNote {
+            // `peakNote` is always exactly " (peaked X)" — SystemVitals.swift builds it that way —
+            // so trimming its two leading and one trailing wrapper characters reuses its ONE
+            // "worth showing" condition rather than re-deriving that math a second time here.
+            return (figures, String(peak.dropFirst(2).dropLast()), "quiet")
+        }
+        return (figures, "", "")
+    }
+
+    // ── THE NAME COLUMN'S WIDTH CLAMP ───────────────────────────────────────────────────────
+    //
+    // `PathAbbrev.name`'s budget is in CHARACTERS, exact for col 1's PATH line (10.5pt monospace —
+    // every character the same width) but only an APPROXIMATION for col 1's NAME line, set in a
+    // PROPORTIONAL 13pt semibold font. Measured 2026-09-08 in
+    // docs/specs/MENUBAR-LAYOUT-CALIBRATION.md: a 24-character name built from wide capitals (M,
+    // W) renders at 277pt against the 200pt col-2 tab stop. `NSTextTab` does not clip an
+    // overflowing run — it pushes the tab that follows out to the NEXT stop, so one bad project
+    // name widens the whole menu and drags every column on every row below it out of alignment.
+    // Mockup 2c's own caption for this row is "the one that makes a bad project name harmless",
+    // so this is the requirement the character budget alone cannot meet by itself.
+    public static let nameFont = NSFont.systemFont(ofSize: 13, weight: .semibold)
+    /// The col-2 tab stop and the col-3 tab stop, MEASURED — see
+    /// docs/specs/MENUBAR-LAYOUT-CALIBRATION.md. Declared once, here, so `SessionMenu.swift`'s
+    /// `NSParagraphStyle` and this file's own width clamp read the same two numbers rather than
+    /// two copies that can drift apart.
+    public static let col2TabStop: CGFloat = 200
+    public static let col3TabStop: CGFloat = 500
+    /// 10pt of margin below the col-2 tab stop — text landing AT the stop still triggers the same
+    /// "tab jumps to the next stop" failure the clamp exists to prevent, so "fits" has to mean
+    /// comfortably under it, not exactly at it.
+    public static let col1UsableWidth: CGFloat = col2TabStop - 10
+
+    /// `PathAbbrev`'s character budget is the first cut, and for almost every real name it is also
+    /// the last one: an ordinary name in ordinary letters is already under the width limit once
+    /// truncated to 24 characters, so the common case costs exactly ONE measurement and returns.
+    /// Only a pathological name — this file's own suite uses a string of nothing but "W" — needs
+    /// the loop below, and it can run at most `defaultNameBudget` times, once per character, so
+    /// even the worst case is bounded.
+    public static func clampedProjectName(_ raw: String, maxWidth: CGFloat = col1UsableWidth,
+                                          font: NSFont = nameFont) -> String {
+        func width(_ s: String) -> CGFloat {
+            NSAttributedString(string: s, attributes: [.font: font]).size().width
+        }
+        let budgeted = PathAbbrev.name(raw)
+        guard width(budgeted) > maxWidth else { return budgeted }
+
+        // Strip a trailing ellipsis `PathAbbrev.name` may already have added, so the loop shrinks
+        // from a fixed point and re-adds exactly ONE ellipsis per pass rather than accumulating.
+        var head = budgeted.hasSuffix("…") ? String(budgeted.dropLast()) : budgeted
+        while head.count > 1, width(head + "…") > maxWidth {
+            head.removeLast()
+        }
+        return head.isEmpty ? "…" : head + "…"
+    }
+
+    // ── THE ⌥ FACE'S GLYPHS ──────────────────────────────────────────────────────────────────
+    //
+    // "⌥⇧" for col 3's first line when a row wears a command's face — the same modifiers
+    // `SessionCommand.modifiers(for:)` already hands `SessionMenu.mask(for:)` to build the real
+    // `NSEvent.ModifierFlags`, spelled here as the glyphs a menu actually shows, so `SessionRow`
+    // never has to know AppKit's modifier type to describe itself. Every mask carries ⌥ (see that
+    // function's own doc comment), so it is the one glyph never conditional on the table below.
+    private static let modifierGlyphs: [(SessionCommand.Modifiers, String)] = [
+        (.shift, "⇧"), (.command, "⌘"), (.control, "⌃"),
+    ]
+    public static func keyGlyphs(for kind: String) -> String {
+        let wanted = SessionCommand.modifiers(for: kind)
+        return "⌥" + modifierGlyphs.filter { wanted.contains($0.0) }.map(\.1).joined()
     }
 }

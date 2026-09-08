@@ -51,7 +51,11 @@ public struct Session: Sendable, Equatable {
     public let windowID: Int
     public let tabIndex: Int        // 1-based, matches AppleScript
     public let tty: String          // "ttys004", normalised without /dev
-    public let project: String      // "36.macai"
+    /// The project's derived name — from `ProjectName.of(cwd:windowTitle:)`, never straight from
+    /// the terminal window title (see that file's header comment for the incident this fixes:
+    /// the badge and the menu could name the same session two different things). `nil` when
+    /// nothing could be derived at all — no cwd, no git root, no window-title head either.
+    public let project: String?
     public let title: String        // "◑ Chut"
     /// WHICH agent, when one is running: "claude", "codex", "cursor", "gemini", "aider".
     /// nil is a plain shell. This used to be a Bool — the adapter matched the name out of the
@@ -73,7 +77,7 @@ public struct Session: Sendable, Equatable {
     public var isAgent: Bool { agent != nil }
 
     public init(key: String, kind: TerminalKind, windowID: Int, tabIndex: Int,
-                tty: String, project: String, title: String, agent: String?,
+                tty: String, project: String?, title: String, agent: String?,
                 busy: Bool, state: SessionState, since: Date?,
                 sessionID: String? = nil, cwd: String? = nil) {
         self.key = key; self.kind = kind; self.windowID = windowID

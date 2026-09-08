@@ -72,8 +72,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     /// fixable one, and the menu should say so.
     func discoverSessionsForMenu() -> (sessions: [Session], problem: String?) {
         do {
+            // `project` is `String?` since Session's project became a derivation that can come
+            // back with nothing — `?? ""` keeps a nameless session sorting first within its own
+            // state rather than failing to compile; StatusMenu.model does the sort readers see.
             let sessions = try TerminalAppAdapter().discover(hooks: HookState.readAll(), now: Date())
-                .sorted { ($0.state, $0.project) < ($1.state, $1.project) }
+                .sorted { ($0.state, $0.project ?? "") < ($1.state, $1.project ?? "") }
             return (sessions, nil)
         } catch let e as TerminalError {
             switch e {
@@ -267,7 +270,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             guard let cmd = ResumeCommand.resume(agent: s.agent, sessionID: sessionID) else { return }
             deliver(cmd, "Resume command copied")
         case .tmux:
-            guard let cmd = ResumeCommand.tmux(project: s.project, cwd: s.cwd,
+            // "session" when nothing was derived — `ResumeCommand.sessionName` already collapses
+            // an empty cleaned string to the same word, so this is not a new fallback.
+            guard let cmd = ResumeCommand.tmux(project: s.project ?? "session", cwd: s.cwd,
                                                agent: s.agent, sessionID: sessionID) else { return }
             deliver(cmd, "tmux command copied — the conversation resumes; the old window keeps running")
         case .copyCost:

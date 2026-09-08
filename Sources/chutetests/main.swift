@@ -34,5 +34,6 @@ argParseSuite()
 signalSuite()
 menuBarMarkSuite()
 pathAbbrevSuite()
+sessionDotSuite()
 
 T.report()

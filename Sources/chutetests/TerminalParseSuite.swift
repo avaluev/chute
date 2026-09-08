@@ -18,13 +18,25 @@ func terminalParseSuite() {
                  "login-zsh, claude, node, caffeinate", "◑ Chut"]),
         ].joined(separator: RS)
 
+        // ttys004's hook carries a cwd whose leaf DISAGREES with the window title ("36.macai") —
+        // proof that Phase 1c's wiring actually prefers the hook over the title, not just that it
+        // compiles. A synthetic, `/nonexistent-…` path so this stays machine-independent: see
+        // SignalSuite's own note on why a real absolute path would not be safe here.
         let hooks = ["ttys004": HookRecord(tty: "ttys004", state: .blocked,
+                                          cwd: "/nonexistent-chute-test-root/renamed-project",
                                           timestamp: now.addingTimeInterval(-120))]
         let sessions = TerminalAppAdapter.parse(raw, hooks: hooks, now: now)
 
         T.eq(sessions.count, 3, "three tabs parsed")
+        // NO HOOK, NO CWD: the window title's head is still the last resort — unchanged from
+        // before Phase 1c, because these two tabs have no hook record at all.
         T.eq(sessions[0].project, "sntz_mockups", "project taken from the window name")
         T.eq(sessions[1].project, "docs", "project for a plain shell")
+        // A HOOK, WITH A CWD: the cwd's leaf wins over the window title outright — this is the
+        // whole point of Phase 1c. Before this wiring, `sessions[2].project` read "36.macai" (the
+        // window title's head); now it reads the hook's cwd instead.
+        T.eq(sessions[2].project, "renamed-project",
+             "once a hook carries a cwd, ITS leaf names the session — never the window title")
         T.eq(sessions[0].tty, "ttys000", "tty normalised")
         T.eq(sessions[0].windowID, 207250, "window id parsed")
         T.ok(sessions[0].isAgent, "claude in the process list means agent")
@@ -89,9 +101,8 @@ func terminalParseSuite() {
         T.no(isAppRunning(bundleExecutable: "NoSuchApp.app/Contents/MacOS/NoSuchApp"),
              "an app that is not running is reported absent")
 
-        // Project extraction edge cases.
-        T.eq(TerminalAppAdapter.project(fromWindowName: "36.macai — ◑ Chut — x"), "36.macai", "first segment")
-        T.eq(TerminalAppAdapter.project(fromWindowName: "solo"), "solo", "no separator")
-        T.eq(TerminalAppAdapter.project(fromWindowName: ""), "—", "empty name has a placeholder")
+        // `TerminalAppAdapter.project(fromWindowName:)` is DELETED — Phase 1c moved its body,
+        // verbatim, to `ProjectName.titleHead`, which is where its own coverage now lives (see
+        // PathAbbrevSuite.swift's "titleHead" block).
     }
 }
