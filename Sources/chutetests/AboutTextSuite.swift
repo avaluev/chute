@@ -5,14 +5,28 @@ func aboutTextSuite() {
     T.suite("AboutText") {
         let withBuild = AboutText.about(version: "0.2.1", build: "87c2cef")
         T.eq(withBuild.heading, "Chute 0.2.1", "the heading is the version")
-        T.eq(withBuild.body.first, "build 87c2cef", "the build stamp is shown when the bundle has one")
+        T.eq(withBuild.body.first?.text, "build 87c2cef",
+             "the build stamp is shown when the bundle has one")
+        T.ok(withBuild.body.first?.heading == nil,
+             "and carries no heading — it belongs to the version line, not a section of its own")
         T.eq(withBuild.body.count, 4, "stamp, why, privacy, star reason — nothing else")
 
         let noBuild = AboutText.about(version: "0.2.1", build: nil)
         T.eq(noBuild.body.count, 3, "an unstamped bundle shows no stamp line rather than 'unknown'")
-        T.eq(noBuild.body.first, AboutText.why, "and still opens with the first-person why, before privacy")
-        T.ok(noBuild.body.contains(AboutText.privacy), "and still says the privacy sentence")
-        T.ok(noBuild.body.contains(AboutText.starReason), "and still makes the one ask")
+        T.eq(noBuild.body.first?.text, AboutText.why,
+             "and still opens with the first-person why, before privacy")
+        T.ok(noBuild.body.contains { $0.text == AboutText.privacy },
+             "and still says the privacy sentence")
+        T.ok(noBuild.body.contains { $0.text == AboutText.starReason },
+             "and still makes the one ask")
+
+        // EVERY SECTION BUT THE BUILD STAMP IS FINDABLE BY ITS HEADING. Rendered flat, the tab was
+        // five grey paragraphs and the ask read as a sixth — see `Section` for why that changed.
+        T.eq(noBuild.body.map { $0.heading ?? "" },
+             [AboutText.whyHeading, AboutText.privacyHeading, AboutText.starHeading],
+             "each section is titled, in order: why, then what it does with your data, then the ask")
+        T.no(AboutText.starHeading.lowercased().contains("support"),
+             "the ask's heading states a condition, never assumes the answer")
 
         // THE CLAUSE THAT MAKES THE CLAIM HONEST. The privacy sentence is only true because it
         // names the one command that uploads and says whose credentials it uses. Drop that half

@@ -87,15 +87,24 @@ enum SettingsWindow {
         // licence tab. The labels and URLs are AboutText.contacts, where the suite can read them.
         let links = AboutText.contacts.map { linkField(label: $0.label, handle: $0.handle, url: $0.url) }
         // The star CTA is the one row that IS an NSButton — see starButton() for why a button and
-        // not a fourth link. Every element here is upcast to NSView explicitly: `a.body.map(body)`
-        // and `links` are concretely typed [NSTextField], and Swift's Array is invariant, so
-        // mixing them with an NSButton in one literal needs the cast spelled out rather than left
-        // to inference.
-        let views: [NSView] =
-            [heading(a.heading)] + a.body.map { body($0) as NSView }
-            + [starButton()]
-            + [heading(AboutText.contactHeading), body(AboutText.contactLead)]
-            + links.map { $0 as NSView }
+        // not a fourth link.
+        //
+        // BUILT IN NAMED STEPS, not one long `+` chain. Swift's Array is invariant, so every
+        // element needs an explicit upcast to NSView, and the fully-inlined version of this
+        // expression made the type-checker give up outright: "unable to type-check this
+        // expression in reasonable time". Each `let` below is an annotated sub-expression, which
+        // is the documented fix and also reads better than the chain did.
+        //
+        // `compactMap` over the optional heading rather than an `if` — a section without one (the
+        // build stamp) simply contributes no heading view. This file is held to a hard cap on
+        // decision points, and a branch here would spend the last of it on layout.
+        let sections: [NSView] = a.body.flatMap { section -> [NSView] in
+            let head: NSView? = section.heading.map { heading($0) }
+            return [head, body(section.text) as NSView].compactMap { $0 }
+        }
+        let contact: [NSView] = [heading(AboutText.contactHeading), body(AboutText.contactLead)]
+        let contactLinks: [NSView] = links
+        let views: [NSView] = [heading(a.heading)] + sections + [starButton()] + contact + contactLinks
         return pad(NSStackView(views: views))
     }
 

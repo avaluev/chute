@@ -12,17 +12,31 @@ import Foundation
 /// version and it is more convincing, because a reader can check every clause of it against the
 /// source in one grep.
 public enum AboutText {
-    public static func about(version: String, build: String?) -> (heading: String, body: [String]) {
-        var body: [String] = []
-        // The build stamp is what a bug report needs and what nobody remembers to ask for.
-        if let build { body.append("build \(build)") }
+    /// A SECTION IS A HEADING AND ITS PROSE, and the heading is optional because the build stamp
+    /// has none. Rendered flat, the tab was five grey paragraphs between two bold lines — the
+    /// reader had no way to find the one they wanted without reading all of it, and the ask at the
+    /// bottom read as a sixth paragraph rather than as the one thing the tab wants from them.
+    public typealias Section = (heading: String?, text: String)
+
+    public static func about(version: String, build: String?) -> (heading: String, body: [Section]) {
+        var body: [Section] = []
+        // The build stamp is what a bug report needs and what nobody remembers to ask for. No
+        // heading: it belongs to the version line above it, not to a section of its own.
+        if let build { body.append((nil, "build \(build)")) }
         // ORDER MATTERS: why, then privacy, then the ask — a reader meets the person before the
         // spec sheet, and meets the spec sheet before being asked for anything.
-        body.append(why)
-        body.append(privacy)
-        body.append(starReason)
+        body.append((whyHeading, why))
+        body.append((privacyHeading, privacy))
+        body.append((starHeading, starReason))
         return ("Chute \(version)", body)
     }
+
+    public static let whyHeading = "Why this exists"
+    public static let privacyHeading = "What it does with your data"
+    /// NOT "Support the project". The heading is the condition, not the request — the sentence
+    /// under it argues that the click is earned, and a heading that assumed the answer would
+    /// undercut it before it was read.
+    public static let starHeading = "If it earned it"
 
     /// THE OPENING. Everything below this line used to be the whole tab — accurate and written by
     /// nobody in particular. This is written by the one person who built it, in first person,
