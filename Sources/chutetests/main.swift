@@ -37,5 +37,6 @@ pathAbbrevSuite()
 sessionDotSuite()
 inlineCodeSuite()
 sessionCwdSuite()
+phrasingGapsSuite()
 
 T.report()

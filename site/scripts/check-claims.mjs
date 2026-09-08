@@ -429,5 +429,28 @@ try {
   }
 }
 
+// ── THE INSTALLER THE SITE SERVES MUST BE THE INSTALLER IN THE REPO ─────────────────────────
+//
+// `site/public/install.sh` is what `curl … | sh` fetches from chutedev.com. It is a hand-made
+// COPY of `Scripts/get.sh`, and nothing regenerated it — so the first edit to get.sh that nobody
+// remembers to mirror leaves strangers piping a stale script into their shell. They are identical
+// today, which is exactly when to gate it: a duplicate is only ever caught before it drifts.
+//
+// Byte-for-byte on purpose. A "close enough" comparison here would pass the one diff that
+// matters, and the failure mode of this particular file is somebody's machine.
+{
+  const src = REPO + "Scripts/get.sh"
+  const served = REPO + "site/public/install.sh"
+  if (!existsSync(src) || !existsSync(served)) {
+    bad("the installer exists in both places", `missing ${!existsSync(src) ? src : served}`)
+  } else {
+    const a = readFileSync(src, "utf8"), b = readFileSync(served, "utf8")
+    a === b
+      ? ok("site/public/install.sh is byte-identical to Scripts/get.sh")
+      : bad("the served installer has drifted from Scripts/get.sh",
+            "run: cp Scripts/get.sh site/public/install.sh — the repo copy is the source of truth")
+  }
+}
+
 console.log(`\nclaims: ${failed ? `${failed} failed` : "every claim on the site is one the fact sheet stands behind"}`)
 process.exit(failed ? 1 : 0)

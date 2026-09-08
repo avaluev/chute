@@ -1,4 +1,9 @@
 #!/usr/bin/env bash
+# MIRRORED TO site/public/install.sh, WHICH IS WHAT chutedev.com SERVES.
+# The two are compared byte-for-byte by site/scripts/check-claims.mjs, so an edit here that is
+# not copied across fails the deploy rather than quietly leaving strangers piping a stale script
+# into their shell:
+#     cp Scripts/get.sh site/public/install.sh
 # curl -fsSL https://chutedev.com/install.sh | sh
 #
 # Clones Chute, builds it, and installs the app. Everything it does is in this file and in the

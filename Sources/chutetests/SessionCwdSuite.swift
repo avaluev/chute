@@ -80,3 +80,39 @@ func sessionCwdSuite() {
              "and a subdirectory of the repo still names the repo, not the subdirectory")
     }
 }
+
+/// The two cells that could go blank rather than say what they knew.
+func phrasingGapsSuite() {
+    T.suite("SessionPhrasing gaps") {
+        let now = Date(timeIntervalSince1970: 1_757_000_000)
+
+        // A BLOCKED SESSION IS THE WHOLE PRODUCT. Losing the word because the timestamp is
+        // missing or skewed leaves the state column empty, which reads as "Chute knows nothing"
+        // — the opposite of what it knows.
+        T.eq(SessionPhrasing.held(.blocked, since: nil, now: now), "blocked",
+             "with no timestamp the state still shows; only the duration is withheld")
+        T.eq(SessionPhrasing.held(.blocked, since: now.addingTimeInterval(3600), now: now),
+             "blocked", "a future timestamp is clock skew — drop the duration, keep the fact")
+        T.eq(SessionPhrasing.held(.waiting, since: nil, now: now), "ready",
+             "same for ready")
+        T.eq(SessionPhrasing.held(.working, since: nil, now: now), "working",
+             "and for working")
+        T.eq(SessionPhrasing.held(.blocked, since: now.addingTimeInterval(-120), now: now),
+             "blocked 2 min", "a trustworthy timestamp still carries its duration")
+
+        // Unchanged on purpose: a state Chute makes no claim about says nothing, and a shell has
+        // not been "idle for 4 h" in any sense a reader cares about.
+        T.eq(SessionPhrasing.held(.idle, since: nil, now: now), "",
+             "idle still says nothing — that rule predates this one and outranks it")
+        T.eq(SessionPhrasing.held(.unknown, since: now, now: now), "",
+             "and so does a state Chute admits it cannot see")
+
+        // An empty agent string is not an agent.
+        T.eq(SessionPhrasing.detail(agent: "", transcript: nil), "no agent running",
+             "an empty agent name is no agent, not a blank cell")
+        T.eq(SessionPhrasing.detail(agent: nil, transcript: nil), "no agent running",
+             "and nil reads the same way")
+        T.eq(SessionPhrasing.detail(agent: "claude", transcript: nil), "Claude Code",
+             "a real agent is unaffected")
+    }
+}

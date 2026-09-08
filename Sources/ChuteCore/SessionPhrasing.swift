@@ -34,7 +34,11 @@ public enum SessionPhrasing {
     /// older hook gives no session id, so there is no transcript and therefore no model, and the
     /// honest row names the agent alone rather than filling the gap with the window title.
     public static func detail(agent: String?, transcript: AgentTranscript?) -> String {
-        guard let agent else { return "no agent running" }
+        // An EMPTY agent is not an agent. `TerminalAppAdapter.agentName` only ever returns nil or
+        // a name from `knownAgents`, but `Session.agent` is a plain `String?` and does not enforce
+        // that — and an empty one fell straight through `agentLabel`, whose title-casing of ""
+        // is "", blanking the cell instead of saying there is no agent.
+        guard let agent, !agent.isEmpty else { return "no agent running" }
         var parts = [agentLabel(agent)]
         if let model = AgentTranscript.displayModel(transcript?.model) { parts.append(model) }
         if let effort = transcript?.effort, effort != unremarkableEffort { parts.append(effort) }
@@ -61,7 +65,6 @@ public enum SessionPhrasing {
     /// Chute admits it does not know is exactly the dressed-up guess that got the old status
     /// badge deleted.
     public static func held(_ state: SessionState, since: Date?, now: Date = Date()) -> String {
-        guard let since, now >= since else { return "" }
         let word: String
         switch state {
         case .blocked: word = "blocked"
@@ -69,6 +72,15 @@ public enum SessionPhrasing {
         case .working: word = "working"
         case .idle, .unknown: return ""
         }
+        // THE STATE SURVIVES EVEN WHEN THE CLOCK DOES NOT. A missing `since`, or one dated in the
+        // future by clock skew, used to blank this cell entirely — so a BLOCKED session, the one
+        // thing this product exists to surface, rendered with an empty state column and no way to
+        // tell it from a row Chute knew nothing about.
+        //
+        // The duration is dropped, because a duration computed from an untrustworthy timestamp is
+        // the dressed-up guess that got the old status badge deleted. The word is not a guess: it
+        // came from a hook. So the row says `blocked` and declines to say for how long.
+        guard let since, now >= since else { return word }
         return "\(word) \(ago(since, now: now))"
     }
 }
