@@ -13,7 +13,6 @@
       "Bash(git add --update:*)",
       "Bash(rm -rf:*)",
       "Edit(.env*)",
-      "Write(.env*)",
       "Read(.env*)"
     ]
   }
