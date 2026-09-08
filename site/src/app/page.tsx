@@ -7,7 +7,6 @@ import {
 } from "@/components/ui/accordion";
 import { CopyLine } from "@/components/copy-line";
 import { InstallCli } from "@/components/install-cli";
-import { asset } from "@/lib/asset";
 import { Header, Footer } from "@/components/chrome";
 import { CaseCard, DailyCost, Demo } from "@/components/case-bits";
 import { CASES, PAID, FREE, HEROES, minutesPerDay, bySlug } from "@/lib/cases";
@@ -103,9 +102,13 @@ function HeroCase({ slug, flip }: { slug: string; flip: boolean }) {
           See it →
         </Link>
       </div>
+      {/* <Demo>, NOT <Image>. This was an <img> whose src was the case's `demo` field — and
+          `demo` is an .mp4 for every one of the five hero cases, so every hero image on the
+          landing page rendered as a broken-image icon with the alt text spilling out beside it.
+          <Demo> already picks video / gif / still correctly and has since it was written; the
+          landing page simply was not using it. */}
       <div className={flip ? "md:order-1" : ""}>
-        <Image src={asset(c.demo)} alt={c.fix} width={1200} height={750} unoptimized
-               className="w-full rounded-[var(--radius)] border border-border" />
+        <Demo c={c} />
       </div>
     </div>
   );

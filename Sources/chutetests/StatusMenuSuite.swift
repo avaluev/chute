@@ -40,9 +40,26 @@ func statusMenuSuite() {
         T.eq(headers, ["WORKING   1", "NO AGENT   1", "NO STATUS — HOOKS NOT REPORTING   1"],
              "one header per state, in urgency order, each carrying its own count")
 
-        // A project sub-header sits under its section, indented, once per project.
-        T.eq(flatMenu.filter { $0.kind == .note && $0.indent == 1 }.map(\.title), ["a", "c", "b"],
-             "each project named once, inside the section its sessions belong to")
+        // A SUB-HEADER ONLY WHEN IT GROUPS SOMETHING. One session per project per section here,
+        // so there is nothing to group and the project name rides on the row instead. The
+        // founder's real menu showed seven sub-headers over eight rows, which is a stutter.
+        T.eq(flatMenu.filter { $0.kind == .note && $0.indent == 1 }.count, 0,
+             "a lone session gets no sub-header of its own")
+        T.ok(flatMenu.contains { if case .session = $0.kind { return $0.title.hasPrefix("a ") }
+                                 return false },
+             "and names its project on the row instead")
+
+        // Two sessions of ONE project in ONE section: now the sub-header earns its line, the
+        // rows indent under it, and they stop repeating the name it already carries.
+        let paired = StatusMenu.model(sessions: [
+            session("dup", .working, tty: "ttys011"),
+            session("dup", .working, tty: "ttys012"),
+            session("solo", .working, tty: "ttys013")])
+        T.eq(paired.filter { $0.kind == .note && $0.indent == 1 }.map(\.title), ["dup"],
+             "a project with two sessions in a section gets exactly one sub-header")
+        T.eq(paired.filter { if case .session = $0.kind { return $0.indent == 2 }; return false }
+                   .count, 2,
+             "and its rows sit one step further in than the lone one")
 
         // ORDER MUST BE STABLE or the menu reshuffles between two openings of the same menu.
         T.eq(StatusMenu.model(sessions: threeStates).map(\.title), flatMenu.map(\.title),
@@ -58,7 +75,8 @@ func statusMenuSuite() {
             now: now)
         T.eq(ordered.first(where: { $0.kind == .note })?.title, "NEEDS YOU   2",
              "the section that needs a human is first, and says how many")
-        T.eq(ordered.filter { $0.kind == .note && $0.indent == 1 }.map(\.title).first, "stale",
+        let firstRow = ordered.first { if case .session = $0.kind { return true }; return false }
+        T.ok(firstRow?.title.hasPrefix("stale ") == true,
              "and the one that has been waiting an hour outranks the one waiting a minute")
 
         func titles(_ nodes: [StatusMenu.MenuNode]) -> [String] {

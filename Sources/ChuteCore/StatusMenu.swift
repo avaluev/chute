@@ -157,11 +157,21 @@ public enum StatusMenu {
                 lastState = s.state
                 lastProject = nil
             }
-            if s.project != lastProject {
+            // A SUB-HEADER ONLY WHEN IT ACTUALLY GROUPS SOMETHING. The founder's menu showed
+            // seven project sub-headers over eight rows, which is a stutter rather than a
+            // hierarchy — and it read backwards, because the sub-header was indented one step
+            // further than the rows it was meant to contain. A project with a single session in
+            // a section prints its name on the row instead, at the same depth as every other row.
+            let sameHere = ordered.filter { $0.state == s.state && $0.project == s.project }.count
+            let grouped = sameHere > 1
+            if grouped && s.project != lastProject {
                 out.append(MenuNode(.note, s.project, indent: 1))
-                lastProject = s.project
             }
-            out.append(contentsOf: rows(for: s, now: now, loadFor: loadFor,
+            lastProject = s.project
+            out.append(contentsOf: rows(for: s, now: now,
+                                        showProject: !grouped,
+                                        indent: grouped ? 2 : 1,
+                                        loadFor: loadFor,
                                         sessionCommands: sessionCommands, colorFor: colorFor,
                                         detailFor: detailFor))
         }
@@ -175,6 +185,30 @@ public enum StatusMenu {
         out.append(contentsOf: standardItems(recent: recent, recentTokens: recentTokens,
                                              notificationsDenied: notificationsDenied))
         return out
+    }
+
+    /// THE TRAFFIC LIGHT, as a token the renderer turns into a colour and a shape.
+    ///
+    /// The dot used to be the PROJECT's colour — an FNV-1a hash of its path, twelve hues on a
+    /// wheel. That was defensible when the menu was a flat list of terminals and the only thing
+    /// a colour could do was tell two `sntz_mockups` rows apart. It stopped being defensible the
+    /// moment the rows carried state: the founder's own menu showed `37.chute` with a RED dot
+    /// while it sat happily in READY FOR A PROMPT, because a hash of the string "37.chute"
+    /// happens to land on red. A colour that means nothing, in the position where a colour is
+    /// about to mean "stop", is worse than no colour at all.
+    ///
+    /// Shape carries the meaning and colour is the redundancy, not the other way round — the
+    /// renderer draws a filled disc, a ring or a small dot, so the three states are still three
+    /// things with the hue removed entirely. Roughly 1 in 12 men cannot separate the red from
+    /// the green here, and they are squarely in this product's audience.
+    public static func stateToken(_ state: SessionState) -> String {
+        switch state {
+        case .blocked: return "blocked"
+        case .waiting: return "waiting"
+        case .working: return "working"
+        case .idle:    return "idle"
+        case .unknown: return "unknown"
+        }
     }
 
     /// The header for a state's section, with how many sessions are under it.
@@ -200,11 +234,13 @@ public enum StatusMenu {
     /// One session: the row itself, then its ⌥ alternates.
     static func rows(for s: Session,
                      now: Date = Date(),
+                     showProject: Bool = true,
+                     indent: Int = 1,
                      loadFor: (String) -> SessionLoad,
                      sessionCommands: (Session) -> [(kind: String, title: String)],
                      colorFor: (String) -> String,
                      detailFor: (Session) -> String) -> [MenuNode] {
-        let hex = colorFor(s.project)
+        let hex = stateToken(s.state)
         // "blocked 22 min" IS THE PRODUCT. This was deleted with the grouping in 2849347 and it
         // comes back with it, for the same reason: the duration is the whole signal. Blocked for
         // twenty seconds is noise you would never have noticed; blocked for twenty minutes is
@@ -215,16 +251,21 @@ public enum StatusMenu {
         // says which project this is, and repeating it is what made thirteen rows unreadable.
         let load = loadFor(s.tty)
         let held = SessionPhrasing.held(s.state, since: s.since, now: now)
-        let prefix = held.isEmpty ? detailFor(s) : "\(detailFor(s))   \(held)"
+        // The project name is printed HERE unless a sub-header directly above already carries it.
+        // Seven sub-headers over eight rows is not structure, it is a stutter — so the header
+        // only appears when it actually groups something, and the row says the project the rest
+        // of the time. `showProject` is decided in model(), which can see the whole section.
+        let head = showProject ? "\(s.project)   \(detailFor(s))" : detailFor(s)
+        let prefix = held.isEmpty ? head : "\(head)   \(held)"
         var out: [MenuNode] = [
             MenuNode(.session(key: s.key, tty: s.tty, colorHex: hex, prefix: prefix),
                      prefix + suffix(load),
                      toolTip: "\(s.title) · terminal \(s.tty) · click to bring it forward"
-                            + "\n Hold ⌥ for this session's commands.")
+                            + "\n Hold ⌥ for this session's commands.", indent: indent)
         ]
         for c in sessionCommands(s) {
             out.append(MenuNode(.sessionCommand(key: s.key, kind: c.kind, colorHex: hex),
-                                "\(s.project)   \(c.title)"))
+                                "\(s.project)   \(c.title)", indent: indent))
         }
         return out
     }

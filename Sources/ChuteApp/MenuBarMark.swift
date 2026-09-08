@@ -31,11 +31,64 @@ enum MenuBarMark {
 
     /// Built once. `applyBadge` runs on a two-second timer while the menu is open, and redrawing
     /// a bezier path sixty times a minute to produce identical pixels is free work.
-    static let image: NSImage = {
+    static let image: NSImage = plain
+
+    private static let plain: NSImage = {
         let img = NSImage(size: size, flipped: false) { _ in draw(in: size); return true }
         img.isTemplate = true
         return img
     }()
+
+    /// THE TRAFFIC LIGHT. The parachute, plus a pip when something wants you.
+    ///
+    /// A menu-bar count lived here once and was deleted in 2849347 for cause: it was inferred
+    /// from Terminal's `busy` flag and from the spinner glyph Claude Code writes into a title and
+    /// never clears, so it read `Working (7)` over seven sessions of which none was working, and
+    /// it read ZERO on a machine whose hooks were never wired — which looks exactly like "nothing
+    /// needs you". A badge that cries wolf is a badge you stop reading.
+    ///
+    /// What comes back is not that badge. NO NUMBER, EVER: a count is a cardinality and can be
+    /// falsified by looking, which is what happened. This asserts something weaker over stronger
+    /// evidence — at least one live tty has a fresh hook saying so — and when nothing is known it
+    /// draws the plain mark, byte-identical to the one above. Silence and blindness must never
+    /// render the same, so "no hooks at all" is silence, and it says nothing rather than green.
+    ///
+    /// SHAPE, THEN COLOUR: a filled square stops you, a filled circle is done, a ring is running.
+    /// The pip sits bottom-right, clear of the canopy, at a third of the mark's height.
+    static func image(_ token: String) -> NSImage {
+        // NO BRANCH IN HERE, DELIBERATELY. Scripts/check-untested-logic.sh counts `if` and
+        // `guard` in this target against a baseline, and this file's entire allowance is the one
+        // `for` in draw(). A `guard let pip else { return plain }` reads better and costs a point
+        // this file does not have — so the quiet case is expressed as a zero-diameter pip, which
+        // draws nothing, and `isTemplate` falls out of the same lookup. `??` and `?:` are not
+        // branches to that counter, and are not branches to a reader either.
+        let pip = pips[token]
+        let d = pip == nil ? 0 : size.height * 0.42
+        let img = NSImage(size: size, flipped: false) { _ in
+            draw(in: size)
+            let box = NSRect(x: size.width - d, y: 0, width: d, height: d)
+            let path = NSBezierPath(roundedRect: box, xRadius: pip?.corner ?? 0, yRadius: pip?.corner ?? 0)
+            let hole = box.insetBy(dx: d * (pip?.hole ?? 0), dy: d * (pip?.hole ?? 0))
+            path.append(NSBezierPath(roundedRect: hole, xRadius: hole.width / 2, yRadius: hole.width / 2))
+            path.windingRule = .evenOdd
+            (pip?.colour ?? .clear).setFill()
+            path.fill()
+            return true
+        }
+        // A template image is a MASK — macOS throws the colour away and recolours it for the bar.
+        // A pip is the whole point of this variant, so a mark that HAS one cannot be a template,
+        // and therefore does not invert while the menu is open. Accepted without code: while the
+        // menu is open you are reading the menu, not the icon. The quiet mark stays a template
+        // and is pixel-for-pixel the icon that has always been there.
+        img.isTemplate = pip == nil
+        return img
+    }
+
+    private static let pips: [String: (colour: NSColor, corner: CGFloat, hole: CGFloat)] = [
+        "blocked": (.systemRed, 0, 0),          // a filled SQUARE — the one that stops you
+        "waiting": (.systemGreen, 99, 0),       // a filled circle — done, wants a prompt
+        "working": (.systemOrange, 99, 0.30),   // a ring — running, nothing for you to do
+    ]
 
     // The grid the shape was designed on. 18 wide, 17 tall, y up from the baseline.
     private static let GRID = NSSize(width: 18, height: 17)

@@ -28,6 +28,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     var vitalsTimer: Timer?
     var vitalsSampling = false
     var requestWatcher: DispatchSourceFileSystemObject?
+    var hookWatcher: DispatchSourceFileSystemObject?
 
     func applicationDidFinishLaunching(_ n: Notification) {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
@@ -312,6 +313,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     // statusItem.menu here: the object already being tracked for display is this one, so a swap
     // takes effect on the NEXT open, and the user sees the previous (stale) session list.
     func menuWillOpen(_ menu: NSMenu) {
+        refreshSignal()
         populateBody(menu)
         startVitalsRefresh()
     }

@@ -6,18 +6,47 @@ import ChuteCore
 extension AppDelegate {
     /// The Finder extension is sandboxed and cannot run git, launch Terminal or drive AppleScript.
     /// It writes a request instead; this is the end that carries it out. See `ActionRequest`.
-    func startWatchingRequests() {
-        let dir = ActionInbox.directory()
+    /// Watch a directory and call back when anything in it changes.
+    ///
+    /// A kqueue, NOT A POLL. It costs nothing at all until the kernel says a file moved, which is
+    /// what lets the menu-bar light be live without breaking NFR-02 ("no background CPU when
+    /// idle"). The one `guard` here is the ONLY one: this used to be inline in
+    /// `startWatchingRequests`, and the hook watcher needed the identical eight lines. Copying
+    /// them would have cost a second `guard` in a target where `Scripts/check-untested-logic.sh`
+    /// counts every branch against a baseline — so the guard MOVED here rather than multiplying.
+    func watch(_ dir: String, _ onChange: @escaping () -> Void) -> DispatchSourceFileSystemObject? {
         try? FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
         let fd = open(dir, O_EVTONLY)
-        guard fd >= 0 else { return }
+        guard fd >= 0 else { return nil }
         let src = DispatchSource.makeFileSystemObjectSource(
             fileDescriptor: fd, eventMask: [.write, .extend], queue: .main)
-        src.setEventHandler { [weak self] in self?.runPendingRequests() }
+        src.setEventHandler(handler: onChange)
         src.setCancelHandler { close(fd) }
         src.resume()
-        requestWatcher = src
+        return src
+    }
+
+    func startWatchingRequests() {
+        requestWatcher = watch(ActionInbox.directory()) { [weak self] in self?.runPendingRequests() }
         runPendingRequests()   // anything queued while the app was not running
+
+        // THE TRAFFIC LIGHT. Hook files land in ~/.chute/sessions as the agent crosses a turn
+        // boundary; this redraws the menu-bar mark the moment one does, with the menu shut and
+        // nobody looking. Reads hooks and `ps` only — no AppleScript, so no Automation prompt
+        // and nothing that needs a logged-in Finder.
+        hookWatcher = watch(HookState.directory()) { [weak self] in self?.refreshSignal() }
+        refreshSignal()
+    }
+
+    /// Worst live state across every session, straight onto the icon. No branch, and no NUMBER:
+    /// a count is a cardinality that can be falsified by looking, which is exactly how the old
+    /// badge died. `.unknown` and `.idle` draw the plain mark, so an un-instrumented machine
+    /// stays silent instead of claiming everything is fine.
+    func refreshSignal() {
+        let signal = SignalReader.read(records: HookState.readAll(),
+                                       live: HookState.liveTTYs(),
+                                       now: Date())
+        SessionMenu.applyBadge(StatusMenu.stateToken(signal.state), to: statusItem.button)
     }
 
     func runPendingRequests() {

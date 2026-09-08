@@ -63,7 +63,20 @@ export function DailyCost({ c }: { c: Case }) {
 const FRAME = "w-full rounded-[4px] border border-border";
 
 export function Demo({ c }: { c: Case }) {
-  if (!c.demo) return null;
+  // A RESERVED SLOT, NOT A FAKE SCREENSHOT. The rule this file has carried from the start is
+  // that a case never shows invented UI — a mocked-up window is a lie with a border round it.
+  // An empty slot that says so is a different thing: it holds the layout while the recording is
+  // made, and it tells the reader exactly what is missing rather than silently collapsing the
+  // column and leaving the text lopsided. Delete nothing when the file lands; just add the file.
+  if (!c.demo) {
+    return (
+      <div className={`${FRAME} flex aspect-[16/10] items-center justify-center bg-card`}>
+        <p className="px-6 text-center font-[family-name:var(--font-mono-loaded)] text-xs uppercase tracking-[0.18em] text-muted-foreground">
+          Recording in progress
+        </p>
+      </div>
+    );
+  }
 
   if (c.demo.endsWith(".mp4")) {
     const webm = c.demo.replace(/\.mp4$/, ".webm");
