@@ -34,3 +34,13 @@ Resources/icon-review/
 handoff/journal/**/*.tmp-*
 handoff/NEXT.md.tmp-*
 .claude/.cache/
+
+# The handoff head is a DERIVED VIEW of handoff/journal/**, not a source of
+# truth, and committing it is what made concurrent sessions collide: each
+# session appends a different journal entry, so each regenerates a different
+# aggregate over the same lines. The journal files themselves have never
+# conflicted once - every one is a new, uniquely-named file. Untracked
+# 2026-09-08 so a conflict has nothing left to collide with. The SessionStart
+# hook injects the head into every session, and `handoff-head` rebuilds the
+# file on demand, deterministically, from that same journal.
+handoff/NEXT.md
