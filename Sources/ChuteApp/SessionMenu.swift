@@ -65,9 +65,17 @@ enum SessionMenu {
         "idle": .tertiaryLabelColor, "unknown": .tertiaryLabelColor,
     ]
     /// diameter, and how much of the middle to cut out (0 = filled disc, 0.34 = ring).
-    private static let form: [String: (d: CGFloat, hole: CGFloat)] = [
-        "blocked": (9, 0), "waiting": (9, 0), "working": (9, 0.34),
-        "idle": (5, 0), "unknown": (5, 0.34),
+    /// `corner` of 0 is a SQUARE, a large value is a circle. Blocked and waiting were both a 9pt
+    /// filled disc — identical shapes differing only red vs. green — which quietly broke the rule
+    /// three comments above it. Caught while writing the design brief, not by a test, because
+    /// nothing asserted the rule the code claimed to follow. Blocked is now a square, matching
+    /// the square pip MenuBarMark already draws on the icon for the same state.
+    private static let form: [String: (d: CGFloat, hole: CGFloat, corner: CGFloat)] = [
+        "blocked": (9, 0, 0),        // filled SQUARE — the one that stops you
+        "waiting": (9, 0, 99),       // filled circle — finished, wants a prompt
+        "working": (9, 0.34, 99),    // ring — running, nothing for you to do
+        "idle":    (5, 0, 99),       // a small dot — a shell, nothing to say
+        "unknown": (5, 0.34, 99),    // a small ring — Chute does not know
     ]
 
     static func dot(_ token: String) -> NSImage {
@@ -77,12 +85,12 @@ enum SessionMenu {
         // inside the box; the box never does.
         let box = NSSize(width: 12, height: 12)
         let colour = ink[token] ?? .tertiaryLabelColor
-        let f = form[token] ?? (5, 0)
+        let f = form[token] ?? (5, 0, 99)
         return NSImage(size: box, flipped: false) { rect in
             let r = NSRect(x: rect.midX - f.d / 2, y: rect.midY - f.d / 2, width: f.d, height: f.d)
-            let path = NSBezierPath(ovalIn: r)
+            let path = NSBezierPath(roundedRect: r, xRadius: f.corner, yRadius: f.corner)
             let hole = r.insetBy(dx: f.d * f.hole, dy: f.d * f.hole)
-            path.append(NSBezierPath(ovalIn: hole))
+            path.append(NSBezierPath(roundedRect: hole, xRadius: f.corner, yRadius: f.corner))
             // evenOdd turns the second oval into a hole rather than a second disc. A zero-inset
             // hole is the same rect twice, which cancels to nothing — so "filled" needs no branch.
             path.windingRule = .evenOdd

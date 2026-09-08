@@ -122,6 +122,27 @@ func menuBarMarkSuite() {
             }
         }
 
+        // ── NO TWO STATES MAY DIFFER BY COLOUR ALONE ────────────────────────────────────────
+        //
+        // The rule was written in a comment and then broken by the code under it: the ICON pip
+        // distinguishes blocked (square) from waiting (circle), but the row dot drew both as a
+        // 9pt filled disc, red vs. green, for a whole release. Nothing caught it because nothing
+        // asserted it — a rule stated only in prose is a rule with no enforcement.
+        //
+        // Asserted here on the icon's own pip table, which is the part this suite can reach.
+        let shapes = ["blocked", "waiting", "working"].map { token -> String in
+            let p = MenuBarMark.plan(token)
+            return "\(p.pip)/\(p.diameter)"
+        }
+        T.eq(Set(shapes).count >= 1, true, "the pip table is readable")
+        // blocked is a square and waiting is a circle: they must not share a corner radius.
+        T.no(MenuBarMark.cornerFor("blocked") == MenuBarMark.cornerFor("waiting"),
+             "blocked and waiting differ in SHAPE, not only in colour")
+        T.no(MenuBarMark.cornerFor("waiting") == MenuBarMark.holeFor("working") ,
+             "and working is a ring, which neither of the others is")
+        T.ok(MenuBarMark.holeFor("working") > 0, "working is hollow")
+        T.eq(MenuBarMark.holeFor("blocked"), 0, "blocked is solid")
+
         // ── SIZE ────────────────────────────────────────────────────────────────────────────
         // 16 tall matches the SF Symbol this replaced, so the menu bar row height does not jump.
         T.eq(Double(MenuBarMark.size.height), 16, "the mark is 16 points tall")

@@ -100,6 +100,12 @@ public enum MenuBarMark {
         return (pip != nil, pip == nil, pip == nil ? 0 : Double(size.height * 0.42))
     }
 
+    /// Exposed so a test can assert the rule the comments claim: no two states may differ by
+    /// colour alone. That rule was broken in SessionMenu's row dots for a full release because it
+    /// lived only in prose.
+    public static func cornerFor(_ token: String) -> Double { Double(pips[token]?.corner ?? -1) }
+    public static func holeFor(_ token: String) -> Double { Double(pips[token]?.hole ?? -1) }
+
     private static let pips: [String: (colour: NSColor, corner: CGFloat, hole: CGFloat)] = [
         "blocked": (.systemRed, 0, 0),          // a filled SQUARE — the one that stops you
         "waiting": (.systemGreen, 99, 0),       // a filled circle — done, wants a prompt
