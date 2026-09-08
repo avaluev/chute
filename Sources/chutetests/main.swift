@@ -32,5 +32,6 @@ finderTargetSuite()
 treeRenderSuite()
 argParseSuite()
 signalSuite()
+menuBarMarkSuite()
 
 T.report()

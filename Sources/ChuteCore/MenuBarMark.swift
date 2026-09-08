@@ -22,16 +22,16 @@ import AppKit
 /// context and asked what object it is. 4/4 said "parachute", 0/4 said balloon, lamp or umbrella,
 /// two of them said "parachute with cargo box" unprompted. Do not change these numbers without
 /// running that again — the shape is one bad proportion away from being a lampshade.
-enum MenuBarMark {
+public enum MenuBarMark {
     /// 16 tall matches the SF Symbol this replaced (13x16), so the row height does not jump. The
     /// WIDTH is then forced by the 18x17 design grid — 16 * 18/17 — and not by the old symbol's
     /// 13. Picking the old width instead squashes the canopy 18% horizontally, which is a
     /// lampshade; the grid's aspect ratio is load-bearing and has to survive the scale.
-    static let size = NSSize(width: 16 * 18.0 / 17.0, height: 16)
+    public static let size = NSSize(width: 16 * 18.0 / 17.0, height: 16)
 
     /// Built once. `applyBadge` runs on a two-second timer while the menu is open, and redrawing
     /// a bezier path sixty times a minute to produce identical pixels is free work.
-    static let image: NSImage = plain
+    public static let image: NSImage = plain
 
     private static let plain: NSImage = {
         let img = NSImage(size: size, flipped: false) { _ in draw(in: size); return true }
@@ -55,7 +55,7 @@ enum MenuBarMark {
     ///
     /// SHAPE, THEN COLOUR: a filled square stops you, a filled circle is done, a ring is running.
     /// The pip sits bottom-right, clear of the canopy, at a third of the mark's height.
-    static func image(_ token: String) -> NSImage {
+    public static func image(_ token: String) -> NSImage {
         // NO BRANCH IN HERE, DELIBERATELY. Scripts/check-untested-logic.sh counts `if` and
         // `guard` in this target against a baseline, and this file's entire allowance is the one
         // `for` in draw(). A `guard let pip else { return plain }` reads better and costs a point
@@ -65,7 +65,10 @@ enum MenuBarMark {
         let pip = pips[token]
         let d = pip == nil ? 0 : size.height * 0.42
         let img = NSImage(size: size, flipped: false) { _ in
-            draw(in: size)
+            // `labelColor` when this is not a template, black when it is. A template is a mask
+            // and its colour is discarded; a non-template's is not, and black is invisible on a
+            // dark bar. Ternary, not `if`: this file's branch budget is the one `for` in draw().
+            draw(in: size, ink: pip == nil ? .black : .labelColor)
             let box = NSRect(x: size.width - d, y: 0, width: d, height: d)
             let path = NSBezierPath(roundedRect: box, xRadius: pip?.corner ?? 0, yRadius: pip?.corner ?? 0)
             let hole = box.insetBy(dx: d * (pip?.hole ?? 0), dy: d * (pip?.hole ?? 0))
@@ -82,6 +85,19 @@ enum MenuBarMark {
         // and is pixel-for-pixel the icon that has always been there.
         img.isTemplate = pip == nil
         return img
+    }
+
+    /// WHAT THE MARK WILL LOOK LIKE, as data a test can read without a screen.
+    ///
+    /// This exists because the icon has now vanished from the menu bar TWICE — once when a
+    /// refactor deleted the only call that set the status item's image, and once here. A
+    /// `variableLength` status item with no image and no title is ZERO POINTS WIDE: the app is
+    /// running, the item is real, and there is nothing to see or click. Nothing in the build
+    /// could catch it, because MenuBarMark lived in ChuteApp and `chutetests` cannot import an
+    /// executable target. Moving it into ChuteCore is what makes the icon assertable at all.
+    public static func plan(_ token: String) -> (pip: Bool, template: Bool, diameter: Double) {
+        let pip = pips[token]
+        return (pip != nil, pip == nil, pip == nil ? 0 : Double(size.height * 0.42))
     }
 
     private static let pips: [String: (colour: NSColor, corner: CGFloat, hole: CGFloat)] = [
@@ -101,11 +117,20 @@ enum MenuBarMark {
     private static let cordW: CGFloat = 0.8       // ONE unit. Two makes the lines a filled cone.
     private static let scallops = 4
 
-    private static func draw(in box: NSSize) {
+    /// BLACK IS ONLY CORRECT FOR A TEMPLATE. macOS treats a template image as a MASK: it throws
+    /// the colour away and re-inks the shape white on a dark bar, black on a light one. The
+    /// moment the mark carries a coloured pip it can no longer be a template — and the black then
+    /// STAYS black, which on a dark menu bar is a black parachute on a dark background.
+    ///
+    /// That is exactly how the icon vanished on 2026-09-08, the second disappearance in a week.
+    /// The image was not blank — it drew perfectly, and a pixel-counting test said so and passed.
+    /// It was drawing in a colour nobody could see. `labelColor` is a dynamic catalog colour and
+    /// resolves per appearance, so the non-template mark is legible in both.
+    private static func draw(in box: NSSize, ink: NSColor = .black) {
         let ux = box.width / GRID.width, uy = box.height / GRID.height
         func P(_ x: CGFloat, _ y: CGFloat) -> NSPoint { NSPoint(x: x * ux, y: y * uy) }
-        NSColor.black.setFill()
-        NSColor.black.setStroke()
+        ink.setFill()
+        ink.setStroke()
 
         let x0 = 9 - canopyW / 2, x1 = 9 + canopyW / 2
 
