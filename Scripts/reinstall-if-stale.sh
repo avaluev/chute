@@ -49,7 +49,11 @@ fi
 HEAD_SHORT="$(git -C "$ROOT" rev-parse --short HEAD 2>/dev/null || echo unknown)"
 git -C "$ROOT" diff --quiet HEAD 2>/dev/null || HEAD_SHORT="$HEAD_SHORT-dirty"
 # The stamp reads "<short sha> <ISO time>"; only the first field is the identity.
-STAMPED="$(defaults read "$INSTALLED/Contents/Info" ChuteBuild 2>/dev/null | awk '{print $1}')"
+# plutil, NOT `defaults read`: defaults caches per-user and cheerfully reports a value that is
+# no longer in the file, which is how a stale install can look current to the very script whose
+# job is to notice.
+stamp_of() { plutil -extract ChuteBuild raw "$1/Contents/Info.plist" 2>/dev/null | awk '{print $1}'; }
+STAMPED="$(stamp_of "$INSTALLED")"
 
 [ "$STAMPED" = "$HEAD_SHORT" ] && { echo "reinstall-if-stale: $INSTALLED is current ($HEAD_SHORT)"; exit 0; }
 
@@ -61,6 +65,20 @@ if ! (cd "$ROOT" && swift build -c release >/dev/null 2>&1 && swift run -c relea
   echo "  REFUSED — the tree does not build or the suite is red. Fix that first." >&2
   exit 1
 fi
+# BUILD FIRST, EXPLICITLY. `install.sh` only builds when `dist/Chute.app` is ABSENT — so with a
+# bundle left over from an earlier build it copies that one and reports success. Caught 2026-09-08:
+# this script announced "reinstalled at 71c3f16" while the app it installed was stamped 8337638,
+# four commits behind. A reinstaller that can install the wrong thing and say otherwise is worse
+# than no reinstaller, because it is the thing you stop checking.
+"$ROOT/Scripts/build-app.sh" >/dev/null 2>&1 || { echo "  build failed" >&2; exit 1; }
 CHUTE_APP_DIR="$(dirname "$INSTALLED")" "$ROOT/Scripts/install.sh" >/dev/null 2>&1 \
   || { echo "  install failed" >&2; exit 1; }
+
+# AND PROVE IT. The whole point of this script is that the app matches the tree; taking install.sh
+# at its word is what let the stale copy through in the first place.
+NOW_STAMPED="$(stamp_of "$INSTALLED")"
+if [ "$NOW_STAMPED" != "$HEAD_SHORT" ]; then
+  echo "  FAILED — installed '$NOW_STAMPED' still does not match tree '$HEAD_SHORT'" >&2
+  exit 1
+fi
 echo "  reinstalled $INSTALLED at $HEAD_SHORT"
