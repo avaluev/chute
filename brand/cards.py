@@ -102,6 +102,13 @@ def hairline(draw, x0, y, x1):
     draw.line([(x0, y), (x1, y)], fill=hx(C["ground600"]), width=1)
 
 
+def mix_hex(a, b, t):
+    """Blend two token hexes. The crate's flank is paper pulled toward the ground colour, so the
+    step between its faces comes out of the palette rather than being picked by eye."""
+    ah, bh = hx(a), hx(b)
+    return tuple(int(ah[i] + (bh[i] - ah[i]) * t) for i in range(3))
+
+
 def draw_mark(d, x, y, size):
     """The Chute mark: a canopy, two risers, a crate. Returns the width it occupied.
 
@@ -130,12 +137,28 @@ def draw_mark(d, x, y, size):
     d.pieslice([x, top, x + w, top + canopy_h * 2], 180, 360, fill=hx(C["accent"]))
     # Seams run from the apex DOWN to the skirt, the way a real canopy is panelled. Fanning them
     # up from the hem instead turns the dome into a sunburst — it did, on the first attempt.
+    # PANEL EDGES, NOT SPOKES. These were drawn in ground800 at full weight and converged to a
+    # single point at the apex, which reads as an umbrella's frame — the one silhouette the icon
+    # spent four drafts escaping. Softened to a green a shade under the canopy and started BELOW
+    # the crown, so they describe a curved surface instead of a mechanism.
+    seam = mix_hex(C["accent"], C["ground800"], 0.34)
     for i in (1, 2, 3):
-        d.line([(x + w / 2, top + canopy_h * 0.06), (x + w * i / 4.0, hem)],
-               fill=hx(C["ground800"]), width=max(1, int(size * 0.010)))
-    # The hem, one shade DOWN — a bright bar across the skirt reads as a gill line.
-    d.line([(x + w * 0.02, hem), (x + w * 0.98, hem)],
-           fill=hx(C["ground600"]), width=max(1, int(size * 0.014)))
+        d.line([(x + w / 2, top + canopy_h * 0.30), (x + w * i / 4.0, hem)],
+               fill=seam, width=max(1, int(size * 0.008)))
+    # THE SCALLOPS. A straight hem is a mushroom cap; the sag between the cusps is the single
+    # cue that says parachute. Scripts/make-icon.swift learned this, MenuBarMark.swift learned it
+    # again, and the site's <Mark> learned it a third time — so the card gets it too, and all four
+    # surfaces now draw the same object rather than four family members.
+    gores = 5
+    sag = canopy_h * 0.34           # 0.20 was there and was invisible at 104px — the sag has to
+                                    # clear the seam ends or the eye still reads a straight hem.
+    for i in range(gores):
+        ax = x + w * i / gores
+        bx = x + w * (i + 1) / gores
+        d.chord([ax, hem - sag, bx, hem + sag], 0, 180, fill=hx(C["accent"]))
+    # NO STRAIGHT HEM LINE. One used to be drawn across the skirt to stop it reading as a gill
+    # line — but a straight bar laid over scallops erases the very thing the scallops are for,
+    # and a scalloped edge cannot read as a mushroom in the first place.
 
     # Two risers, thin and straight, landing inboard of the crate's corners so the skirt visibly
     # overhangs the load. Nothing that grows out of the ground has that overhang.
@@ -145,10 +168,21 @@ def draw_mark(d, x, y, size):
     d.line([(x + w * 0.09, hem), (cx + cw * 0.22, crate_top)], fill=hx(C["accent"]), width=riser)
     d.line([(x + w * 0.91, hem), (cx + cw * 0.78, crate_top)], fill=hx(C["accent"]), width=riser)
 
-    # The crate: a lit lid over a front face, because a box has faces and a card does not.
-    d.rectangle([cx, crate_top, cx + cw, bottom], fill=hx(C["paper"]))
-    d.rectangle([cx, crate_top, cx + cw, crate_top + (bottom - crate_top) * 0.24],
-                fill=(255, 255, 255))
+    # THE CRATE, THREE FACES UNDER ONE LIGHT. It was a white rectangle with a lighter strip on
+    # top, which is a card standing on its edge, not a box. The app icon draws a lid, a front and
+    # a flank with a visible tonal STEP between them, and that step is the only thing that makes a
+    # cube a cube at this size. Same lid/front/flank ordering as Scripts/make-icon.swift.
+    lid = (bottom - crate_top) * 0.30
+    mid = cx + cw / 2
+    d.polygon([(mid, crate_top), (cx + cw, crate_top + lid),
+               (mid, crate_top + lid * 2), (cx, crate_top + lid)],
+              fill=(255, 255, 255))                                  # the lid, square into the key
+    d.polygon([(cx, crate_top + lid), (mid, crate_top + lid * 2),
+               (mid, bottom), (cx, bottom - lid)],
+              fill=hx(C["paper"]))                                   # the front face
+    d.polygon([(cx + cw, crate_top + lid), (mid, crate_top + lid * 2),
+               (mid, bottom), (cx + cw, bottom - lid)],
+              fill=mix_hex(C["paper"], C["ground600"], 0.42))         # the flank, out of the light
     return w
 
 
