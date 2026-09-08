@@ -35,5 +35,6 @@ signalSuite()
 menuBarMarkSuite()
 pathAbbrevSuite()
 sessionDotSuite()
+inlineCodeSuite()
 
 T.report()

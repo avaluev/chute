@@ -62,3 +62,44 @@ func sessionDotSuite() {
              "every dot ships the same 12x12 canvas, whatever the glyph inside it")
     }
 }
+
+/// The backticks that shipped as literal punctuation in two Settings tabs.
+func inlineCodeSuite() {
+    T.suite("InlineCode") {
+        let seg = InlineCode.segments("run `chute gist` now")
+        T.eq(seg.map(\.text), ["run ", "chute gist", " now"], "the span between ticks is isolated")
+        T.eq(seg.map(\.isCode), [false, true, false], "and only that span is code")
+
+        T.no(InlineCode.segments("a `b` c").contains { $0.text.contains("`") },
+             "no backtick survives into anything drawn")
+
+        // TWO commands in one sentence — the privacy paragraph has exactly this shape.
+        let two = InlineCode.segments("`chute gist` uses your own `gh` credentials")
+        T.eq(two.filter(\.isCode).map(\.text), ["chute gist", "gh"], "both spans are found")
+
+        // AN UNMATCHED TICK must not restyle the rest of the paragraph. A typo in copy is a typo;
+        // a typo that silently turns half a page monospace is a bug report.
+        let odd = InlineCode.segments("an `unclosed span keeps going")
+        T.no(odd.contains { $0.isCode }, "an unmatched tick renders nothing as code")
+        T.eq(odd.map(\.text).joined(), "an unclosed span keeps going",
+             "and the text still reads correctly, minus the stray tick")
+
+        T.eq(InlineCode.segments("").count, 0, "empty in, nothing out")
+        T.eq(InlineCode.segments("``").count, 0, "an empty span contributes no run")
+        T.eq(InlineCode.segments("plain").map(\.text), ["plain"], "prose with no ticks is one run")
+
+        // The real strings, so a copy edit that breaks the parse fails here.
+        let privacy = InlineCode.segments(AboutText.privacy)
+        T.eq(privacy.filter(\.isCode).map(\.text), ["chute gist", "gh"],
+             "the privacy paragraph's two commands are the two code spans")
+        T.no(AboutText.privacy.isEmpty, "and the paragraph it came from is still there")
+
+        // Same point size, or a paragraph with a command in it breaks the baseline grid.
+        let a = InlineCode.attributed("x `y`", font: .systemFont(ofSize: 12), color: .labelColor)
+        var sizes = Set<CGFloat>()
+        a.enumerateAttribute(.font, in: NSRange(location: 0, length: a.length)) { v, _, _ in
+            (v as? NSFont).map { sizes.insert($0.pointSize) }
+        }
+        T.eq(sizes, [12], "code and prose share a point size, so line height does not jump")
+    }
+}

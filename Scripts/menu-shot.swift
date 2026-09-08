@@ -1,5 +1,5 @@
-// MENU SCREENSHOT HARNESS — a FRAGMENT, appended into Sources/ChuteApp/main.swift inside a
-// throwaway copy of the tree by Scripts/menu-shot.sh. It is not compiled into the shipped app.
+// SCREEN CAPTURE HARNESS — a FRAGMENT, appended into Sources/ChuteApp/main.swift inside a
+// throwaway copy of the tree by Scripts/screens.sh. It is not compiled into the shipped app.
 //
 // ── WHY IT EXISTS ───────────────────────────────────────────────────────────────────────────
 //
@@ -82,7 +82,44 @@ func shotLoad(_ tty: String) -> SessionLoad {
                        top: nil, peakBytes: v.2)
 }
 
+/// Capture a real WINDOW — CGWindowListCreateImage photographs what is actually composited, so
+/// it picks up the layer-backed NSTextFields that `cacheDisplay(in:to:)` renders as blank. That
+/// difference cost a cycle: the first attempt produced a page with the link rows and nothing else.
+func shotWindow(_ w: NSWindow?, to path: String) {
+    guard let w else { exit(2) }
+    w.display()
+    DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
+        guard let cg = CGWindowListCreateImage(.null, .optionIncludingWindow,
+                                               CGWindowID(w.windowNumber),
+                                               [.boundsIgnoreFraming, .bestResolution])
+        else { exit(3) }
+        try? NSBitmapImageRep(cgImage: cg).representation(using: .png, properties: [:])?
+            .write(to: URL(fileURLWithPath: path))
+        exit(0)
+    }
+}
+
 let shotArgv = CommandLine.arguments
+
+// --settings-shot <path> <tabIndex>   0 = General, 1 = About
+if let i = shotArgv.firstIndex(of: "--settings-shot"), i + 2 < shotArgv.count {
+    let out = shotArgv[i + 1], tab = Int(shotArgv[i + 2]) ?? 0
+    DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+        SettingsWindow.show(selecting: tab)
+        shotWindow(SettingsWindow.window, to: out)
+    }
+}
+
+// --firstrun-shot <path> — the setup window, forced open regardless of what this machine has
+// already onboarded, so the shot is the same on any machine.
+if let i = shotArgv.firstIndex(of: "--firstrun-shot"), i + 1 < shotArgv.count {
+    let out = shotArgv[i + 1]
+    DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+        FirstRunWindow.show()
+        shotWindow(FirstRunWindow.window, to: out)
+    }
+}
+
 if let i = shotArgv.firstIndex(of: "--about-shot"), i + 1 < shotArgv.count {
     let out = shotArgv[i + 1]
     DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {

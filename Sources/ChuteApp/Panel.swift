@@ -1,4 +1,5 @@
 import AppKit
+import ChuteCore
 
 /// The window primitives both of Chute's windows need, in one place instead of two.
 ///
@@ -11,10 +12,21 @@ enum UI {
         return t
     }
 
+    /// `chute gist` renders as a monospaced span, not as two literal backticks.
+    ///
+    /// The copy lives in ChuteCore and is swept on every deploy for forbidden sentences, so the
+    /// STRINGS cannot be edited to remove the markdown — only their rendering can change. The
+    /// parse is `InlineCode`, in ChuteCore, where a test can ask it about unmatched ticks; this
+    /// end just asks for an attributed string. Both Settings tabs and the setup window drew the
+    /// ticks as punctuation until 2026-09-08.
     static func body(_ s: String, width: CGFloat = 460) -> NSTextField {
-        let t = NSTextField(wrappingLabelWithString: s)
-        t.font = .systemFont(ofSize: 12)
-        t.textColor = .secondaryLabelColor
+        // Built as a WRAPPING label first, then given the attributed value. There is no
+        // `wrappingLabelWithAttributedString:` initialiser, and the plain
+        // `labelWithAttributedString:` one comes back configured for a single line — every
+        // paragraph in both windows would render as one clipped line.
+        let t = NSTextField(wrappingLabelWithString: "")
+        t.attributedStringValue = InlineCode.attributed(
+            s, font: .systemFont(ofSize: 12), color: .secondaryLabelColor)
         t.preferredMaxLayoutWidth = width
         return t
     }
