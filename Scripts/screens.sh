@@ -6,20 +6,45 @@
 # builds once, and captures each screen. The shipped app is never touched and gains no debug
 # flag: the tooling is this script, not a switch inside the product.
 #
-#   ./Scripts/screens.sh                 -> site/public/media/screens/*.png
+#   ./Scripts/screens.sh                 -> site/public/media/screens/*.png (working tree)
+#   ./Scripts/screens.sh --pristine      -> the same, shot from HEAD, for published assets
 #   ./Scripts/screens.sh /tmp/out        -> that directory
 #
 # See the header of Scripts/menu-shot.swift for why this exists: the traffic light shipped
 # invisible for the product's whole life, and nothing but a picture could have said so.
 set -uo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-OUT="${1:-$ROOT/site/public/media/screens}"
+OUT="$ROOT/site/public/media/screens"
+[ -n "${1:-}" ] && [ "${1:-}" != "--pristine" ] && OUT="$1"
 WORK="$(mktemp -d)/chute-screens"
 trap 'rm -rf "$(dirname "$WORK")"' EXIT
 mkdir -p "$WORK" "$OUT"
 
+# WHICH TREE GETS PHOTOGRAPHED.
+#
+# By default the WORKING tree, because while iterating on a layout you want to see the edit you
+# just made. `Scripts/build-app.sh` stamps the bundle with `<sha>-dirty` whenever the tree is
+# modified, and that stamp is visible in the About screenshot — which is fine for a working
+# render and wrong for a marketing asset. The board published on 2026-09-08 read
+# `build 54457a3-dirty` for exactly this reason.
+#
+# `--pristine` shoots a detached worktree at HEAD instead, so every asset carries a real commit
+# that someone can go and read. Use it for anything anyone else will see.
+if [ "${1:-}" = "--pristine" ] || [ "${2:-}" = "--pristine" ]; then
+  git -C "$ROOT" diff --quiet HEAD 2>/dev/null || echo "screens: tree is dirty; shooting HEAD instead"
+  SRC="$(mktemp -d)/pristine"
+  git -C "$ROOT" worktree add -q --detach "$SRC" HEAD || {
+    echo "screens: could not create a pristine worktree" >&2; exit 1; }
+  trap 'git -C "$ROOT" worktree remove --force "$SRC" >/dev/null 2>&1; rm -rf "$(dirname "$WORK")" "$(dirname "$SRC")"' EXIT
+  echo "screens: shooting $(git -C "$ROOT" rev-parse --short HEAD) (pristine)"
+else
+  SRC="$ROOT"
+  git -C "$ROOT" diff --quiet HEAD 2>/dev/null \
+    || echo "screens: WORKING tree — the build stamp will read '-dirty'. Use --pristine for assets."
+fi
+
 rsync -a --exclude '.build' --exclude 'dist' --exclude '.git' --exclude 'node_modules' \
-      "$ROOT/" "$WORK/" || exit 1
+      "$SRC/" "$WORK/" || exit 1
 
 # The fragment declares top-level helpers and reads argv, so it must land AFTER the delegate is
 # built and BEFORE app.run() — the rule main.swift's own trailing comment states.

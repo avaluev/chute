@@ -452,5 +452,41 @@ try {
   }
 }
 
+// ── MARKETING COPY MAY DESCRIBE THE PRICE THAT WAS, NEVER ONE THAT IS ───────────────────────
+//
+// `marketing/` holds both live copy (02-LANDING-COPY.md is where the site's words come from) and
+// dated memos from the eleven days Chute had a price. Deleting the memos would be rewriting
+// history, and this repo publishes its scars on purpose — 09-APPLE-AND-DISTRIBUTION.md's whole
+// argument only makes sense against a $19 unit.
+//
+// So the rule is TENSE, not vocabulary. A sentence may say Chute WAS $19; none may say it IS.
+// Checked on 2026-09-08 after 02-LANDING-COPY.md was found still carrying "Free for 14 days. $19
+// once, after that", a live Pricing section, a refund window and a "what happens when the trial
+// ends" answer — all of it four months stale and all of it feeding the landing page.
+//
+// The pattern list is deliberately narrow. A broad sweep for "$19" fires on every honest
+// retrospective in the directory and teaches the next person to add an ignore rule instead of
+// fixing a sentence.
+{
+  const PRESENT_TENSE_PRICE = [
+    /\$19 once/i, /costs \$19/i, /price[:s]? +\*{0,2}\$19/i,
+    /free for 14 days/i, /30-day refund/i, /the paid (surface|app|menu|version)/i,
+    /when the trial ends/i, /buy the app/i,
+  ]
+  const dir = REPO + "marketing"
+  const hits = []
+  for (const f of readdirSync(dir).filter((n) => n.endsWith(".md"))) {
+    const body = readFileSync(dir + "/" + f, "utf8")
+    for (const rx of PRESENT_TENSE_PRICE) {
+      const m = body.match(rx)
+      if (m) hits.push(`${f}: "${m[0]}"`)
+    }
+  }
+  hits.length
+    ? bad(`${hits.length} marketing file(s) still price Chute in the present tense`,
+          hits.join(", ") + " — Chute is free and MIT since 2026-09-08. Say what WAS, never what IS.")
+    : ok("no marketing file prices Chute in the present tense")
+}
+
 console.log(`\nclaims: ${failed ? `${failed} failed` : "every claim on the site is one the fact sheet stands behind"}`)
 process.exit(failed ? 1 : 0)
