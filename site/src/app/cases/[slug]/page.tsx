@@ -79,22 +79,23 @@ export default async function CasePage({ params }: { params: Promise<{ slug: str
           <CopyLine text={c.command} />
           {c.paid ? (
             <p className="text-sm text-muted-foreground">
-              This command is free and always will be. The {CONFIG.price} buys the right-click —
+              The command and the right-click do the same job. The app is worth having because
               you do it where the files already are, without leaving Finder or typing a path.
+              Both are free and MIT.
             </p>
           ) : (
             <p className="text-sm text-muted-foreground">
-              Free, MIT, and it never expires. Nothing on this page is behind the paid app.
+              Free, MIT, and it never expires. Nothing on this site is behind a paywall.
             </p>
           )}
         </section>
 
         <div className="mt-14 flex flex-wrap items-center gap-4 border-t border-border pt-8">
           <a href={CONFIG.download} className={buttonVariants({ size: "lg" })}>
-            Download — free {CONFIG.trialDays} days
+            Download the app
           </a>
           <span className="text-sm text-muted-foreground">
-            {CONFIG.price} once after that. No subscription, no account.
+            Free and MIT. Or <code>{CONFIG.brew}</code>
           </span>
         </div>
 

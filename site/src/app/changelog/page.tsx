@@ -35,8 +35,8 @@ const RELEASES = [
       "Save a Checkpoint: a restore point for a folder before you let an agent run. Your worktree, index and HEAD are never touched.",
       "Menu bar: every terminal session grouped by whether it needs you, coloured per project, with per-session CPU and memory. Click a row to bring that terminal forward.",
       "Menu bar: every local server, what it is, which project it belongs to, and a way to stop it.",
-      "25 CLI commands, zero dependencies, under 1 MB.",
-      `${CONFIG.trialDays}-day trial, then ${CONFIG.price} once. The CLI stays free and MIT forever.`,
+      "26 CLI commands, zero dependencies, under 1 MB.",
+      "Free and MIT — the app, the Finder extension and every command.",
     ],
   },
 ];

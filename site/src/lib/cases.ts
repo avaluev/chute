@@ -65,7 +65,14 @@ export const CASES: Case[] = [
     jtbd: 0, surface: "menubar", tier: "hero", paid: true,
     pain: "Nine terminals. One of them stopped four minutes ago and I don't know which.",
     ritual: "Cycle every window looking for a prompt that is waiting on a keystroke you never saw.",
-    fix: "The menu bar carries the count, groups sessions by what you have to do about them, and colours each one by project. Click a row and that terminal comes forward.",
+    // WHAT THIS SAID UNTIL 2026-09-08: "carries the count, groups sessions by what you have to
+    // do about them". Neither was true. The count was removed in 2849347 because it was inferred
+    // from a stale title glyph and lied — the menu read "Working (7)" with none of the seven
+    // working — and the grouping went with it. A landing page that promises a traffic light the
+    // build does not have is the same failure as a badge that cries wolf, one layer up.
+    // This describes what the menu actually does today. When Signals ships, this line earns the
+    // stronger claim back.
+    fix: "Every session in one list, named by the project it is in, with the agent, the model and what it is burning. Click a row and that terminal comes forward.",
     seconds: { manual: 0, chute: 0 }, perDay: 0,
     // Deliberately no figure. This one buys back attention, not seconds, and inventing a number
     // for it would make the other twenty-four less believable, not this one more so.
@@ -253,7 +260,9 @@ export const CASES: Case[] = [
   },
 ]
 
-/** What the $19 buys, in the order the landing page argues them. */
+/** The app's own jobs — the ones that need the Finder menu or the menu bar rather than a
+ *  terminal. Named `PAID` for historical reasons; nothing is paid. In the order the landing
+ *  page argues them. */
 export const PAID = CASES.filter((c) => c.paid)
 /** What stays free and MIT, forever. */
 export const FREE = CASES.filter((c) => !c.paid)

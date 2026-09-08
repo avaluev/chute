@@ -53,7 +53,7 @@ export default function CliPage() {
             machine that never pays a penny.
           </p>
           <p>
-            What {CONFIG.price} buys is not capability. It is not leaving Finder, not typing a
+            What the app adds is not capability. It is not leaving Finder, not typing a
             path, and seeing which of nine terminals is waiting for you without looking at nine
             terminals.
           </p>

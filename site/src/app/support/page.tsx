@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { Page, H2 } from "@/components/chrome";
 import { CONFIG } from "@/lib/config";
-import { SELLER } from "@/lib/seller";
 
 export const metadata: Metadata = {
   title: "Support — Chute",
@@ -16,8 +15,7 @@ export default function Support() {
         <a className="text-foreground underline underline-offset-4" href={`mailto:${CONFIG.contact}`}>
           {CONFIG.contact}
         </a>{" "}
-        — for anything: a licence key that will not activate, a refund, a bug, or a question about
-        whether Chute does the thing you need.
+        — for a bug, a question about whether Chute does the thing you need, or anything else.
       </p>
       <p>{CONFIG.supportHours}</p>
 
@@ -35,25 +33,25 @@ export default function Support() {
         </a>. If you would rather not report in public, email instead.
       </p>
 
-      <H2>Lost your licence key?</H2>
-      <p>
-        Email from the address you bought with and we will resend it. Keys are reissuable
-        indefinitely and there is no device limit to reset — your key was never tied to a machine.
-      </p>
-
       <H2>Who is behind this</H2>
       <p>
-        Chute is made and supported by{" "}
-        <strong className="text-foreground">{SELLER.legalName}</strong>
-        , {SELLER.entityType}. One person, not a company
-        with a support tier. Orders are fulfilled by Paddle.com Market Ltd as merchant of record.
+        Chute is made and supported by <strong className="text-foreground">Alexandr Valuev</strong>.
+        One person, not a company with a support tier. It is free and MIT licensed, so support is
+        best effort — but the source is public, which means you are never blocked waiting for me.
+      </p>
+      <p>
+        <a className="text-foreground underline underline-offset-4" href={CONFIG.social.github}>GitHub</a>
+        {" · "}
+        <a className="text-foreground underline underline-offset-4" href={CONFIG.social.linkedin}>LinkedIn</a>
+        {" · "}
+        <a className="text-foreground underline underline-offset-4" href={CONFIG.social.telegram}>Telegram</a>
       </p>
 
       <H2>If Chute disappears</H2>
       <p>
-        The command-line tool is MIT licensed and its whole source is public, so it cannot be
-        taken away from you. The app verifies its licence offline and never calls home, so it
-        keeps working whether or not this website, this business, or its author still exists.
+        All of it is MIT licensed and the whole source is public, so it cannot be taken away from
+        you. Nothing calls home and nothing verifies anything, so it keeps working whether or not
+        this website, or its author, still exists. Fork it.
       </p>
     </Page>
   );

@@ -12,7 +12,6 @@ import { Header, Footer } from "@/components/chrome";
 import { CaseCard, DailyCost, Demo } from "@/components/case-bits";
 import { CASES, PAID, FREE, HEROES, minutesPerDay, bySlug } from "@/lib/cases";
 import { CONFIG } from "@/lib/config";
-import { SELLER } from "@/lib/seller";
 
 /** JSON for a <script> body. A `</script>` inside any string would end the element early;
  *  escaping `<` is the standard belt for a sink that has no sanitiser. */
@@ -34,19 +33,21 @@ const jsonLd = (o: object) => JSON.stringify(o).replace(/</g, "\\u003c");
 
 const FAQ = [
   { q: "Claude Code can already read my files. Why do I need this?",
-    a: "It can. It cannot see your Finder selection, your clipboard, the terminal you lost, or the port you can’t find. Chute is everything the agent can’t reach from inside its own window." },
+    a: "It can. It cannot see your Finder selection, your clipboard, the terminal you lost, or the port you can\u2019t find. Chute is everything the agent can\u2019t reach from inside its own window." },
+  { q: "What does it cost?",
+    a: "Nothing, and there is nothing to unlock. Every part of Chute \u2014 the app, the Finder extension and all 26 commands \u2014 is MIT licensed. It was $19 with a 14-day trial for eleven days in 2026; the trial clock, the licence check and the store account are deleted, not disabled." },
   { q: "Does it phone home?",
-    a: "No. There is no network code at all except the gist command, which uploads only the files you name, only when you run it, and redacts them first. The licence check is an offline signature — Chute never contacts a server to verify it." },
-  { q: "What happens when the 14-day trial ends?",
-    a: "The app locks: the Finder menu and the menu-bar switcher stop until you enter a key. The chute command-line tool keeps working forever, because it is free and MIT licensed — and it still does every one of these jobs from a terminal." },
-  { q: "Is the CLI really free?",
-    a: "Yes, all 25 commands, MIT, on Homebrew. The $19 buys the app: the Finder right-click menu, the menu-bar session switcher and the hotkey — a signed, sandboxed Finder extension is the part you cannot reasonably build yourself." },
+    a: "No. There is no network code at all except the gist command, which uploads only the files you name, only when you run it, and redacts them first. Nothing else in Chute opens a socket. Check it yourself: grep -rn URLSession Sources/" },
+  { q: "macOS says it cannot verify the app. Is something wrong?",
+    a: "No \u2014 it is unsigned, which is a different thing from unsafe. There is no Apple Developer Program membership behind this project, so a downloaded build meets Gatekeeper. The Homebrew and source installs avoid that entirely, because a binary your own compiler produced was never downloaded and never gets a quarantine flag. If you want the .dmg anyway, the release page lists the four clicks." },
+  { q: "Which agents does it work with?",
+    a: "All of them. Chute never talks to an agent; it moves files, paths and text through your clipboard, and it reads session state from hooks you install yourself. Claude Code, Codex, Antigravity, Cursor, Aider, Gemini \u2014 if it reads a prompt, it reads Chute\u2019s output." },
+  { q: "Does it write to my agent\u2019s config?",
+    a: "Never. Chute will compute the hook snippet for you and print it, and it will show you the merged file it would produce \u2014 but you paste it. Nothing in Chute edits ~/.claude/settings.json or anyone else\u2019s settings behind your back." },
   { q: "Where do these numbers come from?",
     a: "A ledger of 24 jobs, each timed the same way: how often it happens, how long it takes by hand, how long it takes with Chute. It is in the repository, the site is generated from it, and the build fails if a figure on this page stops matching it." },
-  { q: "Which agents does it work with?",
-    a: "All of them. Chute never talks to an agent; it moves files, paths and text through your clipboard. Claude Code, Codex, Cursor, Aider, Gemini — if it reads a prompt, it reads Chute’s output." },
   { q: "Which macOS?",
-    a: "macOS 13 Ventura and later, Apple Silicon and Intel. The app is under 3 MB and the command-line binary under 1 MB, with no dependencies, no launch daemon and no background service." },
+    a: "macOS 13 Ventura and later, Apple Silicon and Intel. The app is under 3 MB and the command-line binary under 1 MB, with no dependencies, no launch daemon and no background service. CI tests macOS 15 and 26 on every push." },
 ];
 
 function Section({ id, eyebrow, title, children }: {
@@ -137,13 +138,15 @@ export default function Home() {
           url: `https://${CONFIG.domain}`,
           downloadUrl: CONFIG.download,
           softwareHelp: `https://${CONFIG.domain}/docs/`,
-          author: { "@type": "Person", name: SELLER.legalName },
+          author: { "@type": "Person", name: "Alexandr Valuev" },
+          license: "https://opensource.org/licenses/MIT",
+          isAccessibleForFree: true,
           offers: {
             "@type": "Offer",
-            price: CONFIG.price.replace("$", ""),
+            price: "0",
             priceCurrency: "USD",
-            category: "one-time purchase",
-            url: `https://${CONFIG.domain}/buy/`,
+            category: "free",
+            url: CONFIG.download,
           },
         }) }}
       />
@@ -152,31 +155,55 @@ export default function Home() {
       {/* ---------------------------------------------------------------- hero */}
       <section className="mx-auto w-full max-w-5xl px-6 pt-16 md:pt-24">
         <Badge variant="secondary" className="font-[family-name:var(--font-mono-loaded)] text-xs">
-          macOS 13+ · no account · no telemetry
+          macOS 13+ · free and MIT · no account · no telemetry
         </Badge>
 
-        {/* Kept verbatim. It survived the rewrite because it answers the killer objection —
-            "the agent can already read my files" — in three lines and before it is asked. */}
+        {/* THE HERO NOW LEADS WITH SUPERVISION, NOT FINDER, and that is a positioning change
+            made on evidence rather than taste.
+            The old h1 — "Your agent lives in the terminal / your work lives in Finder / Chute is
+            the door between them" — is a better SENTENCE than this one. It sold the file-plumbing
+            story, which is where 24 of the 24 costed jobs live. But the ICP was settled on Claude
+            Code operators (2026-08-31), and the job that ICP is loudest about is not typing paths:
+            it is not knowing which of nine sessions stopped. That job has no entry in the JTBD
+            ledger and no minutes attached to it, because it does not buy back seconds — it buys
+            back attention, and an agent blocked for twenty minutes is twenty minutes of nothing
+            happening at all.
+            The evidence it is the sharper pain: in September 2026 a post about screwing a physical
+            USB traffic light to a monitor ran away on LinkedIn, and the replies were people asking
+            where to buy fifteen of them. Nobody has ever asked that about a path. */}
         <h1 className="mt-6 max-w-3xl font-[family-name:var(--font-mono-loaded)] text-3xl font-semibold leading-[1.15] tracking-tight md:text-5xl">
-          Your agent lives in the terminal.<br />
-          Your work lives in Finder.<br />
-          <span className="text-[var(--color-accent-chute)]">Chute is the door between them.</span>
+          Nine terminal tabs.<br />
+          Six agents running.<br />
+          <span className="text-[var(--color-accent-chute)]">Which one is waiting for you?</span>
         </h1>
 
         <p className="mt-6 max-w-2xl text-lg text-muted-foreground">
-          Select the folders, right-click once, and every file inside is on your clipboard as one
-          blob with a token count. Collect files across folders into a basket and hand the whole
-          set over at once. And see, without hunting through nine terminal windows, which agent is
-          actually waiting for you.
+          Chute puts every agent session in your menu bar — the project it is in, the agent, the
+          model, and what it is burning right now. Click a row and that terminal comes forward.
+          Then it does the other half: point an agent at files without typing a path, snapshot a
+          folder before you let it run, and find what it wrote afterwards.
         </p>
 
-        <div className="mt-9 flex flex-col gap-3 sm:flex-row sm:items-center">
+        {/* ONE COMMAND, AND IT IS THE HONEST ONE.
+            Chute has no Apple Developer ID, so a downloaded .app meets Gatekeeper and a six-step
+            dialog. A binary the reader's own compiler produced was never downloaded, so it never
+            gets a quarantine flag and Gatekeeper never runs. Homebrew is not the fallback here;
+            it is the better install, and it is free forever in both senses. */}
+        <div className="mt-9 max-w-xl">
+          <CopyLine text={CONFIG.brew} />
+          <p className="mt-3 text-sm text-muted-foreground">
+            Free and MIT. No account, no licence key, no trial. Your own compiler builds it, so
+            macOS never quarantines it and Gatekeeper never asks.
+          </p>
+        </div>
+
+        <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center">
           <a href={CONFIG.download}
              className={buttonVariants({ size: "lg" }) + " h-11 px-5 text-base font-medium"}>
-            Download — free {CONFIG.trialDays} days
+            Or download the app
           </a>
           <span className="text-sm text-muted-foreground">
-            {CONFIG.price} once after that. No subscription, no account.
+            Unsigned — macOS will ask. The release page says exactly what to click.
           </span>
         </div>
 
@@ -185,11 +212,10 @@ export default function Home() {
             It does NOT print the brew command: the tap does not exist yet, and the reader most
             likely to paste it is the one deciding whether to trust a stranger's $19 utility. */}
         <p className="mt-6 text-sm text-muted-foreground">
-          Or take just the{" "}
-          <Link href="/cli" className="text-foreground underline underline-offset-4 hover:text-[var(--color-accent-chute)]">
-            free command-line tool
-          </Link>
-          {" "}— 25 commands, MIT, and it never expires.
+          Driving an agent already? Paste this at it:{" "}
+          <code className="rounded bg-card px-1.5 py-0.5 text-foreground">
+            Set up Chute for me — {CONFIG.repo}
+          </code>
         </p>
 
         {/* The hero shot is the APP, not a terminal. The old one was a terminal GIF on a page
@@ -252,54 +278,65 @@ export default function Home() {
         </ul>
       </Section>
 
-      {/* ---------------------------------------------------------------- the conversion moment */}
-      <Section id="pricing" eyebrow="Price" title="One payment, or nothing at all">
-        <div className="grid gap-5 md:grid-cols-2">
-          <div className="rounded-[var(--radius)] border border-border bg-card p-8">
-            <p className="font-[family-name:var(--font-mono-loaded)] text-sm text-muted-foreground">
-              The command line
+      {/* ---------------------------------------------------------------- install */}
+      {/* THIS USED TO BE A PRICING TABLE: Free CLI on the left, $19 app on the right, a 14-day
+          trial and a 30-day refund. All of it is gone. Chute is MIT, every part of it, and the
+          only question left on this page is which install suits the reader — which is a much
+          easier question to answer honestly than "why is this worth nineteen dollars". */}
+      <Section id="install" eyebrow="Install" title="Free, MIT, and three ways in">
+        <p className="-mt-4 max-w-2xl text-muted-foreground">
+          There is no licence key, no trial clock and no account. There is also no Apple
+          Developer ID behind this project — so the install that compiles on your own machine is
+          not the awkward option here, it is the good one.
+        </p>
+
+        <div className="mt-10 grid gap-5 md:grid-cols-3">
+          <div className="rounded-[var(--radius)] border border-[var(--color-accent-chute)] bg-card p-6">
+            <p className="font-[family-name:var(--font-mono-loaded)] text-sm text-[var(--color-accent-chute)]">
+              Homebrew — recommended
             </p>
-            <p className="mt-2 font-[family-name:var(--font-mono-loaded)] text-3xl font-semibold">Free</p>
-            <p className="mt-1 font-[family-name:var(--font-mono-loaded)] text-sm text-muted-foreground">
-              {FREE.length} jobs · {freeMinutes} min a day
-            </p>
+            <div className="mt-4"><InstallCli /></div>
             <p className="mt-4 text-sm text-muted-foreground">
-              All 25 commands. MIT licensed, source on GitHub, yours forever whatever happens to me
-              or to this page. It does every job on this site — from a terminal, one path at a time.
+              Builds from source on your machine. Nothing is downloaded, so nothing is
+              quarantined, and Gatekeeper never runs. Upgrades and uninstalls like anything else
+              you have in brew.
             </p>
-            <div className="mt-6"><InstallCli /></div>
           </div>
 
-          <div className="rounded-[var(--radius)] border border-[var(--color-accent-chute)] bg-card p-8">
+          <div className="rounded-[var(--radius)] border border-border bg-card p-6">
             <p className="font-[family-name:var(--font-mono-loaded)] text-sm text-muted-foreground">
-              The app
+              From source
             </p>
-            <p className="mt-2 font-[family-name:var(--font-mono-loaded)] text-3xl font-semibold">
-              {CONFIG.price} <span className="text-base font-normal text-muted-foreground">once</span>
+            <div className="mt-4">
+              <CopyLine text={`git clone ${CONFIG.repo} && cd chute && swift build -c release`} />
+            </div>
+            <p className="mt-4 text-sm text-muted-foreground">
+              Zero third-party dependencies, so that really is the whole build. Read the source
+              first if you like — that is rather the point of shipping it this way.
             </p>
-            <p className="mt-1 font-[family-name:var(--font-mono-loaded)] text-sm text-[var(--color-accent-chute)]">
-              {PAID.length} jobs · {appMinutes} min a day
+          </div>
+
+          <div className="rounded-[var(--radius)] border border-border bg-card p-6">
+            <p className="font-[family-name:var(--font-mono-loaded)] text-sm text-muted-foreground">
+              The disk image
             </p>
-            <ul className="mt-4 space-y-2 text-sm text-muted-foreground">
-              <li>The Finder right-click menu — eight rows, where the files already are</li>
-              <li>The menu-bar session switcher and local servers</li>
-              <li>The ⌥⌘N hotkey, anywhere</li>
-              <li>Every future v0.x update</li>
-              <li>{CONFIG.trialDays} days free first. No card to start.</li>
-            </ul>
             <a href={CONFIG.download}
-               className={buttonVariants({ size: "lg" }) + " mt-6 h-11 w-full px-5 text-base font-medium"}>
-              Start the free trial
+               className={buttonVariants({ variant: "outline" }) + " mt-4 w-full"}>
+              Download .dmg
             </a>
-            <p className="mt-3 text-center text-xs text-muted-foreground">
-              {CONFIG.refundDays}-day refund, no questions asked.
+            <p className="mt-4 text-sm text-muted-foreground">
+              Unsigned and unnotarized. macOS will say it cannot verify the app, and will offer
+              you <em>Done</em> and <em>Move to Trash</em> — neither of which opens it. The
+              release page walks the four steps that do. Ships with a SHA-256 to check.
             </p>
           </div>
         </div>
-        <p className="mt-6 max-w-2xl text-sm text-muted-foreground">
-          You are not buying the ability to do these things — the free tool does all of them. You
-          are buying not having to leave Finder, and not having to type a path, {PAID.length} times
-          a day.
+
+        <p className="mt-8 max-w-2xl text-sm text-muted-foreground">
+          Why so blunt about Gatekeeper? Because the alternative is a reader who downloads it,
+          hits a dialog nobody warned them about, and concludes the thing is broken. It is not
+          broken. It is unsigned, which is a different sentence, and the two installs above walk
+          straight past it.
         </p>
       </Section>
 

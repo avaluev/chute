@@ -12,16 +12,17 @@ const sans = Instrument_Sans({ variable: "--font-sans-loaded", subsets: ["latin"
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://chutedev.com"),
-  title: "Chute — point your coding agent at the files",
+  title: "Chute — see which agent is waiting for you",
   description:
-    "A macOS utility for developers who drive Claude Code or Cursor all day. Select folders in "
-    + "Finder, right-click once, and every file inside is on your clipboard as one blob with a "
-    + "token count. $19 once, no account, no network code.",
+    "A free, MIT-licensed macOS utility for developers who drive Claude Code, Codex or "
+    + "Antigravity all day. Every agent session in your menu bar — project, agent, model and "
+    + "load — and one right-click to hand an agent a folder. Offline, no telemetry, no account.",
   openGraph: {
-    title: "Chute — point your coding agent at the files",
+    title: "Chute — see which agent is waiting for you",
     description:
-      "Your agent can read anything. You still have to tell it what. One right-click turns a "
-      + "Finder selection into agent-ready context, with the token count before you paste.",
+      "Nine terminal tabs, six agents running, and no way to tell which one stopped. Chute puts "
+      + "every session in your menu bar and turns a Finder selection into agent-ready context. "
+      + "Free and MIT.",
     url: "https://chutedev.com",
     siteName: "Chute",
     images: ["/media/og.png"],

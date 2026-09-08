@@ -7,7 +7,6 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "check:paddle": "node scripts/check-paddle.mjs",
     "check:cases": "node scripts/check-cases.mjs",
     "check:claims": "node scripts/check-claims.mjs",
     "tokens": "node ../brand/gen-tailwind.mjs && node ../brand/gen-commands.mjs",

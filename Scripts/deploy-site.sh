@@ -39,7 +39,6 @@ npm run check:cases
 # The fact sheet's FALSE table, enforced against the rendered pages. Three false claims reached
 # the live site before this existed; a rule a human has to remember gets broken.
 npm run check:claims
-npm run check:paddle
 # `next build` type-checks but does not lint; an eslint ERROR was sitting in checkout-bridge
 # with nothing failing on it.
 npm run lint

@@ -27,19 +27,12 @@ export default function Privacy() {
         trial dates and licence key. You can delete both at any time.
       </p>
 
-      <H2>The two exceptions, in full</H2>
+      <H2>The one exception, in full</H2>
       <p>
-        <strong className="text-foreground">1. <code>chute gist</code>.</strong> This command, and
+        <strong className="text-foreground"><code>chute gist</code>.</strong> This command, and
         only when you run it, uploads the files you name to GitHub as a secret gist using your own
         GitHub credentials. It redacts API keys and tokens before uploading. Nothing else in Chute
         sends a file anywhere.
-      </p>
-      <p>
-        <strong className="text-foreground">2. Your licence key.</strong> Buying sends your email
-        address to Paddle, our payment processor and merchant of record, so they can charge you
-        and email you a key. We receive your email address and the fact that you bought. We never
-        see your card details. The app itself never transmits your key — it verifies a signature
-        locally.
       </p>
 
       <H2>This website</H2>
@@ -51,10 +44,10 @@ export default function Privacy() {
 
       <H2>Payment data</H2>
       <p>
-        Paddle.com Market Ltd is the merchant of record and the data controller for your payment.
-        Their privacy policy governs it, and they handle tax and card data. We store your email
-        address and purchase record so we can reissue a key or process a refund. We do not sell,
-        rent or share it with anyone.
+        There is none. Chute is free and MIT licensed: there is no store, no checkout, no payment
+        processor and no customer record, because nothing is sold. Until 2026-09-08 this section
+        described Paddle as merchant of record for a $19 licence. That product no longer exists,
+        and neither does the data it would have collected.
       </p>
 
       <H2>Your rights</H2>

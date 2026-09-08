@@ -1,27 +1,38 @@
-/** Everything that changes when a price, a domain or a store account changes. One file. */
+/** Everything that changes when a domain, a repo or an install channel changes. One file. */
 export const CONFIG = {
   domain: "chutedev.com",
   repo: "https://github.com/avaluev/chute",
+  /** The release page, not a bare .dmg URL: the reader needs the Gatekeeper instructions that
+   *  sit beside the asset far more than they need to save one click. */
   download: "https://github.com/avaluev/chute/releases/latest",
   brew: "brew install avaluev/tap/chute",
-  /** True since 2026-08-28: `avaluev/homebrew-tap` exists and installs 0.2.0. Verified with
+  /** True since 2026-08-28: `avaluev/homebrew-tap` exists and installs. Verified with
    *  `brew info avaluev/tap/chute`. While this is false every surface shows the source install
    *  instead, because printing an install command that fails is worse than printing none — and
    *  the reader most likely to paste it is the sceptic deciding whether to trust a stranger's
-   *  $19 utility. `npm run check:claims` fails the deploy if this flag and the pages disagree. */
+   *  utility. `npm run check:claims` fails the deploy if this flag and the pages disagree. */
   brewLive: true,
-  price: "$19",
-  trialDays: 14,
-  refundDays: 30,
+
+  /** FREE AND MIT, ALL OF IT, SINCE 2026-09-08.
+   *
+   *  There is no price, no trial, no licence key and no store account. Chute was open-core for
+   *  eleven days — a 14-day trial and a $19 one-time key, minted offline by a Cloudflare Worker
+   *  from a Paddle webhook. All of it is deleted: the Worker, the Ed25519 key check, the trial
+   *  clock, the buy page, and the seller identity that Paddle's domain review required to be
+   *  published. That last one is why this matters beyond licensing — the review demanded a full
+   *  legal name and a home address on a public page, and nothing asks for that any more.
+   *
+   *  Do not add a price back to this file. Add it to a NEW product. */
+  license: "MIT",
+
   contact: "hello@chutedev.com",
   supportHours: "One person, European hours. Most replies within one business day, always within three.",
-  // The seller's identity is `SELLER` in seller.ts — one definition, not a second, emptier copy here.
 
-  /** Paddle. Empty until the seller account exists — the buy page checks and degrades to the
-   *  trial download rather than opening a checkout that cannot complete. */
-  paddle: {
-    token: process.env.NEXT_PUBLIC_PADDLE_TOKEN ?? "",
-    priceId: process.env.NEXT_PUBLIC_PADDLE_PRICE_ID ?? "",
-    environment: (process.env.NEXT_PUBLIC_PADDLE_ENV ?? "production") as "production" | "sandbox",
+  /** Where a human can reach the author. A Telegram HANDLE, never a phone number: a handle can
+   *  be abandoned, a number cannot be un-scraped. */
+  social: {
+    github: "https://github.com/avaluev",
+    linkedin: "https://www.linkedin.com/in/valuev/",
+    telegram: "https://t.me/asnkt",
   },
 } as const;

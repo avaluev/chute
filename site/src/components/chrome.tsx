@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { CONFIG } from "@/lib/config";
-import { SELLER } from "@/lib/seller";
 
 /** The mark, drawn rather than typed: U+2913 has no glyph in JetBrains Mono and renders as a
  *  tofu box. Same shape as the app icon and the OG card. */
@@ -25,9 +24,10 @@ export function Header() {
         </Link>
         <nav className="flex items-center gap-5 text-sm text-muted-foreground">
           <Link href="/cases" className="hover:text-foreground">What it does</Link>
-          <Link href="/cli" className="hover:text-foreground">Free CLI</Link>
+          <Link href="/cli" className="hover:text-foreground">CLI</Link>
           <a href={CONFIG.repo} className="hidden hover:text-foreground sm:inline">GitHub</a>
-          <Link href="/buy" className="text-foreground hover:text-[var(--color-accent-chute)]">Buy</Link>
+          <Link href="/docs" className="hover:text-foreground">Commands</Link>
+          <a href={CONFIG.download} className="text-foreground hover:text-[var(--color-accent-chute)]">Download</a>
         </nav>
       </div>
     </header>
@@ -43,22 +43,25 @@ export function Footer() {
             Chute — drop context into your agent.
             <br />
             <span className="text-xs">
-              © {new Date().getFullYear()} {SELLER.legalName} · {SELLER.address.country} ·{" "}
+              Free and MIT. © {new Date().getFullYear()} Alexandr Valuev ·{" "}
               <a className="hover:text-foreground" href={`mailto:${CONFIG.contact}`}>{CONFIG.contact}</a>
               <br />
-              Orders fulfilled by Paddle.com Market Ltd, merchant of record.
+              <a className="hover:text-foreground" href={CONFIG.social.github}>GitHub</a>
+              {" · "}
+              <a className="hover:text-foreground" href={CONFIG.social.linkedin}>LinkedIn</a>
+              {" · "}
+              <a className="hover:text-foreground" href={CONFIG.social.telegram}>Telegram</a>
             </span>
           </span>
-          {/* Every one of these is a page Paddle's reviewer looks for. Removing one is not a
-              tidy-up; it is a failed seller verification. */}
+          {/* /buy and /refunds are gone with the price. They existed for Paddle's domain
+              review, and there is no Paddle. */}
           <nav className="flex flex-wrap gap-x-5 gap-y-2">
             <Link className="hover:text-foreground" href="/cases">What it does</Link>
-            <Link className="hover:text-foreground" href="/cli">Free CLI</Link>
+            <Link className="hover:text-foreground" href="/cli">CLI</Link>
             <Link className="hover:text-foreground" href="/docs">Commands</Link>
             <Link className="hover:text-foreground" href="/building-with-agents">How it was built</Link>
-            <Link className="hover:text-foreground" href="/buy">Buy</Link>
+            <a className="hover:text-foreground" href={CONFIG.repo}>Source</a>
             <Link className="hover:text-foreground" href="/support">Support</Link>
-            <Link className="hover:text-foreground" href="/refunds">Refunds</Link>
             <Link className="hover:text-foreground" href="/privacy">Privacy</Link>
             <Link className="hover:text-foreground" href="/terms">Terms</Link>
           </nav>
