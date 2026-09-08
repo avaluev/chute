@@ -33,5 +33,6 @@ treeRenderSuite()
 argParseSuite()
 signalSuite()
 menuBarMarkSuite()
+pathAbbrevSuite()
 
 T.report()
