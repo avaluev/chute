@@ -15,5 +15,19 @@
       "Edit(.env*)",
       "Read(.env*)"
     ]
+  },
+  "hooks": {
+    "Stop": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$CLAUDE_PROJECT_DIR/Scripts/reinstall-if-stale.sh",
+            "timeout": 600
+          }
+        ]
+      }
+    ]
   }
 }
