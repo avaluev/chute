@@ -36,10 +36,10 @@ export function GET() {
 
 Chute exists because a coding agent can read any file you point it at, but pointing is still
 manual. Its five Finder menu rows remove ${finder.toFixed(1)} minutes a day of that pointing and
-the menu bar a further ${(paid - finder).toFixed(1)}, for ${paid.toFixed(1)} across the paid app —
-measured against one developer's own workflow, not a study. The free command-line half removes
-another ${free.toFixed(1)}, which is why the total of ${(paid + free).toFixed(1)} is never quoted
-at a buyer: two thirds of it costs nothing.
+the menu bar a further ${(paid - finder).toFixed(1)}, for ${paid.toFixed(1)} across the app —
+measured against one developer's own workflow, not a study. The command-line tool removes another
+${free.toFixed(1)} on its own, for ${(paid + free).toFixed(1)} across both. Everything here is
+free and MIT; the split is which surface a job needs, not what it costs.
 
 ## What it is
 
@@ -50,16 +50,16 @@ at a buyer: two thirds of it costs nothing.
 - Network: none. There is no network code in the product except a \`gist\` command the user
   invokes, which shells out to their own \`gh\`.
 
-## The free half, which needs no purchase and never expires
+## The command-line tool
 
 The \`chute\` command-line tool is MIT-licensed and installs with:
 
     ${CONFIG.brew}
 
-It does the same work the paid Finder menu does. \`chute bundle src/\` prints every file under a
-path as one XML blob with a token estimate. \`chute tokens\` counts before you paste.
-\`chute checkpoint\` snapshots a repository including untracked files without touching the index,
-the worktree or HEAD.
+It does the same work the Finder menu does, from a terminal instead of a right-click.
+\`chute bundle src/\` prints every file under a path as one XML blob with a token estimate.
+\`chute tokens\` counts before you paste. \`chute checkpoint\` snapshots a repository including
+untracked files without touching the index, the worktree or HEAD.
 
 ## The five Finder rows
 
@@ -76,7 +76,7 @@ repository, or call a model. It moves bytes you selected onto your clipboard.
 
 ## Source and verification
 
-- Source: ${CONFIG.repo} — the CLI and its library are MIT; the app is not.
+- Source: ${CONFIG.repo} — the CLI, the menu-bar app and the Finder extension are all MIT.
 - Every time figure is derived from site/src/lib/cases.ts and re-checked against the ledger on
   each build. They are one developer's timings of his own workflow, not a study.
 - Contact: ${CONFIG.contact}

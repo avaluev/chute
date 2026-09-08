@@ -1,5 +1,5 @@
 /**
- * The 25 jobs Chute does, as data.
+ * The 19 jobs Chute does, as data.
  *
  * ONE source. The landing sections, /cases, every /cases/<slug> page and the paid-vs-free
  * columns are all generated from this array, so a case cannot appear on the index without
@@ -10,8 +10,9 @@
  * here to make a page read better — edit the ledger, or leave it alone.
  *
  * TWO INDEPENDENT AXES, easily confused:
- *   · `paid`  — which column it lands in. True = you need Chute.app. This split IS the sales
- *               argument, so it is visible on the page rather than implied.
+ *   · `paid`  — which column it lands in. True = you need Chute.app. Nothing here costs money —
+ *               see the PAID/FREE note near the bottom — but the split says which surface a job
+ *               needs, and that is worth showing rather than implying.
  *   · `tier`  — how much production the demo gets. "hero" = a real Finder/menu-bar recording,
  *               10–15 s. "short" = a ≤6 s terminal capture. A free job can still be a hero and
  *               a paid one can still be a short; conflating the two is how a page ends up
@@ -72,13 +73,18 @@ export const CASES: Case[] = [
     // build does not have is the same failure as a badge that cries wolf, one layer up.
     // This describes what the menu actually does today. When Signals ships, this line earns the
     // stronger claim back.
-    fix: "Every session in one list, named by the project it is in, with the agent, the model and what it is burning. Click a row and that terminal comes forward.",
+    fix: "Every session in one row, two lines: project over the path it came from, agent and model over a state you don't need color to read, load over what it's burning. Click a row and that terminal comes forward.",
     seconds: { manual: 0, chute: 0 }, perDay: 0,
     // Deliberately no figure. This one buys back attention, not seconds, and inventing a number
     // for it would make the other twenty-four less believable, not this one more so.
     savedMinutes: null,
-    demo: "/media/which-agent-is-waiting-for-you.mp4",
-    poster: "/media/which-agent-is-waiting-for-you.jpg",
+    // SWAPPED 2026-09-08, same day as the redesign it shows. The .mp4 this pointed at was filmed
+    // 2026-08-28 — the one-line, no-columns menu, with the traffic light bug (SessionDot.swift)
+    // still live, so "waiting" and "blocked" drew nothing. Publishing it next to copy describing
+    // three columns and a dot that draws would have shown a visitor a product that no longer
+    // exists. `demo` now points at a screenshot of the actual menu, taken after the fix; no
+    // poster frame, because a still image needs none.
+    demo: "/media/screens/menu.png",
     command: "chute sessions",
   },
   {

@@ -8,9 +8,10 @@ import {
 import { CopyLine } from "@/components/copy-line";
 import { InstallCli } from "@/components/install-cli";
 import { Header, Footer } from "@/components/chrome";
-import { CaseCard, DailyCost, Demo } from "@/components/case-bits";
+import { Demo } from "@/components/case-bits";
 import { CASES, PAID, FAMILIES, inFamily, minutesPerDay, bySlug } from "@/lib/cases";
 import { CONFIG } from "@/lib/config";
+import { asset } from "@/lib/asset";
 
 /** JSON for a <script> body. A `</script>` inside any string would end the element early;
  *  escaping `<` is the standard belt for a sink that has no sanitiser. */
@@ -34,7 +35,7 @@ const FAQ = [
   { q: "Claude Code can already read my files. Why do I need this?",
     a: "It can. It cannot see your Finder selection, your clipboard, the terminal you lost, or the port you can\u2019t find \u2014 and it certainly cannot tell you which of your six sessions stopped. Chute is everything the agent cannot reach from inside its own window, including you." },
   { q: "What does it cost?",
-    a: "Nothing, and there is nothing to unlock. Every part of Chute \u2014 the app, the Finder extension and all 26 commands \u2014 is MIT licensed. It was a paid app for eleven days in 2026; the trial clock, the licence check and the store account are deleted, not disabled." },
+    a: "Nothing. Every part of Chute \u2014 the app, the Finder extension and all 26 commands \u2014 is MIT licensed. It was a paid app for eleven days in 2026; the trial clock, the licence check and the store account are deleted, not disabled." },
   { q: "Does it phone home?",
     a: "No. There is no network code at all except the gist command, which uploads only the files you name, only when you run it, and redacts them first. Nothing else in Chute opens a socket. Check it yourself: grep -rn URLSession Sources/" },
   { q: "macOS says it cannot verify the app. Is something wrong?",
@@ -42,7 +43,22 @@ const FAQ = [
   { q: "Which agents does it work with?",
     a: "All of them. Chute never talks to an agent; it moves files, paths and text through your clipboard, and it reads session state from hooks you install yourself. Claude Code, Codex, Antigravity, Cursor, Aider, Gemini \u2014 if it reads a prompt, it reads Chute\u2019s output." },
   { q: "Does it write to my agent\u2019s config?",
-    a: "Never. Chute will compute the hook snippet for you and print it, and it will show you the merged file it would produce \u2014 but you paste it. Nothing in Chute edits ~/.claude/settings.json or anyone else\u2019s settings behind your back." },
+    a: (
+      <>
+        Never. Chute will compute the hook snippet for you and print it, and it will show you the
+        merged file it would produce &mdash; but you paste it. Nothing in Chute edits
+        ~/.claude/settings.json or anyone else&rsquo;s settings behind your back.
+        {/* THE GENERAL TAB IS THE PROOF, not another sentence claiming the same thing. This is
+            the one FAQ answer with an image because it is the one claim a screenshot settles
+            outright: the tab literally says "Chute never edits ~/.claude/settings.json." */}
+        <Image
+          src={asset("/media/screens/settings.png")}
+          alt="The Chute General settings tab, showing the hooks explanation and chute doctor"
+          width={960} height={640} unoptimized
+          className="mt-4 w-full rounded-[var(--radius)] border border-border"
+        />
+      </>
+    ) },
   { q: "Where do these numbers come from?",
     a: "A ledger of 24 jobs, each timed the same way: how often it happens, how long it takes by hand, how long it takes with Chute. It is in the repository, the site is generated from it, and the build fails if a figure on this page stops matching it." },
   { q: "Which macOS?",
@@ -62,55 +78,6 @@ function Section({ id, eyebrow, title, children }: {
       </h2>
       <div className="mt-10">{children}</div>
     </section>
-  );
-}
-
-/** One job, argued: the moment, what it costs today, what happens instead, what that is worth. */
-function HeroCase({ slug, flip }: { slug: string; flip: boolean }) {
-  const c = bySlug(slug);
-  if (!c) return null;
-
-  // NO PLACEHOLDER ART, AND NO HOLE WHERE ART WOULD GO. Not every job has been recorded yet, and
-  // a two-column row with an empty right half reads as a broken page rather than an honest one.
-  // Until the recording exists the row is simply one column — deliberate, not unfinished.
-  if (!c.demo) {
-    return (
-      <div className="border-t border-border py-10">
-        <h3 className="max-w-3xl text-xl leading-snug text-foreground md:text-2xl">{c.pain}</h3>
-        <div className="mt-4 grid gap-6 md:grid-cols-2">
-          <p className="text-[15px] leading-relaxed text-muted-foreground">{c.ritual}</p>
-          <p className="text-[15px] leading-relaxed text-foreground">{c.fix}</p>
-        </div>
-        <div className="mt-5"><DailyCost c={c} /></div>
-        <Link href={`/cases/${c.slug}`}
-              className="mt-4 inline-block text-sm text-muted-foreground hover:text-foreground">
-          See it →
-        </Link>
-      </div>
-    );
-  }
-
-  return (
-    <div className="grid items-center gap-8 border-t border-border py-12 md:grid-cols-2 md:gap-12">
-      <div className={flip ? "md:order-2" : ""}>
-        <h3 className="text-xl leading-snug text-foreground md:text-2xl">{c.pain}</h3>
-        <p className="mt-4 text-[15px] leading-relaxed text-muted-foreground">{c.ritual}</p>
-        <p className="mt-4 text-[15px] leading-relaxed text-foreground">{c.fix}</p>
-        <div className="mt-5"><DailyCost c={c} /></div>
-        <Link href={`/cases/${c.slug}`}
-              className="mt-5 inline-block text-sm text-muted-foreground hover:text-foreground">
-          See it →
-        </Link>
-      </div>
-      {/* <Demo>, NOT <Image>. This was an <img> whose src was the case's `demo` field — and
-          `demo` is an .mp4 for every one of the five hero cases, so every hero image on the
-          landing page rendered as a broken-image icon with the alt text spilling out beside it.
-          <Demo> already picks video / gif / still correctly and has since it was written; the
-          landing page simply was not using it. */}
-      <div className={flip ? "md:order-1" : ""}>
-        <Demo c={c} />
-      </div>
-    </div>
   );
 }
 
@@ -228,6 +195,23 @@ export default function Home() {
         <div className="mt-16 overflow-hidden rounded-[var(--radius)] border border-border shadow-hero">
           <Demo c={bySlug("which-agent-is-waiting-for-you")!} />
         </div>
+
+        {/* THE TWO FACTS THE SCREENSHOT CANNOT SAY FOR ITSELF, added the day the redesign it
+            shows shipped (2026-09-08). A static image proves the shape and the layout; it cannot
+            prove where the project name came from or that the dot is deliberate rather than
+            decorative — so the caption says both, next to the thing it describes rather than
+            buried in a Trust section about file safety, which this is not. */}
+        <p className="mt-4 max-w-2xl text-sm text-muted-foreground">
+          Filled red square: blocked, needs you. Filled green circle: ready. A ring is motion —
+          orange for working, grey where Chute cannot see the session at all. Shape carries the
+          meaning; colour is only the redundancy, because roughly one man in twelve cannot tell
+          that red from that green.
+        </p>
+        <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
+          The project name comes from the session&rsquo;s own git root, never a terminal window
+          title you can rename by accident — and the path it was derived from prints underneath
+          it, so a wrong guess is visible instead of silent.
+        </p>
       </section>
 
       {/* ---------------------------------------------------------------- the critical event */}
@@ -446,6 +430,22 @@ export default function Home() {
               </li>
             ))}
           </ul>
+        </div>
+
+        {/* THE SAME FOUR ROWS, IN THE APP ITSELF. Not decoration — the About tab added
+            2026-09-08 carries this section's exact content: why Chute exists in the founder's
+            own words, then these same three links, then one honest ask for a star. A screenshot
+            of it is the section's own claim, checkable from Settings → About. */}
+        <div className="mt-8">
+          <Image
+            src={asset("/media/screens/about.png")}
+            alt="The Chute About tab: why it exists, GitHub, LinkedIn, Telegram, and a star button"
+            width={960} height={640} unoptimized
+            className="w-full rounded-[var(--radius)] border border-border"
+          />
+          <p className="mt-3 text-sm text-muted-foreground">
+            The same tab is in the app — Chute menu bar → Settings → About.
+          </p>
         </div>
       </Section>
 

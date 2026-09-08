@@ -6,11 +6,12 @@ import { Header, Footer } from "@/components/chrome";
 import { CaseCard } from "@/components/case-bits";
 import { FREE, PAID, minutesPerDay } from "@/lib/cases";
 import { CONFIG } from "@/lib/config";
+import commands from "@/lib/commands.json";
 
 export const metadata: Metadata = {
   title: "The free command-line tool — Chute",
   description:
-    "25 commands, MIT licensed, offline, no account. Everything the app does, from a terminal.",
+    `${commands.length} commands, MIT licensed, offline, no account. Everything the app does, from a terminal.`,
   alternates: { canonical: `https://${CONFIG.domain}/cli/` },
 };
 
@@ -36,8 +37,9 @@ export default function CliPage() {
           The command-line tool is free, MIT, and yours whatever happens to this page
         </h1>
         <p className="mt-5 text-lg text-muted-foreground">
-          25 commands. Zero dependencies, zero telemetry, no account, under 1 MB. It does every job on
-          this site — including the {PAID.length} that the paid app puts in your right-click menu.
+          {commands.length} commands. Zero dependencies, zero telemetry, no account, under 1 MB. It
+          does every job on this site — including the {PAID.length} that the app puts in your
+          right-click menu.
         </p>
 
         <div className="mt-8 max-w-md">
@@ -46,11 +48,10 @@ export default function CliPage() {
 
         <div className="mt-12 space-y-6 text-[15px] leading-relaxed text-muted-foreground">
           <p>
-            There is no crippled tier here and no command that stops working on day fifteen. The
-            trial governs the app — the Finder menu, the menu-bar switcher, the hotkey — and
-            nothing else. <code className="text-foreground">chute sessions</code>,{" "}
-            <code className="text-foreground">chute bundle</code> and the rest keep running on a
-            machine that never pays a penny.
+            There is no crippled tier, here or in the app. The Finder menu, the menu-bar switcher
+            and the hotkey are free and MIT the same as{" "}
+            <code className="text-foreground">chute sessions</code>,{" "}
+            <code className="text-foreground">chute bundle</code> and the rest of this page.
           </p>
           <p>
             What the app adds is not capability. It is not leaving Finder, not typing a

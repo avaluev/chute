@@ -20,11 +20,11 @@ export default function Privacy() {
         there is no code that sends anything.
       </p>
       <p>
-        Everything Chute writes stays on your Mac:{" "}
-        <code className="text-foreground">~/.chute/</code> for session state and pending Finder
-        requests, and{" "}
-        <code className="text-foreground">~/Library/Application Support/Chute/</code> for your
-        trial dates and licence key. You can delete both at any time.
+        Everything Chute writes stays on your Mac, in{" "}
+        <code className="text-foreground">~/.chute/</code> — session state and pending Finder
+        requests. You can delete it at any time; nothing is written anywhere else. There used to
+        be a second folder, for a trial clock and a licence key — both are gone with the licensing
+        code that wrote them.
       </p>
 
       <H2>The one exception, in full</H2>
