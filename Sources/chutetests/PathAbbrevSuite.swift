@@ -44,6 +44,48 @@ func pathAbbrevSuite() {
         // ── ONE ENORMOUS COMPONENT, nothing else — the plan's own worked middle() example ──
         T.eq(PathAbbrev.middle("a-very-long-directory", to: 20), "a-very-lo…-directory",
              "head=(n-1)/2, tail=n-1-head — the tail gets the odd character")
+        // ── THE INVARIANT, FUZZED ───────────────────────────────────────────────────────
+        //
+        // Everything else in this suite checks a chosen example. This checks the PROPERTY that
+        // makes the module worth having: a result never exceeds its budget. A path that overruns
+        // pushes past its tab stop, the tab jumps to the next stop, and every column below it
+        // breaks — the exact failure PathAbbrev exists to prevent.
+        //
+        // Written after a 200,000-case fuzz found two real overruns that every hand-written
+        // example had missed: `path("/Volumes/Work", budget: 11)` came back 13 characters,
+        // because a root with no components below it skipped the ladder entirely and returned
+        // itself; and a budget of 0 returned "…", which is one character, not zero.
+        //
+        // Deterministically seeded, so a failure here is reproducible rather than a story about
+        // a build that once went red.
+        var seed: UInt64 = 0x9E3779B97F4A7C15
+        func next(_ n: Int) -> Int {                    // xorshift64*, enough for coverage
+            seed ^= seed >> 12; seed ^= seed << 25; seed ^= seed >> 27
+            return Int((seed &* 2685821657736338717) % UInt64(n))
+        }
+        let pieces = ["a", "bb", "site", "Client Work", "a-very-long-project-directory-name",
+                      "👍🏽🇺🇦é", "x.y.z", "sntz_mockups", String(repeating: "W", count: 60)]
+        let roots = ["/Users/tester", "/Volumes/Work", "", "/", "/Users/tester/Documents"]
+        var overruns: [String] = []
+        for _ in 0..<20_000 {
+            var built = roots[next(roots.count)]
+            for _ in 0..<next(5) { built += "/" + pieces[next(pieces.count)] }
+            if next(2) == 0 { built += "/" }
+            let budget = next(40)
+            let out = PathAbbrev.path(built, budget: budget, home: "/Users/tester")
+            if out.count > budget, overruns.count < 3 {
+                overruns.append("budget \(budget): \(built) -> \(out.count) chars \(out)")
+            }
+        }
+        T.eq(overruns, [], "no path ever renders wider than its budget — the column depends on it")
+
+        T.eq(PathAbbrev.path("/Volumes/Work", budget: 11, home: home).count <= 11, true,
+             "a bare volume with nothing below it is truncated rather than returned whole")
+        T.eq(PathAbbrev.middle("anything", to: 0), "",
+             "a budget of zero holds nothing, not an ellipsis")
+        T.eq(PathAbbrev.name("anything", budget: 0), "",
+             "and a name obeys the same contract")
+
         // ── RULE 5, THE CASE THAT HAD NO TEST ───────────────────────────────────────────
         // A long component in the MIDDLE of a path, which is where it actually happens. The
         // only coverage rule 5 had used a path that was one component, so the ladder dropped
@@ -128,7 +170,11 @@ func pathAbbrevSuite() {
         T.eq(PathAbbrev.middle("short", to: 20), "short", "already fits — returned unchanged")
         T.eq(PathAbbrev.middle("anything at all", to: 2), "…",
              "under-3 budget collapses to a bare ellipsis, no partial head or tail")
-        T.eq(PathAbbrev.middle("anything at all", to: 0), "…", "a zero budget still never crashes")
+        // WAS "…", WHICH IS ONE CHARACTER. This assertion encoded the bug rather than the
+        // contract: `middle` promises `result.count <= n`, and an ellipsis costs a character like
+        // anything else. A 200,000-case fuzz of that invariant is what surfaced it.
+        T.eq(PathAbbrev.middle("anything at all", to: 0), "",
+             "a budget of zero holds nothing at all — not even an ellipsis")
 
         // ── name() — tail truncation, a different rule for a different kind of string ──
         T.eq(PathAbbrev.name("short"), "short", "already fits — returned unchanged")
@@ -136,7 +182,8 @@ func pathAbbrevSuite() {
              "a name truncates at the TAIL — it is a word, not a path with two ends")
         T.eq(PathAbbrev.name("Alpha Beta Gamma", budget: 7), "Alpha…",
              "trailing whitespace is trimmed before the ellipsis, not left dangling")
-        T.eq(PathAbbrev.name("hello", budget: 0), "…", "a non-positive budget still never crashes")
+        T.eq(PathAbbrev.name("hello", budget: 0), "",
+             "and a name obeys the same contract as a path")
     }
 
     T.suite("ProjectName") {

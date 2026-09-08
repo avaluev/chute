@@ -40,7 +40,8 @@ public enum PathAbbrev {
     /// dangling gap before the `…`, which reads as a typo rather than a truncation.
     public static func name(_ s: String, budget: Int = defaultNameBudget) -> String {
         guard s.count > budget else { return s }
-        guard budget > 0 else { return "…" }
+        // Same contract as `middle`: at a budget of zero the honest answer is nothing at all.
+        guard budget > 0 else { return "" }
         var head = String(s.prefix(budget - 1))
         while head.hasSuffix(" ") { head.removeLast() }
         return head + "…"
@@ -55,6 +56,10 @@ public enum PathAbbrev {
     /// 20)`: head 9, tail 10.
     public static func middle(_ s: String, to n: Int) -> String {
         guard s.count > n else { return s }
+        // A BUDGET OF ZERO IS NOT A BUDGET OF ONE. Returning "…" here overruns by a character,
+        // which a fuzz over 200,000 random paths caught: the contract is `result.count <= n`, and
+        // an ellipsis is a character like any other. Nothing fits in nothing.
+        guard n > 0 else { return "" }
         guard n >= 3 else { return "…" }   // no room for a character on either side of the ellipsis
         let headCount = (n - 1) / 2
         let tailCount = n - 1 - headCount
@@ -108,9 +113,16 @@ public enum PathAbbrev {
         let full = render(root: root, leadingSlash: leadingSlash, parts: components)
         if full.count <= budget { return full }
 
-        // `~` alone, or a bare `/` alone: nothing above the root to sacrifice, and the fit check
-        // above already failed, so there is nothing left this ladder can do for it.
-        guard let last = components.last else { return full }
+        // A ROOT WITH NOTHING BELOW IT still has to fit. `~` and `/` are already shorter than any
+        // real budget, but a volume is not: `/Volumes/Extreme SSD Backup 2026` is 32 characters
+        // and there is no component to sacrifice. This used to `return full` unconditionally and
+        // overran the column — found by fuzzing the invariant over 200,000 random paths, which
+        // reported `path("/Volumes/Work", budget: 11)` coming back 13 characters long.
+        //
+        // Every rung below this one narrows the path by dropping something; here there is nothing
+        // to drop, so the root itself is middle-truncated. That keeps both ends of the volume
+        // name, which is the same reason a path is middle-truncated in the first place.
+        guard let last = components.last else { return middle(full, to: budget) }
 
         guard components.count > 1 else {
             // One component and nothing above it — straight to the leaf's own rung, root and all.
