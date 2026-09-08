@@ -29,6 +29,11 @@ echo "→ regenerating design tokens and social assets"
 npm run tokens
 npm run assets
 
+# ONE SOURCE FOR THE INSTALL SCRIPT. chutedev.com/install.sh is what the site tells people to
+# pipe into a shell; it must be the file in this repo that CI can see, not a second copy someone
+# edits and forgets.
+cp "$ROOT/Scripts/get.sh" public/install.sh
+
 echo "→ building"
 npx next build
 

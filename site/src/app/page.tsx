@@ -54,7 +54,7 @@ function Section({ id, eyebrow, title, children }: {
   id?: string; eyebrow: string; title: string; children: React.ReactNode;
 }) {
   return (
-    <section id={id} className="mx-auto w-full max-w-5xl px-6 py-20 md:py-28">
+    <section id={id} className="mx-auto w-full max-w-5xl px-5 py-14 sm:px-6 sm:py-20 md:py-28">
       <p className="font-[family-name:var(--font-mono-loaded)] text-xs uppercase tracking-[0.18em] text-[var(--color-accent-chute)]">
         {eyebrow}
       </p>
@@ -153,7 +153,7 @@ export default function Home() {
       <Header />
 
       {/* ---------------------------------------------------------------- hero */}
-      <section className="mx-auto w-full max-w-5xl px-6 pt-16 md:pt-24">
+      <section className="mx-auto w-full max-w-5xl px-5 pt-12 sm:px-6 sm:pt-16 md:pt-24">
         <Badge variant="secondary" className="font-[family-name:var(--font-mono-loaded)] text-xs">
           macOS 13+ · free and MIT · no account · no telemetry
         </Badge>
@@ -171,7 +171,7 @@ export default function Home() {
             The evidence it is the sharper pain: in September 2026 a post about screwing a physical
             USB traffic light to a monitor ran away on LinkedIn, and the replies were people asking
             where to buy fifteen of them. Nobody has ever asked that about a path. */}
-        <h1 className="mt-6 max-w-3xl font-[family-name:var(--font-mono-loaded)] text-3xl font-semibold leading-[1.15] tracking-tight md:text-5xl">
+        <h1 className="mt-6 max-w-3xl font-[family-name:var(--font-mono-loaded)] text-[26px] font-semibold leading-[1.2] tracking-tight sm:text-4xl md:text-5xl md:leading-[1.15]">
           Nine terminal tabs.<br />
           Six agents running.<br />
           <span className="text-[var(--color-accent-chute)]">Which one is waiting for you?</span>
@@ -290,7 +290,7 @@ export default function Home() {
           not the awkward option here, it is the good one.
         </p>
 
-        <div className="mt-10 grid gap-5 md:grid-cols-3">
+        <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           <div className="rounded-[var(--radius)] border border-[var(--color-accent-chute)] bg-card p-6">
             <p className="font-[family-name:var(--font-mono-loaded)] text-sm text-[var(--color-accent-chute)]">
               Homebrew — recommended
@@ -305,14 +305,16 @@ export default function Home() {
 
           <div className="rounded-[var(--radius)] border border-border bg-card p-6">
             <p className="font-[family-name:var(--font-mono-loaded)] text-sm text-muted-foreground">
-              From source
+              One line, no Homebrew
             </p>
             <div className="mt-4">
-              <CopyLine text={`git clone ${CONFIG.repo} && cd chute && swift build -c release`} />
+              <CopyLine text={`curl -fsSL https://${CONFIG.domain}/install.sh | sh`} />
             </div>
             <p className="mt-4 text-sm text-muted-foreground">
-              Zero third-party dependencies, so that really is the whole build. Read the source
-              first if you like — that is rather the point of shipping it this way.
+              Clones, builds and installs. It is forty lines and{" "}
+              <a className="text-foreground underline underline-offset-4"
+                 href={`https://${CONFIG.domain}/install.sh`}>you can read it first</a>{" "}
+              — piping a stranger&rsquo;s script into a shell deserves that much.
             </p>
           </div>
 
@@ -338,6 +340,54 @@ export default function Home() {
           broken. It is unsigned, which is a different sentence, and the two installs above walk
           straight past it.
         </p>
+      </Section>
+
+      {/* ---------------------------------------------------------------- connect */}
+      {/* A FREE PROJECT'S CURRENCY IS THE PERSON BEHIND IT. There is no company here and no
+          support tier, so the honest thing to publish is where a human actually answers.
+          A Telegram HANDLE, never a phone number: a handle can be abandoned, a number cannot be
+          un-scraped once a bot has it. */}
+      <Section eyebrow="Open source" title="It is all on GitHub, and so am I">
+        <div className="grid gap-5 md:grid-cols-2">
+          <div>
+            <p className="max-w-xl text-muted-foreground">
+              Chute is MIT licensed, every line of it — the app, the Finder extension and the CLI.
+              Read it, fork it, take the bits you want. Issues and pull requests are welcome, and
+              there is no contributor agreement to sign.
+            </p>
+            <div className="mt-6 flex flex-wrap gap-3">
+              <a href={CONFIG.repo}
+                 className={buttonVariants({ size: "lg" }) + " h-11 px-5 text-base font-medium"}>
+                View the source
+              </a>
+              <a href={`${CONFIG.repo}/issues`}
+                 className={buttonVariants({ variant: "outline", size: "lg" }) + " h-11 px-5 text-base"}>
+                Report a problem
+              </a>
+            </div>
+          </div>
+
+          <ul className="grid gap-3 self-start">
+            {[
+              ["GitHub", "@avaluev", CONFIG.social.github],
+              ["LinkedIn", "in/valuev", CONFIG.social.linkedin],
+              ["Telegram", "@asnkt", CONFIG.social.telegram],
+              ["Email", CONFIG.contact, `mailto:${CONFIG.contact}`],
+            ].map(([label, handle, href]) => (
+              <li key={label}>
+                <a href={href}
+                   className="flex items-center justify-between gap-4 rounded-[var(--radius)] border border-border bg-card px-5 py-4 transition-colors hover:border-[var(--color-accent-chute)]">
+                  <span className="font-[family-name:var(--font-mono-loaded)] text-sm font-semibold">
+                    {label}
+                  </span>
+                  <span className="truncate font-[family-name:var(--font-mono-loaded)] text-sm text-muted-foreground">
+                    {handle}
+                  </span>
+                </a>
+              </li>
+            ))}
+          </ul>
+        </div>
       </Section>
 
       {/* ---------------------------------------------------------------- faq */}
