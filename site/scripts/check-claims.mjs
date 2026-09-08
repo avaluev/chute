@@ -10,7 +10,8 @@
  * Run against the BUILT site, so it sees what a visitor sees rather than what the source says.
  *   node scripts/check-claims.mjs        (wired into Scripts/deploy-site.sh)
  */
-import { readFileSync, readdirSync, statSync } from "node:fs"
+import { readFileSync, readdirSync, statSync, existsSync } from "node:fs"
+import { execSync } from "node:child_process"
 import { fileURLToPath } from "node:url"
 import { dirname, resolve, join } from "node:path"
 import { CONFIG } from "../src/lib/config.ts"
@@ -378,6 +379,54 @@ try {
       ? bad(`${hits.length} forbidden claim(s) are in the app's own strings`,
             hits.join(", ") + " — see the FALSE table in marketing/06-FACT-SHEET.md")
       : ok(`${swift.length} Swift files carry none of the ${FALSE_CLAIMS.length} forbidden claims`)
+}
+
+// ── THE ARCHITECTURE THE BINARY ACTUALLY IS ─────────────────────────────────────────────────
+//
+// Three surfaces said "Apple Silicon and Intel" while `Scripts/build-app.sh` ran a plain
+// `swift build -c release` with no `--arch` flags — so it only ever produced the HOST
+// architecture, and every shipped build has been arm64 only. An Intel Mac following the download
+// button got an app that cannot launch, and nothing in the repo could notice.
+//
+// This asks the built binary, then sweeps the pages. It is deliberately asymmetric: claiming
+// Intel while shipping arm64 is a FAILURE, but shipping a universal binary while the pages stay
+// quiet about it is merely a note — under-promising has never cost anyone a broken download.
+//
+// A universal build needs full Xcode (SwiftPM's multi-arch path wants xcbuild, which the
+// Command Line Tools do not ship), so this gate is not asking for one. It is asking the pages to
+// say what is true today.
+{
+  const app = REPO + "dist/Chute.app/Contents/MacOS/ChuteApp"
+  let arches = null
+  if (existsSync(app)) {
+    try {
+      const out = execSync(`lipo -info ${JSON.stringify(app)}`, { encoding: "utf8" })
+      arches = out.trim().split(":").pop().trim().split(/\s+/)
+    } catch { arches = null }
+  }
+  const claimFiles = []
+  const walkDocs = (dir) => {
+    for (const e of readdirSync(dir, { withFileTypes: true })) {
+      if (e.name === "node_modules" || e.name.startsWith(".")) continue
+      const full = dir + "/" + e.name
+      if (e.isDirectory()) walkDocs(full)
+      else if (/\.(tsx?|mdx?|ts)$/.test(e.name)) claimFiles.push(full)
+    }
+  }
+  walkDocs(REPO + "site/src")
+  claimFiles.push(REPO + "README.md")
+  const claimsIntel = claimFiles.filter((f) => /Apple Silicon and Intel|Intel and Apple Silicon|universal binary/i.test(readFileSync(f, "utf8")))
+
+  if (!arches) {
+    ok("architecture unchecked — no dist/Chute.app to ask (run Scripts/build-app.sh first)")
+  } else if (!arches.includes("x86_64") && claimsIntel.length) {
+    bad(`${claimsIntel.length} page(s) promise Intel, but the built app is ${arches.join("+")}`,
+        claimsIntel.map((f) => f.slice(REPO.length)).join(", ") +
+        " — an Intel Mac following the download button gets an app that cannot launch. Either say" +
+        " what ships (arm64 / Apple Silicon), or add a universal-binary step to Scripts/build-app.sh.")
+  } else {
+    ok(`the app is ${arches.join("+")} and no page promises an architecture it is not`)
+  }
 }
 
 console.log(`\nclaims: ${failed ? `${failed} failed` : "every claim on the site is one the fact sheet stands behind"}`)

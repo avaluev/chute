@@ -1,13 +1,17 @@
 # Capability map — Finder menu ⇄ CLI ⇄ JTBD
 
-**Written 2026-08-28**, after the Finder menu was renamed and recoloured. Three surfaces run the
-same engine, and this is the one page that says which job each of them is actually doing:
+**Written 2026-08-28**, after the Finder menu was renamed and recoloured. **Prices struck
+2026-09-08:** Chute went free and MIT that day — the licence check, the trial clock and the
+Cloudflare Worker that minted keys were deleted, not disabled (`README.md` §Licence). Three
+surfaces run the same engine, and this is the one page that says which job each of them is
+actually doing — all three are free now, so the split below is about what each surface does, not
+what it costs:
 
-| Surface | What it is | Paid? |
-|---|---|---|
-| **`chute` CLI** | 26 commands, MIT, free forever. Every capability lives here first. | free |
-| **Finder right-click** | 9 actions in 5 rows. Every one of them shells out to the CLI. | paid |
-| **Menu bar (🪂)** | Session switcher, local servers, licence, diagnostics. Uses ChuteCore in-process. | paid |
+| Surface | What it is |
+|---|---|
+| **`chute` CLI** | 26 commands, MIT, free forever. Every capability lives here first. |
+| **Finder right-click** | 9 actions in 5 rows. Every one of them shells out to the CLI. |
+| **Menu bar (🪂)** | Session switcher, local servers, diagnostics. Uses ChuteCore in-process. |
 
 The rule that keeps them honest: **the app is a surface, never a second implementation**
 (`/Users/sxope/Documents/2026/Development/37.chute/Sources/ChuteApp/main.swift:6`). Anything the
@@ -114,7 +118,8 @@ the CLI.)
 | `help` / `--version` | — | — | — | |
 
 **Menu-bar-only capabilities** (no CLI equivalent, because they are the surface itself): the 🪂
-badge count, the live CPU/memory columns, the licence field, and ⌥⌘N.
+badge pip (never a count — a count can be checked against reality and found wrong, so it was
+deleted; `Sources/ChuteCore/MenuBarMark.swift`), the live CPU/memory columns, and ⌥⌘N.
 
 ---
 
@@ -280,7 +285,11 @@ cd /Users/sxope/Documents/2026/Development/37.chute && swift run chute finder-ac
 cd /Users/sxope/Documents/2026/Development/37.chute && swift run chutetests && ./Scripts/smoke.sh
 ```
 
-Expected: `✅ 637 assertions passed` and `smoke: 152 passed, 0 failed`.
+Expected (re-derived 2026-09-08): `✅ 1281 assertions passed` and, headless, `smoke: 178 passed, 0
+failed`. The non-headless run adds GUI/Terminal sections and needs Chute.app actually running —
+run it with the app open, not as the number to quote in a doc. **Both counts moved twice in one
+afternoon while this doc was being written, because another session was adding code to `Sources/`
+at the same time — re-run the commands, do not trust these digits without doing so.**
 
 > **`smoke.sh` runs `.build/release/chute`, not the debug build.** It will happily pass against a
 > stale binary and tell you nothing changed. Always:

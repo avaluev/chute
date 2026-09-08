@@ -5,16 +5,27 @@ actual source that builds this menu today — file paths point at the exact plac
 from, so you can ask an engineer to re-check anything that matters to a decision.
 
 Source files this brief is built from (all under
-`/Users/sxope/Documents/2026/Development/37.chute/`):
+`/Users/sxope/Documents/2026/Development/37.chute/`), **updated 2026-09-08** for the three-column
+redesign that shipped that day:
 
-- `Sources/ChuteCore/StatusMenu.swift` — what is in the menu, in what order (the model)
-- `Sources/ChuteApp/SessionMenu.swift` — how that model becomes an `NSMenu` (the renderer)
+- `Sources/ChuteCore/StatusMenu.swift` — what is in the menu, in what order, and the three-column
+  `SessionRow` each session row carries (the model)
+- `Sources/ChuteApp/SessionMenu.swift` — how that model becomes an `NSMenu` via `attributedTitle`
+  and tab stops (the renderer — decides nothing, see its own header comment)
+- `Sources/ChuteCore/SessionDot.swift` — the row's traffic-light dot geometry. Moved out of
+  `SessionMenu.swift` on 2026-09-08 after shipping with two of its five states invisible — see §4
+- `Sources/ChuteCore/ProjectName.swift` — the one place a session's name is derived (git repo root
+  leaf → cwd leaf → terminal window-title head → `nil`), added 2026-09-08
+- `Sources/ChuteCore/PathAbbrev.swift` — the path/name truncation rules col 1's second line uses,
+  added 2026-09-08
 - `Sources/ChuteCore/MenuBarMark.swift` — the menu-bar icon and its state pip
 - `Sources/ChuteCore/Session.swift` — the five session states
 - `Sources/ChuteCore/SessionCommands.swift` — the ⌥ alternate commands per session
 - `Sources/ChuteApp/ServersMenu.swift` — the Local Servers submenu
 - `Sources/ChuteCore/SystemVitals.swift` — the CPU/memory numbers on a row
 - `Sources/ChuteCore/SessionPhrasing.swift` — the wording on a row
+- `docs/specs/MENUBAR-LAYOUT-CALIBRATION.md` — the measured tab stops, fonts and character budgets
+  the column layout is built from
 - `brand/tokens.json` — the palette and type this design must use
 
 ---
@@ -36,18 +47,22 @@ secondary to that one job.
 
 ## 2. Function inventory
 
-Built in order by `StatusMenu.model(...)` (`/Users/sxope/Documents/2026/Development/37.chute/Sources/ChuteCore/StatusMenu.swift:101`).
+Built in order by `StatusMenu.model(...)` (`/Users/sxope/Documents/2026/Development/37.chute/Sources/ChuteCore/StatusMenu.swift:149`).
 Everything below is a row or a group of rows in one flat `NSMenu`; nothing floats free of this
 order.
+
+**State and project headers are gone, deleted 2026-09-08** — see §5. There is no row left in this
+table whose only job is to label a group; sort order, the dot, and the words on the row carry
+that now.
 
 | # | Row / section | Present when | Data shown | Click does |
 |---|---|---|---|---|
 | 1 | **"Cannot read Terminal — click to fix"** | `problem != nil` — Chute lost the ability to read Terminal.app (e.g. Automation permission revoked) | a tooltip carrying the raw problem string | opens System Settings → Automation (`Command.openAutomationSettings`) |
 | 2 | separator | after row 1, only if row 1 is present | — | — |
-| 3 | **State section header**, e.g. `NEEDS YOU   2` | once per distinct state present among current sessions, in state order (blocked → waiting → working → idle → unknown) | the state's name + count of sessions in it (`sectionTitle`, line 221) | nothing — disabled row |
-| 4 | **Project sub-header**, e.g. `sntz_mockups` | only when ≥2 sessions share *both* the same state *and* the same project (line 165-168) | project name only | nothing — disabled row, indent 1 |
-| 5 | **Session row** | one per live terminal session | see §3 below | brings that terminal tab forward (`Command.focusSession`) |
-| 6 | **⌥ session-command alternates** (up to 4, stacked on the same row slot) | per session, only for commands that session can actually do — see §2a | title only, no numbers | runs that command (copy to clipboard, or open tmux) — see `SessionCommand.available`, `/Users/sxope/Documents/2026/Development/37.chute/Sources/ChuteCore/SessionCommands.swift:51` |
+| 3 | **Column header**, `PROJECT · AGENT · STATE · LOAD` | once, only when `sessions` is non-empty | the same three-column shape a session row uses, uppercased, disabled — a `.note` node carrying a `SessionRow` (`StatusMenu.swift:197-201`) | nothing — disabled row |
+| 4 | **Session row** | one per live terminal session, sorted state → oldest-first-in-state → project name → tty (`StatusMenu.swift:189-192`) | see §3 below | brings that terminal tab forward (`Command.focusSession`) |
+| 5 | **⌥ session-command alternates** (up to 4, stacked on the same row slot) | per session, only for commands that session can actually do — see §2a | the same row, with line 1's state cell replaced by the command's own title | runs that command (copy to clipboard, or open tmux) — see `SessionCommand.available`, `/Users/sxope/Documents/2026/Development/37.chute/Sources/ChuteCore/SessionCommands.swift:51` |
+| 6 | separator | at every **state boundary** within the sorted list — never before the first row, since the column header already opens the section (`StatusMenu.swift:203-209`) | — | — |
 | 7 | separator | after the last session, only if `sessions` is non-empty | — | — |
 | 8 | **"No terminal sessions"** | `sessions.isEmpty && problem == nil` | static text | nothing |
 | 9 | **Basket submenu**, e.g. `Basket  (3)` | only when the basket has ≥1 entry — hidden entirely otherwise | count in the title; children are file rows, newest first | opens submenu — see §2b |
@@ -58,7 +73,7 @@ order.
 | 14 | **"Report a Problem…"** | always | — | `Command.reportProblem` |
 | 15 | **"Settings…"** | always | — | `Command.openSettings` |
 | 16 | separator | always | — | — |
-| 17 | **"Quit Chute"** | always, last row | — | quits the app; targets `NSApp`, not Chute — see note at `StatusMenu.swift:298` |
+| 17 | **"Quit Chute"** | always, last row | — | quits the app; targets `NSApp`, not Chute — see note at `StatusMenu.swift:351` |
 
 **2a. The ⌥ alternates.** Each session can offer up to four extra actions, each revealed by
 holding a specific modifier combination while the menu is open (AppKit's "alternate item"
@@ -99,44 +114,55 @@ row that tells the reader "hold ⌥" other than the tooltip on the session row i
 
 ## 3. The data on a session row
 
-One row's title is built as `prefix + suffix(load)` in `StatusMenu.rows(for:...)`
-(`/Users/sxope/Documents/2026/Development/37.chute/Sources/ChuteCore/StatusMenu.swift:235`).
-The pieces, and whether each is always present:
-
-| Field | Always present? | Source | Example |
-|---|---|---|---|
-| Project name | Only when the row is NOT under a project sub-header (i.e. it's the only session for that project in that state) | `Session.project` | `sntz_mockups` |
-| Agent label | Present whenever an agent is running; reads `no agent running` for a plain shell | `SessionPhrasing.agentLabel` | `Claude Code`, `Codex`, `Antigravity` |
-| Model | Only when the hook's transcript names one (older hooks may not) | `AgentTranscript.displayModel` | `Opus 5`, `Sonnet 5` |
-| Effort | Only when it is NOT the default (`"medium"` is never shown — it's furniture) | `AgentTranscript.effort` | `high`, `xhigh` |
-| Time-in-state | Only for blocked/waiting/working; **never shown for idle or unknown** — a confident duration next to a state Chute admits it doesn't know is the exact mistake that got the old status badge deleted | `SessionPhrasing.held` | `blocked 22 min`, `ready 3 min`, `working 5 min` |
-| CPU % | Present whenever the session has at least one live process; percent of ONE core, so 177% means under two cores pinned | `SessionLoad.label` | `177% CPU` |
-| Memory | Same gate as CPU — real resident footprint, summed across the session's whole process tree | `SessionLoad.label` | `3.0 GB memory` |
-| Peak-memory note | Only when a process peaked at ≥1.5× its current size AND that peak is ≥512 MB — this is deliberately rare | `SessionLoad.peakNote` | `(peaked 6.1 GB)` |
-| "mostly X" | Only when one program holds ≥50% of the session's memory | `SessionLoad.label` | `mostly claude` |
-| Runaway warning | Only when CPU ≥250% of one core OR memory ≥8 GB | `StatusMenu.isRunaway` | `⚠` appended after the numbers |
-
-**A full example, real fields, from the founder's own machine on 2026-09-08** (this is the exact
-string the task brief was written against):
+**Two lines, three columns, not one joined string.** A row is a `StatusMenu.SessionRow`
+(`/Users/sxope/Documents/2026/Development/37.chute/Sources/ChuteCore/StatusMenu.swift:117-139`) —
+six cells, laid out over real `NSTextTab` stops at 200pt and 500pt
+(`/Users/sxope/Documents/2026/Development/37.chute/Sources/ChuteApp/SessionMenu.swift:85-93`,
+measured in `docs/specs/MENUBAR-LAYOUT-CALIBRATION.md`):
 
 ```
-sntz_mockups   Claude Code · Opus 5 · xhigh   blocked 22 min   177% CPU · 3.0 GB memory · mostly claude
+col 1 (project / path)        col 2 (state / agent)          col 3 (load / note)
+line 1:  project name          state + duration                CPU · memory
+line 2:  the path it came from  agent · model · effort          runaway ⚠ / peaked note
 ```
 
-A quieter row, same shape, fewer fields firing:
+Built in `StatusMenu.rows(for:...)`
+(`/Users/sxope/Documents/2026/Development/37.chute/Sources/ChuteCore/StatusMenu.swift:253`). The
+pieces, and whether each is always present:
+
+| Field | Cell | Always present? | Source | Example |
+|---|---|---|---|---|
+| Project name | col 1, line 1 | Always — `Session.project` is derived once, from the hook's `cwd` via the git repo root, never from Terminal's window title (`ProjectName.swift`). `nil` prints `tty ttys004` instead of a blank | `Session.project`, clamped by `StatusMenu.clampedProjectName` | `sntz_mockups` |
+| Path | col 1, line 2 | Always — the path the name was derived from, so a wrong derivation is visible rather than silently wrong. No `cwd` at all prints `no project derived`, and col 1 reads **dimmed** (`MenuNode.dim`) rather than bold | `PathAbbrev.path`, middle-truncated | `~/dev/sntz_mockups/site` |
+| State + duration | col 2, line 1 | Always — every state prints something here, never blank. Idle and unknown deliberately carry **no duration**: a confident number next to a state Chute admits it doesn't know is the exact mistake that got the old status badge deleted | `SessionPhrasing.held` for blocked/waiting/working; fixed strings for idle/unknown | `blocked 22 min`, `ready 3 min`, `working 5 min`, `no agent running`, `no hook — Chute cannot see this` |
+| Agent · model · effort | col 2, line 2 | Present whenever an agent is running; model only when the hook's transcript names one, effort only when it is not the default (`"medium"` is furniture) | `SessionPhrasing.detail` | `Claude Code · Opus 5 · xhigh` |
+| CPU · memory | col 3, line 1 | Present whenever the session has ≥1 live process; percent of ONE core, so `177%` means under two cores pinned. Empty — not `0%` — when there is no live process to measure | `StatusMenu.loadColumns` | `177% · 3.0 GB` |
+| Runaway / peak note | col 3, line 2 | Only one of the two, never both: `runaway ⚠` when CPU ≥250% of one core or memory ≥8 GB, else a peak note when a process peaked at ≥1.5× its current size and ≥512 MB. Otherwise blank | `StatusMenu.loadColumns` | `runaway ⚠`, `peaked 6.1 GB` |
+
+**`mostly X`, the field that named which one process held most of a session's memory, is gone** —
+`loadColumns` only ever returns the two load cells above; a row no longer says which program is
+using it, only how much.
+
+**A real row, two lines:**
 
 ```
-Claude Code · Sonnet 5   ready 3 min   4% CPU · 210 MB memory
+sntz_mockups                              blocked 22 min          177% · 3.0 GB
+~/dev/sntz_mockups                        Claude Code · Opus 5 · xhigh
 ```
 
-A shell with no agent — almost every field drops out:
+A quieter row, no load at all because nothing is currently running:
 
 ```
-28.tallyapp   no agent running
+37.chute                                  ready 3 min
+~/dev/37.chute                            Claude Code · Sonnet 5
 ```
 
-Every segment above is joined with **three literal spaces** (`"   "`), not a tab stop or a
-column — see §5 for why that matters.
+A shell with no agent, and no `cwd` behind the name at all — col 1 reads dimmed:
+
+```
+tty ttys004                               no agent running
+no project derived
+```
 
 ---
 
@@ -147,33 +173,59 @@ ordered by urgency — this is also the sort order sessions appear in:
 
 | State | What it means | Row dot: colour | Row dot: shape | Icon pip |
 |---|---|---|---|---|
-| **blocked** | Agent hit a permission prompt — it is stopped, waiting on a decision only you can make | `systemRed` | filled disc, 9pt | filled **square**, red |
-| **waiting** | Agent finished its turn and is waiting for your next prompt | `systemGreen` | filled disc, 9pt | filled **circle**, green |
+| **blocked** | Agent hit a permission prompt — it is stopped, waiting on a decision only you can make | `systemRed` | filled **square**, 9pt | filled **square**, red |
+| **waiting** | Agent finished its turn and is waiting for your next prompt | `systemGreen` | filled **circle**, 9pt | filled **circle**, green |
 | **working** | Agent is actively running | `systemOrange` | **ring** (34% hole), 9pt | **ring**, orange |
-| **idle** | A plain shell — no agent running in it at all | `tertiaryLabelColor` (grey) | small filled disc, 5pt | no pip (quiet mark) |
-| **unknown** | Chute has no hook data for this session — the agent ships no hooks (Antigravity today) or the hook hasn't reported yet | `tertiaryLabelColor` (grey) — **same colour as idle** | small **ring** (34% hole), 5pt | no pip (quiet mark) — *verify: see note below* |
+| **idle** | A plain shell — no agent running in it at all | `tertiaryLabelColor` (grey) | small filled dot, 5pt | no pip (quiet mark) |
+| **unknown** | Chute has no hook data for this session — the agent ships no hooks (Antigravity today) or the hook hasn't reported yet | `tertiaryLabelColor` (grey) — **same colour as idle** | **ring** (25% hole), **7pt** | no pip (quiet mark) |
 
-Source: `dot(_:)` and its `ink`/`form` tables in
-`/Users/sxope/Documents/2026/Development/37.chute/Sources/ChuteApp/SessionMenu.swift:63-93`;
-the icon pip table (`pips`) in
-`/Users/sxope/Documents/2026/Development/37.chute/Sources/ChuteCore/MenuBarMark.swift:103`.
+Source: `SessionDot.image(_:)` and its `ink`/`form` tables in
+`/Users/sxope/Documents/2026/Development/37.chute/Sources/ChuteCore/SessionDot.swift:45-70` — moved
+out of `SessionMenu.swift` on 2026-09-08, see the postmortem below; the icon pip table (`pips`) in
+`/Users/sxope/Documents/2026/Development/37.chute/Sources/ChuteCore/MenuBarMark.swift:109`.
 
 **The two hard rules, both enforced in the row dot today, both must survive redesign:**
 
 1. **Shape carries the meaning; colour is the redundancy, not the other way round.** Roughly 1 in
    12 men in this product's own audience cannot reliably separate the red from the green used
    here. Squint, or view in grayscale, and the three "needs action" states must still read as
-   three different things from shape alone: filled-large (blocked) vs. filled-large (waiting) —
-   *these two currently share a shape and differ only by colour* — vs. ring (working). **Flag
-   this for the designer explicitly: blocked and waiting are both a 9pt filled disc today, red vs.
-   green only.** That is the one place the current implementation does not yet honour its own
-   rule, and it is worth fixing in any redesign, not just preserving.
+   three different things from shape alone: filled square (blocked) vs. filled circle (waiting) vs.
+   ring (working). **Fixed 2026-09-08** — blocked and waiting used to share a 9pt filled disc and
+   differ only by colour, which broke this exact rule; they are a square and a circle now (see the
+   postmortem below for why the fix wasn't as simple as changing a corner radius).
 2. **Unknown must never look like "all clear."** idle and unknown deliberately share the same
    grey ink so neither reads as more or less alarming than the other by colour — the only thing
    separating "you have a quiet shell" from "Chute has no idea what this session is doing" is
-   shape (filled dot vs. ring). An un-instrumented machine — someone who has only ever used
+   shape (small filled dot vs. ring). An un-instrumented machine — someone who has only ever used
    Antigravity, which ships no hooks — must not have a menu that reads as calm. It should read as
-   uninstrumented.
+   uninstrumented. **`unknown`'s ring grew from 5pt to 7pt on 2026-09-08** because at 5pt its hole
+   rasterises away to nothing at 1×, so it painted the identical pixels as `idle` — the two states
+   this rule exists to keep apart looked exactly alike. See the postmortem.
+
+**Postmortem: the dot that drew nothing.** `blocked` and `waiting` — the two states the whole
+product exists to surface — painted **nothing at all**, for this product's entire life, until
+2026-09-08. The drawing code built a "hole" the same size as the outer shape and relied on
+`NSBezierPath`'s `.evenOdd` winding rule to cancel it to a solid fill:
+
+```swift
+let hole = r.insetBy(dx: f.d * f.hole, dy: f.d * f.hole)   // f.hole == 0 meant "filled"
+path.append(NSBezierPath(roundedRect: hole, ...))
+path.windingRule = .evenOdd
+```
+
+Under `.evenOdd`, a point inside both rectangles has a crossing number of two — even — which is
+*outside* the filled region. The same rectangle twice does not cancel the hole, it cancels the
+**shape**. `hole: 0` never meant "filled"; it meant "draw nothing." Nothing could catch it:
+`Scripts/check-untested-logic.sh` counts branches, and this code had none — it was branch-free and
+wrong. It lived in `Sources/ChuteApp/`, a target `chutetests` cannot link, so no assertion could
+import it either. The only instrument that could have caught it was somebody looking, and the menu
+had never been rendered to an image before that day. Once it was — see `Scripts/screens.sh` —
+the fix moved the geometry into `Sources/ChuteCore/SessionDot.swift`, where `SessionDotSuite`
+renders every token and counts the pixels it actually painted. A dot that draws nothing now fails
+the build. That suite immediately caught the second bug above (`unknown` at 5pt). **Any redesign
+that touches this geometry must keep a pixel-counting test on it** — a branch-free drawing routine
+with a plausible-sounding comment is exactly the shape of bug this whole product's testing
+doctrine exists to catch, and here it beat the doctrine for a full release.
 
 **Worth flagging to the designer as a real gap, not a design opinion:** the menu-bar *icon*
 itself only carries a pip for blocked/waiting/working — a positive claim backed by a fresh hook.
@@ -186,44 +238,80 @@ with the founder before assuming either answer.
 
 ---
 
-## 5. The current layout, honestly
+## 5. The current layout — what ships as of 2026-09-08
 
-What renders today is a single flat `NSMenu` — no window, no custom view, just `NSMenuItem` rows
-handed to AppKit — built by `SessionMenu.render(_:into:...)`
-(`/Users/sxope/Documents/2026/Development/37.chute/Sources/ChuteApp/SessionMenu.swift:119`). In
-order, top to bottom:
+What renders today is still a single flat `NSMenu` — no window, no custom view, just `NSMenuItem`
+rows handed to AppKit — built by `SessionMenu.render(_:into:...)`
+(`/Users/sxope/Documents/2026/Development/37.chute/Sources/ChuteApp/SessionMenu.swift:179`). What
+changed is everything about how a row is drawn. In order, top to bottom:
 
-- UPPERCASE, disabled section headers (`NEEDS YOU   2`) — AppKit's stock disabled-item styling,
-  not a real section-header control (`NSMenuItem.sectionHeader` exists since macOS 14 but this
-  targets macOS 13, per the comment at `SessionMenu.swift:95`)
-- indented, disabled project sub-headers one level in, only when they group ≥2 rows
-- session rows: a small coloured dot image, then one long run-on string built by joining fields
-  with three literal spaces — project, agent · model · effort, time-in-state, CPU/memory — with no
-  column, no tab stop, no distinct visual weight between "what this is" and "what it's costing"
-- separators between state groups
+- one column header row, `PROJECT · AGENT · STATE · LOAD` uppercased and disabled — printed once,
+  only when there is at least one session, never repeated per group because there are no more
+  groups to repeat it for
+- session rows, each two lines over three real tab-stopped columns (§3): a 12×12 traffic-light dot
+  image, then `attributedTitle` text laid out at the 200pt and 500pt stops measured in
+  `docs/specs/MENUBAR-LAYOUT-CALIBRATION.md` — project/path in col 1, state/agent in col 2,
+  load/note in col 3, monospaced digits in col 3 so the numbers do not jitter as `LiveVitals`
+  rewrites them every two seconds
+- a separator at every **state boundary**, never at the top — sort order (blocked → waiting →
+  working → idle → unknown, oldest-first within a state) puts the thing that has been costing you
+  the most at the very top of the list, with no header needed to say so
 - the Basket, Local Servers, and utility rows below, in the fixed order from §2
 
-**Where it fails, plainly:**
+**State and project section headers are deleted, 2026-09-08**
+(`StatusMenu.swift:176-183`, the comment block headed "COLUMNS, NOT HEADERS"). What used to be
+"`NEEDS YOU (2)`" printed once per group, and a project sub-header printed again inside it, is now
+carried entirely by the row itself: the dot's shape says the state, the state cell's own words say
+it again in text (`blocked 22 min`), and the project name is on every single row rather than
+hidden behind a sub-header that only appeared when ≥2 sessions shared both a state and a project.
+Two sessions in the same project simply repeat their project name — that repetition is what the
+columns buy, and it replaced seven sub-headers over eight rows on the founder's own machine on
+2026-09-08, the same session that measured the ragged-column and no-hierarchy failures below being
+fixed rather than just described.
 
-- **Run-on rows, no columns.** Three literal spaces under a proportional system font do not align
-  into columns across rows of different length — a project name of 6 characters and one of 18
-  push everything after it to a different horizontal position on every row. The CPU/memory
-  numbers, which are the thing you'd want to visually scan down a list to compare, are ragged.
-- **No visual weight hierarchy.** The project name, the state duration, and the CPU/memory
-  numbers are all the same font, weight, and colour, differing only in a dot's colour to the left.
-  The one thing on the row that actually needs your attention (blocked 22 min) is typographically
-  identical to the least important thing on it (mostly claude).
-- **Section headers shout.** Uppercase disabled text is the only tool in play for "this is a
-  group," reused for both the state header and, one indent in, effectively for the project name
-  too — there is no second register between "the loudest text on the menu" and "a plain row."
-- **The list can run to 13+ rows** before you reach the Basket / Local Servers / Settings block —
-  this is the actual number the founder hit on 2026-09-08 that prompted the state-grouping work in
-  the first place (see the long comment at `StatusMenu.swift:130`). Five states × however many
-  project sub-groups × however many sessions per group, plus up to 4 hidden ⌥ alternates per
-  session that don't add height but do add depth to the ⌥/⌥⇧/⌥⌘/⌥⌃ story nobody currently explains
-  anywhere in the menu itself.
-- **No affordance at all for the ⌥ alternates**, beyond a tooltip on hover, which is invisible
-  until you've already found the row and paused on it.
+**What this fixed, plainly, from the layout this replaced:**
+
+- **Run-on rows, no columns — fixed.** The old row was one string built by joining fields with
+  three literal spaces, which does not align under a proportional font: a 6-character project name
+  and an 18-character one pushed everything after them to a different horizontal position on every
+  row. Real `NSTextTab` stops fix this for any string, not just the common case.
+- **No visual weight hierarchy — fixed.** Project name, state, and load now carry three distinct
+  registers: 13pt semibold for project/state, 11pt regular for agent/note, 12pt monospaced-digit
+  for the numbers, at three different `NSColor` label levels. The thing that needs your attention
+  (`blocked 22 min`) is no longer typographically identical to the least important thing on the row.
+- **Section headers shouting, and a two-level hierarchy doing a three-level job — moot.** There is
+  one level of hierarchy left (the row itself), not three, because the two levels above it were
+  deleted rather than restyled.
+- **List length is unchanged in the worst case** — a machine with 13 sessions across five states
+  still shows up to 13 rows before the Basket/Local Servers/Settings block, because nothing
+  collapses. What changed is that each of those 13 rows now carries its own identity (project,
+  path, state, load) instead of relying on a header two scroll-positions above it to say which
+  group it belonged to.
+- **No affordance at all for the ⌥ alternates, unchanged.** Still nothing beyond the tooltip on the
+  session row itself — this was not part of the 2026-09-08 redesign and remains open, see §9.
+
+## 5a. The name and path — a confidence level, not just a label
+
+`Session.project` is derived exactly once, by `ProjectName.of(cwd:windowTitle:)`
+(`/Users/sxope/Documents/2026/Development/37.chute/Sources/ChuteCore/ProjectName.swift:54`): the
+git repository root's leaf name, then the `cwd`'s own leaf, then the terminal window-title head,
+then `nil`. **Never Terminal's window title first** — before 2026-09-08 the menu derived a
+session's name from the title (a string another process writes and the user can reconfigure) while
+a different surface derived it from the hook's `cwd`, so the same session could be named two
+different things in two places with nothing in the UI to notice. One derivation now, forwarded from
+both call sites.
+
+The row says which confidence level it got. Col 1's second line is always the path the name came
+from (`PathAbbrev.path`, middle-truncated — see `PathAbbrev.swift`'s own header for why a path
+truncates in the middle and a name truncates at the tail). When there is no `cwd` at all — the
+derivation fell back to a window-title guess, or found nothing — col 1 reads **dimmed**
+(`tertiaryLabelColor` instead of `labelColor`) and the path line reads `no project derived` instead
+of a fabricated-looking blank. **"No project derived" is a real, displayable answer, not an error
+state** — `Session.project` is `String?`, and `nil` is data, never a sentinel string like `"—"`
+(a directory can legitimately be named `—`, so a sentinel would make a real project indistinguishable
+from no project at all). Two sessions that share a git repository root — `/a/b/repo` and
+`/a/b/repo/site` — now print the identical project name, because they are the same project; before
+2026-09-08 they could print two different names depending on which surface asked.
 
 ---
 
@@ -242,10 +330,12 @@ Not solutions — these are the things any layout has to solve, stated as proble
   founder's own history here (§8) is that a number seen only when scanned is a number nobody
   scans for on a bad day.
 - **Three levels of hierarchy in a ~360pt-wide menu.** State group → project (sometimes) →
-  session. The current implementation only gets two visually distinct registers (uppercase
-  header, indented sub-header) to do a three-level job, and the third level (the session row
-  itself) has no visual distinction from the sub-header above it beyond a dot and one more indent
-  step.
+  session. **Resolved 2026-09-08 by deletion, not by a third register** — see §5 and §9: rather
+  than finding a third visual weight, the state and project header LEVELS were removed and their
+  information folded into the one level left (the row itself). Whether that is the right call for
+  every future addition to this menu, or whether some future grouping need brings a real header
+  back, is open — but "two registers doing a three-level job" is no longer the shape of the
+  problem, because there is only one level now.
 - **Never let unknown read as calm.** Whatever visual system replaces the current one has to carry
   this rule forward independent of colour choices — see §4's hard rules.
 
@@ -262,7 +352,9 @@ This is real, not negotiable by aesthetic preference:
     fix for the ragged-column problem in §5. This is the single highest-leverage lever available
     without new engineering risk.
   - `image` — any `NSImage` you can draw, per row (the dots are already this).
-  - `indentationLevel` — integer steps, used today for the two-level header/row structure.
+  - `indentationLevel` — integer steps. Every row sets it to 0 today: the two-level header/row
+    structure that used to need it is gone (§5), and `MenuNode.indent` is kept as a field only
+    because the renderer still assigns it unconditionally, at no branch cost.
   - separators, submenus (already used for Basket and Local Servers), and `isAlternate` rows
     behind modifier keys (already used for the ⌥ commands).
 - **Possible, but expensive: `NSMenuItem.view`.** A fully custom `NSView` per row buys total
@@ -310,92 +402,52 @@ non-negotiable unless you're explicitly re-opening that decision with the founde
 
 ---
 
-## 9. Three worked layout directions
+## 9. What was actually built, and what is still open
 
-None of these is the recommendation — they're starting points for a conversation between the
-founder and the designer. Widths below are the ~360pt reference width; ASCII columns are
-illustrative, not exact character counts.
+The three directions this section used to sketch were a conversation starter, written before any
+of them existed. §5 is no longer that conversation — it is what shipped. This section records which
+direction the founder actually took, how far past it the build went, and what §6-§8's own open
+questions still are, unresolved, today.
 
-### Direction A — "Fix the columns, keep the structure"
+### What shipped: past Direction A, not Direction B or C
 
-Keep today's flat-list, two-level structure (state header → session rows, project sub-headers only
-when they group something) exactly as is, and fix only the typography: real tab stops via
-`attributedTitle` so CPU/memory numbers land in a fixed right-hand column regardless of project
-name length, and a weight/colour step between "what needs your attention" (duration) and "cost"
-(CPU/memory) — duration in the label colour, CPU/memory in `tertiaryLabelColor`.
+The build is closest to the old **"Direction A — fix the columns, keep the structure."** Real tab
+stops via `attributedTitle` at measured stops (§3, §5) is exactly that lever, and it is still the
+only lever used — `NSMenuItem.view` (the old Direction C) was never adopted, and nothing here is a
+submenu-per-state rollup (the old Direction B).
 
-```
- NEEDS YOU                                                    2
- ● sntz_mockups  Claude Code · Opus 5 · xhigh   blocked 22 min
-                                     177% CPU · 3.0 GB · mostly claude ⚠
- ● 28.tallyapp   Codex · high                     blocked 4 min
-                                                    12% CPU · 640 MB
- ──────────────────────────────────────────────────────────────
- READY FOR A PROMPT                                            1
- ○ 37.chute      Claude Code · Sonnet 5             ready 3 min
-                                                     4% CPU · 210 MB
- ──────────────────────────────────────────────────────────────
- WORKING                                                        3
-   sntz_mockups
- ◐  Claude Code · Opus 5              working 1 min · 40% · 1.1 GB
- ◐  Claude Code                       working 8 min · 88% · 2.4 GB
-   28.tallyapp
- ◐  Codex · high                      working 12 min · 5% · 300 MB
-```
+**But the structure was not "kept."** Direction A's own sketch still showed `NEEDS YOU` and
+per-project sub-headers; what shipped deleted both (§5, §5's "COLUMNS, NOT HEADERS" citation). That
+was not the cheap, structure-preserving path Direction A described — it was the harder call that
+the columns alone made the headers redundant, and the founder took it rather than stopping at
+typography. Direction B's core idea (collapse what you don't need to look at right now) was
+rejected outright: nothing in the shipped menu is collapsed or hidden behind a submenu-click,
+because ordering by state and putting the dot + duration on every row already answers "which one
+needs me" without a click, which is the one job this whole menu exists to do (§1). Direction C's
+custom-view cost was never worth paying — the shipped design gets a real two-line, three-column row
+entirely out of `NSMenuItem.attributedTitle`, at the accessibility and testability cost of exactly
+zero, which is what made it the version that actually got built.
 
-**Cost:** none beyond §7's "available today" lever. Same `NSMenuItem` rows, same accessibility
-behaviour, same testability — `attributedTitle` is a value the model layer can still hand the
-renderer as plain strings plus formatting rules the renderer applies mechanically. This is the
-cheapest direction and the lowest-risk one to ship.
+### Still open — not settled by this redesign
 
-### Direction B — "Collapse to the state, expand on demand"
-
-Show only state headers and a one-line-per-state rollup by default (`NEEDS YOU — sntz_mockups,
-28.tallyapp`), each opening a submenu of that state's full session rows rather than listing every
-session flat in the top-level menu. Nothing needing you is ever more than one click deep; sessions
-you don't currently need to think about (idle, working-and-fine) stay collapsed by default.
-
-```
- ▸ NEEDS YOU (2)            sntz_mockups, 28.tallyapp
- ▸ READY FOR A PROMPT (1)   37.chute
- ▸ WORKING (3)              sntz_mockups (×2), 28.tallyapp
- ▸ NO AGENT (4)
- ▸ NO STATUS — HOOKS NOT REPORTING (1)
- ──────────────────────────────────────
- Basket (3)
- Local Servers (2)
-```
-
-**Cost:** still all standard `NSMenuItem` + submenu — no `NSMenuItem.view` needed. The real cost
-is behavioural, not visual: this trades "one glance sees everything" for "one glance sees counts,
-one click sees detail," which is a genuine product decision (does the founder want to see the
-CPU/memory numbers without opening a submenu, e.g. to catch a runaway session at a glance?) — not
-just a layout question. Also loses the "blocked sits at the top, unmissable" property that ordering
-by state currently gives for free, unless NEEDS YOU is always pre-expanded.
-
-### Direction C — "Custom row, real hierarchy"
-
-A genuinely two-line, two-weight row per session via `NSMenuItem.view`: a bold line for state +
-duration + project, a lighter second line for agent/model/CPU/memory, with the state dot as a
-real inline glyph rather than a menu-item image, and a proper distinct visual treatment for
-project sub-headers vs. state headers (e.g. a filled rounded chip for state, small-caps grey text
-for project).
-
-```
-┌──────────────────────────────────────────────┐
-│ ● sntz_mockups                  blocked 22 min│
-│   Claude Code · Opus 5 · xhigh                │
-│   177% CPU · 3.0 GB memory · mostly claude  ⚠ │
-├──────────────────────────────────────────────┤
-│ ○ 37.chute                        ready 3 min │
-│   Claude Code · Sonnet 5 · 4% CPU · 210 MB    │
-└──────────────────────────────────────────────┘
-```
-
-**Cost:** the most expensive direction by far. Needs `NSMenuItem.view` per session row (§7) —
-VoiceOver labels, keyboard highlight state, and Increase Contrast/Reduce Transparency response all
-become code this project has to write and maintain by hand instead of getting from AppKit for
-free, and that code lands in exactly the target (`ChuteApp`) the test suite cannot link, against
-an untested-decision-point budget that is currently near zero for new branches. This direction
-should not be picked without the founder explicitly accepting that trade — it is real ongoing
-engineering cost, not a one-time design cost.
+- **No affordance for the ⌥ alternates**, beyond a tooltip on hover. Named as a gap before
+  2026-09-08 (§5's last bullet) and unchanged by it — the redesign touched what a row shows, not
+  how the ⌥/⌥⇧/⌥⌘/⌥⌃ commands are discovered.
+- **The icon-level idle-vs-unknown gap is still real.** `MenuBarMark.pips`
+  (`/Users/sxope/Documents/2026/Development/37.chute/Sources/ChuteCore/MenuBarMark.swift:109-113`)
+  carries pips for `blocked`/`waiting`/`working` only — idle and unknown both draw the plain quiet
+  mark, identically, at the menu-bar icon. Inside the dropdown the row dot tells them apart (§4);
+  the icon still cannot. This was flagged as an open question before the redesign and the redesign
+  did not touch `MenuBarMark` at all, so it is exactly as open as it was.
+- **`NSMenu.size`'s alternate-item double-count, unconfirmed.** `docs/specs/MENUBAR-LAYOUT-CALIBRATION.md`'s
+  own last section says `NSMenu.size` sums a two-line row plus its hidden `isAlternate` alternate as
+  if both are visible (88pt vs 49pt for the row alone), and asks for someone to confirm by holding
+  ⌥ with the menu open that it doesn't visibly grow. That confirmation is not recorded anywhere as
+  having happened. Do it before trusting menu height math for anything new.
+- **`mostly X` is gone from the menu row, though not from the product.** The old row said which
+  single process held most of a session's memory; `StatusMenu.loadColumns` (§3) only returns CPU,
+  memory, and one of a runaway warning or a peak note — `SessionLoad.top` is no longer read there.
+  `SessionLoad.label` still produces `mostly X` for `chute sessions`
+  (`/Users/sxope/Documents/2026/Development/37.chute/Sources/chute/Commands/SessionCommands.swift:82`),
+  so the two surfaces now disagree on how much a row says about load. Whether the menu should show
+  it too was not evaluated as part of this brief.

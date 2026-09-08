@@ -27,9 +27,23 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 # Where the app actually is — the same chooser install.sh uses, for the same reason.
 INSTALLED=""
+FOUND=()
 for d in "/Applications/Chute.app" "$HOME/Applications/Chute.app"; do
-  [ -d "$d" ] && INSTALLED="$d" && break
+  [ -d "$d" ] && FOUND+=("$d")
 done
+[ "${#FOUND[@]}" -gt 0 ] && INSTALLED="${FOUND[0]}"
+
+# TWO COPIES IS TWO MENU BAR ICONS, and this script would quietly keep only the first one
+# current while the stale one kept launching beside it. It happened on 2026-09-08: an
+# uninstall-then-install test relocated the app to ~/Applications — the exact hazard
+# Scripts/install.sh's own header documents — and the founder ended up with two parachutes in
+# the menu bar and no indication which was which. Say so loudly; do not pick one silently.
+if [ "${#FOUND[@]}" -gt 1 ]; then
+  echo "reinstall-if-stale: TWO installs — ${FOUND[*]}" >&2
+  echo "  Two copies means two menu bar icons. Quit both, delete the one you do not want," >&2
+  echo "  then re-run with CHUTE_APP_DIR set to the folder you keep." >&2
+  exit 1
+fi
 [ -n "$INSTALLED" ] || { echo "reinstall-if-stale: Chute is not installed — nothing to keep current"; exit 0; }
 
 HEAD_SHORT="$(git -C "$ROOT" rev-parse --short HEAD 2>/dev/null || echo unknown)"

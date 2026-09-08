@@ -86,7 +86,14 @@ xattr -dr com.apple.provenance "$APP_DIR/Chute.app" 2>/dev/null || true
 /System/Library/CoreServices/pbs -flush 2>/dev/null || true
 pluginkit -a "$APP_DIR/Chute.app/Contents/PlugIns/ChuteFinder.appex" 2>/dev/null || true
 
-pkill -x ChuteApp 2>/dev/null || true
+# SCOPED TO $APP_DIR, NOT `pkill -x ChuteApp`. Verified on 2026-09-08 while testing this very
+# script: a CHUTE_APP_DIR=<scratch dir> run — meant to touch nothing outside that scratch dir —
+# killed the founder's real, RUNNING /Applications/Chute.app, because `pkill -x` matches by
+# process name only and every copy of Chute is named the same thing. The sandbox var this script
+# already trusts (line 34) for where to WRITE was not being honoured for what to KILL. Matching
+# the full path of the copy this run is about to replace, instead of the bare name, means a copy
+# running from anywhere else — the very thing CHUTE_APP_DIR is for — is left alone.
+pkill -f "^$APP_DIR/Chute.app/Contents/MacOS/ChuteApp" 2>/dev/null || true
 # LaunchServices returns -600 if the old process has not finished dying yet. One retry covers it.
 sleep 1
 open "$APP_DIR/Chute.app" 2>/dev/null || { sleep 2; open "$APP_DIR/Chute.app"; }
@@ -125,7 +132,7 @@ if ! wait_for_extension; then
   #   4. restart Finder so it picks the new one up
   osascript -e "tell application \"Finder\" to delete POSIX file \"$CONTAINER\"" >/dev/null 2>&1 || true
   pluginkit -r "$APP_DIR/Chute.app/Contents/PlugIns/ChuteFinder.appex" 2>/dev/null || true
-  pkill -x ChuteApp 2>/dev/null || true
+  pkill -f "^$APP_DIR/Chute.app/Contents/MacOS/ChuteApp" 2>/dev/null || true  # scoped — see above
   sleep 1
   open "$APP_DIR/Chute.app"
   sleep 2

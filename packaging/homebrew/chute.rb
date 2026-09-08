@@ -3,11 +3,18 @@ class Chute < Formula
   homepage "https://chutedev.com"
   # VERSION comes from Sources/ChuteCore/Version.swift — the one place it lives. Bump both
   # together: tag the release, then update this line to match.
-  version "0.2.0"
+  #
+  # STALE UNTIL SOMEONE PUBLISHES IT. Found 2026-09-08 during install-path verification: the
+  # LIVE tap (avaluev/homebrew-tap, `brew info avaluev/tap/chute`) was still serving 0.2.0 while
+  # this file — and the actual v0.2.1 GitHub release — had moved on. `brew install
+  # avaluev/tap/chute` still works (that flag on the site is not a lie), it just hands out an
+  # old CLI until packaging/homebrew/README.md's steps 4-6 are run against the tap repo, which
+  # this file cannot do by itself — it is a copy, not the tap.
+  version "0.2.1"
   url "https://github.com/avaluev/chute/archive/refs/tags/v#{version}.tar.gz"
   # Recompute on every version bump:
-  #   curl -L https://github.com/avaluev/chute/archive/refs/tags/v0.2.0.tar.gz | shasum -a 256
-  sha256 "e7c3ea3aec0357b8864c0389a14c99fa07126495a789b0179e1dd180fb280208"
+  #   curl -L https://github.com/avaluev/chute/archive/refs/tags/v0.2.1.tar.gz | shasum -a 256
+  sha256 "0316367e876c8b9672023a2d1481dd282c75368f5b220421b8d56a5b3d21c102"
   license "MIT"
 
   # macOS 13 is the floor declared in Package.swift. The version form ALONE — no bare
