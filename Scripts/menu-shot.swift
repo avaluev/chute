@@ -32,58 +32,168 @@ func shotNote(_ path: String, _ m: String) {
     h.seekToEndOfFile(); h.write(Data((m + "\n").utf8)); h.closeFile()
 }
 
-func shotCast(_ now: Date) -> [Session] {
-    func s(_ tty: String, _ cwd: String?, _ agent: String?, _ state: SessionState,
-           _ minutes: Double, _ title: String) -> Session {
-        Session(key: "Terminal:1:\(tty)", kind: .terminalApp, windowID: 1, tabIndex: 1,
-                // The fixture paths do not exist on this disk, so the REAL git probe would
-                // answer nil and every row would fall back to its folder leaf. Injecting the
-                // answer a real repo would give is what `resolve`'s probe parameter is for —
-                // and it is the whole point of the shot: both 37.sntz sessions, one of them in
-                // a subdirectory, must print the SAME project name.
-                tty: tty, project: ProjectName.resolve(cwd: cwd, windowTitle: title,
-                                                       gitRoot: { c in
-                    ["/Users/sxope/Dev/37.sntz": "/Users/sxope/Dev/37.sntz",
-                     "/Users/sxope/Dev/37.sntz/site": "/Users/sxope/Dev/37.sntz",
-                     "/Users/sxope/Dev/28.tallyapp": "/Users/sxope/Dev/28.tallyapp",
-                     "/Users/sxope/Dev/37.chute": "/Users/sxope/Dev/37.chute",
-                     "/Users/sxope/Dev/studylock": "/Users/sxope/Dev/studylock",
-                     "/Users/sxope/Dev/38.LifespanOS": "/Users/sxope/Dev/38.LifespanOS"][c]
-                }),
-                title: title, agent: agent, busy: state == .working, state: state,
-                since: now.addingTimeInterval(-60 * minutes),
-                sessionID: agent == nil ? nil : tty, cwd: cwd)
+/// THE CASTS. One per scenario worth looking at, because a screenshot of the everyday case
+/// proves only that the everyday case works. Each is a claim about how the menu behaves when
+/// something is unusual, and each renders through the REAL model and renderer.
+///
+/// Nothing here reads the founder's machine. These are fixtures — the harness must never
+/// photograph real sessions, because a screenshot of a real menu carries real project names and
+/// real paths into a marketing asset.
+struct ShotRow {
+    let tty: String, cwd: String?, agent: String?, state: SessionState
+    let minutes: Double, title: String, detail: String
+    let cpu: Double, bytes: UInt64, peak: UInt64
+}
+
+func shotRows(_ name: String) -> [ShotRow] {
+    // UNDER THE REAL HOME. PathAbbrev folds `$HOME` to `~`, so a fixture rooted at a made-up
+    // /Users/x never exercises that rule — the first render of these cases showed
+    // `/Users/x/…/37.chute/site` where the product would show `~/Documents/…/37.chute/site`,
+    // and one row collapsed to `/…/site`, losing the component that identifies it. The project
+    // NAMES below are still invented; only the root is real, so no actual work leaks into a
+    // marketing asset.
+    let H = Home.path
+    switch name {
+    // ── THE EVERYDAY CASE ───────────────────────────────────────────────────────────────────
+    case "mixed": return [
+        ShotRow(tty: "ttys001", cwd: H + "/Dev/37.sntz", agent: "claude", state: .blocked,
+                minutes: 22, title: "sntz", detail: "Claude Code · Opus 5 · xhigh",
+                cpu: 177, bytes: 3_221_225_472, peak: 0),
+        ShotRow(tty: "ttys002", cwd: H + "/Dev/28.tallyapp", agent: "codex", state: .blocked,
+                minutes: 4, title: "tally", detail: "Codex · high",
+                cpu: 12, bytes: 671_088_640, peak: 0),
+        ShotRow(tty: "ttys003", cwd: H + "/Dev/37.chute", agent: "claude", state: .waiting,
+                minutes: 3, title: "chute", detail: "Claude Code · Sonnet 5",
+                cpu: 4, bytes: 220_200_960, peak: 0),
+        ShotRow(tty: "ttys004", cwd: H + "/Dev/studylock", agent: "claude", state: .waiting,
+                minutes: 12, title: "studylock", detail: "Claude Code · Opus 5 · high",
+                cpu: 1, bytes: 661_651_456, peak: 0),
+        ShotRow(tty: "ttys005", cwd: H + "/Dev/37.sntz", agent: "claude", state: .working,
+                minutes: 1, title: "sntz", detail: "Claude Code · Opus 5",
+                cpu: 40, bytes: 1_181_116_006, peak: 0),
+        ShotRow(tty: "ttys006", cwd: H + "/Dev/37.sntz/site", agent: "claude", state: .working,
+                minutes: 8, title: "sntz", detail: "Claude Code · Opus 5 · high",
+                cpu: 88, bytes: 2_576_980_378, peak: 6_549_723_444),
+        ShotRow(tty: "ttys007", cwd: H + "/Dev/38.LifespanOS", agent: "agy", state: .unknown,
+                minutes: 0, title: "lifespan", detail: "Antigravity",
+                cpu: 0, bytes: 230_686_720, peak: 0),
+    ]
+
+    // ── NOTHING NEEDS YOU. The state the product is trying to get you to. ───────────────────
+    case "allclear": return [
+        ShotRow(tty: "ttys001", cwd: H + "/Dev/37.chute", agent: "claude", state: .waiting,
+                minutes: 2, title: "chute", detail: "Claude Code · Sonnet 5",
+                cpu: 1, bytes: 210_000_000, peak: 0),
+        ShotRow(tty: "ttys002", cwd: H + "/Dev/studylock", agent: "claude", state: .waiting,
+                minutes: 9, title: "studylock", detail: "Claude Code · Opus 5",
+                cpu: 1, bytes: 380_000_000, peak: 0),
+        ShotRow(tty: "ttys003", cwd: H + "/Dev/api-gateway", agent: "codex", state: .waiting,
+                minutes: 31, title: "api", detail: "Codex",
+                cpu: 0, bytes: 190_000_000, peak: 0),
+    ]
+
+    // ── THE 3AM CASE. Two cores pinned and nine gigabytes, on a machine gone slow. ──────────
+    case "runaway": return [
+        ShotRow(tty: "ttys001", cwd: H + "/Dev/37.sntz", agent: "claude", state: .working,
+                minutes: 47, title: "sntz", detail: "Claude Code · Opus 5 · xhigh",
+                cpu: 312, bytes: 9_663_676_416, peak: 10_200_547_328),
+        ShotRow(tty: "ttys002", cwd: H + "/Dev/37.chute", agent: "claude", state: .blocked,
+                minutes: 63, title: "chute", detail: "Claude Code · Opus 5",
+                cpu: 2, bytes: 410_000_000, peak: 0),
+        ShotRow(tty: "ttys003", cwd: H + "/Dev/studylock", agent: nil, state: .idle,
+                minutes: 0, title: "studylock", detail: "no agent running",
+                cpu: 0, bytes: 4_194_304, peak: 0),
+    ]
+
+    // ── AN UNINSTRUMENTED MACHINE. No hooks anywhere: it must read blind, never calm. ───────
+    case "nohooks": return [
+        ShotRow(tty: "ttys001", cwd: H + "/Dev/37.sntz", agent: "agy", state: .unknown,
+                minutes: 0, title: "sntz", detail: "Antigravity",
+                cpu: 6, bytes: 166_000_000, peak: 0),
+        ShotRow(tty: "ttys002", cwd: H + "/Dev/38.LifespanOS", agent: "agy", state: .unknown,
+                minutes: 0, title: "lifespan", detail: "Antigravity",
+                cpu: 0, bytes: 220_000_000, peak: 0),
+        ShotRow(tty: "ttys003", cwd: H + "/Dev/api-gateway", agent: "claude", state: .unknown,
+                minutes: 0, title: "api", detail: "Claude Code",
+                cpu: 1, bytes: 621_000_000, peak: 0),
+        ShotRow(tty: "ttys004", cwd: nil, agent: nil, state: .idle,
+                minutes: 0, title: "tty s004", detail: "no agent running",
+                cpu: 0, bytes: 4_194_304, peak: 0),
+    ]
+
+    // ── THE HOSTILE NAMES. Every truncation rule, in one list. ─────────────────────────────
+    case "truncation": return [
+        ShotRow(tty: "ttys001", cwd: H + "/Documents/2026/Development/37.chute/site",
+                agent: "claude", state: .blocked, minutes: 9,
+                title: "deep", detail: "Claude Code · Opus 5",
+                cpu: 22, bytes: 900_000_000, peak: 0),
+        ShotRow(tty: "ttys002", cwd: "/Volumes/Work/clients/norse/api-gateway",
+                agent: "claude", state: .working, minutes: 3,
+                title: "volume", detail: "Claude Code · Sonnet 5",
+                cpu: 8, bytes: 310_000_000, peak: 0),
+        ShotRow(tty: "ttys003", cwd: H + "/Clients/Client Work/Norse Bank",
+                agent: "codex", state: .working, minutes: 15,
+                title: "spaces", detail: "Codex · high",
+                cpu: 14, bytes: 540_000_000, peak: 0),
+        ShotRow(tty: "ttys004", cwd: H + "/Dev/a-very-long-project-directory-name/site",
+                agent: "claude", state: .waiting, minutes: 1,
+                title: "long", detail: "Claude Code · Opus 5 · high",
+                cpu: 3, bytes: 150_000_000, peak: 0),
+        ShotRow(tty: "ttys005", cwd: nil, agent: "agy", state: .unknown,
+                minutes: 0, title: "tty s005", detail: "Antigravity",
+                cpu: 0, bytes: 145_000_000, peak: 0),
+    ]
+
+    default: return []
     }
-    return [
-        s("ttys001", "/Users/sxope/Dev/37.sntz",       "claude", .blocked, 22, "sntz_mockups"),
-        s("ttys002", "/Users/sxope/Dev/28.tallyapp",   "codex",  .blocked,  4, "28.tallyapp"),
-        s("ttys003", "/Users/sxope/Dev/37.chute",      "claude", .waiting,  3, "37.chute"),
-        s("ttys004", "/Users/sxope/Dev/studylock",     "claude", .waiting, 12, "studylock"),
-        s("ttys005", "/Users/sxope/Dev/37.sntz",       "claude", .working,  1, "sntz_mockups"),
-        s("ttys006", "/Users/sxope/Dev/37.sntz/site",  "claude", .working,  8, "sntz_mockups"),
-        s("ttys007", "/Users/sxope/Dev/38.LifespanOS", "agy",    .unknown,  0, "38.LifespanOS"),
-        s("ttys008", nil,                              "agy",    .unknown,  0, "tty s004"),
-    ]
 }
 
-func shotLoad(_ tty: String) -> SessionLoad {
-    let t: [String: (Double, UInt64, UInt64)] = [
-        "ttys001": (177, 3_221_225_472, 0),
-        "ttys002": (12,    671_088_640, 0),
-        "ttys003": (4,     220_200_960, 0),
-        "ttys004": (1,     661_651_456, 0),
-        "ttys005": (40,  1_181_116_006, 0),
-        "ttys006": (88,  2_576_980_378, 6_549_723_444),
-        "ttys007": (0,     230_686_720, 0),
-        "ttys008": (0,     152_043_520, 0),
-    ]
-    let v = t[tty] ?? (0, 0, 0)
-    return SessionLoad(cpuPercent: v.0, residentBytes: v.1, processes: v.1 > 0 ? 1 : 0,
-                       top: nil, peakBytes: v.2)
+func shotCast(_ name: String, _ now: Date, _ gitRoots: [String: String]) -> [Session] {
+    shotRows(name).map { r in
+        Session(key: "Terminal:1:\(r.tty)", kind: .terminalApp, windowID: 1, tabIndex: 1,
+                tty: r.tty,
+                // The real derivation, with the git answer injected: these fixture paths do not
+                // exist on any disk, so the live probe would answer nil and every row would fall
+                // back to its folder leaf — hiding the very behaviour the shot is meant to show.
+                project: ProjectName.resolve(cwd: r.cwd, windowTitle: r.title,
+                                             gitRoot: { gitRoots[$0] }),
+                title: r.title, agent: r.agent, busy: r.state == .working, state: r.state,
+                since: now.addingTimeInterval(-60 * r.minutes),
+                sessionID: r.agent == nil ? nil : r.tty, cwd: r.cwd)
+    }
 }
 
-/// Capture a real WINDOW — CGWindowListCreateImage photographs what is actually composited, so
-/// it picks up the layer-backed NSTextFields that `cacheDisplay(in:to:)` renders as blank. That
+func shotLoad(_ name: String) -> (String) -> SessionLoad {
+    let rows = shotRows(name)
+    return { tty in
+        guard let r = rows.first(where: { $0.tty == tty }) else {
+            return SessionLoad(cpuPercent: 0, residentBytes: 0, processes: 0)
+        }
+        return SessionLoad(cpuPercent: r.cpu, residentBytes: r.bytes,
+                           processes: r.bytes > 0 ? 1 : 0, top: nil, peakBytes: r.peak)
+    }
+}
+
+/// Git roots for the fixture paths, so a subdirectory names its repo the way it would in life.
+/// These paths exist on no disk, so the LIVE probe would answer nil and every row would fall back
+/// to its folder leaf — hiding the behaviour the shot exists to show.
+func shotGitRoots(_ name: String) -> [String: String] {
+    var out: [String: String] = [:]
+    for r in shotRows(name) {
+        guard let cwd = r.cwd else { continue }
+        let parts = cwd.components(separatedBy: "/")
+        if let i = parts.firstIndex(where: { $0 == "Dev" || $0 == "Development" || $0 == "clients" }),
+           i + 1 < parts.count {
+            out[cwd] = parts[0...(i + 1)].joined(separator: "/")
+        } else {
+            out[cwd] = cwd
+        }
+    }
+    return out
+}
+
+/// Capture a real WINDOW. CGWindowListCreateImage photographs what is actually composited, so it
+/// picks up the layer-backed NSTextFields that `cacheDisplay(in:to:)` renders as blank — that
 /// difference cost a cycle: the first attempt produced a page with the link rows and nothing else.
 func shotWindow(_ w: NSWindow?, to path: String) {
     guard let w else { exit(2) }
@@ -142,17 +252,15 @@ if let shotIdx = shotArgv.firstIndex(of: "--menu-shot"), shotIdx + 1 < shotArgv.
     let shotPath = shotArgv[shotIdx + 1]
     let log = shotPath + ".log"
     shotNote(log, "harness entered")
+    let caseName = shotArgv.firstIndex(of: "--case").map { shotArgv[$0 + 1] } ?? "mixed"
     let now = Date()
     let shotMenu = NSMenu()
     shotMenu.autoenablesItems = false
-    let detail: [String: String] = [
-        "ttys001": "Claude Code · Opus 5 · xhigh", "ttys002": "Codex · high",
-        "ttys003": "Claude Code · Sonnet 5",       "ttys004": "Claude Code · Opus 5 · high",
-        "ttys005": "Claude Code · Opus 5",         "ttys006": "Claude Code · Opus 5 · high",
-        "ttys007": "Antigravity",                  "ttys008": "Antigravity",
-    ]
-    let shotModel = StatusMenu.model(sessions: shotCast(now), now: now,
-                                     loadFor: shotLoad,
+    var detail: [String: String] = [:]
+    for r in shotRows(caseName) { detail[r.tty] = r.detail }
+    let shotModel = StatusMenu.model(sessions: shotCast(caseName, now, shotGitRoots(caseName)),
+                                     now: now,
+                                     loadFor: shotLoad(caseName),
                                      sessionCommands: { _ in [] },
                                      detailFor: { detail[$0.tty] ?? "" })
     SessionMenu.render(shotModel, into: shotMenu, target: delegate, selector: { _ in nil },
@@ -162,7 +270,7 @@ if let shotIdx = shotArgv.firstIndex(of: "--menu-shot"), shotIdx + 1 < shotArgv.
                            it.submenu = NSMenu()
                            m.addItem(it)
                        })
-    shotNote(log, "rendered \(shotMenu.numberOfItems) items; menu size \(shotMenu.size)")
+    shotNote(log, "case \(caseName): \(shotMenu.numberOfItems) items, \(shotMenu.size)")
 
     // popUp is modal, so the capture runs off a timer in .common modes — which includes
     // NSEventTrackingRunLoopMode, the mode a menu tracks in.

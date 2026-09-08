@@ -61,6 +61,15 @@ public enum PathAbbrev {
         return String(s.prefix(headCount)) + "…" + String(s.suffix(tailCount))
     }
 
+    /// How much of a component has to survive for keeping it to beat dropping it.
+    ///
+    /// Below this, a middle-truncated component is noise wearing a name's shape — `a…y` tells the
+    /// reader less than the honest `…` that replaces a dropped component, and it costs the same
+    /// row width. Eight is the shortest prefix+suffix pair that still reads as a word rather than
+    /// as debris; it is a judgement, and the two reference outputs in mockup 4b sit either side
+    /// of it, which is the only evidence available for where the line goes.
+    public static let recognisable = 8
+
     // MARK: - path's ladder
 
     /// **The conflict, and the founder's ruling.** Mockup 4b's rule 2 said "always keep the root
@@ -124,6 +133,36 @@ public enum PathAbbrev {
         }
         let twoTail = render(root: root, leadingSlash: leadingSlash, parts: kept + ["…"] + lastTwo)
         if twoTail.count <= budget { return twoTail }
+
+        // Rung 2b — THE COMPONENT IS TOO LONG, not merely one component too many.
+        //
+        // Mockup 4b's rule 5 says a single over-long component is middle-truncated INSIDE itself:
+        // `~/…/a-very-lo…-directory/site`. Rung 3 below drops that component whole instead, which
+        // is right when the component is `b` and wrong when it is the only thing identifying the
+        // project — the first render of the truncation screenshot produced `~/…/site`, which
+        // names nothing at all. Rule 5 had never actually been implemented: the only test for it
+        // used a path that was ONE component, so the middle case had no coverage.
+        //
+        // Both of the founder's reference outputs survive because this rung is CONDITIONAL. It
+        // fires only when the shortened component would still be recognisable, so:
+        //   · `/Volumes/Work/a/b/api-gateway` — the second-to-last is `b`, there is no room to
+        //     truncate it to anything readable, so this rung declines and rung 3 drops it, giving
+        //     `/Volumes/Work/…/api-gateway`.
+        //   · `~/Dev/a-very-long-project-directory/site` — 19 characters of a 29-character name
+        //     is plainly still that name, so it is kept, truncated, and the row identifies itself.
+        if components.count >= 2 {
+            let secondToLast = components[components.count - 2]
+            // Cost of everything except that component, measured rather than derived: a
+            // one-character placeholder stands in for it and is subtracted back out.
+            let scaffold = render(root: root, leadingSlash: leadingSlash,
+                                  parts: kept + ["…"] + ["\u{1}", last])
+            let room = budget - (scaffold.count - 1)
+            if room >= recognisable, room < secondToLast.count {
+                let candidate = render(root: root, leadingSlash: leadingSlash,
+                                       parts: kept + ["…"] + [middle(secondToLast, to: room), last])
+                if candidate.count <= budget { return candidate }
+            }
+        }
 
         // Rung 3 — drop the second-to-last component whole.
         let oneTail = render(root: root, leadingSlash: leadingSlash, parts: ["…", last])

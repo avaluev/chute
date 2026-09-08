@@ -1,0 +1,10 @@
+0 0 README.md
+0 0 site/src/app/building-with-agents/page.tsx
+1 999 site/src/app/cases/page.tsx
+1 75 site/src/app/changelog/page.tsx
+3 166 site/src/app/cli/page.tsx
+10 999 site/src/app/docs/page.tsx
+2 150 site/src/app/page.tsx
+0 100 site/src/app/privacy/page.tsx
+0 0 site/src/app/support/page.tsx
+0 200 site/src/app/terms/page.tsx

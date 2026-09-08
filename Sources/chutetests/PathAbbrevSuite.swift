@@ -44,6 +44,28 @@ func pathAbbrevSuite() {
         // ── ONE ENORMOUS COMPONENT, nothing else — the plan's own worked middle() example ──
         T.eq(PathAbbrev.middle("a-very-long-directory", to: 20), "a-very-lo…-directory",
              "head=(n-1)/2, tail=n-1-head — the tail gets the odd character")
+        // ── RULE 5, THE CASE THAT HAD NO TEST ───────────────────────────────────────────
+        // A long component in the MIDDLE of a path, which is where it actually happens. The
+        // only coverage rule 5 had used a path that was one component, so the ladder dropped
+        // the component whole and nothing noticed — the truncation screenshot rendered
+        // `~/…/site`, a row naming nothing. Both of the founder's reference outputs are here
+        // because they pull in OPPOSITE directions and the rung has to satisfy both.
+        T.eq(PathAbbrev.path(home + "/Dev/a-very-long-project-directory/site",
+                             budget: 28, home: home),
+             "~/…/a-very-lo…directory/site",
+             "a long component is truncated INSIDE itself, never dropped — it is the only thing "
+             + "on the row that identifies the project")
+        T.eq(PathAbbrev.path("/Volumes/Work/a/b/api-gateway", budget: 28, home: home),
+             "/Volumes/Work/…/api-gateway",
+             "but a component with no room to stay readable is dropped whole instead of mangled")
+        T.no(PathAbbrev.path(home + "/Dev/a-very-long-project-directory/site",
+                             budget: 28, home: home) == "~/…/site",
+             "and the identifying component never vanishes entirely")
+
+        // The threshold itself: below it, keeping a shard of a name is worse than an honest `…`.
+        T.ok(PathAbbrev.recognisable >= 4,
+             "a kept fragment has to read as a word, not as debris")
+
         T.eq(PathAbbrev.path("a-very-long-directory", budget: 20), "a-very-lo…-directory",
              "a single component with nothing above it goes straight to middle()")
 

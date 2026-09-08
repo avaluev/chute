@@ -1,14 +1,95 @@
 # Chute
 
-**Drop context into your agent.**
+**The Finder right-click menu and the menu bar, for people who run coding agents all day.**
 
-A macOS utility for people who spend all day driving coding agents. It turns a Finder selection
-into agent-ready context, and turns agent output back into files.
+Two surfaces. Right-click a Finder selection to put it on the agent's clipboard as agent-ready
+context — files, paths, a folder tree. Watch the menu bar for which of your terminal sessions is
+blocked or waiting on you, and see every local server without hunting for what is holding port
+3000.
 
-Offline. Zero telemetry. No account. No launch daemon, no background service, and not one line
-of network code.
+Offline. Zero telemetry. No account. No launch daemon, no background service, and no network code
+beyond one command, `gist`, that uploads only when you run it yourself.
 
 ![Copy files and contents from Finder, with a token count](marketing/media/bundle.gif)
+
+---
+
+## The Finder menu
+
+Right-click a selection and the actions sit inline in the context menu — no `Chute ▸` submenu to
+open first. Five rows, nine actions:
+
+- **Copy Files as Context** — every file's contents in one blob (XML or Markdown), with a token
+  count, ready to paste at an agent.
+- **Copy Full Paths** — clean absolute paths for a prompt.
+- **Copy Folder Tree** — the directory's skeleton, junk excluded, one to all levels deep.
+- **Add to Context Basket** — collect files across several folders over several minutes, then
+  hand the whole set over once.
+- **New File** — a blank Markdown file, or one built from what's on the clipboard, named from its
+  own `# heading`.
+
+The Finder menu is a sandboxed `FIFinderSync` extension inside the app. `install.sh` registers and
+enables it for you; if it ever goes missing, tick it in System Settings → Privacy & Security →
+Extensions → Finder → ☑ Chute, or run `pluginkit -e use -i dev.valuev.chute.finder`.
+
+---
+
+## The menu bar
+
+![The menu bar drop-down: project, path, state and load in three columns](site/public/media/screens/menu.png)
+
+Click the 🪂 for the list of every terminal running an agent: project name and the path it was
+derived from, its state and how long it's held it, its load — a dot whose shape carries the state
+(filled square = blocked, filled circle = ready, ring = working), never a colour keyed to the
+project. Click a row to bring that terminal forward, or use the `⌥⌘N` hotkey from anywhere.
+
+The badge needs hooks to be interesting, and wiring them is your call, made by your hand. Without
+them, a session reads `unknown` — "no hook, Chute cannot see this" — never a guessed state, and the
+badge stays dark either way, since a pip only lights for a live hook saying `blocked`, `waiting` or
+`working` (`Sources/ChuteCore/StateResolver.swift`, `Sources/ChuteCore/MenuBarMark.swift`). With
+hooks wired, Claude Code reports `blocked` (a permission prompt) and `waiting` (your turn) as they
+happen. Only live terminals count toward the badge: a hook record from a window you have since
+closed is ignored, so the number never inflates behind your back.
+
+**Chute never writes to `~/.claude/settings.json` — or to any other tool's configuration.** Your
+agent setup is fragile and it is yours; no menu-bar utility should be editing it, however
+carefully. It prints the hook snippet, and the whole settings file it would produce, on STDOUT —
+you paste it. Wiring steps live in the app's Settings → General tab, and in the terminal section
+near the bottom of this page.
+
+### What is running locally
+
+The menu bar lists every local server, so you never again hunt for which of six terminals holds
+port 3000:
+
+```
+Local servers (8)
+  :3000 · next · studylock       ▸ Open in Browser · Copy the URL · Stop It (kill 55868)
+  :5432 · postgres
+```
+
+Each row names the port, what the process actually is, and the project folder it is running in,
+and says whether it is reachable from your whole network or only from this Mac. macOS's own
+background listeners (AirPlay on 7000, `rapportd` on a random high port) are left out — they are
+never what the question "what is running?" means.
+
+---
+
+## Install
+
+```bash
+./Scripts/install.sh
+```
+
+Installs `~/Applications/Chute.app` (menu bar 🪂, hotkey `⌥⌘N`) and registers the Finder
+extension. Remove it completely at any time:
+
+```bash
+./Scripts/uninstall.sh
+```
+
+Prefer a terminal to a right-click? The same engine installs on its own — see
+[The command-line tool](#the-command-line-tool) near the bottom of this page.
 
 ---
 
@@ -33,154 +114,6 @@ Two honest notes, because they are the first things a sceptic asks. **These are 
 person's workflow**, not a study. And the free MIT CLI carries another 75.3 min/day of its own —
 the 156.0 total is real and it is not a number to wave at a buyer, because two thirds of it costs
 nothing.
-
----
-
-## Install
-
-The free, MIT command-line tool:
-
-```bash
-brew install avaluev/tap/chute
-```
-
-The Chute.app (Finder menu, menu-bar switcher, hotkey):
-
-```bash
-./Scripts/install.sh
-```
-
-Installs `~/Applications/Chute.app` (menu bar 🪂, hotkey `⌥⌘N`). The CLI comes from Homebrew.
-
-Remove it completely at any time:
-
-```bash
-./Scripts/uninstall.sh
-```
-
-**Three ways to use it:** right-click in Finder — the actions sit inline in the context menu,
-with no `Chute ▸` hop to open first — the `⌥⌘N` hotkey anywhere, or the `chute` CLI.
-
-The Finder menu is a sandboxed `FIFinderSync` extension inside the app. `install.sh` registers and
-enables it for you; if it ever goes missing, tick it in System Settings → Privacy & Security →
-Extensions → Finder → ☑ Chute, or run `pluginkit -e use -i dev.valuev.chute.finder`.
-
----
-
-## The loop
-
-```bash
-# context in — select files in Finder, or name them
-chute paths src/*.ts                 # clean absolute paths → clipboard
-chute bundle src/ --format xml       # every file's contents in one blob + token count
-chute tokens src/                    # will this fit the window?
-
-# work safely
-chute checkpoint .                   # snapshot everything, including untracked files
-chute sandbox spike-auth --yolo      # folder + git + CLAUDE.md + terminal running claude
-
-# artifacts out
-chute basket add src/*.ts            # collect files across folders
-chute basket copy --format context   # hand them over to the agent
-chute new                            # clipboard → a correctly named, correctly typed file
-chute diff . --copy                  # what did the agent actually change?
-```
-
-## Every command
-
-| Command | Does |
-|---|---|
-| `chute paths <files…>` | Absolute paths for a prompt. `--format posix\|quoted\|relative\|at` |
-| `chute bundle <files…>` | Files + contents in one blob. `--format xml\|md` |
-| `chute tokens <files…>` | Estimated token cost, per file and total |
-| `chute tree [dir]` | Directory skeleton, junk excluded. `--depth N` |
-| `chute new` | Clipboard → new file, named from its `# heading`, extension from its syntax |
-| `chute seed [dir]` | `CLAUDE.md`, `.cursorrules`, `AGENTS.md`, `SCRATCHPAD.md`. Never overwrites |
-| `chute note "…"` | Append to `SCRATCHPAD.md` — where you left off |
-| `chute latest [dir]` | Reveal the newest artifact. `--quicklook` |
-| `chute clean [dir]` | List agent scratch files. **Lists by default**, Trashes with `--force` |
-| `chute sandbox [name]` | Folder + git + rules + terminal + agent. `--agent claude\|codex\|gemini --yolo --each` |
-| `chute open [dir]` | Terminal or editor here. `--with terminal\|editor` |
-| `chute ports` | Every local server: port, what it is, which project, reachable from where. `--kill 3000` |
-| `chute checkpoint [dir]` | Snapshot before the agent runs — never touches your worktree |
-| `chute diff [dir]` | What changed. `--copy` puts the patch on the clipboard |
-| `chute redact` | Mask API keys and tokens before sharing |
-| `chute gist <files…>` | Secret gist, URL on the clipboard |
-| `chute dataurl <image>` | Base64 data URL for vision prompts. `--markdown` |
-| `chute basket add\|list\|copy\|clear` | Collect files across folders, hand them over once — `copy` gives `@mentions` or the files themselves |
-| `chute prompt decompose\|ponytail` | Prompt templates: split work into 15-min tasks; cut over-engineering |
-| `chute env inject [dir]` | Keychain → `.env`. Refuses unless `.env` is gitignored |
-| `chute sessions` | Every terminal session, grouped by state. `--json` |
-| `chute focus <key\|project\|N>` | Bring that session to the front. Asks when a name matches several |
-| `chute hooks status\|snippet\|merged\|uninstall` | Agent status hooks. `merged` prints your settings with them added; Chute never writes that file — the command it gives you does |
-| `chute resume [key\|N]` | The command to pick that conversation up again. `--tmux` |
-| `chute doctor` | Check the install and say how to fix what fails. `--fix --json` |
-| `chute onboard` | What Chute is, and the first thing to try |
-
-Add `--no-copy` to any command to keep the clipboard untouched.
-
----
-
-## Which agent is waiting for you
-
-![Sessions grouped by whether they need you](marketing/media/sessions.gif)
-
-
-```bash
-chute sessions          # → 9 session(s), 2 need you
-chute focus studylock   # by project name — asks if several match, never guesses
-chute focus 3           # or by the number sessions printed
-chute doctor            # what is not wired up yet, and the exact fix
-```
-
-The menu bar 🪂 carries the count of sessions that want you. Click it for the list, colour-coded
-per project. Click a row to bring that terminal forward, or use `chute focus <name|N>` from
-anywhere.
-
-**The badge needs hooks to be interesting, and wiring them is your call, made by your hand.**
-Without them Chute can only read the terminal title glyph and the busy flag, so every session
-reads `working` and the badge stays dark. With them, Claude Code reports `blocked` (a permission
-prompt) and `waiting` (your turn) as they happen.
-
-**Chute never writes to `~/.claude/settings.json` — or to any other tool's configuration.**
-Your agent setup is fragile and it is yours; no menu-bar utility should be editing it, however
-carefully. So:
-
-```bash
-chute hooks status            # read-only: what is wired now
-chute hooks snippet           # prints the JSON, AND the one command that merges it for you
-chute hooks merged            # your whole settings.json with the hooks added — on STDOUT.
-                              # Chute never writes that file; the command `snippet` prints
-                              # pipes this into place, backing yours up first
-chute hooks uninstall         # removes exactly the blocks OLD Chute versions added (≤0.1.0
-                              # wrote them) — backs up first, touches nothing of yours
-```
-
-The hook commands themselves only ever write to `~/.chute/sessions/` and always exit 0, so a
-Chute failure can never break an agent session.
-
-Only live terminals count toward the badge: a hook record from a window you have since closed is
-ignored, so the number never inflates behind your back.
-
----
-
-## What is running locally
-
-The menu bar lists every local server, so you never again hunt for which of six terminals holds
-port 3000:
-
-```
-Local servers (8)
-  :3000 · next · studylock       ▸ Open in Browser · Copy the URL · Stop It (kill 55868)
-  :5432 · postgres
-```
-
-Each row names the port, what the process actually is, and the project folder it is running in.
-`chute ports` prints the same list, and says whether each one is reachable from your whole network
-or only from this Mac. `chute ports --kill 3000` frees a port.
-
-macOS's own background listeners (AirPlay on 7000, `rapportd` on a random high port) are left out —
-they are never what the question "what is running?" means.
 
 ---
 
@@ -237,7 +170,16 @@ swift run -c release chutetests       # the unit suite
 CHUTE_HEADLESS=1 ./Scripts/smoke.sh   # the CLI end to end, no GUI
 ./Scripts/smoke.sh                    # + the Finder/Terminal sections
 ./Scripts/build-app.sh                # assemble Chute.app, stamped with the git SHA
+./Scripts/screens.sh                  # render every screen (menu, about, settings, setup) to PNG
 ```
+
+`./Scripts/screens.sh` is how the screenshots in this README and on the site are produced — from
+the shipping build, not redrawn by hand. Run it after any change to what a window shows, or it
+looks current and is not. `./Scripts/reinstall-if-stale.sh` runs as a Stop hook
+(`.claude/settings.json`) and rebuilds `/Applications/Chute.app` (or `~/Applications`, whichever is
+actually installed) whenever its stamp is behind `HEAD` — it refuses when the tree does not build
+or the suite is red, so a look at the running app is never four commits behind the code that was
+just verified.
 
 The tally each of those prints lives in `marketing/06-FACT-SHEET.md` §Verification, and only
 there. This block used to carry its own copies — "751 assertions", "128 passed" — and both were
@@ -250,6 +192,109 @@ plain executable with an assert harness instead.
 
 Specs live in [`docs/`](docs/): business requirements, FR/NFR, the JTBD ledger, the customer
 journey map, and the definition of done.
+
+---
+
+## Open source
+
+Chute is MIT, all of it — the app, the Finder extension, the CLI, the site. Read it, fork it, take
+the bits you want. Issues and pull requests are welcome, and there is no contributor agreement to
+sign.
+
+![The Chute About tab: why it exists, GitHub, LinkedIn, Telegram, and a star button](site/public/media/screens/about.png)
+
+The same links are in the app itself — Chute menu bar → Settings → About.
+
+---
+
+## The command-line tool
+
+**Free and MIT, forever. Same engine as the app, for people who prefer a terminal to a
+right-click.** It is not a second product competing with the two surfaces above — it is the
+objection-handler: read the source, run it, and decide for yourself before you trust an app built
+on top of it.
+
+```bash
+brew install avaluev/tap/chute
+```
+
+```bash
+# context in — select files in Finder, or name them
+chute paths src/*.ts                 # clean absolute paths → clipboard
+chute bundle src/ --format xml       # every file's contents in one blob + token count
+chute tokens src/                    # will this fit the window?
+
+# work safely
+chute checkpoint .                   # snapshot everything, including untracked files
+chute sandbox spike-auth --yolo      # folder + git + CLAUDE.md + terminal running claude
+
+# artifacts out
+chute basket add src/*.ts            # collect files across folders
+chute basket copy --format context   # hand them over to the agent
+chute new                            # clipboard → a correctly named, correctly typed file
+chute diff . --copy                  # what did the agent actually change?
+```
+
+### Every command
+
+| Command | Does |
+|---|---|
+| `chute paths <files…>` | Absolute paths for a prompt. `--format posix\|quoted\|relative\|at` |
+| `chute bundle <files…>` | Files + contents in one blob. `--format xml\|md` |
+| `chute tokens <files…>` | Estimated token cost, per file and total |
+| `chute tree [dir]` | Directory skeleton, junk excluded. `--depth N` |
+| `chute new` | Clipboard → new file, named from its `# heading`, extension from its syntax |
+| `chute seed [dir]` | `CLAUDE.md`, `.cursorrules`, `AGENTS.md`, `SCRATCHPAD.md`. Never overwrites |
+| `chute note "…"` | Append to `SCRATCHPAD.md` — where you left off |
+| `chute latest [dir]` | Reveal the newest artifact. `--quicklook` |
+| `chute clean [dir]` | List agent scratch files. **Lists by default**, Trashes with `--force` |
+| `chute sandbox [name]` | Folder + git + rules + terminal + agent. `--agent claude\|codex\|gemini --yolo --each` |
+| `chute open [dir]` | Terminal or editor here. `--with terminal\|editor` |
+| `chute ports` | Every local server: port, what it is, which project, reachable from where. `--kill 3000` |
+| `chute checkpoint [dir]` | Snapshot before the agent runs — never touches your worktree |
+| `chute diff [dir]` | What changed. `--copy` puts the patch on the clipboard |
+| `chute redact` | Mask API keys and tokens before sharing |
+| `chute gist <files…>` | Secret gist, URL on the clipboard |
+| `chute dataurl <image>` | Base64 data URL for vision prompts. `--markdown` |
+| `chute basket add\|list\|copy\|clear` | Collect files across folders, hand them over once — `copy` gives `@mentions` or the files themselves |
+| `chute prompt decompose\|ponytail` | Prompt templates: split work into 15-min tasks; cut over-engineering |
+| `chute env inject [dir]` | Keychain → `.env`. Refuses unless `.env` is gitignored |
+| `chute sessions` | Every terminal session, grouped by state. `--json` |
+| `chute focus <key\|project\|N>` | Bring that session to the front. Asks when a name matches several |
+| `chute hooks status\|snippet\|merged\|uninstall` | Agent status hooks. `merged` prints your settings with them added; Chute never writes that file — the command it gives you does |
+| `chute resume [key\|N]` | The command to pick that conversation up again. `--tmux` |
+| `chute doctor` | Check the install and say how to fix what fails. `--fix --json` |
+| `chute onboard` | What Chute is, and the first thing to try |
+
+Add `--no-copy` to any command to keep the clipboard untouched.
+
+### Sessions and hooks, from a terminal
+
+The menu bar's session list and its hook wiring are both one command away, for anyone who would
+rather check a terminal than open the menu:
+
+```bash
+chute sessions          # → 9 session(s), 2 need you
+chute focus studylock   # by project name — asks if several match, never guesses
+chute focus 3           # or by the number sessions printed
+chute doctor            # what is not wired up yet, and the exact fix
+```
+
+```bash
+chute hooks status            # read-only: what is wired now
+chute hooks snippet           # prints the JSON, AND the one command that merges it for you
+chute hooks merged            # your whole settings.json with the hooks added — on STDOUT.
+                              # Chute never writes that file; the command `snippet` prints
+                              # pipes this into place, backing yours up first
+chute hooks uninstall         # removes exactly the blocks OLD Chute versions added (≤0.1.0
+                              # wrote them) — backs up first, touches nothing of yours
+```
+
+The hook commands themselves only ever write to `~/.chute/sessions/` and always exit 0, so a
+Chute failure can never break an agent session.
+
+Every command, with what it does: `chute help` in your terminal, or the reference at
+[chutedev.com/docs](https://chutedev.com/docs).
 
 ---
 

@@ -51,10 +51,26 @@ shot() {  # shot <name> <args...>
 }
 
 FAIL=0
-shot menu     --menu-shot     "$OUT/menu.png" --draw
-shot about    --settings-shot "$OUT/about.png" 1
-shot settings --settings-shot "$OUT/settings.png" 0
-shot setup    --firstrun-shot "$OUT/setup.png"
-rm -f "$OUT"/*.png.log
+# ── THE SCENARIOS ───────────────────────────────────────────────────────────────────────────
+# A screenshot of the everyday case proves only that the everyday case works. Each of these is a
+# claim about behaviour when something is unusual, and each renders through the real model and
+# the real renderer — the casts are in Scripts/menu-shot.swift.
+#
+# --draw exits BEFORE app.run(), so applicationDidFinishLaunching never runs and no status item
+# is ever created. That matters: this script must not put a second parachute in the menu bar of
+# whoever is running it.
+mkdir -p "$OUT/cases"
+for c in mixed allclear runaway nohooks truncation; do
+  shot "cases/$c" --menu-shot "$OUT/cases/$c.png" --draw --case "$c"
+done
+cp "$OUT/cases/mixed.png" "$OUT/menu.png" 2>/dev/null
+
+# The windows need a running loop, so they DO briefly create a status item. Skipped unless asked.
+if [ "${WINDOWS:-1}" = "1" ]; then
+  shot about    --settings-shot "$OUT/about.png" 1
+  shot settings --settings-shot "$OUT/settings.png" 0
+  shot setup    --firstrun-shot "$OUT/setup.png"
+fi
+rm -f "$OUT"/*.png.log "$OUT"/cases/*.png.log
 echo "screens: written to $OUT"
 [ "$FAIL" -eq 0 ]

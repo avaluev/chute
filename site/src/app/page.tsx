@@ -62,7 +62,7 @@ const FAQ = [
   { q: "Where do these numbers come from?",
     a: "A ledger of 24 jobs, each timed the same way: how often it happens, how long it takes by hand, how long it takes with Chute. It is in the repository, the site is generated from it, and the build fails if a figure on this page stops matching it." },
   { q: "Which macOS?",
-    a: "macOS 13 Ventura and later, Apple Silicon and Intel. The app is under 3 MB and the command-line binary under 1 MB, with no dependencies, no launch daemon and no background service. CI tests macOS 15 and 26 on every push." },
+    a: "macOS 13 Ventura and later, Apple Silicon. The app is under 3.2 MB and the command-line binary under 1 MB, with no dependencies, no launch daemon and no background service. CI tests macOS 15 and 26 on every push." },
 ];
 
 function Section({ id, eyebrow, title, children }: {
@@ -149,8 +149,8 @@ export default function Home() {
         <p className="mt-6 max-w-2xl text-lg text-muted-foreground">
           You stopped being the person writing the code and became the person supervising four of
           them. Chute is the part nobody built for that job: every session in your menu bar with
-          what it is doing right now, and the fastest path between a folder you can see and an
-          agent that cannot see it.
+          what it is doing right now, and the fastest path from a Finder selection to an agent
+          that cannot see it.
         </p>
 
         {/* ONE COMMAND, AND IT IS THE HONEST ONE.

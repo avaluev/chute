@@ -43,10 +43,10 @@ free and MIT; the split is which surface a job needs, not what it costs.
 
 ## What it is
 
-- Platform: macOS 13 Ventura or later, Apple Silicon and Intel.
+- Platform: macOS 13 Ventura or later, Apple Silicon (arm64) only.
 - Price: free. MIT licensed, all of it. No subscription, no account, no licence key, no telemetry.
 - Source: ${CONFIG.repo}
-- Size: 2.9 MB app, 1.6 MB download, zero third-party dependencies.
+- Size: 3.1 MB app, 1.6 MB download, zero third-party dependencies.
 - Network: none. There is no network code in the product except a \`gist\` command the user
   invokes, which shells out to their own \`gh\`.
 
