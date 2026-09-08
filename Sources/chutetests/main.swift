@@ -36,5 +36,6 @@ menuBarMarkSuite()
 pathAbbrevSuite()
 sessionDotSuite()
 inlineCodeSuite()
+sessionCwdSuite()
 
 T.report()

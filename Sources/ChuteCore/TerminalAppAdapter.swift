@@ -52,13 +52,19 @@ public struct TerminalAppAdapter {
     end tell
     """
 
-    public func discover(hooks: [String: HookRecord], now: Date) throws -> [Session] {
+    public func discover(hooks: [String: HookRecord], now: Date,
+                         samples: [ProcessSample]? = nil) throws -> [Session] {
         guard isAppRunning(bundleExecutable: "Terminal.app/Contents/MacOS/Terminal") else {
             throw TerminalError.notRunning("Terminal")
         }
         let result = Shell.run("osascript", ["-e", Self.discoveryScript])
         guard result.ok else { throw TerminalError.scriptFailed(result.err) }
-        return Self.parse(result.out, hooks: hooks, now: now)
+        // ONE MAP FOR THE WHOLE MENU, not a lookup per row. The caller already sampled the
+        // process table for the CPU and memory columns, so passing it in costs nothing; measured
+        // 2026-09-08, resolving all 60 tty processes took under a millisecond.
+        let byTTY = SessionCwd.map(samples ?? SystemVitals.sample(),
+                                   cwdOf: ProcessIdentity.workingDirectory)
+        return Self.parse(result.out, hooks: hooks, now: now, cwdFor: { byTTY[$0] })
     }
 
     public func focus(_ session: Session) throws {
@@ -76,7 +82,15 @@ public struct TerminalAppAdapter {
     }
 
     /// Pure — this is what the tests exercise, with no AppleScript involved.
-    public static func parse(_ raw: String, hooks: [String: HookRecord], now: Date) -> [Session] {
+    /// `cwdFor` answers "where is this tty", from the kernel. It is injected rather than called
+    /// because it is a syscall and `parse` is the pure function the suite drives.
+    ///
+    /// IT IS NOT A FALLBACK FOR THE HOOK — it is a SECOND SOURCE, and the hook still outranks it.
+    /// A hook records where the agent was when it last reported; the kernel says where the
+    /// process is right now. They agree almost always, and when they do not, the hook is the one
+    /// tied to the state being displayed beside it.
+    public static func parse(_ raw: String, hooks: [String: HookRecord], now: Date,
+                             cwdFor: (String) -> String? = { _ in nil }) -> [Session] {
         raw.components(separatedBy: RS).compactMap { record -> Session? in
             let f = record.components(separatedBy: US)
             guard f.count >= 8, let windowID = Int(f[0].trimmingCharacters(in: .whitespacesAndNewlines))
@@ -99,14 +113,18 @@ public struct TerminalAppAdapter {
                 // incident (badge and menu naming the same session two different things) this
                 // closes. `hook?.cwd` is the authoritative source when it exists; the window
                 // title (`f[1]`) is only ever the last resort inside `ProjectName.of` itself.
-                project: ProjectName.of(cwd: hook?.cwd, windowTitle: f[1]),
+                project: ProjectName.of(cwd: hook?.cwd ?? cwdFor(tty), windowTitle: f[1]),
                 title: title,
                 agent: agent,
                 busy: busy,
                 state: StateResolver.resolve(hook: hook, isAgent: agent != nil, now: now),
                 since: hook?.timestamp,
                 sessionID: hook?.sessionID,
-                cwd: hook?.cwd
+                // THE PATH THE NAME WAS DERIVED FROM, shown on the row's second line. Falling
+                // back to the kernel here is what ended eight rows of `no project derived` on a
+                // machine whose Terminal tabs were displaying the full path an inch away —
+                // Antigravity ships no hooks, so `hook?.cwd` is nil for every one of them.
+                cwd: hook?.cwd ?? cwdFor(tty)
             )
         }
     }

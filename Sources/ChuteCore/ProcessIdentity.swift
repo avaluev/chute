@@ -203,3 +203,56 @@ public enum ProcessIdentity {
         return nil   // hop limit or cycle — an unattributable process is refused, not guessed
     }
 }
+
+// ── WHERE A PROCESS IS, ACCORDING TO THE KERNEL ─────────────────────────────────────────────
+
+public extension ProcessIdentity {
+    /// A process's current working directory, via `proc_pidinfo(PROC_PIDVNODEPATHINFO)`.
+    ///
+    /// ── WHY THIS EXISTS ─────────────────────────────────────────────────────────────────────
+    ///
+    /// Chute had two sources for "which project is this session in", and both were bad.
+    ///
+    /// The hook's `cwd` is authoritative but only exists for agents that SHIP hooks. Antigravity
+    /// does not, so on 2026-09-08 the founder's menu showed eight rows reading `no project
+    /// derived` — while the Terminal tab beside them displayed
+    /// `~/Documents/2026/Development/5.STNZ.AI/sntz_mockups` in its own title bar. The
+    /// information was on screen, an inch away, and Chute was saying it did not have it.
+    ///
+    /// The other source was Terminal's window name, and it cannot fix that: the window name is
+    /// the directory LEAF (`sntz_mockups`, `Development`), never a path. There was nothing in it
+    /// to resolve a git root against, which is why a name could appear beside `no project
+    /// derived` — a contradiction the reader has no way to interpret.
+    ///
+    /// The kernel has known the answer the whole time. Measured on this machine, 2026-09-08:
+    /// **60 of 60 tty processes resolved, in under 1 ms total.** No subprocess, no `lsof`, no
+    /// AppleScript — one syscall per pid, the same shape as `executablePath` above.
+    ///
+    /// ── THE LIMITS, STATED ──────────────────────────────────────────────────────────────────
+    ///
+    /// Returns nil for a process owned by another user, one that exited between listing and
+    /// lookup, and anything the sandbox refuses. All three are ordinary and none is an error —
+    /// the caller falls back to the hook, then to the window name, then says so honestly.
+    ///
+    /// The path is the kernel's own, so it is fully resolved: symlinks are already followed and
+    /// `/tmp` comes back as `/private/tmp`. Do not compare it to a user-typed path without
+    /// resolving that one too.
+    static func workingDirectory(_ pid: Int32) -> String? {
+        var info = proc_vnodepathinfo()
+        let size = Int32(MemoryLayout<proc_vnodepathinfo>.size)
+        // A SHORT READ IS A FAILURE, not a partial answer. proc_pidinfo returns the number of
+        // bytes it filled; anything less than the whole struct leaves `pvi_cdir` holding
+        // uninitialised stack, and reading a C string out of that is how you print garbage into
+        // a menu — or worse, a fragment of some other process's path.
+        let filled = withUnsafeMutablePointer(to: &info) {
+            proc_pidinfo(pid, PROC_PIDVNODEPATHINFO, 0, $0, size)
+        }
+        guard filled == size else { return nil }
+        let path = withUnsafePointer(to: &info.pvi_cdir.vip_path) {
+            $0.withMemoryRebound(to: CChar.self, capacity: Int(MAXPATHLEN)) { String(cString: $0) }
+        }
+        // An empty path is not a directory. It is the struct's zeroed default surviving a read
+        // the kernel considered successful.
+        return path.isEmpty ? nil : path
+    }
+}

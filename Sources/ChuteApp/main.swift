@@ -70,12 +70,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     /// Catches discover() failures instead of collapsing them into an unexplained empty menu:
     /// Terminal simply not running is not a problem, but a denied Automation permission is a
     /// fixable one, and the menu should say so.
-    func discoverSessionsForMenu() -> (sessions: [Session], problem: String?) {
+    /// `samples` is the ONE process-table read the whole menu shares — it already paid for the
+    /// CPU and memory columns, and `discover` now also uses it to ask the kernel where each tty
+    /// is working. Taking it as a parameter keeps that single read; sampling again here would be
+    /// a second full process listing on every menu open, for a number already in hand.
+    func discoverSessionsForMenu(samples: [ProcessSample]) -> (sessions: [Session], problem: String?) {
         do {
             // `project` is `String?` since Session's project became a derivation that can come
             // back with nothing — `?? ""` keeps a nameless session sorting first within its own
             // state rather than failing to compile; StatusMenu.model does the sort readers see.
-            let sessions = try TerminalAppAdapter().discover(hooks: HookState.readAll(), now: Date())
+            let sessions = try TerminalAppAdapter().discover(hooks: HookState.readAll(), now: Date(),
+                                                              samples: samples)
                 .sorted { ($0.state, $0.project ?? "") < ($1.state, $1.project ?? "") }
             return (sessions, nil)
         } catch let e as TerminalError {
@@ -103,12 +108,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         // building the menu twice produces the same menu rather than two of it.
         menu.removeAllItems()
 
-        let (sessions, problem) = discoverSessionsForMenu()
-        lastSessions = sessions
-
         // ONE `SystemVitals.sample()` FOR THE WHOLE MENU. Sampling per row would be thirteen
-        // process listings for a menu the user is already waiting on.
+        // process listings for a menu the user is already waiting on — and discover() reads the
+        // same table to resolve each tty's working directory, so it is taken first and shared.
         let samples = SystemVitals.sample()
+
+        let (sessions, problem) = discoverSessionsForMenu(samples: samples)
+        lastSessions = sessions
 
         // Read once, used twice: the entries for the rows, and — only when there are any — the
         // files' own content for the token count on "Copy Basket as Context". StatusMenu.model
