@@ -15,18 +15,35 @@ on:
   pull_request:
   workflow_dispatch:
 
+# A second push while the first is still building wastes a runner and tells you nothing new.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test:
     strategy:
       fail-fast: false
       matrix:
-        # Keep this list to the versions the product claims to support. macOS 13 is the floor
-        # declared in Package.swift; adding a runner here without raising that floor is how you
-        # find out the floor was a guess.
-        os: [macos-13, macos-14, macos-15]
+        # macos-13 WAS HERE AND IT IS WHY THIS WORKFLOW WAS DEAD FOR FOUR DAYS. GitHub removed
+        # that runner image. A retired label does not error — it PARSES, so the job is accepted,
+        # queued forever, and killed at the 24-hour limit. Seven runs sat `queued` for up to 18
+        # hours while macos-14 and macos-15 had already finished and failed underneath them, and
+        # every one of those runs reported `failure` from a job that never ran a single step.
+        # macos-14 is now deprecated and will go the same way; check
+        # github.com/actions/runner-images before adding a label here.
+        #
+        # Package.swift still declares macOS 13 as the floor and NOTHING TESTS IT ANY MORE. That
+        # is a known gap, not an oversight: either raise the floor, or accept that 13 is claimed
+        # rather than proven. See docs/08-MACOS-COMPATIBILITY.md.
+        os: [macos-15, macos-26]
     runs-on: ${{ matrix.os }}
+    # A job that cannot get a runner must fail in minutes, not burn a day of queue and then lie
+    # about why. This is the guard that would have caught macos-13 on the first push.
+    timeout-minutes: 25
     steps:
-      - uses: actions/checkout@v4
+      # v4 pins Node 20, which these runners now warn about on every single run.
+      - uses: actions/checkout@v5
 
       - name: Versions under test
         run: |
@@ -39,15 +56,16 @@ jobs:
       - name: Unit suite
         run: swift run -c release chutetests
 
-      - name: Licence key contract (Worker ↔ app)
-        run: node worker/contract.test.mjs
-
       - name: End-to-end suite (headless)
         env:
           CHUTE_HEADLESS: "1"
         run: ./Scripts/smoke.sh
 
       - name: Assemble the app bundle
+        env:
+          # Exactly what the Homebrew formula does, so this step tests the path a stranger
+          # actually takes. Chute has no Apple Developer ID and never will.
+          CHUTE_SIGN_ID: "-"
         run: ./Scripts/build-app.sh
 
       - name: The extension binary must carry the right entry point

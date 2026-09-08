@@ -446,10 +446,15 @@ fi
 
 echo "17. local servers"
 OUT="$("$CHUTE" ports 2>&1)"
-has "ports names the columns"     "$OUT" "PORT"
-has "ports says where it is reachable from" "$OUT" "REACHABLE FROM"
+# THE HEADER ONLY EXISTS WHEN THERE IS A TABLE. These two assertions used to run unconditionally,
+# above this branch, and they were two of the nine failures that made CI red on 2026-09-04: a
+# GitHub runner has no listening sockets, so `lsof -nP -iTCP -sTCP:LISTEN` returns nothing,
+# `chute ports` correctly prints "nothing is listening" — and correct output failed the test.
+# A machine with no servers is not a broken machine, and the empty case has its own assertion.
 if printf '%s' "$OUT" | grep -q "nothing is listening"; then ok "empty case says so plainly"
 else
+  has "ports names the columns"     "$OUT" "PORT"
+  has "ports says where it is reachable from" "$OUT" "REACHABLE FROM"
   if printf '%s' "$OUT" | grep -qE '^[0-9]+ +[a-z]'; then ok "ports lists at least one real listener"
   else bad "ports lists at least one real listener" "$OUT"; fi
 fi
@@ -553,6 +558,15 @@ hasnt "prompt ponytail is not the same text" "$(pbpaste)" "15-minute"
 "$CHUTE" prompt nosuchtemplate >/dev/null 2>&1 && bad "an unknown template fails" "exit 0" || ok "an unknown template fails"
 
 # sandbox — a fresh agent workspace, WITHOUT launching a terminal.
+#
+# THE SAME GUARD SECTION 12 ALREADY HAS, and the four assertions below are the other four of the
+# nine failures that made CI red. `cmdSandbox` refuses before it creates anything —
+# Sources/chute/Commands/AgentCommands.swift:84, `guard Shell.which(agent) != nil` — so on a
+# runner with no `claude` installed the folder is never made and every assertion here fails on a
+# command that behaved exactly as designed. Reproduced with:
+#   env PATH=/usr/bin:/bin ./.build/release/chute sandbox x --dir /tmp/x --no-launch
+#   → "chute: claude is not on PATH", no .git
+if ! command -v claude >/dev/null 2>&1; then skip "sandbox — claude is not on PATH"; else
 SB="$T/sandboxtest"; mkdir -p "$SB"
 OUT="$("$CHUTE" sandbox spike-auth --dir "$SB" --no-launch 2>&1)"
 if [ -d "$SB/spike-auth/.git" ]; then ok "sandbox creates a git repo"; else bad "sandbox creates a git repo" "$OUT"; fi
@@ -560,6 +574,7 @@ if [ -f "$SB/spike-auth/CLAUDE.md" ]; then ok "sandbox seeds agent rules"; else 
 if [ -f "$SB/spike-auth/README.md" ]; then ok "sandbox writes a README"; else bad "sandbox writes a README" "missing"; fi
 OUT="$("$CHUTE" sandbox spike-auth --dir "$SB" --no-launch 2>&1)"
 has   "an existing folder is reused, not clobbered" "$OUT" "folder exists"
+fi
 
 echo "13. help and unknown command"
 has "help lists bundle" "$("$CHUTE" help)" "bundle"
@@ -624,7 +639,13 @@ PORT=8977
 python3 -m http.server "$PORT" >/dev/null 2>&1 &
 SRVPID=$!
 sleep 1
-if kill -0 "$SRVPID" 2>/dev/null; then
+# ALIVE IS NOT THE SAME AS VISIBLE, and the difference was the last three of the nine failures
+# that made CI red. `kill -0` proves the python process exists; it says nothing about whether
+# `lsof -nP -iTCP -sTCP:LISTEN` — which is how `chute ports` sees the world — can see the socket.
+# On a GitHub runner it cannot, so the listener started, the guard passed, and three assertions
+# then failed against a `chute ports --kill` that correctly reported nothing to kill.
+# The precondition for these three assertions is that CHUTE sees the port, so test that.
+if kill -0 "$SRVPID" 2>/dev/null && "$CHUTE" ports 2>&1 | grep -q "^$PORT "; then
   OUT="$("$CHUTE" ports --kill "$PORT" 2>&1)"
   has  "ports --kill previews the row"  "$OUT" "re-run with --force to kill"
   has  "and names the pid it would end" "$OUT" "$SRVPID"
@@ -634,7 +655,8 @@ if kill -0 "$SRVPID" 2>/dev/null; then
   if kill -0 "$SRVPID" 2>/dev/null; then bad "--force still kills" "still alive"; else ok "--force still kills"; fi
   kill -9 "$SRVPID" 2>/dev/null || true
 else
-  skip "ports --kill guard (could not start a throwaway listener on $PORT)"
+  kill -9 "$SRVPID" 2>/dev/null || true
+  skip "ports --kill guard (chute sees no listener on $PORT — lsof is blind here)"
 fi
 
 # env inject — the preview must never print a VALUE. Throwaway Keychain item, removed after.
