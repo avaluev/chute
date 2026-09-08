@@ -38,5 +38,6 @@ sessionDotSuite()
 inlineCodeSuite()
 sessionCwdSuite()
 phrasingGapsSuite()
+menuBarPipSuite()
 
 T.report()

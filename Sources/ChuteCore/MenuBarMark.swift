@@ -106,9 +106,27 @@ public enum MenuBarMark {
     public static func cornerFor(_ token: String) -> Double { Double(pips[token]?.corner ?? -1) }
     public static func holeFor(_ token: String) -> Double { Double(pips[token]?.hole ?? -1) }
 
+    /// `hole` is the fraction of the pip's diameter to inset the cut-out by, so **0.5 insets it to
+    /// zero size and leaves a solid shape** — that is what "filled" means here.
+    ///
+    /// IT USED TO BE 0, AND 0 MEANT SOMETHING ELSE ENTIRELY. The path is the outer shape with a
+    /// second shape appended under an `.evenOdd` winding rule, so a hole inset by ZERO is the
+    /// same area twice, and evenOdd cancels it: a point inside both has a crossing number of two,
+    /// which is even, which is outside. What that produced:
+    ///
+    ///   · `waiting` — outer circle, hole circle, identical: the green pip painted NOTHING. A
+    ///     finished turn put no colour on the menu bar at all.
+    ///   · `blocked` — outer SQUARE (corner 0), hole rounded to a circle (`hole.width / 2`), so
+    ///     the two were not identical and what survived was four red shards in the square's
+    ///     corners. Red pixels existed, which is why a pixel count alone would have passed it,
+    ///     but the shape was never the square this table claims.
+    ///
+    /// Found 2026-09-08 when the founder said "I see no red icon in my menu" — the same defect,
+    /// and the same one-character cause, that `SessionDot`'s header documents for the row dots.
+    /// Both files drew a hole the same wrong way; only one of them had been fixed.
     private static let pips: [String: (colour: NSColor, corner: CGFloat, hole: CGFloat)] = [
-        "blocked": (.systemRed, 0, 0),          // a filled SQUARE — the one that stops you
-        "waiting": (.systemGreen, 99, 0),       // a filled circle — done, wants a prompt
+        "blocked": (.systemRed, 0, 0.5),        // a filled SQUARE — the one that stops you
+        "waiting": (.systemGreen, 99, 0.5),     // a filled circle — done, wants a prompt
         "working": (.systemOrange, 99, 0.30),   // a ring — running, nothing for you to do
     ]
 

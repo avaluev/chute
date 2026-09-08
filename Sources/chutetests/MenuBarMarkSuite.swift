@@ -141,7 +141,15 @@ func menuBarMarkSuite() {
         T.no(MenuBarMark.cornerFor("waiting") == MenuBarMark.holeFor("working") ,
              "and working is a ring, which neither of the others is")
         T.ok(MenuBarMark.holeFor("working") > 0, "working is hollow")
-        T.eq(MenuBarMark.holeFor("blocked"), 0, "blocked is solid")
+        // WAS `== 0`, WHICH ASSERTED THE BUG AS THE DEFINITION. A hole inset by zero is the same
+        // area as the shape it is cut from, and under `.evenOdd` that cancels the SHAPE — so
+        // `hole: 0` never meant solid, it meant invisible, and this line certified it. 0.5 insets
+        // the hole to zero SIZE, which is what solid actually requires.
+        //
+        // The honest guarantee is pixels, not a magic number: `menuBarPipSuite` renders each
+        // token and counts what got painted, which is the assertion this one could never be.
+        T.ok(MenuBarMark.holeFor("blocked") >= 0.5,
+             "blocked is solid — its hole is inset to nothing, not merely inset by nothing")
 
         // ── SIZE ────────────────────────────────────────────────────────────────────────────
         // 16 tall matches the SF Symbol this replaced, so the menu bar row height does not jump.
