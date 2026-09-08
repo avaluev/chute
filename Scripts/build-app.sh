@@ -19,12 +19,27 @@ git -C "$ROOT" diff --quiet HEAD 2>/dev/null || BUILD="$BUILD-dirty"
 BUILT_AT="$(date -u +%Y-%m-%dT%H:%MZ)"
 
 cd "$ROOT"
-swift build -c release
+# --disable-sandbox: Homebrew builds this formula inside its own sandbox, and SwiftPM's nested
+# sandbox then cannot write its manifest cache. Harmless everywhere else.
+swift build -c release --disable-sandbox
+
+# ASK SWIFTPM WHERE IT PUT THINGS; NEVER HARDCODE .build/release.
+#
+# `.build/release` is a SYMLINK to `.build/<triple>/release`, and it is not guaranteed. This
+# script assumed it, and on GitHub's runners the appex compile died with "no such module
+# 'ChuteCore'" (macos-26) and a cascade of "cannot find 'AppleScript' in scope" (macos-15) — the
+# same root cause wearing two faces. It had never been caught because build-app.sh only runs in
+# CI after smoke.sh passes, and smoke.sh had been failing for its own reasons since 2026-09-04,
+# so this step had not executed on a runner in four days.
+#
+# --show-bin-path is the answer SwiftPM itself gives, on any toolchain and any architecture.
+BIN="$(swift build -c release --disable-sandbox --show-bin-path)"
+[ -d "$BIN" ] || { echo "build-app: swift build --show-bin-path gave '$BIN', which is not a directory" >&2; exit 1; }
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 # NOTE: APFS is case-insensitive — the app executable must not be a case variant of "chute".
-cp "$ROOT/.build/release/ChuteApp" "$APP/Contents/MacOS/ChuteApp"
-cp "$ROOT/.build/release/chute"    "$APP/Contents/MacOS/chute"
+cp "$BIN/ChuteApp" "$APP/Contents/MacOS/ChuteApp"
+cp "$BIN/chute"    "$APP/Contents/MacOS/chute"
 # STRIP BEFORE SIGNING, always. Measured 2026-09-01: `strip -x` takes each Swift binary from
 # ~1.08 MB to ~744 KB — 31%, and about a megabyte off a 3.3 MB bundle — because a release Swift
 # binary ships a large local symbol table nothing at runtime reads. `-x` keeps the global and
@@ -45,7 +60,7 @@ cp "$ROOT/Resources/Chute.icns" "$APP/Contents/Resources/Chute.icns"
 APPEX="$APP/Contents/PlugIns/ChuteFinder.appex"
 mkdir -p "$APPEX/Contents/MacOS"
 # Links ChuteCore's objects so the appex draws its menu from the SAME action table the CLI and the
-# tests use. -I .build/release finds the module; the .o files supply the code (SwiftPM does not emit
+# tests use. -I "$BIN" finds the module; the .o files supply the code (SwiftPM does not emit
 # a static archive for a plain target).
 #
 # ONE OBJECT PER SOURCE FILE THAT STILL EXISTS — never `*.o`. SwiftPM does not delete the object
@@ -56,11 +71,11 @@ mkdir -p "$APPEX/Contents/MacOS"
 # no stale object, and the next rename would have broken the release build again.
 OBJS=()
 for src in "$ROOT"/Sources/ChuteCore/*.swift; do
-    OBJS+=("$ROOT/.build/release/ChuteCore.build/$(basename "$src").o")
+    OBJS+=("$BIN/ChuteCore.build/$(basename "$src").o")
 done
 swiftc -O -o "$APPEX/Contents/MacOS/ChuteFinder" \
     "$ROOT/Sources/ChuteFinder/ChuteFinderSync.swift" \
-    -I "$ROOT/.build/release" "${OBJS[@]}" \
+    -I "$BIN" "${OBJS[@]}" \
     -Xlinker -e -Xlinker _NSExtensionMain
 strip -x "$APPEX/Contents/MacOS/ChuteFinder"
 # The entry point must survive the strip, or the extension loads as a plain executable and Finder
