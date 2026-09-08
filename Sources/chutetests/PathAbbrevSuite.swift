@@ -194,6 +194,19 @@ func pathAbbrevSuite() {
         }
 
         // ── THE BUG: a subdirectory of a repo is the same project ──────────────────────
+        // ── A PROBE THAT ANSWERS ABOUT SOMEWHERE ELSE IS IGNORED ────────────────────────
+        // `ProjectRoot.gitTopLevel` walks UPWARD, so it can only ever name an ancestor — but
+        // nothing enforced that, and a name must be traceable to the path printed beneath it or
+        // this whole file's purpose is defeated. A liar falls through to the cwd's own leaf.
+        T.eq(ProjectName.resolve(cwd: "/a/b/repo/site", windowTitle: "",
+                                 gitRoot: { _ in "/somewhere/else" }), "site",
+             "a probe naming a directory that does not contain the cwd is not evidence")
+        T.eq(ProjectName.resolve(cwd: "/a/bcd", windowTitle: "", gitRoot: { _ in "/a/bc" }), "bcd",
+             "and an ancestor is compared by path component, never by string prefix")
+        T.eq(ProjectName.resolve(cwd: "/a/b/repo", windowTitle: "",
+                                 gitRoot: { _ in "/a/b/repo/" }), "repo",
+             "a trailing slash on the probe's answer still counts as the same directory")
+
         T.eq(ProjectName.resolve(cwd: "/a/b/repo/site", windowTitle: "", gitRoot: repoGit), "repo",
              "THE BUG: a subdirectory is the same project")
         T.eq(ProjectName.resolve(cwd: "/a/b/repo", windowTitle: "", gitRoot: repoGit), "repo",

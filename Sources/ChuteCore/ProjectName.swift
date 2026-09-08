@@ -36,7 +36,15 @@ public enum ProjectName {
         // disk. That is the exact failure this file exists to end, arriving through a different
         // door. `hasPrefix("/")` rejects the empty string and the bare tilde in the same test.
         if let cwd, cwd.hasPrefix("/") {
-            if let root = gitRoot(cwd), let leaf = leaf(of: root) { return leaf }
+            // THE PROBE MUST ANSWER ABOUT THIS DIRECTORY. `ProjectRoot.gitTopLevel` can only
+            // return an ancestor of `cwd` by construction — it walks upward — but nothing here
+            // enforced that, so a future or alternate probe could name any directory on the disk
+            // and this function would print it as the project. The rule this whole file exists
+            // to uphold is that a name must be traceable to the path shown beneath it; an
+            // unvalidated answer breaks exactly that, and silently.
+            if let root = gitRoot(cwd), isAncestor(root, of: cwd), let leaf = leaf(of: root) {
+                return leaf
+            }
             if let leaf = leaf(of: cwd) { return leaf }
         }
         return titleHead(windowTitle)
@@ -65,6 +73,16 @@ public enum ProjectName {
         let head = name.components(separatedBy: " — ").first?
             .trimmingCharacters(in: .whitespaces) ?? ""
         return head.isEmpty ? nil : head
+    }
+
+    /// Whether `root` contains `path` — the same directory, or an ancestor of it.
+    ///
+    /// Compared component-wise rather than with `hasPrefix`, because `/a/bc` is a string prefix of
+    /// `/a/bcd` and is emphatically not its parent.
+    static func isAncestor(_ root: String, of path: String) -> Bool {
+        let r = root.hasSuffix("/") ? String(root.dropLast()) : root
+        guard !r.isEmpty else { return true }              // "/" contains everything
+        return path == r || path.hasPrefix(r + "/")
     }
 
     /// Last path component, trailing slash stripped first, `"/"` collapsing to `nil` rather than
