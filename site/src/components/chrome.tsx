@@ -61,9 +61,8 @@ export function Header() {
           <Mark size={20} /> Chute
         </Link>
         <nav className="flex items-center gap-5 text-sm text-muted-foreground">
-          <Link href="/cases" className="hover:text-foreground">What it does</Link>
-          <Link href="/cli" className="hover:text-foreground">CLI</Link>
-          <a href={CONFIG.repo} className="hidden hover:text-foreground sm:inline">GitHub</a>
+          <Link href="/cases" className="hover:text-foreground">Every job</Link>
+                    <a href={CONFIG.repo} className="hidden hover:text-foreground sm:inline">GitHub</a>
           <Link href="/docs" className="hover:text-foreground">Commands</Link>
           <a href={CONFIG.download} className="text-foreground hover:text-[var(--color-accent-chute)]">Download</a>
         </nav>
@@ -95,7 +94,7 @@ export function Footer() {
               review, and there is no Paddle. */}
           <nav className="flex flex-wrap gap-x-5 gap-y-2">
             <Link className="hover:text-foreground" href="/cases">What it does</Link>
-            <Link className="hover:text-foreground" href="/cli">CLI</Link>
+            <Link className="hover:text-foreground" href="/cli">Terminal</Link>
             <Link className="hover:text-foreground" href="/docs">Commands</Link>
             <Link className="hover:text-foreground" href="/building-with-agents">How it was built</Link>
             <a className="hover:text-foreground" href={CONFIG.repo}>Source</a>

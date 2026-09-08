@@ -9,7 +9,7 @@ import { CopyLine } from "@/components/copy-line";
 import { InstallCli } from "@/components/install-cli";
 import { Header, Footer } from "@/components/chrome";
 import { CaseCard, DailyCost, Demo } from "@/components/case-bits";
-import { CASES, PAID, FREE, HEROES, minutesPerDay, bySlug } from "@/lib/cases";
+import { CASES, PAID, FAMILIES, inFamily, minutesPerDay, bySlug } from "@/lib/cases";
 import { CONFIG } from "@/lib/config";
 
 /** JSON for a <script> body. A `</script>` inside any string would end the element early;
@@ -32,7 +32,7 @@ const jsonLd = (o: object) => JSON.stringify(o).replace(/</g, "\\u003c");
 
 const FAQ = [
   { q: "Claude Code can already read my files. Why do I need this?",
-    a: "It can. It cannot see your Finder selection, your clipboard, the terminal you lost, or the port you can\u2019t find. Chute is everything the agent can\u2019t reach from inside its own window." },
+    a: "It can. It cannot see your Finder selection, your clipboard, the terminal you lost, or the port you can\u2019t find \u2014 and it certainly cannot tell you which of your six sessions stopped. Chute is everything the agent cannot reach from inside its own window, including you." },
   { q: "What does it cost?",
     a: "Nothing, and there is nothing to unlock. Every part of Chute \u2014 the app, the Finder extension and all 26 commands \u2014 is MIT licensed. It was a paid app for eleven days in 2026; the trial clock, the licence check and the store account are deleted, not disabled." },
   { q: "Does it phone home?",
@@ -116,7 +116,6 @@ function HeroCase({ slug, flip }: { slug: string; flip: boolean }) {
 
 export default function Home() {
   const appMinutes = minutesPerDay(PAID);
-  const freeMinutes = minutesPerDay(FREE);
 
   return (
     <main className="min-h-screen">
@@ -181,10 +180,10 @@ export default function Home() {
         </h1>
 
         <p className="mt-6 max-w-2xl text-lg text-muted-foreground">
-          Chute puts every agent session in your menu bar — the project it is in, the agent, the
-          model, and what it is burning right now. Click a row and that terminal comes forward.
-          Then it does the other half: point an agent at files without typing a path, snapshot a
-          folder before you let it run, and find what it wrote afterwards.
+          You stopped being the person writing the code and became the person supervising four of
+          them. Chute is the part nobody built for that job: every session in your menu bar with
+          what it is doing right now, and the fastest path between a folder you can see and an
+          agent that cannot see it.
         </p>
 
         {/* ONE COMMAND, AND IT IS THE HONEST ONE.
@@ -231,35 +230,92 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ------------------------------------------------------------ the jobs it is bought for */}
-      <Section eyebrow="What it costs you"
-               title={`${appMinutes} minutes a day, thirty seconds at a time`}>
-        <p className="-mt-4 max-w-2xl text-muted-foreground">
-          The moments it is bought for, in the order they cost you the most. Each one is timed
-          the same way:
-          how often it happens, how long it takes by hand, how long it takes instead.
-        </p>
-        <div className="mt-4">
-          {HEROES.map((c, i) => (
-            <HeroCase key={c.slug} slug={c.slug} flip={i % 2 === 1} />
-          ))}
+      {/* ---------------------------------------------------------------- the critical event */}
+      {/* WHY NOW, and it is not a feature. The reader already lives this; naming it is what makes
+          the rest of the page feel like it was written by someone who does too. */}
+      <Section eyebrow="Why this exists now" title="Agents got autonomous. Supervising them did not.">
+        <div className="grid gap-10 md:grid-cols-2">
+          <div className="space-y-4 text-muted-foreground">
+            <p>
+              Software used to need you in the chair. Now you give it a job and walk off — and the
+              only thing standing between you and a finished task is whether you happened to look
+              at the right tab.
+            </p>
+            <p>
+              In September 2026 a developer bolted a physical USB traffic light to their monitor so
+              they could see, from across the room, whether Claude Code was waiting on them. The
+              replies were not jokes. They were people asking where to buy fifteen.
+            </p>
+            <p className="text-foreground">
+              The bottleneck stopped being how fast the model works. It is how fast you notice it
+              stopped.
+            </p>
+          </div>
+          <div className="rounded-[var(--radius)] border border-border bg-card p-8">
+            <p className="font-[family-name:var(--font-mono-loaded)] text-sm uppercase tracking-[0.18em] text-[var(--color-accent-chute)]">
+              What it costs
+            </p>
+            <p className="mt-4 font-[family-name:var(--font-mono-loaded)] text-4xl font-semibold">
+              {appMinutes} min
+            </p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              a day, thirty seconds at a time, across {PAID.length} jobs in the app
+            </p>
+            <div className="mt-6 border-t border-border pt-6">
+              <p className="text-sm text-muted-foreground">
+                And that is only the part with a stopwatch on it. An agent blocked on a permission
+                prompt for twenty minutes costs twenty minutes in which nothing happened at all —
+                no figure on this page counts that, because we cannot measure it honestly.
+              </p>
+            </div>
+          </div>
         </div>
       </Section>
 
-      {/* ---------------------------------------------------------------- and the rest, free */}
-      <Section eyebrow="And all of this is free"
-               title={`${FREE.length} more, in the command-line tool`}>
+      {/* ---------------------------------------------------------------- the loop */}
+      {/* THE JOBS, GROUPED BY THE LOOP RATHER THAN BY A DEAD PRICE. This section replaced two:
+          "what it costs you" (the six app jobs) and "and all of this is free" (the thirteen CLI
+          ones). That split was the pricing boundary, not a product boundary, and it survived the
+          price by three weeks. Nobody supervising six agents cares which half of a withdrawn
+          business model a job used to belong to. */}
+      <Section eyebrow="Every job it does" title="The loop you are already running">
         <p className="-mt-4 max-w-2xl text-muted-foreground">
-          {freeMinutes} minutes a day that cost nothing, run offline, and never expire. MIT
-          licensed, on Homebrew, yours whatever happens to this page.
+          Brief it, steer it, watch it, land what it made. {CASES.length} jobs, each one timed the
+          same way — how often it happens, how long it takes by hand, how long it takes instead.
         </p>
-        <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {FREE.slice(0, 6).map((c) => <CaseCard key={c.slug} c={c} />)}
+
+        <div className="mt-12 space-y-14">
+          {FAMILIES.map((f) => {
+            const jobs = inFamily(f.key);
+            return (
+              <div key={f.key}>
+                <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1 border-b border-border pb-4">
+                  <h3 className="font-[family-name:var(--font-mono-loaded)] text-xl font-semibold">
+                    {f.title}
+                  </h3>
+                  <span className="font-[family-name:var(--font-mono-loaded)] text-sm text-muted-foreground">
+                    {jobs.length} {jobs.length === 1 ? "job" : "jobs"}
+                  </span>
+                </div>
+                <p className="mt-4 max-w-2xl text-muted-foreground">{f.blurb}</p>
+                <ul className="mt-6 grid gap-3 sm:grid-cols-2">
+                  {jobs.map((c) => (
+                    <li key={c.slug}>
+                      <Link href={`/cases/${c.slug}`}
+                            className="group flex h-full flex-col justify-between gap-3 rounded-[var(--radius)] border border-border bg-card p-5 transition-colors hover:border-[var(--color-accent-chute)]">
+                        <p className="text-[15px] leading-snug text-foreground">{c.pain}</p>
+                        <p className="font-[family-name:var(--font-mono-loaded)] text-xs text-muted-foreground">
+                          {c.savedMinutes ? `${c.savedMinutes} min a day` : "attention, not seconds"}
+                          <span className="text-[var(--color-accent-chute)] opacity-0 transition-opacity group-hover:opacity-100"> →</span>
+                        </p>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            );
+          })}
         </div>
-        <Link href="/cases"
-              className="mt-8 inline-block text-sm text-muted-foreground hover:text-foreground">
-          All {CASES.length} jobs, with what each one costs →
-        </Link>
       </Section>
 
       {/* ---------------------------------------------------------------- trust */}

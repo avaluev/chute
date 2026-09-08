@@ -260,11 +260,65 @@ export const CASES: Case[] = [
   },
 ]
 
-/** The app's own jobs — the ones that need the Finder menu or the menu bar rather than a
- *  terminal. Named `PAID` for historical reasons; nothing is paid. In the order the landing
- *  page argues them. */
+/**
+ * THE LOOP, WHICH IS WHAT THE JOBS ARE ACTUALLY ABOUT.
+ *
+ * These nineteen jobs used to be split by `paid` — six in "the app", thirteen in "the free CLI"
+ * — and the landing page had a whole section titled "13 more, in the command-line tool". That
+ * was a PRICING boundary wearing the clothes of a product boundary, and when the price went away
+ * on 2026-09-08 it left the site sorting its own value by a distinction the reader has no reason
+ * to care about. Nobody supervising six agents wants to know which half of a dead business model
+ * a job belonged to. They want to know where it sits in the loop they are running.
+ *
+ * The loop: you BRIEF an agent, you STEER what it does, you SUPERVISE while it runs, and you
+ * LAND what it produced. Every job Chute does sits in exactly one of those four, and the order
+ * is the order the work happens in. `surface` (finder / menubar / cli) still exists and still
+ * says HOW a job is reached — it just stopped being how they are grouped, because how you reach
+ * a thing is an implementation detail of when you need it.
+ */
+export type Family = "supervise" | "brief" | "steer" | "land"
+
+export const FAMILY_OF: Record<string, Family> = {
+  "which-agent-is-waiting-for-you": "supervise",
+  "whats-on-port-3000": "supervise",
+
+  "paste-a-whole-folder-into-your-agent": "brief",
+  "stop-typing-file-paths": "brief",
+  "collect-files-over-several-copies": "brief",
+  "the-shape-of-a-folder": "brief",
+  "how-big-is-this-before-you-send-it": "brief",
+  "an-image-as-one-line-of-text": "brief",
+  "paste-without-pasting-your-keys": "brief",
+  "keys-into-a-dotenv-without-pasting-them": "brief",
+
+  "break-a-big-task-into-steps": "steer",
+  "stop-it-writing-a-framework": "steer",
+  "five-agents-one-command": "steer",
+
+  "clipboard-straight-into-a-file": "land",
+  "what-did-the-agent-actually-change": "land",
+  "find-the-file-it-just-wrote": "land",
+  "the-extension-you-didnt-type": "land",
+  "where-you-left-off": "land",
+  "share-a-file-without-a-repo": "land",
+}
+
+export const FAMILIES: { key: Family; title: string; blurb: string }[] = [
+  { key: "supervise", title: "Know which one needs you",
+    blurb: "You are running more sessions than you can watch. The one that stopped is costing you wall-clock, and it looks identical to the four that are still working." },
+  { key: "brief", title: "Hand it the context",
+    blurb: "The agent can read anything and still has to be told what. Everything here is the gap between a selection you can see and a prompt it can act on." },
+  { key: "steer", title: "Shape what it does",
+    blurb: "A vague brief comes back as four things done badly, or as a factory where you wanted a function. Cheaper to say it up front than to review it after." },
+  { key: "land", title: "Take back what it made",
+    blurb: "It says it is done. Where is the file, what did it touch, and can you undo it — before you find out by reading a diff you did not ask for." },
+]
+
+export const inFamily = (key: Family): Case[] =>
+  CASES.filter((c) => FAMILY_OF[c.slug] === key)
+
+/** Kept because `cases/[slug]` still reads it to phrase how a job is reached. Nothing is paid. */
 export const PAID = CASES.filter((c) => c.paid)
-/** What stays free and MIT, forever. */
 export const FREE = CASES.filter((c) => !c.paid)
 export const HEROES = CASES.filter((c) => c.tier === "hero")
 
