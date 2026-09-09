@@ -39,7 +39,7 @@ const FAQ = [
   { q: "Does it phone home?",
     a: "No. There is no network code at all except the gist command, which uploads only the files you name, only when you run it, and redacts them first. Nothing else in Chute opens a socket. Check it yourself: grep -rn URLSession Sources/" },
   { q: "macOS says it cannot verify the app. Is something wrong?",
-    a: "No \u2014 it is unsigned, which is a different thing from unsafe. There is no Apple Developer Program membership behind this project, so a downloaded build meets Gatekeeper. The Homebrew and source installs avoid that entirely, because a binary your own compiler produced was never downloaded and never gets a quarantine flag. If you want the .dmg anyway, the release page lists the four clicks." },
+    a: "No \u2014 it is unsigned, which is a different thing from unsafe. There is no Apple Developer Program membership behind this project, so a downloaded build meets Gatekeeper. The one-line source install avoids that entirely, because a binary your own compiler produced was never downloaded and never gets a quarantine flag. (Homebrew avoids it too, but that formula installs only the terminal tool \u2014 it gives you neither the menu bar nor the Finder menu.) If you want the .dmg anyway, the release page lists the four clicks." },
   { q: "Which agents does it work with?",
     a: "All of them. Chute never talks to an agent; it moves files, paths and text through your clipboard, and it reads session state from hooks you install yourself. Claude Code, Codex, Antigravity, Cursor, Aider, Gemini \u2014 if it reads a prompt, it reads Chute\u2019s output." },
   { q: "Does it write to my agent\u2019s config?",
@@ -153,16 +153,22 @@ export default function Home() {
           that cannot see it.
         </p>
 
-        {/* ONE COMMAND, AND IT IS THE HONEST ONE.
-            Chute has no Apple Developer ID, so a downloaded .app meets Gatekeeper and a six-step
-            dialog. A binary the reader's own compiler produced was never downloaded, so it never
-            gets a quarantine flag and Gatekeeper never runs. Homebrew is not the fallback here;
-            it is the better install, and it is free forever in both senses. */}
+        {/* ONE COMMAND, AND IT HAS TO BE THE ONE THAT INSTALLS THE PRODUCT.
+            This block used to lead with `brew install avaluev/tap/chute`. That formula builds
+            `--product chute` and installs `bin/chute` — the CLI, and ONLY the CLI. No app
+            bundle, no menu bar, no Finder extension. So the page described two surfaces and then
+            handed the reader neither of them. Found 2026-09-09 by reading the formula next to the
+            hero, and it is a truth problem before it is a conversion one.
+            The curl line runs Scripts/get.sh: clone, build, install the app AND register the
+            extension. It keeps the property brew was chosen for — the binary is compiled on the
+            reader's machine, so it is never downloaded, never quarantined, and Gatekeeper never
+            runs. Brew stays on the page, below, described as what it actually is. */}
         <div className="mt-9 max-w-xl">
-          <CopyLine text={CONFIG.brew} />
+          <CopyLine text={`curl -fsSL https://${CONFIG.domain}/install.sh | sh`} />
           <p className="mt-3 text-sm text-muted-foreground">
-            Free and MIT. No account, no licence key, no trial. Your own compiler builds it, so
-            macOS never quarantines it and Gatekeeper never asks.
+            Both surfaces — the menu bar and the Finder menu. Free and MIT: no account, no licence
+            key, no trial. It compiles on your machine, so nothing is downloaded, macOS never
+            quarantines it, and Gatekeeper never asks.
           </p>
         </div>
 
@@ -217,6 +223,36 @@ export default function Home() {
           title you can rename by accident — and the path it was derived from prints underneath
           it, so a wrong guess is visible instead of silent.
         </p>
+
+        {/* THE SECOND SURFACE, WHICH HAD NO IMAGE ANYWHERE — not on this site, not in the
+            README, not in the repo — until 2026-09-09. Half the product, never once shown.
+            macOS will not let anything screenshot another application's OPEN context menu, so
+            this is DRAWN: Scripts/finder-shot.swift renders it from
+            Sources/ChuteCore/FinderActions.swift — the same table the extension builds the real
+            menu from, so the picture cannot drift from the menu without the render changing too.
+            `chute finder-actions --menu` prints the same list for anyone who wants to diff it.
+            The alt text says it is a rendering, because it is. */}
+        <div className="mt-16 flex flex-col gap-8 md:flex-row md:items-center">
+          <Image
+            src={asset("/media/screens/finder-menu.png")}
+            alt="A rendering of Chute's rows inside the Finder right-click menu: Copy Full Paths, Copy Files as Context, Copy Folder Tree, Add to Context Basket, and New File"
+            width={430} height={284} unoptimized
+            className="shrink-0 rounded-[var(--radius)] border border-border"
+          />
+          <div className="space-y-3 text-sm text-muted-foreground">
+            <p className="text-base font-medium text-foreground">The other half is in Finder.</p>
+            <p>
+              Right-click a selection and the rows sit inline in the menu you already opened —
+              no <span className="whitespace-nowrap">Chute ▸</span> submenu to go through first.
+              Select a folder, pick <em>Copy Files as Context</em>, and every file inside it is on
+              your clipboard as one blob with a token count, ready to paste.
+            </p>
+            <p>
+              Drawn from the same table the extension builds the real menu from, so it cannot
+              show you a row the app does not have.
+            </p>
+          </div>
+        </div>
       </section>
 
       {/* ---------------------------------------------------------------- the critical event */}
@@ -328,7 +364,7 @@ export default function Home() {
           trial and a 30-day refund. All of it is gone. Chute is MIT, every part of it, and the
           only question left on this page is which install suits the reader — which is a much
           easier question to answer honestly than "why is this worth nineteen dollars". */}
-      <Section id="install" eyebrow="Install" title="Free, MIT, and three ways in">
+      <Section id="install" eyebrow="Install" title="Free, MIT, and four ways in">
         <p className="-mt-4 max-w-2xl text-muted-foreground">
           There is no licence key, no trial clock and no account. There is also no Apple
           Developer ID behind this project — so the install that compiles on your own machine is
@@ -338,28 +374,32 @@ export default function Home() {
         <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           <div className="rounded-[var(--radius)] border border-[var(--color-accent-chute)] bg-card p-6">
             <p className="font-[family-name:var(--font-mono-loaded)] text-sm text-[var(--color-accent-chute)]">
-              Homebrew — recommended
-            </p>
-            <div className="mt-4"><InstallCli /></div>
-            <p className="mt-4 text-sm text-muted-foreground">
-              Builds from source on your machine. Nothing is downloaded, so nothing is
-              quarantined, and Gatekeeper never runs. Upgrades and uninstalls like anything else
-              you have in brew.
-            </p>
-          </div>
-
-          <div className="rounded-[var(--radius)] border border-border bg-card p-6">
-            <p className="font-[family-name:var(--font-mono-loaded)] text-sm text-muted-foreground">
-              One line, no Homebrew
+              One line — the whole app
             </p>
             <div className="mt-4">
               <CopyLine text={`curl -fsSL https://${CONFIG.domain}/install.sh | sh`} />
             </div>
             <p className="mt-4 text-sm text-muted-foreground">
-              Clones, builds and installs. It is forty lines and{" "}
+              Clones, builds and installs the app, then registers the Finder extension. Nothing is
+              downloaded, so nothing is quarantined and Gatekeeper never runs. It is forty lines
+              and{" "}
               <a className="text-foreground underline underline-offset-4"
                  href={`https://${CONFIG.domain}/install.sh`}>you can read it first</a>{" "}
               — piping a stranger&rsquo;s script into a shell deserves that much.
+            </p>
+          </div>
+
+          <div className="rounded-[var(--radius)] border border-border bg-card p-6">
+            <p className="font-[family-name:var(--font-mono-loaded)] text-sm text-muted-foreground">
+              Let your agent do it
+            </p>
+            <div className="mt-4">
+              <CopyLine text={`Set up Chute for me — ${CONFIG.repo}`} />
+            </div>
+            <p className="mt-4 text-sm text-muted-foreground">
+              Paste that at Claude Code, Codex or whatever you already have open. The repository
+              carries the instructions an agent needs to install it and wire the hooks up, and it
+              will ask you before it touches anything of yours.
             </p>
           </div>
 
@@ -375,6 +415,21 @@ export default function Home() {
               Unsigned and unnotarized. macOS will say it cannot verify the app, and will offer
               you <em>Done</em> and <em>Move to Trash</em> — neither of which opens it. The
               release page walks the four steps that do. Ships with a SHA-256 to check.
+            </p>
+          </div>
+
+          {/* LAST, AND LABELLED. The formula installs bin/chute and nothing else — this card used
+              to be first and said "recommended", which sent the reader who wanted the menu bar to
+              the one install that does not contain it. */}
+          <div className="rounded-[var(--radius)] border border-border bg-card p-6">
+            <p className="font-[family-name:var(--font-mono-loaded)] text-sm text-muted-foreground">
+              Homebrew — the terminal tool only
+            </p>
+            <div className="mt-4"><InstallCli /></div>
+            <p className="mt-4 text-sm text-muted-foreground">
+              This installs the free command-line tool and <strong>not</strong> the app: no menu
+              bar, no Finder menu. Take it if the terminal is where you want to live, or to read
+              the engine before you install anything with a window.
             </p>
           </div>
         </div>

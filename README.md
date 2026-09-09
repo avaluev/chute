@@ -13,11 +13,13 @@ blocked or waiting on you, and see every local server without hunting for what i
 Offline. Zero telemetry. No account. No launch daemon, no background service, and no network code
 beyond one command, `gist`, that uploads only when you run it yourself.
 
-![Copy files and contents from Finder, with a token count](docs/media/bundle.gif)
+![The Chute menu bar drop-down: every agent session with its project, path, state and load](site/public/media/screens/menu.png)
 
 ---
 
 ## The Finder menu
+
+![A rendering of Chute's rows in the Finder right-click menu: Copy Full Paths, Copy Files as Context, Copy Folder Tree, Add to Context Basket, New File](site/public/media/screens/finder-menu.png)
 
 Right-click a selection and the actions sit inline in the context menu — no `Chute ▸` submenu to
 open first. Five rows, nine actions:
@@ -30,6 +32,14 @@ open first. Five rows, nine actions:
   hand the whole set over once.
 - **New File** — a blank Markdown file, or one built from what's on the clipboard, named from its
   own `# heading`.
+
+![The New File submenu open, showing Empty Markdown File, Markdown File from Clipboard, and Image from Clipboard](site/public/media/screens/finder-menu-submenu.png)
+
+> Both images above are **rendered**, not photographed: macOS will not let any program screenshot
+> another application's open context menu. `Scripts/finder-shot.swift` draws them from
+> `Sources/ChuteCore/FinderActions.swift` — the same table the extension builds the real menu
+> from — so they cannot show a row the Finder menu does not have. The terminal section at the
+> bottom of this page shows how to print the same list yourself and compare.
 
 The Finder menu is a sandboxed `FIFinderSync` extension inside the app. `install.sh` registers and
 enables it for you; if it ever goes missing, tick it in System Settings → Privacy & Security →
@@ -80,18 +90,80 @@ never what the question "what is running?" means.
 
 ## Install
 
+**You need:** macOS 13 (Ventura) or later, on an Apple Silicon Mac (M1 and up). Nothing else — no
+Xcode, no Apple account, no licence key. The build takes about a minute.
+
+### The one command — recommended, and fine if you have never used a terminal
+
+1. Press <kbd>⌘</kbd><kbd>Space</kbd>, type `Terminal`, press <kbd>Return</kbd>.
+2. Copy the line below, paste it into that window, press <kbd>Return</kbd>:
+
 ```bash
-./Scripts/install.sh
+curl -fsSL https://chutedev.com/install.sh | sh
 ```
 
-Installs `~/Applications/Chute.app` (menu bar 🪂, hotkey `⌥⌘N`) and registers the Finder
-extension. Remove it completely at any time:
+3. Wait about a minute. It prints what it is doing and finishes with `Chute installed.`
+4. Look for the 🪂 in your menu bar, at the top-right of the screen. That is Chute running.
+
+It downloads the source, compiles it **on your Mac**, installs the app and switches the Finder
+menu on. Because your own compiler built it, macOS never flags it as downloaded and Gatekeeper
+never blocks it — which is the whole reason this is the recommended path rather than the .dmg.
+Piping a stranger's script into a shell deserves a look first:
+[read it here](https://chutedev.com/install.sh) — it is about forty lines.
+
+### Every other way in
+
+| You want | Do this | You get |
+|---|---|---|
+| **Your agent to do it** | Paste at Claude Code, Codex, Cursor: `Set up Chute for me — https://github.com/avaluev/chute` | The app. It reads this page, installs, and asks before touching your agent config. |
+| **A download, not a terminal** | [Get `Chute-<version>.dmg` from the latest release](https://github.com/avaluev/chute/releases/latest), open it, drag Chute to Applications | The app — **but see Gatekeeper below**, macOS will refuse it on the first try. |
+| **To build from a clone** | `git clone https://github.com/avaluev/chute.git && cd chute && ./Scripts/install.sh` | The app. Rebuilds automatically if the checkout has moved on. |
+| **Only the terminal tool** | `brew install avaluev/tap/chute` | The `chute` command and **nothing else** — no menu bar, no Finder menu. |
+
+> **Homebrew does not install the app.** The formula builds the command-line binary only. If you
+> want the two surfaces this page is about, use one of the first three rows.
+
+### If you downloaded the .dmg: getting past Gatekeeper
+
+Chute has no Apple Developer ID, so a downloaded copy is unsigned and macOS will say it *"cannot
+be opened because Apple cannot check it for malicious software."* The dialog offers **Done** and
+**Move to Trash** — neither of which opens it. To open it anyway:
+
+1. Right-click (or Control-click) `Chute.app` in Applications → **Open**.
+2. The same warning appears, but this time with an **Open** button. Click it.
+3. If that does not appear: **System Settings → Privacy & Security**, scroll down, and click
+   **Open Anyway** next to the message about Chute.
+
+Verify the download first if you like — every release ships a checksum:
+
+```bash
+shasum -a 256 -c Chute-*.dmg.sha256
+```
+
+None of this applies to the one-command or clone installs. Nothing is downloaded, so nothing is
+quarantined.
+
+### What macOS will ask you, and why
+
+- **"Chute wants to control Finder / System Events"** — the app is what performs a Finder action;
+  the extension itself is sandboxed and can only file a request. Decline it and the menu rows go
+  quiet. Grant it in **System Settings → Privacy & Security → Automation**.
+- **The Finder menu is missing** — tick it under **System Settings → Privacy & Security →
+  Extensions → Finder → ☑ Chute**, or run `pluginkit -e use -i dev.valuev.chute.finder`.
+- Chute asks for **no** disk, network, camera, microphone or location permission, and there is
+  nothing to sign in to.
+
+### Uninstall
 
 ```bash
 ./Scripts/uninstall.sh
 ```
 
-Prefer a terminal to a right-click? The same engine installs on its own — see
+Removes the app from both `~/Applications` and `/Applications`, unregisters the Finder extension,
+and strips the hook block from your agent config. If you installed with Homebrew, that binary is
+separate: `brew uninstall chute`.
+
+Prefer a terminal to a right-click? The same engine runs on its own — see
 [The command-line tool](#the-command-line-tool) near the bottom of this page.
 
 ---

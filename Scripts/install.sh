@@ -12,7 +12,34 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 APP="$ROOT/dist/Chute.app"
-[ -d "$APP" ] || "$ROOT/Scripts/build-app.sh"
+
+# BUILD WHEN THERE IS NOTHING TO INSTALL — OR WHEN WHAT IS SITTING THERE IS NOT THIS CODE.
+#
+# `[ -d "$APP" ] || build` was the entire test until 2026-09-09, and it shipped stale bundles in
+# silence: a leftover dist/ from four commits earlier was copied into place and the script printed
+# the same "Chute installed." banner it prints on success, with nothing in the output a reader
+# could use to tell the difference. It had already cost one session — the app in /Applications was
+# six days old while the build was reported as done — and it was reproduced deliberately here,
+# which is the only reason it is fixed rather than written down again.
+#
+# `reinstall-if-stale.sh` already knew how to ask this question. The check belongs HERE, where
+# every caller routes through: get.sh, the README's command, and a person typing it by hand.
+#
+# A dirty tree rebuilds unconditionally. The stamp records `<sha>-dirty` but not WHICH edits, so
+# a matching sha proves nothing about uncommitted work; `swift build` is incremental and a
+# needless rebuild costs seconds, while a silently stale install costs an afternoon.
+if [ ! -d "$APP" ]; then
+  "$ROOT/Scripts/build-app.sh"
+elif HEAD_SHA="$(git -C "$ROOT" rev-parse --short HEAD 2>/dev/null)"; then
+  STAMP="$(plutil -extract ChuteBuild raw "$APP/Contents/Info.plist" 2>/dev/null | awk '{print $1}')"
+  if [ "${STAMP%-dirty}" != "$HEAD_SHA" ]; then
+    echo "install: dist/ holds ${STAMP:-no build stamp}, this tree is $HEAD_SHA — rebuilding." >&2
+    "$ROOT/Scripts/build-app.sh"
+  elif ! git -C "$ROOT" diff --quiet 2>/dev/null || ! git -C "$ROOT" diff --cached --quiet 2>/dev/null; then
+    echo "install: the tree has uncommitted changes — rebuilding rather than trusting dist/." >&2
+    "$ROOT/Scripts/build-app.sh"
+  fi
+fi
 
 # WHERE IT GOES: over the copy that is already there, whichever folder that is.
 #
