@@ -55,7 +55,7 @@ export function Mark({ size = 16 }: { size?: number }) {
 
 export function Header() {
   return (
-    <header className="mx-auto w-full max-w-5xl px-6 pt-10">
+    <header className="mx-auto w-full max-w-5xl px-5 pt-10 sm:px-6">
       <div className="flex items-center justify-between">
         <Link href="/" className="flex items-center gap-2 font-[family-name:var(--font-mono-loaded)] text-sm font-semibold">
           <Mark size={20} /> Chute
@@ -73,7 +73,7 @@ export function Header() {
 
 export function Footer() {
   return (
-    <footer className="mx-auto w-full max-w-5xl px-6 pb-16 pt-24">
+    <footer className="mx-auto w-full max-w-5xl px-5 pb-16 pt-24 sm:px-6">
       <div className="border-t border-border pt-8">
         <div className="flex flex-col gap-4 text-sm text-muted-foreground sm:flex-row sm:justify-between">
           <span>
@@ -115,12 +115,12 @@ export function Page({ title, lead, children }: {
   return (
     <main className="min-h-screen">
       <Header />
-      <div className="mx-auto w-full max-w-3xl px-6 pt-16">
-        <h1 className="font-[family-name:var(--font-mono-loaded)] text-3xl font-semibold tracking-tight">
+      <div className="mx-auto w-full max-w-3xl px-5 pt-16 sm:px-6">
+        <h1 className="text-3xl font-semibold leading-[1.05] tracking-[-0.035em] md:text-5xl">
           {title}
         </h1>
-        {lead && <p className="mt-4 text-lg text-muted-foreground">{lead}</p>}
-        <div className="mt-12 space-y-6 text-[15px] leading-relaxed text-muted-foreground">
+        {lead && <p className="mt-4 text-xl text-muted-foreground">{lead}</p>}
+        <div className="mt-12 space-y-6 text-base leading-relaxed text-muted-foreground">
           {children}
         </div>
       </div>
@@ -131,7 +131,7 @@ export function Page({ title, lead, children }: {
 
 export function H2({ children }: { children: React.ReactNode }) {
   return (
-    <h2 className="pt-6 font-[family-name:var(--font-mono-loaded)] text-lg font-semibold text-foreground">
+    <h2 className="pt-6 text-xl font-semibold leading-[1.2] tracking-[-0.02em] text-foreground md:text-3xl">
       {children}
     </h2>
   );

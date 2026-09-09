@@ -9,11 +9,12 @@ CONTEXT IN
   bundle <files…>       Files + contents in one blob      --format xml|md
   tokens <files…>       Estimated token cost per file
   tree [dir]            Directory skeleton, junk excluded --depth N
-  basket add|list|copy|clear                              Collect files across folders, hand over once
+  basket|buf add|list|copy|clear                          Collect files across folders, hand over once
                         copy --format mentions|context      @mentions for an agent, or the files themselves
 
 FILES
   new                   Clipboard → new file              --name N --dir D --ext E --naming slug|underscore --reveal
+  paste-image           Clipboard image → file            --name N --dir D --reveal
   seed [dir]            CLAUDE.md / .cursorrules / …      --rules claude,cursor,agents,scratchpad,gitignore
   note "text"           Append to SCRATCHPAD.md           --dir D
   latest [dir]          Reveal newest artifact            --quicklook
@@ -44,6 +45,7 @@ SHARING
 
 SETUP
   doctor                Check the install and say how to fix what fails  --fix --force --json
+  finder-actions        Every row the right-click menu offers, and what each one does
                                    (--fix previews by default)
   onboard               What Chute is, and the first thing to try
 
@@ -86,9 +88,20 @@ guard let command = argv.first, !command.hasPrefix("--") else {
 // is by definition the one who does not yet know what the command does, and is therefore the
 // least able to afford it happening. It answers from `helpText`, so there is no second copy of
 // the description to drift, and an unknown command says so rather than guessing.
-if argv.dropFirst().contains(where: { $0 == "--help" || $0 == "-h" }) {
+// `help` itself is exempt: it has no row of its own, and answering "no entry for 'help' —
+// run `chute help`" to someone who just ran a form of that is comedy, not help.
+if command != "help", argv.dropFirst().contains(where: { $0 == "--help" || $0 == "-h" }) {
+    // MATCHED ON THE ROW'S FIRST TOKEN, SPLIT ON "|", so an alias finds its own row: `buf` is
+    // `basket` and the row reads "basket|buf …", which no prefix test on the row could find.
+    // Three commands — paste-image, finder-actions and buf — answered "no entry for …" here
+    // while running perfectly well, which reads as "that command does not exist" to the one
+    // person who most needs it to say otherwise.
     let row = helpText.split(separator: "\n", omittingEmptySubsequences: false)
-        .first { $0.hasPrefix("  \(command) ") || $0.hasPrefix("  \(command)|") }
+        .first { line in
+            guard line.hasPrefix("  "), !line.hasPrefix("   ") else { return false }
+            let first = line.dropFirst(2).prefix(while: { $0 != " " })
+            return first.split(separator: "|").contains { $0 == command }
+        }
     if let row { print(row.trimmingCharacters(in: .whitespaces)) }
     else { print("chute: no entry for '\(command)' — run `chute help` for every command") }
     exit(0)

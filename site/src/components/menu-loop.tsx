@@ -23,13 +23,13 @@ type State = "working" | "blocked" | "ready";
 
 const DOT: Record<State, string> = {
   working: styles.shapeRing,
-  blocked: styles.shapeSquare,
-  ready: styles.shapeCircle,
+  blocked: styles.shapeBlocked,
+  ready: styles.shapeReady,
 };
 const PIP: Record<State, string> = {
   working: styles.pipRing,
-  blocked: styles.pipSquare,
-  ready: styles.pipCircle,
+  blocked: styles.pipShapeBlocked,
+  ready: styles.pipShapeReady,
 };
 const LAYER: Record<State, string> = {
   working: styles.dotWorking,
@@ -50,7 +50,7 @@ const PIP_LAYER: Record<State, string> = {
 const STATES: State[] = ["working", "blocked", "ready"];
 
 const th =
-  "font-[family-name:var(--font-mono-loaded)] text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground";
+  "font-[family-name:var(--font-mono-loaded)] text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground";
 
 /** A row that never changes state — the "several sessions working" backdrop. */
 function WorkingRow({ project, path, state, agent, load, load2 }: {
@@ -62,16 +62,16 @@ function WorkingRow({ project, path, state, agent, load, load2 }: {
         <span className={cn(styles.shapeRing, styles.ringBreath)} />
       </span>
       <div className="min-w-0 flex-1">
-        <p className="truncate text-[13px] font-semibold text-foreground">{project}</p>
-        <p className="truncate font-[family-name:var(--font-mono-loaded)] text-[11px] text-muted-foreground">{path}</p>
+        <p className="truncate text-sm font-semibold text-foreground">{project}</p>
+        <p className="truncate font-[family-name:var(--font-mono-loaded)] text-xs text-muted-foreground">{path}</p>
       </div>
       <div className="min-w-0 flex-1">
-        <p className="truncate text-[13px] font-semibold text-foreground">{state}</p>
-        <p className="truncate text-[11px] text-muted-foreground">{agent}</p>
+        <p className="truncate text-sm font-semibold text-foreground">{state}</p>
+        <p className="truncate text-xs text-muted-foreground">{agent}</p>
       </div>
       <div className="w-[104px] shrink-0 text-right">
-        <p className="font-[family-name:var(--font-mono-loaded)] text-[11px] text-foreground">{load}</p>
-        {load2 && <p className="font-[family-name:var(--font-mono-loaded)] text-[10px] text-muted-foreground">{load2}</p>}
+        <p className="font-[family-name:var(--font-mono-loaded)] text-xs text-foreground">{load}</p>
+        {load2 && <p className="font-[family-name:var(--font-mono-loaded)] text-xs text-muted-foreground">{load2}</p>}
       </div>
     </div>
   );
@@ -128,21 +128,21 @@ export function MenuLoop() {
               <span className={styles.pointer} />
             </span>
             <div className="min-w-0 flex-1">
-              <p className="truncate text-[13px] font-semibold text-foreground">37.chute</p>
-              <p className="truncate font-[family-name:var(--font-mono-loaded)] text-[11px] text-muted-foreground">
+              <p className="truncate text-sm font-semibold text-foreground">37.chute</p>
+              <p className="truncate font-[family-name:var(--font-mono-loaded)] text-xs text-muted-foreground">
                 ~/Documents/…/37.chute/site
               </p>
             </div>
             <div className="min-w-0 flex-1">
-              <span className={cn("block text-[13px] font-semibold text-foreground", styles.lineStack)}>
+              <span className={cn("block text-sm font-semibold text-foreground", styles.lineStack)}>
                 <span className={LINE.working}>working 4 min</span>
                 <span className={LINE.blocked}>blocked 22 min</span>
                 <span className={LINE.ready}>ready 0 min</span>
               </span>
-              <p className="truncate text-[11px] text-muted-foreground">Claude Code · Opus 5 · xhigh</p>
+              <p className="truncate text-xs text-muted-foreground">Claude Code · Opus 5 · xhigh</p>
             </div>
             <div className="w-[104px] shrink-0 text-right">
-              <p className="font-[family-name:var(--font-mono-loaded)] text-[11px] text-foreground">177% · 3.0 GB</p>
+              <p className="font-[family-name:var(--font-mono-loaded)] text-xs text-foreground">177% · 3.0 GB</p>
             </div>
           </div>
 

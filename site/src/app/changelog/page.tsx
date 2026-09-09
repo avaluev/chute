@@ -47,7 +47,7 @@ export default function Changelog() {
       {RELEASES.map((r) => (
         <section key={r.version}>
           <div className="flex items-baseline gap-4">
-            <h2 className="font-[family-name:var(--font-mono-loaded)] text-lg font-semibold text-foreground">
+            <h2 className="text-xl font-semibold leading-[1.2] tracking-[-0.02em] md:text-3xl text-foreground">
               {r.version}
             </h2>
             <span className="text-sm">{r.date}</span>

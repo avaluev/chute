@@ -28,13 +28,13 @@ export default function CliPage() {
     <main className="min-h-screen">
       <Header />
       <div className="mx-auto w-full max-w-3xl px-6 pt-16">
-        <p className="font-[family-name:var(--font-mono-loaded)] text-xs uppercase tracking-[0.18em] text-[var(--color-accent-chute)]">
+        <p className="font-[family-name:var(--font-mono-loaded)] text-xs font-medium uppercase tracking-[0.14em] text-[var(--color-accent-chute)]">
           Free forever
         </p>
-        <h1 className="mt-3 font-[family-name:var(--font-mono-loaded)] text-3xl font-semibold tracking-tight">
+        <h1 className="mt-3 text-3xl font-semibold leading-[1.05] tracking-[-0.035em] md:text-5xl">
           The command-line tool is free, MIT, and yours whatever happens to this page
         </h1>
-        <p className="mt-5 text-lg text-muted-foreground">
+        <p className="mt-5 text-xl text-muted-foreground">
           Zero dependencies, zero telemetry, no account, under 1 MB. It does everything the app
           does, including what the Finder menu puts behind a right-click.
         </p>
@@ -43,7 +43,7 @@ export default function CliPage() {
           <InstallCli />
         </div>
 
-        <div className="mt-12 space-y-6 text-[15px] leading-relaxed text-muted-foreground">
+        <div className="mt-12 space-y-6 text-base leading-relaxed text-muted-foreground">
           <p>
             There is no crippled tier, here or in the app. The Finder menu, the menu-bar switcher
             and the hotkey are free and MIT the same as{" "}
@@ -57,13 +57,14 @@ export default function CliPage() {
           </p>
         </div>
 
-        <h2 className="mt-14 font-[family-name:var(--font-mono-loaded)] text-lg font-semibold text-foreground">
+        <h2 className="mt-10 text-xl font-semibold leading-[1.2] tracking-[-0.02em] md:text-3xl text-foreground">
           What it does on its own
         </h2>
         <p className="mt-2 text-sm text-muted-foreground">
-          {minutesPerDay(FREE)} minutes a day, measured the same way as everything else.
+          {minutesPerDay(FREE)} minutes a day, estimated the same way as everything else &mdash; see
+          the FAQ for exactly how, and how much of it is a stopwatch.
         </p>
-        <div className="mt-6 grid gap-4 sm:grid-cols-2">
+        <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
           {FREE.map((c) => <CaseCard key={c.slug} c={c} />)}
         </div>
 

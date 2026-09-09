@@ -37,7 +37,8 @@ export function GET() {
 Chute exists because a coding agent can read any file you point it at, but pointing is still
 manual. Its five Finder menu rows remove ${finder.toFixed(1)} minutes a day of that pointing and
 the menu bar a further ${(paid - finder).toFixed(1)}, for ${paid.toFixed(1)} across the app —
-measured against one developer's own workflow, not a study. The command-line tool removes another
+estimated against one developer's own workflow, not a study \u2014 frequency and manual seconds
+recalled, Chute seconds a design target, three of them checked against a screen recording. The command-line tool removes another
 ${free.toFixed(1)} on its own, for ${(paid + free).toFixed(1)} across both. Everything here is
 free and MIT; the split is which surface a job needs, not what it costs.
 

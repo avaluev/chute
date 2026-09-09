@@ -58,7 +58,7 @@ export const CASES: Case[] = [
     fix: "Select the folders in Finder, right-click once, and every file inside them is on the clipboard as one blob with a token count.",
     seconds: { manual: 150, chute: 5 }, perDay: 17, savedMinutes: 41.1,
     demo: "/media/paste-a-whole-folder-into-your-agent.mp4",
-    poster: "/media/paste-a-whole-folder-into-your-agent.jpg",
+    poster: "/media/paste-a-whole-folder-into-your-agent.webp",
     command: "chute bundle src/ --format xml",
   },
   {
@@ -84,7 +84,7 @@ export const CASES: Case[] = [
     // three columns and a dot that draws would have shown a visitor a product that no longer
     // exists. `demo` now points at a screenshot of the actual menu, taken after the fix; no
     // poster frame, because a still image needs none.
-    demo: "/media/screens/menu.png",
+    demo: "/media/screens/menu.webp",
     command: "chute sessions",
   },
   {
@@ -95,7 +95,7 @@ export const CASES: Case[] = [
     fix: "Right-click where it belongs. The file is named from its own first heading and its extension comes from the code inside it.",
     seconds: { manual: 35, chute: 4 }, perDay: 25, savedMinutes: 12.9,
     demo: "/media/clipboard-straight-into-a-file.mp4",
-    poster: "/media/clipboard-straight-into-a-file.jpg",
+    poster: "/media/clipboard-straight-into-a-file.webp",
     command: "chute new",
   },
   {
@@ -106,7 +106,7 @@ export const CASES: Case[] = [
     fix: "Select any number of files, right-click once, and every path is on the clipboard, escaped correctly.",
     seconds: { manual: 20, chute: 3 }, perDay: 32, savedMinutes: 9.1,
     demo: "/media/stop-typing-file-paths.mp4",
-    poster: "/media/stop-typing-file-paths.jpg",
+    poster: "/media/stop-typing-file-paths.webp",
     command: "chute paths src/*.ts",
   },
   {
@@ -116,8 +116,21 @@ export const CASES: Case[] = [
     ritual: "lsof, read the PID, guess which project it belongs to, kill it, hope it was the right one.",
     fix: "The menu bar lists every local server with the process and the project it belongs to. One click stops it.",
     seconds: { manual: 30, chute: 3 }, perDay: 11, savedMinutes: 4.9,
-    demo: "/media/whats-on-port-3000.mp4",
-    poster: "/media/whats-on-port-3000.jpg",
+    // SWAPPED 2026-09-09, for the same reason the sibling case above was swapped a day earlier
+    // — and this is the one that got missed then. The .mp4 here was filmed 2026-08-28 and shipped
+    // on the live site until today showing, in order: a menu row reading "Trial — 14 days left"
+    // (Chute is free and MIT; the trial clock was DELETED, and that string is the fact sheet's
+    // own forbidden claim), circular dots from before the squares landed, the "Waiting for You
+    // (3) / Agents Working (1)" grouping and counts removed in 2849347 for lying, a "This Mac —
+    // using 1.3 of 16 cores" row that no longer exists, and "Refresh Now". It also never showed
+    // its own case: it ended with "Local Servers (6)" still collapsed, having demonstrated no
+    // server, no process and no kill.
+    //
+    // NO GATE COULD HAVE CAUGHT THIS. check-claims.mjs reads rendered text; a false claim burnt
+    // into 380 KB of H.264 is invisible to it. The only defence is that a recording is re-checked
+    // by eye whenever the UI it shows changes — so when Local Servers gets a real recording,
+    // date it in this comment.
+    demo: "/media/screens/menu.webp",
     command: "chute ports --kill 3000",
   },
   {
@@ -127,7 +140,7 @@ export const CASES: Case[] = [
     ritual: "Type out the structure by hand, or paste a tree with node_modules in it and burn the context on nothing.",
     fix: "Right-click, pick a depth, and the skeleton is on the clipboard with the build and dependency folders left out.",
     seconds: { manual: 30, chute: 3 }, perDay: 10, savedMinutes: 4.5,
-    demo: "/media/screens/finder-menu.png",
+    demo: "/media/screens/finder-menu.webp",
     command: "chute tree . --depth 4",
   },
 
@@ -242,7 +255,7 @@ export const CASES: Case[] = [
     ritual: "Rename it once you notice the syntax highlighting is missing.",
     fix: "The extension comes from the code in the file, not from what you remembered to type.",
     seconds: { manual: 10, chute: 0 }, perDay: 12, savedMinutes: 2.0,
-    demo: "/media/screens/finder-menu-submenu.png",
+    demo: "/media/screens/finder-menu-submenu.webp",
     command: "chute new",
   },
   {

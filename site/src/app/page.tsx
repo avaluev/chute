@@ -52,7 +52,7 @@ const FAQ = [
             the one FAQ answer with an image because it is the one claim a screenshot settles
             outright: the tab literally says "Chute never edits ~/.claude/settings.json." */}
         <Image
-          src={asset("/media/screens/settings.png")}
+          src={asset("/media/screens/settings.webp")}
           alt="The Chute General settings tab, showing the hooks explanation and chute doctor"
           width={960} height={640} unoptimized
           className="mt-4 w-full rounded-[var(--radius)] border border-border"
@@ -60,7 +60,7 @@ const FAQ = [
       </>
     ) },
   { q: "Where do these numbers come from?",
-    a: "Every one is timed the same way: how often it happens, how long it takes by hand, how long it takes with Chute. The ledger is in the repository, the site is generated from it, and the build fails if a figure here stops matching it." },
+    a: "Honestly: they are estimates, not a study. Each is frequency \u00d7 (seconds by hand \u2212 seconds with Chute). The frequency and the by-hand seconds come from one developer\u2019s own workflow as he recalls it. The Chute seconds are a design target the build has to meet \u2014 except for the three jobs that have a screen recording behind them, where a stopwatch read the tape and the recording wins over the estimate. Two more jobs carry no number at all, because inventing one would make the rest less believable. The ledger and its method are in the repository, the site is generated from it, and the build fails if a figure here stops matching it." },
   { q: "Which macOS?",
     a: "macOS 13 Ventura and later, Apple Silicon. The app is under 3.2 MB and the command-line binary under 1 MB, with no dependencies, no launch daemon and no background service. CI tests macOS 15 and 26 on every push." },
 ];
@@ -69,11 +69,11 @@ function Section({ id, eyebrow, title, children }: {
   id?: string; eyebrow: string; title: string; children: React.ReactNode;
 }) {
   return (
-    <section id={id} className="mx-auto w-full max-w-5xl px-5 py-14 sm:px-6 sm:py-20 md:py-28">
-      <p className="font-[family-name:var(--font-mono-loaded)] text-xs uppercase tracking-[0.18em] text-[var(--color-accent-chute)]">
+    <section id={id} className="mx-auto w-full max-w-5xl px-5 py-16 sm:px-6 md:py-24 lg:py-28">
+      <p className="font-[family-name:var(--font-mono-loaded)] text-xs font-medium uppercase tracking-[0.14em] text-[var(--color-accent-chute)]">
         {eyebrow}
       </p>
-      <h2 className="mt-3 font-[family-name:var(--font-mono-loaded)] text-2xl font-semibold tracking-tight md:text-3xl">
+      <h2 className="mt-3 text-xl font-semibold leading-[1.2] tracking-[-0.02em] md:text-3xl">
         {title}
       </h2>
       <div className="mt-10">{children}</div>
@@ -122,10 +122,22 @@ export default function Home() {
       <Header />
 
       {/* ---------------------------------------------------------------- hero */}
-      <section className="mx-auto w-full max-w-5xl px-5 pt-12 sm:px-6 sm:pt-16 md:pt-24">
-        <Badge variant="secondary" className="font-[family-name:var(--font-mono-loaded)] text-xs">
-          macOS 13+ · free and MIT · no account · no telemetry
-        </Badge>
+      <section className="mx-auto w-full max-w-5xl px-5 pt-16 sm:px-6 md:pt-24">
+        {/* FOUR CHIPS, NOT ONE PILL. This was a single Badge holding
+            "macOS 13+ · free and MIT · no account · no telemetry" — and shadcn's Badge is
+            `whitespace-nowrap shrink-0` by design, because a badge is a one-word label. A
+            50-character sentence in it cannot wrap, so on a 390px phone it hung 22px past the
+            right edge and was the last thing still forcing a horizontal scrollbar. Four separate
+            chips in a wrapping flex row say the same thing, reflow at any width, and read as a
+            spec strip rather than one over-long pill. */}
+        <div className="flex flex-wrap items-center gap-2">
+          {["macOS 13+", "free and MIT", "no account", "no telemetry"].map((t) => (
+            <Badge key={t} variant="secondary"
+                   className="font-[family-name:var(--font-mono-loaded)] text-xs">
+              {t}
+            </Badge>
+          ))}
+        </div>
 
         {/* THE HERO NOW LEADS WITH SUPERVISION, NOT FINDER, and that is a positioning change
             made on evidence rather than taste.
@@ -140,13 +152,13 @@ export default function Home() {
             The evidence it is the sharper pain: in September 2026 a post about screwing a physical
             USB traffic light to a monitor ran away on LinkedIn, and the replies were people asking
             where to buy fifteen of them. Nobody has ever asked that about a path. */}
-        <h1 className="mt-6 max-w-3xl font-[family-name:var(--font-mono-loaded)] text-[26px] font-semibold leading-[1.2] tracking-tight sm:text-4xl md:text-5xl md:leading-[1.15]">
+        <h1 className="mt-6 max-w-3xl text-3xl font-semibold leading-[1.05] tracking-[-0.035em] md:text-5xl">
           Nine terminal tabs.<br />
           Six agents running.<br />
           <span className="text-[var(--color-accent-chute)]">Which one is waiting for you?</span>
         </h1>
 
-        <p className="mt-6 max-w-2xl text-lg text-muted-foreground">
+        <p className="mt-6 max-w-2xl text-xl text-muted-foreground">
           You stopped being the person writing the code and became the person supervising four of
           them. Chute is the part nobody built for that job: every session in your menu bar with
           what it is doing right now, and the fastest path from a Finder selection to an agent
@@ -213,11 +225,12 @@ export default function Home() {
             than decorative — so the caption says both, next to the thing it describes rather than
             buried in a Trust section about file safety, which this is not. */}
         <p className="mt-4 max-w-2xl text-sm text-muted-foreground">
-          A big solid red square: blocked, needs you. A smaller solid green square: ready. A hollow square is motion —
-          orange for working, grey where Chute cannot see the session at all. Size and fill carry
-          the meaning, and the row spells the state out in words beside the dot — because roughly
-          one man in twelve cannot tell that red from that green, and &ldquo;blocked 3 min&rdquo;
-          reads the same to everyone.
+          A solid square wants something from you: red is blocked, green is ready. A hollow square
+          is motion &mdash; orange working, grey where Chute cannot see the session at all. A small
+          square is a shell with no agent in it. Size means that one thing and nothing else; fill
+          does the work colour cannot, because unknown and idle are both grey. And the row spells
+          the state out in words beside the dot, because roughly one man in twelve cannot tell
+          that red from that green &mdash; &ldquo;blocked 3 min&rdquo; reads the same to everyone.
         </p>
         <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
           The project name comes from the session&rsquo;s own git root — asked of the kernel, not
@@ -237,7 +250,7 @@ export default function Home() {
             The alt text says it is a rendering, because it is. */}
         <div className="mt-16 flex flex-col gap-8 md:flex-row md:items-center">
           <Image
-            src={asset("/media/screens/finder-menu.png")}
+            src={asset("/media/screens/finder-menu.webp")}
             alt="A rendering of Chute's rows inside the Finder right-click menu: Copy Full Paths, Copy Files as Context, Copy Folder Tree, Add to Context Basket, and New File"
             width={430} height={284} unoptimized
             className="shrink-0 rounded-[var(--radius)] border border-border"
@@ -262,7 +275,7 @@ export default function Home() {
       {/* WHY NOW, and it is not a feature. The reader already lives this; naming it is what makes
           the rest of the page feel like it was written by someone who does too. */}
       <Section eyebrow="Why this exists now" title="Agents got autonomous. Supervising them did not.">
-        <div className="grid gap-10 md:grid-cols-2">
+        <div className="grid grid-cols-1 gap-10 md:grid-cols-2">
           <div className="space-y-4 text-muted-foreground">
             <p>
               Software used to need you in the chair. Now you give it a job and walk off — and the
@@ -280,10 +293,10 @@ export default function Home() {
             </p>
           </div>
           <div className="rounded-[var(--radius)] border border-border bg-card p-8">
-            <p className="font-[family-name:var(--font-mono-loaded)] text-sm uppercase tracking-[0.18em] text-[var(--color-accent-chute)]">
+            <p className="font-[family-name:var(--font-mono-loaded)] text-xs font-medium uppercase tracking-[0.14em] text-[var(--color-accent-chute)]">
               What it costs
             </p>
-            <p className="mt-4 font-[family-name:var(--font-mono-loaded)] text-4xl font-semibold">
+            <p className="mt-4 font-[family-name:var(--font-mono-loaded)] text-3xl font-semibold tracking-[-0.02em]">
               {appMinutes} min
             </p>
             <p className="mt-1 text-sm text-muted-foreground">
@@ -291,7 +304,7 @@ export default function Home() {
             </p>
             <div className="mt-6 border-t border-border pt-6">
               <p className="text-sm text-muted-foreground">
-                And that is only the part with a stopwatch on it. An agent blocked on a permission
+                And that is only the part anyone put a number on. An agent blocked on a permission
                 prompt for twenty minutes costs twenty minutes in which nothing happened at all —
                 no figure on this page counts that, because we cannot measure it honestly.
               </p>
@@ -318,17 +331,17 @@ export default function Home() {
             return (
               <div key={f.key}>
                 <div className="border-b border-border pb-4">
-                  <h3 className="font-[family-name:var(--font-mono-loaded)] text-xl font-semibold">
+                  <h3 className="text-xl font-medium tracking-[-0.01em]">
                     {f.title}
                   </h3>
                 </div>
                 <p className="mt-4 max-w-2xl text-muted-foreground">{f.blurb}</p>
-                <ul className="mt-6 grid gap-3 sm:grid-cols-2">
+                <ul className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
                   {jobs.map((c) => (
                     <li key={c.slug}>
                       <Link href={`/cases/${c.slug}`}
                             className="group flex h-full flex-col justify-between gap-3 rounded-[var(--radius)] border border-border bg-card p-5 transition-colors hover:border-[var(--color-accent-chute)]">
-                        <p className="text-[15px] leading-snug text-foreground">{c.pain}</p>
+                        <p className="text-base leading-snug text-foreground">{c.pain}</p>
                         <p className="font-[family-name:var(--font-mono-loaded)] text-xs text-muted-foreground">
                           {c.savedMinutes ? `${c.savedMinutes} min a day` : "attention, not seconds"}
                           <span className="text-[var(--color-accent-chute)] opacity-0 transition-opacity group-hover:opacity-100"> →</span>
@@ -345,7 +358,7 @@ export default function Home() {
 
       {/* ---------------------------------------------------------------- trust */}
       <Section eyebrow="Trust" title="Built for a repo an agent is about to rampage through">
-        <ul className="grid gap-4 md:grid-cols-2">
+        <ul className="grid grid-cols-1 gap-4 md:grid-cols-2">
           {[
             ["The Finder menu cannot destroy anything", "Every row it offers reads, copies or adds. Nothing in it writes over your files, moves them or deletes them — the two commands that once could were removed in August rather than made safer."],
             ["Snapshots cannot lose work", "checkpoint stages into a private index file. Your index, worktree and HEAD are never touched — it only ever adds a branch."],
@@ -353,7 +366,7 @@ export default function Home() {
             ["There is no network code in Chute at all", "Not \u201cnothing is uploaded\u201d \u2014 one command, gist, does upload, and it does it by shelling out to your own gh with your own credentials, on the files you name, after redacting keys. Chute itself never opens a socket. Check it: grep -rn URLSession Sources/"],
           ].map(([h, b]) => (
             <li key={h} className="rounded-[var(--radius)] border border-border bg-card p-5">
-              <p className="font-[family-name:var(--font-mono-loaded)] text-sm font-semibold">{h}</p>
+              <p className="text-sm font-semibold">{h}</p>
               <p className="mt-2 text-sm text-muted-foreground">{b}</p>
             </li>
           ))}
@@ -372,9 +385,9 @@ export default function Home() {
           not the awkward option here, it is the good one.
         </p>
 
-        <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="mt-10 grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="rounded-[var(--radius)] border border-[var(--color-accent-chute)] bg-card p-6">
-            <p className="font-[family-name:var(--font-mono-loaded)] text-sm text-[var(--color-accent-chute)]">
+            <p className="text-sm font-medium text-[var(--color-accent-chute)]">
               One line — the whole app
             </p>
             <div className="mt-4">
@@ -391,7 +404,7 @@ export default function Home() {
           </div>
 
           <div className="rounded-[var(--radius)] border border-border bg-card p-6">
-            <p className="font-[family-name:var(--font-mono-loaded)] text-sm text-muted-foreground">
+            <p className="text-sm font-medium text-muted-foreground">
               Let your agent do it
             </p>
             <div className="mt-4">
@@ -405,7 +418,7 @@ export default function Home() {
           </div>
 
           <div className="rounded-[var(--radius)] border border-border bg-card p-6">
-            <p className="font-[family-name:var(--font-mono-loaded)] text-sm text-muted-foreground">
+            <p className="text-sm font-medium text-muted-foreground">
               The disk image
             </p>
             <a href={CONFIG.download}
@@ -423,7 +436,7 @@ export default function Home() {
               to be first and said "recommended", which sent the reader who wanted the menu bar to
               the one install that does not contain it. */}
           <div className="rounded-[var(--radius)] border border-border bg-card p-6">
-            <p className="font-[family-name:var(--font-mono-loaded)] text-sm text-muted-foreground">
+            <p className="text-sm font-medium text-muted-foreground">
               Homebrew — the terminal tool only
             </p>
             <div className="mt-4"><InstallCli /></div>
@@ -449,7 +462,7 @@ export default function Home() {
           A Telegram HANDLE, never a phone number: a handle can be abandoned, a number cannot be
           un-scraped once a bot has it. */}
       <Section eyebrow="Open source" title="It is all on GitHub, and so am I">
-        <div className="grid gap-5 md:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <div>
             <p className="max-w-xl text-muted-foreground">
               Chute is MIT licensed, every line of it — the app, the Finder extension and the CLI.
@@ -478,7 +491,7 @@ export default function Home() {
               <li key={label}>
                 <a href={href}
                    className="flex items-center justify-between gap-4 rounded-[var(--radius)] border border-border bg-card px-5 py-4 transition-colors hover:border-[var(--color-accent-chute)]">
-                  <span className="font-[family-name:var(--font-mono-loaded)] text-sm font-semibold">
+                  <span className="text-sm font-semibold">
                     {label}
                   </span>
                   <span className="truncate font-[family-name:var(--font-mono-loaded)] text-sm text-muted-foreground">
@@ -496,7 +509,7 @@ export default function Home() {
             of it is the section's own claim, checkable from Settings → About. */}
         <div className="mt-8">
           <Image
-            src={asset("/media/screens/about.png")}
+            src={asset("/media/screens/about.webp")}
             alt="The Chute About tab: why it exists, GitHub, LinkedIn, Telegram, and a star button"
             width={960} height={640} unoptimized
             className="w-full rounded-[var(--radius)] border border-border"
@@ -512,7 +525,7 @@ export default function Home() {
         <Accordion className="w-full">
           {FAQ.map((f, i) => (
             <AccordionItem key={f.q} value={`i${i}`}>
-              <AccordionTrigger className="text-left font-[family-name:var(--font-mono-loaded)] text-base">
+              <AccordionTrigger className="text-left text-base">
                 {f.q}
               </AccordionTrigger>
               <AccordionContent className="text-muted-foreground">{f.a}</AccordionContent>

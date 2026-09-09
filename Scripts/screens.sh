@@ -97,5 +97,30 @@ if [ "${WINDOWS:-1}" = "1" ]; then
   shot setup    --firstrun-shot "$OUT/setup.png"
 fi
 rm -f "$OUT"/*.png.log "$OUT"/cases/*.png.log
+
+# ── WEBP IS WHAT THE SITE SHIPS ────────────────────────────────────────────────────────────
+# AppKit renders PNG and that is not negotiable, but a PNG is what made the landing page carry
+# 464 KB of screenshots. These are flat-colour UI captures — LOSSLESS webp is both smaller and
+# pixel-identical, which lossy is not: `menu.png` is 239 KB and `menu.webp` is 30 KB, with every
+# glyph bit-for-bit the same. Lossless matters here because the whole point of these images is
+# that a reader can READ the menu in them.
+#
+# Converted HERE rather than by hand, because a hand step is one someone forgets: without this
+# the next run of this script silently reintroduces the PNGs the pages no longer reference — and
+# `npm run check:cases` fails on exactly that, "N file(s) in public/media that no case refers to".
+# The PNG is deleted after conversion because it is an INTERMEDIATE: AppKit can only write PNG,
+# but nothing ships it and nothing links it. Leaving both doubles what the deploy carries.
+if command -v cwebp >/dev/null 2>&1; then
+  n=0
+  for png in "$OUT"/*.png "$OUT"/cases/*.png; do
+    [ -e "$png" ] || continue
+    cwebp -lossless -quiet "$png" -o "${png%.png}.webp" && rm -f "$png" && n=$((n+1))
+  done
+  echo "screens: $n rendered to .webp (lossless)"
+else
+  echo "screens: cwebp not found — the site references .webp and they were NOT regenerated." >&2
+  echo "         brew install webp, then re-run." >&2
+  FAIL=1
+fi
 echo "screens: written to $OUT"
 [ "$FAIL" -eq 0 ]

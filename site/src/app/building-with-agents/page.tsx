@@ -49,10 +49,10 @@ export default function BuildingWithAgents() {
     <main className="min-h-screen">
       <Header />
       <div className="mx-auto w-full max-w-3xl px-6 pt-16">
-        <h1 className="font-[family-name:var(--font-mono-loaded)] text-3xl font-semibold tracking-tight">
+        <h1 className="text-3xl font-semibold leading-[1.05] tracking-[-0.035em] md:text-5xl">
           {title}
         </h1>
-        <p className="mt-4 text-lg text-muted-foreground">{lead}</p>
+        <p className="mt-4 text-xl text-muted-foreground">{lead}</p>
         <p className="mt-3 text-sm text-muted-foreground">
           Alexandr Valuev · 2 September 2026 · every claim names the file or command that produces
           it ·{" "}

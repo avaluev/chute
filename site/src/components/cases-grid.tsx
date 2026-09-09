@@ -15,7 +15,9 @@ import type { Case } from "@/lib/cases";
 const FILTERS = [
   { key: "all", label: "Everything" },
   { key: "paid", label: "The app" },
-  { key: "free", label: "Free CLI" },
+  // NOT "Free CLI": both surfaces are free and MIT, so pricing one of them implies the
+  // other costs money. The split here is which SURFACE a job needs, never what it costs.
+  { key: "free", label: "The CLI" },
 ] as const;
 
 type Key = (typeof FILTERS)[number]["key"];
@@ -37,7 +39,7 @@ export function CasesGrid({ cases }: { cases: Case[] }) {
             key={f.key}
             onClick={() => setFilter(f.key)}
             aria-pressed={filter === f.key}
-            className={`rounded-[4px] border px-3 py-1.5 font-[family-name:var(--font-mono-loaded)] text-sm ${
+            className={`rounded-[4px] border px-3 py-1.5 text-sm ${
               filter === f.key
                 ? "border-[var(--color-accent-chute)] text-[var(--color-accent-chute)]"
                 : "border-border text-muted-foreground hover:text-foreground"
@@ -51,7 +53,7 @@ export function CasesGrid({ cases }: { cases: Case[] }) {
         </span>
       </div>
 
-      <div className="mt-8 grid gap-4 sm:grid-cols-2">
+      <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2">
         {shown.map((c) => (
           <CaseCard key={c.slug} c={c} />
         ))}

@@ -46,34 +46,34 @@ export default async function CasePage({ params }: { params: Promise<{ slug: str
       <Header />
       <article className="mx-auto w-full max-w-3xl px-6 pt-16">
         <SurfaceBadge paid={c.paid} />
-        <h1 className="mt-5 font-[family-name:var(--font-mono-loaded)] text-3xl font-semibold leading-tight tracking-tight">
+        <h1 className="mt-5 text-3xl font-semibold leading-[1.05] tracking-[-0.035em] md:text-5xl">
           {c.pain}
         </h1>
 
         <section className="mt-10 space-y-3">
-          <h2 className="font-[family-name:var(--font-mono-loaded)] text-sm uppercase tracking-wider text-muted-foreground">
+          <h2 className="font-[family-name:var(--font-mono-loaded)] text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">
             What you do now
           </h2>
-          <p className="text-[15px] leading-relaxed text-muted-foreground">{c.ritual}</p>
+          <p className="text-base leading-relaxed text-muted-foreground">{c.ritual}</p>
         </section>
 
         <section className="mt-10 space-y-4">
-          <h2 className="font-[family-name:var(--font-mono-loaded)] text-sm uppercase tracking-wider text-muted-foreground">
+          <h2 className="font-[family-name:var(--font-mono-loaded)] text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">
             What happens instead
           </h2>
-          <p className="text-[15px] leading-relaxed text-foreground">{c.fix}</p>
+          <p className="text-base leading-relaxed text-foreground">{c.fix}</p>
           <Demo c={c} />
         </section>
 
         <section className="mt-10 space-y-3">
-          <h2 className="font-[family-name:var(--font-mono-loaded)] text-sm uppercase tracking-wider text-muted-foreground">
+          <h2 className="font-[family-name:var(--font-mono-loaded)] text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">
             What it costs you
           </h2>
           <DailyCost c={c} />
         </section>
 
         <section className="mt-10 space-y-3">
-          <h2 className="font-[family-name:var(--font-mono-loaded)] text-sm uppercase tracking-wider text-muted-foreground">
+          <h2 className="font-[family-name:var(--font-mono-loaded)] text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">
             {c.paid ? "The same thing from the terminal" : "How to do it"}
           </h2>
           <CopyLine text={c.command} />

@@ -39,13 +39,29 @@ if [ "$DRY" = "0" ]; then
     && die "$TAG already exists; bump Sources/ChuteCore/Version.swift"
 fi
 
+# SIGNING IS OPTIONAL, BECAUSE TODAY THERE IS NO CERTIFICATE.
+#
+# This script used to `die` here without a Developer ID, which meant it could not cut the release
+# that actually ships — v0.2.1 on GitHub is unsigned, unstapled and rejected by spctl, and it was
+# published some other way. A release script that cannot produce the shipped artifact is not a
+# release script; worse, its notes said "Notarised by Apple." unconditionally, so the one path it
+# could never run was also the only one it described. Found 2026-09-09 by checking the live .dmg.
+#
+# So: notarise when a certificate exists, ship honestly unsigned when it does not, and say which
+# happened in the release notes either way.
 SIGN_ID="$(security find-identity -v -p codesigning 2>/dev/null \
   | sed -n 's/.*"\(Developer ID Application:[^"]*\)".*/\1/p' | head -1)"
-[ -n "$SIGN_ID" ] || die "no Developer ID Application certificate in the keychain.
-      Enrolling in the Developer Program does NOT create one — see Scripts/notarize-setup.md"
-
-xcrun notarytool history --keychain-profile "$PROFILE" >/dev/null 2>&1 \
-  || die "no notarytool profile '$PROFILE' — see Scripts/notarize-setup.md step 4"
+if [ -n "$SIGN_ID" ]; then
+  SIGNED=1
+  xcrun notarytool history --keychain-profile "$PROFILE" >/dev/null 2>&1 \
+    || die "a Developer ID exists but no notarytool profile '$PROFILE' — see Scripts/notarize-setup.md step 4.
+      Delete the certificate or create the profile; a half-configured signing setup is how an
+      unsigned build gets published under notarised release notes."
+else
+  SIGNED=0
+  echo "release: no Developer ID Application certificate — building UNSIGNED."
+  echo "         This is the current, expected path. See Scripts/notarize-setup.md to change it."
+fi
 
 # ---------------------------------------------------------------- the gate
 step "Gate — the suites must pass before anything is published"
@@ -53,12 +69,16 @@ swift run -c release chutetests
 ./Scripts/smoke.sh
 
 # ---------------------------------------------------------------- build
-step "Building signed with: $SIGN_ID"
-CHUTE_SIGN_ID="$SIGN_ID" ./Scripts/build-app.sh
-
-codesign --verify --deep --strict --verbose=2 dist/Chute.app 2>&1 | tail -2
-codesign -dvv dist/Chute.app 2>&1 | grep -q "Developer ID Application" \
-  || die "the bundle is not signed with a Developer ID — notarisation would reject it"
+if [ "$SIGNED" = "1" ]; then
+  step "Building signed with: $SIGN_ID"
+  CHUTE_SIGN_ID="$SIGN_ID" ./Scripts/build-app.sh
+  codesign --verify --deep --strict --verbose=2 dist/Chute.app 2>&1 | tail -2
+  codesign -dvv dist/Chute.app 2>&1 | grep -q "Developer ID Application" \
+    || die "the bundle is not signed with a Developer ID — notarisation would reject it"
+else
+  step "Building unsigned (ad-hoc)"
+  ./Scripts/build-app.sh
+fi
 
 # ---------------------------------------------------------------- dmg
 # One implementation of the layout, in package-dmg.sh, which also proves the image MOUNTS —
@@ -70,8 +90,9 @@ step "Packaging $DMG"
 # ---------------------------------------------------------------- notarise
 # Submit the DMG, not a zip: stapling the DMG is what makes the DOWNLOAD open cleanly. The app
 # inside is stapled separately so it survives being copied out of a dmg that is later thrown away.
-step "Notarising — Apple usually answers in 1-3 minutes"
 LOG="$(mktemp -d)"; trap 'rm -rf "$LOG"' EXIT
+if [ "$SIGNED" = "1" ]; then
+step "Notarising — Apple usually answers in 1-3 minutes"
 # `|| true`: under pipefail a rejection fails the pipeline and `set -e` ends the script before
 # the grep that explains it — the message written for this case never printed.
 xcrun notarytool submit "$DMG" --keychain-profile "$PROFILE" --wait \
@@ -96,6 +117,23 @@ grep -q "accepted" "$LOG/spctl.log" || die "Gatekeeper still rejects the disk im
 xcrun stapler validate "$DMG"
 xcrun stapler validate dist/Chute.app
 echo "notarised, stapled, and accepted by Gatekeeper: $DMG"
+else
+step "Unsigned build — recording what a stranger's Mac will actually say"
+# NOT a failure, and deliberately not `die`. spctl WILL reject this, and the release notes and
+# the site both tell the reader so, with the Open Anyway steps. Printing it here keeps the fact
+# in front of whoever cuts the release rather than letting it be a surprise on someone's Mac.
+spctl -a -vvv -t install "$DMG" 2>&1 | tee "$LOG/spctl.log" || true
+grep -q "rejected" "$LOG/spctl.log" \
+  && echo "expected: Gatekeeper rejects an unsigned image; the notes explain Open Anyway" \
+  || echo "unexpected: spctl did not reject an unsigned image — check the notes are still true"
+fi
+
+# THE CHECKSUM THE SITE PROMISES. page.tsx says the disk image "ships with a SHA-256 to check",
+# and the release notes give the `shasum -a 256 -c` command — so the file that command reads has
+# to exist. It was being produced by hand; a promise kept by memory is a promise already broken.
+SUM="$DMG.sha256"
+( cd "$(dirname "$DMG")" && shasum -a 256 "$(basename "$DMG")" > "$(basename "$SUM")" )
+echo "checksum: $(cat "$SUM")"
 
 # ---------------------------------------------------------------- publish
 if [ "$DRY" = "1" ]; then
@@ -114,11 +152,32 @@ git push origin "$TAG" || {
   die "could not push $TAG — the local tag has been removed, so this is safe to re-run"
 }
 
-if ! gh release create "$TAG" "$DMG" \
-  --title "Chute $VERSION" \
-  --notes "Notarised by Apple. Download the disk image, drag Chute to Applications, and launch it once.
+# THE NOTES MUST DESCRIBE THE BUILD THAT WAS ACTUALLY MADE. This said "Notarised by Apple."
+# unconditionally, on a script whose signed path has never once run.
+if [ "$SIGNED" = "1" ]; then
+  NOTES="Notarised by Apple. Download the disk image, drag Chute to Applications, and launch it once.
 
 The \`chute\` CLI is free and MIT: \`brew install avaluev/tap/chute\`"
+else
+  NOTES="Chute is **not signed by Apple** — there is no Apple Developer Program membership behind
+this project. On first launch macOS says \"Apple could not verify 'Chute' is free of malware.\"
+and offers only **Done** and **Move to Trash**. To open it anyway: click Done, then
+**System Settings → Privacy & Security → Open Anyway**, authenticate, and launch it again.
+
+Because the app is unsigned, the Finder extension may not load on a Mac other than the one that
+built it. If the right-click menu never appears, use the source install, which builds on yours.
+
+Verify the download:
+\`\`\`
+shasum -a 256 -c Chute-$VERSION.dmg.sha256
+\`\`\`
+
+The \`chute\` CLI is free and MIT: \`brew install avaluev/tap/chute\`"
+fi
+
+if ! gh release create "$TAG" "$DMG" "$SUM" \
+  --title "Chute $VERSION" \
+  --notes "$NOTES"
 then
   # The tag IS live on the remote now. Take it back down rather than leaving the exact state the
   # preflight cannot distinguish from a finished release.

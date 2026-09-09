@@ -16,10 +16,10 @@ export default function CasesIndex() {
     <main className="min-h-screen">
       <Header />
       <div className="mx-auto w-full max-w-5xl px-6 pt-16">
-        <h1 className="font-[family-name:var(--font-mono-loaded)] text-3xl font-semibold tracking-tight">
+        <h1 className="text-3xl font-semibold leading-[1.05] tracking-[-0.035em] md:text-5xl">
           Everything it does, and what each one costs you
         </h1>
-        <p className="mt-4 max-w-2xl text-lg text-muted-foreground">
+        <p className="mt-4 max-w-2xl text-xl text-muted-foreground">
           Measured, not guessed at: how often each one happens, how long it takes by hand, how
           long it takes instead. The ones that need the app add up to {minutesPerDay(PAID)}{" "}
           minutes a day; the free command-line tool accounts for another {minutesPerDay(FREE)}.

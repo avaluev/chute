@@ -30,6 +30,13 @@ class Chute < Formula
 
   def install
     system "swift", "build", "-c", "release", "--product", "chute", "--disable-sandbox"
+    # STRIPPED, because the site says "under 1 MB" and an unstripped SwiftPM release build is
+    # 1,276,952 bytes — 1.28 MB. Scripts/build-app.sh already strips the copy that goes inside
+    # Chute.app, so the claim was true of the bundled binary and false of the ONLY binary this
+    # formula installs, on the very page whose only install method is Homebrew. Found 2026-09-09.
+    # `strip -x` keeps the dynamic symbols the linker needs and drops the debug table: 880,488
+    # bytes, and `chute --version` still answers, which the test block below proves.
+    system "strip", "-x", ".build/release/chute"
     bin.install ".build/release/chute"
   end
 

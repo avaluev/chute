@@ -71,7 +71,7 @@ export function Demo({ c }: { c: Case }) {
   if (!c.demo) {
     return (
       <div className={`${FRAME} flex aspect-[16/10] items-center justify-center bg-card`}>
-        <p className="px-6 text-center font-[family-name:var(--font-mono-loaded)] text-xs uppercase tracking-[0.18em] text-muted-foreground">
+        <p className="px-6 text-center font-[family-name:var(--font-mono-loaded)] text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">
           Recording in progress
         </p>
       </div>
@@ -118,7 +118,7 @@ export function CaseCard({ c }: { c: Case }) {
       className="group flex flex-col gap-3 rounded-[4px] border border-border p-5 transition-colors duration-150 hover:border-[var(--color-accent-chute)]/50"
     >
       <div className="flex items-start justify-between gap-3">
-        <h3 className="text-[15px] leading-snug text-foreground">{c.pain}</h3>
+        <h3 className="text-base leading-snug text-foreground">{c.pain}</h3>
       </div>
       <p className="text-sm text-muted-foreground">{c.fix}</p>
       <div className="mt-auto flex items-center justify-between gap-3 pt-2">
