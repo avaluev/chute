@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 import ChuteCore
 
@@ -426,5 +427,40 @@ func statusMenuSuite() {
              "col 1's name cell never exceeds PathAbbrev's own character budget")
         T.ok((sessionRows(longPathMenu).first?.path.count ?? 0) <= PathAbbrev.defaultBudget,
              "col 1's path cell never exceeds PathAbbrev's own character budget")
+
+        // ── COL 2 AND COL 3 CANNOT COLLIDE ──────────────────────────────────────────────────
+        //
+        // The founder photographed "hooks wired — nothing reported yet1% · 628 MB" on 2026-09-09:
+        // col 2's phrase ran straight into col 3's figures with no gap at all. Col 3 is RIGHT
+        // aligned at `col3TabStop`, so its text grows LEFTWARD and col 2's grows rightward — two
+        // columns closing on each other, with nothing measuring the gap between them.
+        //
+        // Col 2 is NOT clamped the way col 1 is, deliberately: col 1 holds an arbitrary project
+        // name off the user's disk, col 2 holds one of a CLOSED SET of phrases this repo writes
+        // itself. Truncating those would hide the sentence the row exists to say. So the guard is
+        // this test over the whole set — add a longer phrase to SessionPhrasing and this goes red
+        // before a user ever photographs it.
+        let stateFont = NSFont.systemFont(ofSize: 13, weight: .semibold)
+        let figFont = NSFont.monospacedDigitSystemFont(ofSize: 12, weight: .regular)
+        func w(_ str: String, _ f: NSFont) -> CGFloat {
+            NSAttributedString(string: str, attributes: [.font: f]).size().width
+        }
+        // Every phrase col 2 can hold. `detail` builds from an agent label plus optional model and
+        // effort, so the widest realistic one is spelled out rather than guessed at.
+        let statePhrases = [
+            SessionPhrasing.unknownReason(agent: "claude", hooksWired: true),
+            SessionPhrasing.unknownReason(agent: "claude", hooksWired: false),
+            SessionPhrasing.unknownReason(agent: "antigravity", hooksWired: true),
+            SessionPhrasing.detail(agent: nil, transcript: nil),
+            "blocked 22 min", "working 11 min", "ready 35 min", "no agent running",
+        ]
+        // The widest figures cell LiveVitals can print: three-digit CPU and a two-digit GB memory.
+        let widestFigures = "100% · 16.0 GB"
+        let col2End = StatusMenu.col2TabStop + (statePhrases.map { w($0, stateFont) }.max() ?? 0)
+        let col3Start = StatusMenu.col3TabStop - w(widestFigures, figFont)
+        T.ok(col3Start > col2End,
+             "col 3 starts (\(Int(col3Start))pt) after col 2 ends (\(Int(col2End))pt) — no collision")
+        T.ok(col3Start - col2End >= 12,
+             "and clears it by at least 12pt, so the columns read as columns rather than one run")
     }
 }

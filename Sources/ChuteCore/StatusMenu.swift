@@ -431,7 +431,25 @@ public enum StatusMenu {
     /// `NSParagraphStyle` and this file's own width clamp read the same two numbers rather than
     /// two copies that can drift apart.
     public static let col2TabStop: CGFloat = 200
-    public static let col3TabStop: CGFloat = 500
+    /// 540, NOT 500 — RE-MEASURED 2026-09-09 after the founder photographed the collision.
+    ///
+    /// Col 3 is RIGHT-aligned at this stop, so its text grows LEFTWARD from here and col 2 grows
+    /// rightward from `col2TabStop`. At 500 the two ran into each other on real rows:
+    ///
+    ///   col 2 "hooks wired — nothing reported yet" (13pt semibold) = 224.4pt, ending at 424.4
+    ///   col 3 "100% · 16.0 GB" (12pt mono-digit)                   =  90.6pt, starting at 409.4
+    ///
+    /// — a 15pt overlap, which is exactly the "hooks wired — nothing reported yet1% · 628 MB" in
+    /// the screenshot. 540 puts the longest col-3 figure's left edge at 449.4, a 25pt gutter past
+    /// the longest col-2 phrase. Both numbers come from `Scripts/`-style measurement in the real
+    /// fonts, not from eyeballing the menu — see `StatusMenuSuite`'s `col 2 and col 3 cannot
+    /// collide` check, which fails if any phrase or figure ever outgrows this.
+    ///
+    /// Col 2 is deliberately NOT clamped the way col 1 is. Col 1 holds a PROJECT NAME, which is
+    /// arbitrary text off the user's disk and can be any width at all. Col 2 holds one of a
+    /// CLOSED SET of phrases this repo writes itself (`SessionPhrasing`), so the right guard is a
+    /// test over that set, not a truncation that would hide the sentence the row exists to say.
+    public static let col3TabStop: CGFloat = 540
     /// 10pt of margin below the col-2 tab stop — text landing AT the stop still triggers the same
     /// "tab jumps to the next stop" failure the clamp exists to prevent, so "fits" has to mean
     /// comfortably under it, not exactly at it.
