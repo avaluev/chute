@@ -90,7 +90,11 @@ guard let command = argv.first, !command.hasPrefix("--") else {
 // the description to drift, and an unknown command says so rather than guessing.
 // `help` itself is exempt: it has no row of its own, and answering "no entry for 'help' —
 // run `chute help`" to someone who just ran a form of that is comedy, not help.
-if command != "help", argv.dropFirst().contains(where: { $0 == "--help" || $0 == "-h" }) {
+// `help` and `version` are exempt. Neither has a row in `helpText` — they are not commands you
+// look up, they are the two things you type when you do not know what to type — so the lookup
+// below would answer "no entry for 'version'" to someone whose command works perfectly well.
+// Let them fall through to the switch, which handles both.
+if command != "help", command != "version", argv.dropFirst().contains(where: { $0 == "--help" || $0 == "-h" }) {
     // MATCHED ON THE ROW'S FIRST TOKEN, SPLIT ON "|", so an alias finds its own row: `buf` is
     // `basket` and the row reads "basket|buf …", which no prefix test on the row could find.
     // Three commands — paste-image, finder-actions and buf — answered "no entry for …" here

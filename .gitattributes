@@ -1,1 +1,12 @@
 handoff/NEXT.md merge=handoff-head
+
+# ── WHAT GITHUB COUNTS AS THIS PROJECT'S CODE ──────────────────────────────────────────────
+# Linguist reads every tracked file, so GENERATED output was being reported as hand-written
+# source: brand.css is emitted by brand/gen-tailwind.mjs from brand/tokens.json, commands.json
+# by brand/gen-commands.mjs from docs/CLI.md, and the two theme files by their own generators.
+# Editing any of them by hand is a mistake the generator will silently undo, which is exactly
+# what `linguist-generated` is for — it also collapses them in diffs, so a token change stops
+# burying a review under regenerated CSS.
+site/src/app/brand.css   linguist-generated=true
+site/src/lib/commands.json linguist-generated=true
+demo/chute.theme.json    linguist-generated=true
