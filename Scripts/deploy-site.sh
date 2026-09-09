@@ -99,3 +99,9 @@ if [ "$fail" -ne 0 ]; then
   exit 1
 fi
 echo "   every stylesheet and script the live page references answers with its own type"
+# NOT CHECKED HERE, AND WORTH KNOWING: /media/* filenames carry no content hash, and Cloudflare
+# serves them `max-age=14400` — so for up to FOUR HOURS after a deploy an edge can still hand out
+# the OLD image or video while the HTML around it is new. On 2026-09-09 that looked exactly like
+# a failed upload: the site had just been redeployed with cropped recordings and the live .mp4
+# still measured 1280x800. It was stale, not missing, and `?cb=$RANDOM` returned the new file.
+# Before concluding a media file did not deploy, re-request it with a query string.
