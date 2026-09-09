@@ -28,7 +28,7 @@ command and update this file first, then the copy.
 | CLI commands | **26** | `chute help \| grep -cE '^  [a-z]'` |
 | Finder actions | **9**, drawn as **5 rows** | `chute finder-actions --menu` |
 | External dependencies | **0** | `grep -c '.package(' Package.swift` → 0 |
-| Lines of Swift | **14,438** | `find Sources -name '*.swift' \| xargs wc -l \| tail -1` — up from 12,542 on 2026-09-01: the menu-bar redesign added `SessionDot.swift`, `ProjectName.swift`, `PathAbbrev.swift` and `InlineCode.swift`, plus their suites, and work landing in `Sources/` after this pass adds more. **This number moves under you while `Sources/` has an active session in it — re-run the command, do not trust this digit alone.** |
+| Lines of Swift | **14,882** | `find Sources -name '*.swift' \| xargs wc -l \| tail -1` — up from 12,542 on 2026-09-01: the menu-bar redesign added `SessionDot.swift`, `ProjectName.swift`, `PathAbbrev.swift` and `InlineCode.swift`, plus their suites, and work landing in `Sources/` after this pass adds more. **This number moves under you while `Sources/` has an active session in it — re-run the command, do not trust this digit alone.** |
 | Minimum macOS | **13 Ventura** | `grep -o 'macOS(.v[0-9]*)' Package.swift` |
 | Architecture | **arm64 only** | `lipo -info dist/Chute.app/Contents/MacOS/ChuteApp` → `Non-fat file: … architecture: arm64`. `Scripts/build-app.sh` runs a plain `swift build -c release` with no `--arch` flags, so it only ever produces the host machine's architecture — there is no universal-binary step anywhere in this repo. Do not claim Intel support until one exists. |
 | Version | **0.2.1** | `chute --version` |
@@ -57,9 +57,9 @@ more credible than the absolute one, and it survives someone reading the source.
 
 | Gate | Result | Command |
 |---|---|---|
-| Unit assertions | **1,281 passed** | `swift run -c release chutetests` |
-| Untested decision points | **138** (baseline 138, across 11 files) — never allowed to grow | `./Scripts/check-untested-logic.sh` |
-| End-to-end, headless | **178 passed, 0 failed** | `CHUTE_HEADLESS=1 ./Scripts/smoke.sh` |
+| Unit assertions | **1,324 passed** | `swift run -c release chutetests` |
+| Untested decision points | **137** (baseline 138, across 11 files) — never allowed to grow | `./Scripts/check-untested-logic.sh` |
+| End-to-end, headless | **181 passed, 0 failed** | `CHUTE_HEADLESS=1 ./Scripts/smoke.sh` |
 | End-to-end, full | needs Chute.app actually running, else the app-liveness check fails on its own — not a number to quote from a machine with no GUI session | `./Scripts/smoke.sh` |
 | Menu-item acceptance | **81 checks** — every Finder action against a hostile tree | `./Scripts/acceptance.sh` |
 | Metrics plausibility | **4 checks** — magnitude, not shape | `./Scripts/check-metrics.sh` |

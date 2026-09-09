@@ -1,36 +1,33 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Chute Marketing Site
 
-## Getting Started
+The Next.js site for chutedev.com. Hosted on **Cloudflare Pages** at the root domain.
 
-First, run the development server:
+## Development
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Opens http://localhost:3000. The page reloads as you edit.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Build
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+npm run build
+```
 
-## Learn More
+Exports static HTML to `out/`. The site does not need a runtime.
 
-To learn more about Next.js, take a look at the following resources:
+## Content
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- **Cases** (`site/src/lib/cases.ts`): Job listings and customer stories.
+- **Guides** (`docs/BUILDING-WITH-AGENTS.md`): Rendered at `/building-with-agents`.
+- **Claims** (`docs/FACT-SHEET.md`): Drives the fact-check gate.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Deployment
 
-## Deploy on Vercel
+```bash
+cd /Users/sxope/Documents/2026/Development/37.chute && ./Scripts/deploy-site.sh
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Regenerates design tokens, builds, runs gates (`npm run check:cases`, `npm run check:claims`), and deploys to Cloudflare Pages. See [DEPLOY.md](./DEPLOY.md) for details.

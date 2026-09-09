@@ -13,16 +13,16 @@ wrong.*
 Coding agents made writing code cheap. They did not make **knowing it works** cheap. The cost
 moved; it did not go away, and it landed somewhere most teams have no instrument pointed at.
 
-The numbers for this project, measured 2026-09-02 (a snapshot — re-derive current figures from
+The numbers for this project, measured 2026-09-09 (a snapshot — re-derive current figures from
 `docs/FACT-SHEET.md`, do not retype these):
 
 | | |
 |---|---|
-| Swift, hand-written and agent-written | **11,975 lines**, zero third-party dependencies |
-| Unit assertions | **1,005** |
-| End-to-end checks | **145** headless, **173** driving real Finder |
+| Swift, hand-written and agent-written | **14,882 lines**, zero third-party dependencies |
+| Unit assertions | **1,324** |
+| End-to-end checks | **181** headless |
 | Menu-item acceptance | **81**, against a deliberately hostile directory tree |
-| Shell in the harness | **2,425 lines** across 14 scripts |
+| Shell in the harness | **3,064 lines** across 19 scripts |
 | Elapsed | about six weeks, one person |
 
 Read the last two rows together. **A fifth of the project by volume is the thing that checks the

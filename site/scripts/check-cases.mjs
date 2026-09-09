@@ -12,7 +12,7 @@
  */
 import { readFileSync, readdirSync } from "node:fs"
 import { fileURLToPath } from "node:url"
-import { dirname, resolve } from "node:path"
+import { dirname, resolve, join } from "node:path"
 import { CASES } from "../src/lib/cases.ts"
 
 const here = dirname(fileURLToPath(import.meta.url))
@@ -154,9 +154,32 @@ try {
   // live URL demonstrating a command the product no longer has. A note nobody reads is not a
   // check; this fails now. Posters count too — the .jpg was outside the old pattern, which is why
   // three of them survived the sweep that removed their videos.
-  const orphans = readdirSync(MEDIA)
-    .filter((f) => /\.(gif|mp4|webm|jpg)$/.test(f) && !f.startsWith("card-") && f !== "og.png")
+  // TWO BLIND SPOTS, BOTH CLOSED 2026-09-09. `readdirSync` was not recursive and the pattern
+  // excluded .png, so `public/media/screens/**` — the one directory that actually held orphans —
+  // was never looked at by the check whose whole job is finding them. Six screenshots sat there
+  // unreferenced while this printed "every recording has a case behind it".
+  //
+  // Screenshots are referenced by PAGES, not by cases.ts, so the reference set has to come from
+  // the source too or every screenshot the site legitimately uses reads as an orphan. A gate that
+  // cries wolf on correct files is one people switch off.
+  const walk = (dir, base = "") => readdirSync(dir, { withFileTypes: true }).flatMap((e) =>
+    e.isDirectory() ? walk(join(dir, e.name), base + e.name + "/") : [base + e.name])
+  const SRC = resolve(here, "../src")
+  const srcText = (function read(dir) {
+    return readdirSync(dir, { withFileTypes: true }).map((e) =>
+      e.isDirectory() ? read(join(dir, e.name)) : readFileSync(join(dir, e.name), "utf8")).join("\n")
+  })(SRC) + readFileSync(resolve(here, "../../README.md"), "utf8")
+
+  const orphans = walk(MEDIA)
+    .filter((f) => /\.(gif|mp4|webm|jpg|png)$/.test(f) && !f.startsWith("card-") && f !== "og.png")
     .filter((f) => !referenced.has(f) && !referenced.has(f.replace(/\.(webm|jpg)$/, ".mp4")))
+    // named anywhere the reader can actually reach it: a page, a component, or the README
+    .filter((f) => !srcText.includes("/media/" + f))
+    // `screens/cases/` is GENERATED AS A SET by Scripts/screens.sh — five menu states in one run.
+    // Only some are cited (mixed.png is menu-loop.tsx's fidelity reference), so gating the folder
+    // means every regeneration reintroduces "orphans" and the check starts fighting its own
+    // generator. Exempted deliberately: the directory has an owner, and that owner is a script.
+    .filter((f) => !f.startsWith("screens/cases/"))
   if (orphans.length) {
     bad(`${orphans.length} file(s) in public/media that no case refers to`,
         `${orphans.join(", ")} — delete them, or give the case a demo that points at them`)

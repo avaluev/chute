@@ -53,27 +53,8 @@ cd /Users/sxope/Documents/2026/Development/37.chute && ./Scripts/deploy-site.sh
 ```
 
 It regenerates the design tokens and the social card from `brand/tokens.json`, builds, runs
-`check:paddle`, and refuses to publish if any check fails. `--preview` deploys to a preview URL
+the gates, and refuses to publish if any check fails. `--preview` deploys to a preview URL
 and leaves production alone.
-
-## Before submitting the domain to Paddle
-
-A rejected domain review costs 5–7 business days on resubmission, and every documented failure
-mode is mechanical. Run the gate, then confirm the live site:
-
-```bash
-cd /Users/sxope/Documents/2026/Development/37.chute/site && npm run check:paddle
-```
-
-```bash
-for p in "" terms/ refunds/ privacy/ buy/ support/ docs/; do \
-  printf "%-40s %s\n" "https://chutedev.com/$p" \
-  "$(curl -s -o /dev/null -w '%{http_code}' -L "https://chutedev.com/$p")"; done
-```
-
-Expected: `200` on every line. Then check the one thing no script can: open the page and look at
-it. Twice today a build that compiled and returned 200 was visibly broken — once rendering with no
-CSS at all, once with every image missing.
 
 ## Not used any more
 

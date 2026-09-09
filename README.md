@@ -145,6 +145,11 @@ quarantined.
 
 ### What macOS will ask you, and why
 
+![Chute's first-run window, listing what still needs your permission](site/public/media/screens/setup.png)
+
+The app checks its own setup on first launch and tells you what is missing rather than failing
+quietly later.
+
 - **"Chute wants to control Finder / System Events"** — the app is what performs a Finder action;
   the extension itself is sandboxed and can only file a request. Decline it and the menu rows go
   quiet. Grant it in **System Settings → Privacy & Security → Automation**.
