@@ -1,8 +1,6 @@
 import type { Metadata } from "next";
 import { Page, H2 } from "@/components/chrome";
-import { CopyLine } from "@/components/copy-line";
 import { InstallCli } from "@/components/install-cli";
-import { CONFIG } from "@/lib/config";
 import commands from "@/lib/commands.json";
 
 export const metadata: Metadata = {

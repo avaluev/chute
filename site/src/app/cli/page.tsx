@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { CopyLine } from "@/components/copy-line";
 import { InstallCli } from "@/components/install-cli";
 import { Header, Footer } from "@/components/chrome";
 import { CaseCard } from "@/components/case-bits";
