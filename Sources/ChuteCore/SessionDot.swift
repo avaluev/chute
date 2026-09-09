@@ -53,28 +53,37 @@ public enum SessionDot {
     /// takes the identical drawing path, and `dot()` still has no `if` in it.
     /// `corner` of 0 is a square; a large value is a circle.
     static let form: [String: (d: CGFloat, holeInset: CGFloat, corner: CGFloat)] = [
-        // ONE GEOMETRY, FIVE GLYPHS. Every mark is a SQUARE (corner 0) as of 2026-09-09 — the
-        // founder asked for a single shape family and he is right that five different outlines
-        // read as noise in a list this dense.
+        // ONE GEOMETRY, AND SIZE MEANS EXACTLY ONE THING.
         //
-        // The redundancy that shape used to carry does NOT go away, it moves to SIZE and FILL.
-        // That matters most for exactly one pair: `blocked` is red and `waiting` is green, and
-        // roughly one man in twelve cannot tell those two hues apart. If both were a 9pt solid
-        // square they would be the same pixels in a colour that reader cannot see, so blocked
-        // stays the LARGEST SOLID mark in the menu and nothing else is allowed to match it.
-        // `SessionDotSuite` pins this: blocked must paint more than waiting, and unknown must
-        // never paint the same as idle.
-        "blocked": (9, 0.5,  0),     // the largest SOLID square — the one that stops you
-        "waiting": (7, 0.5,  0),     // a smaller solid square — finished, wants a prompt
-        "working": (9, 0.34, 0),     // a square ring — running, nothing for you to do
-        "idle":    (5, 0.5,  0),     // a small solid square — a shell, nothing to say
+        // Every mark is a SQUARE (corner 0) as of 2026-09-09: five different outlines read as
+        // noise in a list this dense.
+        //
+        // The first attempt that day drew `waiting` at 7pt against `blocked`'s 9pt, so the two
+        // would differ without colour — red and green being the pair roughly one man in twelve
+        // cannot separate. The founder looked at it and asked what the size meant. Nothing: it
+        // was a hack, and SIZE READS AS MAGNITUDE, so a difference that encoded nothing invited
+        // everyone to look for a meaning that was not there.
+        //
+        // What that reasoning missed is that the dot is not the only carrier. The row says
+        // "blocked 22 min" or "ready 2 h" in bold immediately beside it, and that word is what a
+        // colour-blind reader actually uses. The dot is a scanning aid, not the sole signal.
+        //
+        // So size now means ONE thing — small is a shell with nothing running — and FILL does the
+        // work that cannot fall back on words: `unknown` and `idle` are BOTH GREY, so colour can
+        // never separate them, and an un-instrumented machine must never read as a calm one.
+        // That pair is pinned by `SessionDotSuite` and is the one distinction here that has no
+        // second carrier at all.
+        "blocked": (9, 0.5,  0),     // solid square — the one that stops you
+        "waiting": (9, 0.5,  0),     // solid square — finished, wants a prompt
+        "working": (9, 0.34, 0),     // hollow square — running, nothing for you to do
+        "idle":    (5, 0.5,  0),     // a SMALL solid square — a shell, nothing running
         // A RING NEEDS ROOM TO BE A RING. At 5pt with a 0.34 inset the hole is 1.6pt, which
         // rasterises away to nothing at 1x — so `unknown` painted the identical pixels as
         // `idle`, and the two states that must never look alike looked exactly alike. Caught by
         // SessionDotSuite the day this file was written, and it is the brief's own hard rule:
         // an un-instrumented machine must read as UNINSTRUMENTED, never as all-clear. 7pt with a
         // 0.25 inset leaves a 3.5pt hole, which survives even on a non-Retina display.
-        "unknown": (7, 0.25, 0),     // a square ring — Chute does not know, and says so
+        "unknown": (9, 0.25, 0),     // a hollow square — Chute does not know, and says so
         "none":    (0, 0.5,  0),     // draws NOTHING, on purpose — the column header's own
                                      // "dot", so its text starts from the same origin as every
                                      // session row's. This is the ONE token allowed to be blank.

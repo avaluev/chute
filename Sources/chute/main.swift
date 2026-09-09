@@ -74,6 +74,25 @@ guard let command = argv.first, !command.hasPrefix("--") else {
     print(helpText)
     exit(0) // no-args is the product's front door: help on stdout, exit 0 — not a failure to pipe.
 }
+// `chute <command> --help` USED TO RUN THE COMMAND.
+//
+// Everything beginning with `--` is swallowed by `Args` as a flag and never reaches the switch
+// below, so a help request simply fell through into the action. `chute sandbox --help` created a
+// sandbox and opened a terminal; `chute new --help` wrote a file; `chute paths --help` overwrote
+// the clipboard. Found 2026-09-09 while running all 26 commands to check the documentation was
+// not lying about them — the sweep left four stray files and a git repo in the working tree.
+//
+// A help flag that performs the action is worse than no help flag at all: the person typing it
+// is by definition the one who does not yet know what the command does, and is therefore the
+// least able to afford it happening. It answers from `helpText`, so there is no second copy of
+// the description to drift, and an unknown command says so rather than guessing.
+if argv.dropFirst().contains(where: { $0 == "--help" || $0 == "-h" }) {
+    let row = helpText.split(separator: "\n", omittingEmptySubsequences: false)
+        .first { $0.hasPrefix("  \(command) ") || $0.hasPrefix("  \(command)|") }
+    if let row { print(row.trimmingCharacters(in: .whitespaces)) }
+    else { print("chute: no entry for '\(command)' — run `chute help` for every command") }
+    exit(0)
+}
 let args = Args(Array(argv.dropFirst()))
 
 switch command {

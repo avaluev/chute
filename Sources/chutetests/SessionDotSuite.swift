@@ -37,25 +37,34 @@ func sessionDotSuite() {
         let working = SessionDot.paintedPixels("working")
         let idle    = SessionDot.paintedPixels("idle")
 
-        // These three assertions used to pin a specific ORDERING (working < waiting) that only
-        // held because working was a ring and waiting a filled circle of the same diameter. When
-        // every glyph became a square on 2026-09-09 the ordering flipped while the thing the test
-        // exists to protect — that no two states paint alike — still held perfectly. An assertion
-        // that fails on a change it was never about teaches the next person to edit the test, so
-        // it now states the CONTRACT: every state is distinguishable from every other with the
-        // hue thrown away, and blocked is the loudest mark on the screen.
-        let byToken = ["blocked": blocked, "waiting": waiting, "working": working, "idle": idle,
-                       "unknown": SessionDot.paintedPixels("unknown")]
-        for (a, av) in byToken {
-            for (b, bv) in byToken where a < b {
-                T.no(av == bv,
-                     "\(a) and \(b) paint the same \(av) pixels — drop the hue and they are one state")
-            }
-        }
-        T.ok(blocked > waiting && blocked > working && blocked > idle,
-             "blocked is the largest solid mark — the one state a red/green-blind reader must still catch")
-        T.ok(idle < waiting,
-             "a shell's mark is the small one — it is the state with nothing to say")
+        // WHAT IS ACTUALLY LOAD-BEARING, and what only looked like it.
+        //
+        // This block twice asserted things that were true of the drawing rather than required by
+        // the design: first an ordering (working < waiting) that held only while working was a
+        // ring and waiting a circle of the same diameter, then a rule that NO two states may
+        // paint alike. The second is stricter than the product needs, and on 2026-09-09 it
+        // blocked the right change for the wrong reason.
+        //
+        // `blocked` and `waiting` are allowed to be the same square in different colours. Every
+        // row prints its state as a WORD in bold — "blocked 22 min", "ready 2 h" — right beside
+        // the mark, so a reader who cannot separate red from green reads the row, not the dot.
+        // Forcing a second difference there is what produced a 7pt green square whose smaller
+        // size meant nothing and implied magnitude.
+        //
+        // `unknown` and `idle` are NOT allowed to match, and that is a different situation
+        // entirely: they share a grey, so colour separates nothing, and their words are the two
+        // most confusable in the menu. If they paint the same, a machine with no instrumentation
+        // reads as a calm one. That is the distinction with no second carrier, so it is the one
+        // this suite pins hardest.
+        T.no(SessionDot.paintedPixels("unknown") == idle,
+             "unknown and idle share a grey, so their FILL must differ or the two are one row")
+        T.ok(working != blocked,
+             "working is hollow where blocked is solid — the two never read as the same mark")
+        T.ok(idle < blocked && idle < waiting && idle < working,
+             "size means exactly one thing in this menu: the small mark is a shell with nothing running")
+        T.eq(blocked, waiting,
+             "blocked and waiting are deliberately the SAME square — the state word carries the difference, "
+             + "and a size gap there would encode a magnitude that does not exist")
 
         // ── UNKNOWN MUST NOT READ AS CALM ───────────────────────────────────────────────────
         // idle and unknown share a colour on purpose, so shape is the ONLY thing separating

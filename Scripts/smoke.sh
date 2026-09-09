@@ -576,6 +576,23 @@ echo "13. help and unknown command"
 has "help lists bundle" "$("$CHUTE" help)" "bundle"
 "$CHUTE" definitelynotacommand >/dev/null 2>&1 && bad "unknown exits non-zero" "exit 0" || ok "unknown exits non-zero"
 
+# `chute <command> --help` MUST EXPLAIN, NEVER ACT. Everything starting with `--` is swallowed by
+# Args as a flag, so until 2026-09-09 a help request fell straight through into the command:
+# `chute sandbox --help` created a sandbox and opened a terminal, `chute new --help` wrote a file,
+# `chute seed --help` dropped .cursorrules and SCRATCHPAD.md into the working directory. Found by
+# running all 26 commands to check the docs were not lying, which left four stray files behind.
+# The person typing --help is the one who does not yet know what the command does, so they are
+# the least able to afford it happening. This runs the three most destructive in a scratch dir
+# and asserts the directory is still empty afterwards.
+HELPDIR="$(mktemp -d)"
+( cd "$HELPDIR" && "$CHUTE" sandbox --help >/dev/null 2>&1; "$CHUTE" new --help >/dev/null 2>&1
+  "$CHUTE" seed --help >/dev/null 2>&1 )
+LEFT="$(ls -A "$HELPDIR" | wc -l | tr -d ' ')"
+[ "$LEFT" = "0" ] && ok "--help explains and creates nothing" \
+                  || bad "--help explains and creates nothing" "$LEFT file(s): $(ls -A "$HELPDIR" | tr '\n' ' ')"
+has "--help describes the command it was asked about" "$("$CHUTE" sandbox --help 2>&1)" "New folder"
+rm -rf "$HELPDIR"
+
 echo "20. onboard — the terminal half of first-run, run for real"
 # SAFETY: cmdOnboard only reads Diagnostics.liveEnv() (Finder/pluginkit/ps probes) and prints —
 # it never writes to the owner's home directory or config. Its one write (endToEndProbe) lands
