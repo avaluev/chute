@@ -24,7 +24,7 @@ command and update this file first, then the copy.
 
 | Claim | Value | Prove it |
 |---|---|---|
-| App bundle size | **3.1 MB** | `du -sh dist/Chute.app`. Was 2.9 MB until 2026-09-08's menu-bar redesign: `SessionDot`, `ProjectName`, `PathAbbrev` and `InlineCode` all moved into (or were newly written in) `Sources/ChuteCore/`, which every one of the three binaries links — code that shipped once now ships three times, and making an untestable thing testable has been worth those bytes every time so far. |
+| App bundle size | **about 3 MB** | `du -sk dist/Chute.app`, gated as a BAND (2.5-3.5 MB) by `Scripts/build-app.sh`, not as a decimal. An exact figure is not gateable: macOS 26 builds this bundle 0.1 MB smaller than macOS 15 does from the same commit, so any single decimal is false on one of them. Was 2.9 MB until 2026-09-08's menu-bar redesign: `SessionDot`, `ProjectName`, `PathAbbrev` and `InlineCode` all moved into (or were newly written in) `Sources/ChuteCore/`, which every one of the three binaries links — code that shipped once now ships three times, and making an untestable thing testable has been worth those bytes every time so far. |
 | CLI commands | **26** | `chute help \| grep -cE '^  [a-z]'` |
 | Finder actions | **9**, drawn as **5 rows** | `chute finder-actions --menu` |
 | External dependencies | **0** | `grep -c '.package(' Package.swift` → 0 |

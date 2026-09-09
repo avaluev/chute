@@ -321,7 +321,7 @@ The harness is roughly a fifth of the volume and consumed considerably more than
 attention, because gates require you to know what would be wrong — which is the expensive part and
 the part that does not delegate.
 
-**What it produced.** A 2.9 MB app (3.1 MB as of 2026-09-08, see `docs/FACT-SHEET.md`)
+**What it produced.** A roughly 3 MB app (see `docs/FACT-SHEET.md`)
 with no dependencies, no launch daemon, no background service and no network code at all — at the
 time, a free MIT command-line tool bundled with a paid app; both halves are free and MIT since
 2026-09-08. 1,005 assertions at the time this was written, 1,281 as of 2026-09-08; CI across three

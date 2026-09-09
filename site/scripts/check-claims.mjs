@@ -217,17 +217,21 @@ ghosts.size
 // Everything else in that file is generated from cases.ts and CONFIG. The bundle size cannot be,
 // because the site has never seen the app — so it is a literal, and a literal is exactly how
 // "2.5 MB" survived the bundle growing to 3.3 MB in eight files. Scripts/build-app.sh already
-// ties the fact sheet to `du -sh dist/Chute.app`; this ties llms.txt to the fact sheet, so the
-// chain runs from the artifact to every sentence about it.
+// ties the fact sheet to `du -sk dist/Chute.app` AS A BAND; this ties llms.txt to the fact sheet,
+// so the chain runs from the artifact to every sentence about it.
+//
+// It compares a PHRASE, not a decimal, since 2026-09-09. macOS 26 builds the bundle 0.1 MB
+// smaller than macOS 15 from the same commit, so no single decimal is true on both and the exact
+// gate turned CI red on a green tree. "about 3 MB" is true on every machine that builds this.
 {
   const llms = readFileSync(join(OUT, "llms.txt"), "utf8")
-  const sheetSize = readFileSync(SHEET, "utf8").match(/App bundle size \| \*\*([0-9.]+) MB\*\*/)?.[1]
-  const llmsSize = llms.match(/([0-9.]+) MB app/)?.[1]
-  if (!sheetSize || !llmsSize) bad("the size claim was read from both files", `sheet=${sheetSize} llms.txt=${llmsSize}`)
-  else if (sheetSize !== llmsSize) {
-    bad("llms.txt and the fact sheet disagree about the app size",
-        `llms.txt says ${llmsSize} MB, the fact sheet says ${sheetSize} MB`)
-  } else ok(`llms.txt's size claim matches the fact sheet (${sheetSize} MB)`)
+  const sheetSize = readFileSync(SHEET, "utf8").match(/App bundle size \| \*\*(about 3 MB)\*\*/)?.[1]
+  const llmsSize = llms.match(/Size: (about 3 MB)/)?.[1]
+  if (!sheetSize || !llmsSize) {
+    bad("the size claim was read from both files",
+        `sheet=${sheetSize} llms.txt=${llmsSize} — the claim is the phrase "about 3 MB"; if the size `
+        + "genuinely moved, change the claim, the band in Scripts/build-app.sh, and this gate together")
+  } else ok(`llms.txt's size claim matches the fact sheet ("${sheetSize}")`)
 }
 
 // ── every LinkedIn hook must be under the truncation limit, and must say its own real length ─
