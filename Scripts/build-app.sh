@@ -69,13 +69,41 @@ mkdir -p "$APPEX/Contents/MacOS"
 # picked up both objects and died with "ld: 7 duplicate symbols" — on a machine with a warm
 # .build only. A cold clone builds fine, which is why it survived: the person who shipped last had
 # no stale object, and the next rename would have broken the release build again.
+# ASK THE FILESYSTEM WHERE THINGS ARE; DO NOT ASSUME A LAYOUT.
+#
+# This step is why CI has been red on every push since 2026-09-04, while building perfectly on
+# the founder's laptop. Swift 5.10 (Command Line Tools, this machine) emits
+# `$BIN/ChuteCore.swiftmodule`. Swift 6 (macos-15 and macos-26 runners) emits
+# `$BIN/Modules/ChuteCore.swiftmodule`. With a hardcoded `-I "$BIN"` the newer toolchain finds no
+# module at all — and the error it prints is not "no such module", it is a cascade of
+# `cannot find 'AppleScript' in scope`, one per symbol, which reads like an access-control
+# problem and sent an earlier fix down the wrong path entirely.
+#
+# The object layout moved with it, so both are DISCOVERED now. A glob that finds nothing fails
+# loudly here rather than producing an appex that is missing half of ChuteCore.
+MODDIR="$(dirname "$(find "$BIN" -maxdepth 3 -name 'ChuteCore.swiftmodule' -print -quit)")"
+[ -d "$MODDIR" ] || { echo "build-app: no ChuteCore.swiftmodule under $BIN — did swift build run?" >&2; exit 1; }
+# OBJECTS COME FROM THE SOURCES THAT EXIST, NOT FROM WHATEVER IS LYING IN .build.
+#
+# A bare `find … -name '*.o'` looks tidier and is wrong: `.build` keeps the object of every file
+# that has EVER been compiled there. Linking that glob picked up `License.swift.o`, orphaned when
+# licensing was deleted on 2026-09-08, and the appex failed with an undefined-symbol error naming
+# a type that no longer exists in the repo. One source of truth: the .swift files on disk.
 OBJS=()
+MISSING=()
 for src in "$ROOT"/Sources/ChuteCore/*.swift; do
-    OBJS+=("$BIN/ChuteCore.build/$(basename "$src").o")
+    o="$(find "$BIN" -path '*ChuteCore.build*' -name "$(basename "$src").o" -print -quit)"
+    if [ -n "$o" ]; then OBJS+=("$o"); else MISSING+=("$(basename "$src")"); fi
 done
+if [ "${#MISSING[@]}" -gt 0 ]; then
+    echo "build-app: no compiled object for ${MISSING[*]} — run swift build -c release first" >&2
+    exit 1
+fi
+echo "build-app: appex links ${#OBJS[@]} ChuteCore objects, module from $MODDIR"
+
 swiftc -O -o "$APPEX/Contents/MacOS/ChuteFinder" \
     "$ROOT/Sources/ChuteFinder/ChuteFinderSync.swift" \
-    -I "$BIN" "${OBJS[@]}" \
+    -I "$MODDIR" -I "$BIN" "${OBJS[@]}" \
     -Xlinker -e -Xlinker _NSExtensionMain
 strip -x "$APPEX/Contents/MacOS/ChuteFinder"
 # The entry point must survive the strip, or the extension loads as a plain executable and Finder
