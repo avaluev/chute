@@ -52,3 +52,10 @@ handoff/NEXT.md
 # /building-with-agents page) and APPLE-AND-DISTRIBUTION.md (the README links it).
 # site/scripts/check-claims.mjs SKIPS its three marketing gates loudly when this is absent.
 marketing/
+# SAME CATEGORY, ADDED 2026-09-09. `ContentMarketing/` is more of the founder's unpublished GTM
+# writing and `audit/` is working notes from an outside review. Neither was ignored, so both sat
+# one `git add -A` away from a public commit — which is precisely how `marketing/` ended up in
+# this repo's public history and had to be purged with a force-push that silently broke
+# `brew install` three times in one day. The cheapest place to stop that is here.
+ContentMarketing/
+audit/
