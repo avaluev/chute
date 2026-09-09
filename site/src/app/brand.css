@@ -55,7 +55,11 @@
 
   /* THE next/font FACE FIRST, THEN THE TOKEN'S OWN STACK AS FALLBACK.
      site/src/app/layout.tsx loads these through next/font into --font-sans-loaded and
-     --font-mono-loaded and puts both on <body>. The mono variable was consumed all over the
+     --font-mono-loaded and puts both on <html> — NOT <body>, and that placement is load-bearing:
+     these tokens are declared at :root, so a var() consumed here resolves against <html>. With
+     the classes on <body> the var was undefined one level up, which makes the WHOLE declaration
+     guaranteed-invalid, and the entire site rendered its body copy in Times on 2026-09-09. If
+     you move them back to <body>, you reintroduce that bug. The mono variable was consumed all over the
      site; the sans one was defined, applied, and referenced by nothing — so every visitor
      downloaded Instrument Sans and then read the page in -apple-system, because naming a
      family only uses it if the visitor happens to have it INSTALLED. Fixed 2026-09-09.

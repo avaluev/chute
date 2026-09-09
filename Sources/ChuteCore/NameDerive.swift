@@ -73,10 +73,19 @@ public enum NameDerive {
     /// survive. Leading dots go with it: they make hidden files, and `..` is the traversal this
     /// exists to stop. Everything else is left alone — this is NOT `slugify`, which lowercases
     /// and dashes and would destroy `underscoreName`'s deliberate "This_is_the_header".
+    ///
+    /// CONTROL CHARACTERS GO TOO, and that is not tidiness. A review on 2026-09-09 reproduced
+    /// the hole: `appendingPathComponent("evil\u{0}name.png")` returns the EMPTY STRING, not a
+    /// truncated-but-contained path, and `URL(fileURLWithPath: "")` resolves to the process's
+    /// CURRENT WORKING DIRECTORY. So a single NUL byte did not merely escape `dir` — it made
+    /// `dir` irrelevant, and the write landed wherever the process happened to be standing. The
+    /// first version of this guard named only `/` and `.`, which is exactly the trap of writing
+    /// a chokepoint that enumerates the bad bytes it has thought of.
     static func fileComponent(_ s: String, fallback: String) -> String {
         let flattened = s.replacingOccurrences(of: "/", with: "-")
-        let trimmed = String(flattened.drop(while: { $0 == "." }))
-        return trimmed.isEmpty ? fallback : trimmed
+        let printable = flattened.unicodeScalars.filter { !CharacterSet.controlCharacters.contains($0) }
+        let trimmed = String(String.UnicodeScalarView(printable)).drop(while: { $0 == "." })
+        return trimmed.isEmpty ? fallback : String(trimmed)
     }
 
     static func candidate(dir: String, base: String, ext: String, n: Int) -> String {
@@ -95,6 +104,24 @@ public enum NameDerive {
         var n = 1
         while true {
             let path = candidate(dir: dir, base: base, ext: ext, n: n)
+            // BELT AND BRACES, AND IT ALSO STOPS AN INFINITE LOOP.
+            //
+            // Measured 2026-09-09 after review flagged the NUL byte. The full chain, reproduced:
+            //   appendingPathComponent("evil\u{0}name.png")  ->  "" (the EMPTY string)
+            //   URL(fileURLWithPath: "")                     ->  the process's CWD, a DIRECTORY
+            //   Data.write(to: thatDirectory, .withoutOverwriting) throws CocoaError 516,
+            //     which IS .fileWriteFileExists
+            // — and the `catch` below treats .fileWriteFileExists as "name taken, try n+1". But
+            // `candidate` returns "" for EVERY n once the name carries a NUL, so the loop never
+            // makes progress and never terminates. The pre-fix code did not merely write to the
+            // wrong directory; it span forever, at 100% of a core, on a name from a CLI flag.
+            //
+            // `fileComponent` shapes the name; this asserts the property that actually matters —
+            // containment — because a guard that enumerates bad inputs can always miss one.
+            guard (path as NSString).deletingLastPathComponent == (dir as NSString).standardizingPath
+                    || (path as NSString).deletingLastPathComponent == dir else {
+                throw CocoaError(.fileWriteInvalidFileName)
+            }
             do {
                 try data.write(to: URL(fileURLWithPath: path), options: .withoutOverwriting)
                 return path

@@ -209,8 +209,11 @@ public struct AgentTranscript: Sendable, Equatable {
 /// Entries are invalidated on (mtime, size) rather than on a timer: a transcript that has not been
 /// written to cannot have changed, and re-parsing 12 MB to learn that is work for nothing.
 public final class TranscriptStore: @unchecked Sendable {
-    private struct Entry { let stamp: Date; let size: UInt64; let transcript: AgentTranscript? }
+    private struct Entry { let stamp: Date; let size: UInt64; let transcript: AgentTranscript?; let gen: UInt64 }
     private var entries: [String: Entry] = [:]
+    /// Bumped once per `refresh`. An entry remembers which refresh wrote it, so a SLOW refresh
+    /// cannot evict what a FASTER, later one has already stored — see the eviction step.
+    private var generation: UInt64 = 0
     private let lock = NSLock()
 
     public init() {}
@@ -225,6 +228,7 @@ public final class TranscriptStore: @unchecked Sendable {
     /// Re-read anything whose file has changed. Call from a background queue.
     public func refresh(sessionIDs: [String],
                         projectsDir: String = NSHomeDirectory() + "/.claude/projects") {
+        lock.lock(); generation += 1; let myGen = generation; lock.unlock()
         for id in sessionIDs {
             guard let path = AgentTranscript.find(sessionID: id, projectsDir: projectsDir) else { continue }
             let attrs = try? FileManager.default.attributesOfItem(atPath: path)
@@ -238,7 +242,7 @@ public final class TranscriptStore: @unchecked Sendable {
 
             let parsed = AgentTranscript.readFile(path)
             lock.lock()
-            entries[id] = Entry(stamp: stamp, size: size, transcript: parsed)
+            entries[id] = Entry(stamp: stamp, size: size, transcript: parsed, gen: myGen)
             lock.unlock()
         }
 
@@ -247,9 +251,15 @@ public final class TranscriptStore: @unchecked Sendable {
         // that has exited. Without this the store only ever grew: a parsed transcript can be
         // megabytes, and a day of driving agents is hundreds of finished sessions, all of them
         // resident for a menu row that will never be drawn again.
+        // AND NOT EVICT WHAT A NEWER REFRESH JUST WROTE. `refresh` is fired per menu open on a
+        // CONCURRENT queue and a single transcript read is ~480ms, so two calls overlap whenever
+        // the menu is reopened mid-parse. Each carries its own `sessionIDs` snapshot; without the
+        // generation test, a slow older call finishing last would evict a session that started
+        // between the two opens — a live row silently losing its model and cost until the next
+        // open. Found in review 2026-09-09.
         let live = Set(sessionIDs)
         lock.lock()
-        entries = entries.filter { live.contains($0.key) }
+        entries = entries.filter { live.contains($0.key) || $0.value.gen > myGen }
         lock.unlock()
     }
 }

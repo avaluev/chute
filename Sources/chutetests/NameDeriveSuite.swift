@@ -56,6 +56,26 @@ func nameDeriveSuite() {
                  "\(label) actually wrote, inside the folder")
         }
 
+        // CONTROL CHARACTERS, and the NUL byte in particular. Reproduced in review 2026-09-09:
+        // `appendingPathComponent` returns "" for a name containing NUL, and URL("") is the
+        // process's CWD — so this escaped `dir` entirely rather than being clamped inside it.
+        // The assertion is containment, because that is the property, not "no dots survive".
+        for (bad, label) in [("evil\u{0}name", "a NUL byte in the name"),
+                             ("evil\u{7}bell", "a control character in the name"),
+                             ("evil\nnewline", "a newline in the name")] {
+            guard let path = wrote(base: bad, ext: "png") else {
+                T.ok(false, "\(label): writeUniquely threw"); continue
+            }
+            T.eq((path as NSString).deletingLastPathComponent, dir,
+                 "\(label) still lands directly in the target folder")
+            T.ok(FileManager.default.fileExists(atPath: path), "\(label) actually wrote inside it")
+        }
+        // Same byte on the EXTENSION side, which reaches the identical chokepoint.
+        if let path = wrote(base: "shot", ext: "p\u{0}ng") {
+            T.eq((path as NSString).deletingLastPathComponent, dir,
+                 "a NUL byte in the extension cannot move the file either")
+        } else { T.ok(false, "NUL in extension: writeUniquely threw") }
+
         // The guard must not eat ordinary names, which is the failure mode of reaching for
         // `slugify` here: it lowercases and dashes, and `underscoreName` exists precisely so a
         // file can be called "This_is_the_header.md".

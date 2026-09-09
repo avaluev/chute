@@ -114,7 +114,15 @@ if command -v cwebp >/dev/null 2>&1; then
   n=0
   for png in "$OUT"/*.png "$OUT"/cases/*.png; do
     [ -e "$png" ] || continue
-    cwebp -lossless -quiet "$png" -o "${png%.png}.webp" && rm -f "$png" && n=$((n+1))
+    # `&&` chain, deliberately: a failed conversion must NOT delete its png. And the failure has
+    # to reach $FAIL — without that this loop printed "N rendered" and exited 0 while one
+    # site-referenced .webp was silently missing, which the live site would then 404 on.
+    if cwebp -lossless -quiet "$png" -o "${png%.png}.webp"; then
+      rm -f "$png"; n=$((n+1))
+    else
+      echo "screens: cwebp FAILED on $png — its .webp is missing and the png was kept" >&2
+      FAIL=1
+    fi
   done
   echo "screens: $n rendered to .webp (lossless)"
 else

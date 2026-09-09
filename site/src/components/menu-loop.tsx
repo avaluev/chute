@@ -106,7 +106,7 @@ export function MenuLoop() {
         </div>
 
         {/* the popover itself — three columns, two lines, matching
-            site/public/media/screens/cases/mixed.png row for row */}
+            site/public/media/screens/cases/mixed.webp row for row */}
         <div className="overflow-hidden rounded-[var(--radius)] border border-border bg-card shadow-hero">
           <div className="flex items-center gap-3 px-4 py-2.5">
             <span className={th} style={{ width: 12 }} />
