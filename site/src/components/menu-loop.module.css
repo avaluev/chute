@@ -1,0 +1,125 @@
+/**
+ * THE HERO ANIMATION, CHOREOGRAPHED IN CSS ALONE — no JS, no library, so this file (plus
+ * menu-loop.tsx) is the entire cost of the hero visual.
+ *
+ * TECHNIQUE: every value that changes over the 8s loop (a dot's shape, a line of text, the menu
+ * bar pip) is drawn as three stacked, absolutely-positioned layers — one per state — and only
+ * each layer's OPACITY is animated, on one shared 0%-100% timeline. Nothing here ever animates
+ * layout (top/left/width/height): a layer that is "hidden" still occupies the stack's box, so the
+ * row's height and the card's height are fixed from first paint and cannot shift.
+ *
+ * REDUCED MOTION IS THE DEFAULT, NOT AN OVERRIDE. The rules outside the media query below set
+ * every layer to its BLOCKED-frame opacity/transform — a session that stopped and needs you,
+ * which is the one frame that argues the product's whole point standing still. The `animation`
+ * declarations that create motion exist ONLY inside `@media (prefers-reduced-motion: no-preference)`,
+ * so a reduced-motion visitor (or a browser that fails to parse the media query at all) gets the
+ * static frame by construction, not because a rule remembered to pause something.
+ */
+
+/* ── default = the static, meaningful frame (blocked, lifted, pip red) ─────────────────────── */
+.dotWorking, .lineWorking, .pipWorking { opacity: 0; }
+.dotBlocked, .lineBlocked, .pipBlocked { opacity: 1; }
+.dotReady,   .lineReady,   .pipReady   { opacity: 0; }
+.row1 { transform: translateY(-2px); }
+.glow { opacity: 0.85; }
+.pointer, .ripple { opacity: 0; }
+.ringBreath { opacity: 1; }
+
+/* ── stacks: fixed boxes, absolutely-positioned children, so swapping which layer is visible
+   never changes a box's size ──────────────────────────────────────────────────────────────── */
+.dotStack { position: relative; width: 12px; height: 12px; flex: none; }
+.dotStack > span { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; }
+
+.lineStack { position: relative; display: block; height: 1.15rem; }
+.lineStack > span { position: absolute; inset: 0; left: 0; white-space: nowrap; }
+
+.pipStack { position: absolute; right: -2px; bottom: -2px; width: 9px; height: 9px; }
+.pipStack > span { position: absolute; inset: 0; }
+
+/* ── the shapes themselves — border-radius alone draws all four, per SessionDot.swift's rule:
+   shape carries the meaning, colour is only the redundancy ──────────────────────────────────── */
+.shapeSquare { width: 100%; height: 100%; border-radius: 1.5px; background: var(--destructive); }
+.shapeCircle { width: 100%; height: 100%; border-radius: 999px; background: var(--color-accent-chute); }
+.shapeRing   { width: 100%; height: 100%; border-radius: 999px; border: 1.6px solid var(--color-session-2); }
+
+.pipSquare { width: 100%; height: 100%; border-radius: 1px; background: var(--destructive); box-shadow: 0 0 0 1.5px var(--card); }
+.pipCircle { width: 100%; height: 100%; border-radius: 999px; background: var(--color-accent-chute); box-shadow: 0 0 0 1.5px var(--card); }
+.pipRing   { width: 100%; height: 100%; border-radius: 999px; border: 1.4px solid var(--color-session-2); box-shadow: 0 0 0 1.5px var(--card); }
+
+/* the row's own soft red glow while blocked — a second, blurred, static-position layer so the
+   "attention" cue is opacity-only too */
+.glow {
+  position: absolute; inset: -6px 0;
+  background: color-mix(in oklab, var(--destructive) 16%, transparent);
+  border-radius: 6px;
+  pointer-events: none;
+}
+
+/* the click affordance: a small arrow near row1's dot, and a ring that pulses out from it */
+.pointer {
+  position: absolute; right: -2px; bottom: -8px; width: 11px; height: 11px;
+  background: var(--foreground);
+  clip-path: polygon(0 0, 0 76%, 30% 60%, 47% 100%, 61% 91%, 43% 55%, 78% 51%);
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.45));
+}
+.ripple {
+  position: absolute; inset: -4px; border-radius: 999px;
+  border: 1.5px solid var(--color-accent-chute);
+  transform: scale(0.6);
+}
+
+/* ── the motion, gated behind the one media query that matters ─────────────────────────────── */
+@media (prefers-reduced-motion: no-preference) {
+  .dotWorking, .lineWorking, .pipWorking { animation: showWorking 8s ease-in-out infinite; }
+  .dotBlocked, .lineBlocked, .pipBlocked { animation: showBlocked 8s ease-in-out infinite; }
+  .dotReady,   .lineReady,   .pipReady   { animation: showReady   8s ease-in-out infinite; }
+  .row1    { animation: rowLift 8s ease-in-out infinite; }
+  .glow    { animation: glowPulse 8s ease-in-out infinite; }
+  .pointer { animation: pointerIn 8s ease-in-out infinite; }
+  .ripple  { animation: rippleOut 8s ease-in-out infinite; }
+  .ringBreath { animation: ringBreathe 2.6s ease-in-out infinite; }
+}
+
+@keyframes showWorking {
+  0%, 5%    { opacity: 1; }
+  9%        { opacity: 0; }
+  91%       { opacity: 0; }
+  96%, 100% { opacity: 1; }
+}
+@keyframes showBlocked {
+  0%, 5%    { opacity: 0; }
+  9%, 37%   { opacity: 1; }
+  42%, 100% { opacity: 0; }
+}
+@keyframes showReady {
+  0%, 41%   { opacity: 0; }
+  46%, 85%  { opacity: 1; }
+  90%, 100% { opacity: 0; }
+}
+@keyframes rowLift {
+  0%, 5%    { transform: translateY(0); }
+  10%, 36%  { transform: translateY(-2px); }
+  41%, 100% { transform: translateY(0); }
+}
+@keyframes glowPulse {
+  0%, 6%    { opacity: 0; }
+  12%, 34%  { opacity: 0.85; }
+  40%, 100% { opacity: 0; }
+}
+@keyframes pointerIn {
+  0%, 33%   { opacity: 0; transform: translate(18px, -14px); }
+  38%       { opacity: 1; transform: translate(3px, -2px); }
+  41%       { opacity: 1; transform: translate(0, 0) scale(0.8); }
+  44%       { opacity: 1; transform: translate(0, 0) scale(1); }
+  48%, 100% { opacity: 0; transform: translate(0, 0) scale(1); }
+}
+@keyframes rippleOut {
+  0%, 40%   { opacity: 0; transform: scale(0.6); }
+  43%       { opacity: 0.9; transform: scale(0.9); }
+  52%       { opacity: 0; transform: scale(1.7); }
+  100%      { opacity: 0; transform: scale(1.7); }
+}
+@keyframes ringBreathe {
+  0%, 100% { opacity: 0.6; }
+  50%      { opacity: 1; }
+}

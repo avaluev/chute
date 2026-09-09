@@ -8,8 +8,8 @@ import {
 import { CopyLine } from "@/components/copy-line";
 import { InstallCli } from "@/components/install-cli";
 import { Header, Footer } from "@/components/chrome";
-import { Demo } from "@/components/case-bits";
-import { CASES, PAID, FAMILIES, inFamily, minutesPerDay, bySlug } from "@/lib/cases";
+import { MenuLoop } from "@/components/menu-loop";
+import { CASES, PAID, FAMILIES, inFamily, minutesPerDay } from "@/lib/cases";
 import { CONFIG } from "@/lib/config";
 import { asset } from "@/lib/asset";
 
@@ -189,17 +189,22 @@ export default function Home() {
 
         {/* The hero shot is the APP, not a terminal. The old one was a terminal GIF on a page
             asking for $19 for something the visitor had never seen.
-            It reads the case's OWN recording rather than naming a file: the hero and the case
-            page can then never drift, and the day demo/gui films this job for real the hero
-            upgrades from a GIF to the video with no edit here. */}
-        <div className="mt-16 overflow-hidden rounded-[var(--radius)] border border-border shadow-hero">
-          <Demo c={bySlug("which-agent-is-waiting-for-you")!} />
+            THIS IS THE ONE ILLUSTRATED IMAGE ON THE SITE — every other screenshot and recording
+            is real captured output (see case-bits.tsx). A live cycle through three states in one
+            still screenshot is not possible, so this is a stylised, programmatic replay of the
+            real dot language instead: same shapes, same colours, same strings, built in CSS with
+            no video and no GIF. It says so itself, for a screen reader, in menu-loop.tsx. The
+            static screenshot this replaced still lives at /media/screens/menu.png and still backs
+            the /cases/which-agent-is-waiting-for-you page, so nothing here can drift from what
+            the app actually draws without that case's own build-time check catching it. */}
+        <div className="mt-16">
+          <MenuLoop />
         </div>
 
-        {/* THE TWO FACTS THE SCREENSHOT CANNOT SAY FOR ITSELF, added the day the redesign it
-            shows shipped (2026-09-08). A static image proves the shape and the layout; it cannot
-            prove where the project name came from or that the dot is deliberate rather than
-            decorative — so the caption says both, next to the thing it describes rather than
+        {/* THE TWO FACTS THE ANIMATION CANNOT SAY FOR ITSELF, added the day the redesign it
+            shows shipped (2026-09-08). Watching the loop proves the shapes and the states; it
+            cannot prove where the project name came from or that the dot is deliberate rather
+            than decorative — so the caption says both, next to the thing it describes rather than
             buried in a Trust section about file safety, which this is not. */}
         <p className="mt-4 max-w-2xl text-sm text-muted-foreground">
           Filled red square: blocked, needs you. Filled green circle: ready. A ring is motion —
