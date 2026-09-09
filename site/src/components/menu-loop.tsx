@@ -84,10 +84,10 @@ export function MenuLoop() {
           plain text here, read by a screen reader whether or not the illustration renders. */}
       <p className="sr-only">
         Animated illustration of the Chute menu bar. Three sessions are listed, each a project,
-        its state and agent, and its load. Two keep working, shown as an orange ring. The third,
-        37.chute, goes from working to blocked — a filled red square — and lifts to ask for you;
+        its state and agent, and its load. Two keep working, shown as a hollow orange square. The third,
+        37.chute, goes from working to blocked — a big solid red square — and lifts to ask for you;
         the menu bar icon&rsquo;s own corner pip turns red at the same moment. A click turns it
-        ready, a filled green circle, and it settles back to working before the loop repeats.
+        ready, a smaller solid green square, and it settles back to working before the loop repeats.
       </p>
 
       <div aria-hidden="true">

@@ -53,7 +53,7 @@ Extensions → Finder → ☑ Chute, or run `pluginkit -e use -i dev.valuev.chut
 
 Click the 🪂 for the list of every terminal running an agent: project name and the path it was
 derived from, its state and how long it's held it, its load — a dot whose shape carries the state
-(filled square = blocked, filled circle = ready, ring = working), never a colour keyed to the
+(a big solid square = blocked, a smaller solid square = ready, a hollow square = working), never a colour keyed to the
 project. Click a row to bring that terminal forward, or use the `⌥⌘N` hotkey from anywhere.
 
 The badge needs hooks to be interesting, and wiring them is your call, made by your hand. Without

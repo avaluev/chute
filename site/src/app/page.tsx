@@ -213,7 +213,7 @@ export default function Home() {
             than decorative — so the caption says both, next to the thing it describes rather than
             buried in a Trust section about file safety, which this is not. */}
         <p className="mt-4 max-w-2xl text-sm text-muted-foreground">
-          Filled red square: blocked, needs you. Filled green circle: ready. A ring is motion —
+          A big solid red square: blocked, needs you. A smaller solid green square: ready. A hollow square is motion —
           orange for working, grey where Chute cannot see the session at all. Shape carries the
           meaning; colour is only the redundancy, because roughly one man in twelve cannot tell
           that red from that green.
