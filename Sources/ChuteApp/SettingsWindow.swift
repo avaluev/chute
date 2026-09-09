@@ -50,11 +50,14 @@ enum SettingsWindow {
     private static func general() -> NSView {
         let v = NSStackView(views: [
             heading("Where Chute is"),
-            // The counts are READ, never typed. A number written into a sentence is a number that
-            // goes stale — this app shipped "every prerequisite" over ten checks, and the fact
-            // sheet has a whole table of hand-typed numbers that drifted.
+            // NO COUNTS IN THE COPY. They used to read "the 9 actions" and "runs 10 checks",
+            // derived rather than typed — which solved staleness and left the sentences sounding
+            // like a machine describing an inventory. A person reading a Settings pane wants to
+            // know what is there, not how many of it there are. The derivation guarded a number
+            // that should never have been in the sentence; deleting the number deletes the
+            // problem. Any count that stays anywhere in this repo is still read, never typed.
             body("""
-                 Finder — right-click files or a folder for the \(ChuteActions.all.count) actions.
+                 Finder — right-click a file or a folder. Chute's actions are in the menu.
 
                  Menu bar — your agent sessions. ⌥⌘N opens the same menu wherever you are.
 
@@ -69,9 +72,9 @@ enum SettingsWindow {
                  stays dark and every session reads "no status".
                  """),
             heading("If something is not working"),
-            body("`chute doctor` runs \(Diagnostics.all.count) checks — the extension, the "
-                 + "Automation permission, the hooks — and prints the fix for each one that "
-                 + "fails. `chute doctor --fix` applies the ones it can."),
+            body("`chute doctor` checks the extension, the Automation permission and the "
+                 + "hooks, and prints the fix for whatever is not working. `chute doctor --fix` "
+                 + "applies the ones it can."),
         ])
         return pad(v)
     }
