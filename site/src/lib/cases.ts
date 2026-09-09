@@ -57,6 +57,15 @@ export const CASES: Case[] = [
     ritual: "Open each file, select all, copy, switch to the agent, paste, type the filename above it, go back for the next one.",
     fix: "Select the folders in Finder, right-click once, and every file inside them is on the clipboard as one blob with a token count.",
     seconds: { manual: 150, chute: 5 }, perDay: 17, savedMinutes: 41.1,
+    // CROPPED 2026-09-09, 1280x800 -> 1020x638, and not for weight (though it halved them).
+    // The full frame showed the founder's real Finder sidebar — personal project folders, app
+    // shortcuts, colour tags — and a breadcrumb carrying his username, on a public marketing
+    // page. The crop takes the sidebar and both bottom bars; what is left is the acme-app/src
+    // demo content, which was always sanitised. The recordings are KEPT rather than replaced,
+    // because three of them are what the stopwatch read: the FAQ says so, and deleting them
+    // would make that sentence false. 1020x638 holds the 1.6 aspect the <video> declares, so
+    // nothing shifts. macOS will not record another app's open context menu, which is why these
+    // show the selection and never the menu itself — see menu-loop.tsx for the drawn one.
     demo: "/media/paste-a-whole-folder-into-your-agent.mp4",
     poster: "/media/paste-a-whole-folder-into-your-agent.webp",
     command: "chute bundle src/ --format xml",
