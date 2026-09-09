@@ -9,7 +9,7 @@ import { CopyLine } from "@/components/copy-line";
 import { InstallCli } from "@/components/install-cli";
 import { Header, Footer } from "@/components/chrome";
 import { MenuLoop } from "@/components/menu-loop";
-import { CASES, PAID, FAMILIES, inFamily, minutesPerDay } from "@/lib/cases";
+import { PAID, FAMILIES, inFamily, minutesPerDay } from "@/lib/cases";
 import { CONFIG } from "@/lib/config";
 import { asset } from "@/lib/asset";
 
@@ -35,7 +35,7 @@ const FAQ = [
   { q: "Claude Code can already read my files. Why do I need this?",
     a: "It can. It cannot see your Finder selection, your clipboard, the terminal you lost, or the port you can\u2019t find \u2014 and it certainly cannot tell you which of your six sessions stopped. Chute is everything the agent cannot reach from inside its own window, including you." },
   { q: "What does it cost?",
-    a: "Nothing. Every part of Chute \u2014 the app, the Finder extension and all 26 commands \u2014 is MIT licensed. It was a paid app for eleven days in 2026; the trial clock, the licence check and the store account are deleted, not disabled." },
+    a: "Nothing. The app, the Finder extension and the terminal tool underneath it are all MIT licensed. It was a paid app for eleven days in 2026; the trial clock, the licence check and the store account are deleted, not disabled." },
   { q: "Does it phone home?",
     a: "No. There is no network code at all except the gist command, which uploads only the files you name, only when you run it, and redacts them first. Nothing else in Chute opens a socket. Check it yourself: grep -rn URLSession Sources/" },
   { q: "macOS says it cannot verify the app. Is something wrong?",
@@ -60,7 +60,7 @@ const FAQ = [
       </>
     ) },
   { q: "Where do these numbers come from?",
-    a: "A ledger of 24 jobs, each timed the same way: how often it happens, how long it takes by hand, how long it takes with Chute. It is in the repository, the site is generated from it, and the build fails if a figure on this page stops matching it." },
+    a: "Every one is timed the same way: how often it happens, how long it takes by hand, how long it takes with Chute. The ledger is in the repository, the site is generated from it, and the build fails if a figure here stops matching it." },
   { q: "Which macOS?",
     a: "macOS 13 Ventura and later, Apple Silicon. The app is under 3.2 MB and the command-line binary under 1 MB, with no dependencies, no launch daemon and no background service. CI tests macOS 15 and 26 on every push." },
 ];
@@ -248,7 +248,7 @@ export default function Home() {
               {appMinutes} min
             </p>
             <p className="mt-1 text-sm text-muted-foreground">
-              a day, thirty seconds at a time, across {PAID.length} jobs in the app
+              a day, thirty seconds at a time, across the Finder menu and the menu bar
             </p>
             <div className="mt-6 border-t border-border pt-6">
               <p className="text-sm text-muted-foreground">
@@ -267,10 +267,10 @@ export default function Home() {
           ones). That split was the pricing boundary, not a product boundary, and it survived the
           price by three weeks. Nobody supervising six agents cares which half of a withdrawn
           business model a job used to belong to. */}
-      <Section eyebrow="Every job it does" title="The loop you are already running">
+      <Section eyebrow="What it does" title="The loop you are already running">
         <p className="-mt-4 max-w-2xl text-muted-foreground">
-          Brief it, steer it, watch it, land what it made. {CASES.length} jobs, each one timed the
-          same way — how often it happens, how long it takes by hand, how long it takes instead.
+          Brief it, steer it, watch it, land what it made — that is the loop, and everything
+          below sits in one part of it.
         </p>
 
         <div className="mt-12 space-y-14">
@@ -278,13 +278,10 @@ export default function Home() {
             const jobs = inFamily(f.key);
             return (
               <div key={f.key}>
-                <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1 border-b border-border pb-4">
+                <div className="border-b border-border pb-4">
                   <h3 className="font-[family-name:var(--font-mono-loaded)] text-xl font-semibold">
                     {f.title}
                   </h3>
-                  <span className="font-[family-name:var(--font-mono-loaded)] text-sm text-muted-foreground">
-                    {jobs.length} {jobs.length === 1 ? "job" : "jobs"}
-                  </span>
                 </div>
                 <p className="mt-4 max-w-2xl text-muted-foreground">{f.blurb}</p>
                 <ul className="mt-6 grid gap-3 sm:grid-cols-2">

@@ -47,7 +47,7 @@ export function CasesGrid({ cases }: { cases: Case[] }) {
           </button>
         ))}
         <span className="ml-auto font-[family-name:var(--font-mono-loaded)] text-sm text-muted-foreground">
-          {shown.length} jobs · {minutes} min a day
+          {shown.length} shown · {minutes} min a day
         </span>
       </div>
 

@@ -5,9 +5,9 @@ import { CASES, PAID, FREE, minutesPerDay } from "@/lib/cases";
 import { CONFIG } from "@/lib/config";
 
 export const metadata: Metadata = {
-  title: "Every job Chute does — Chute",
+  title: "Everything Chute does — Chute",
   description:
-    "All 25 jobs, what each one costs you by hand, and which of them need the app.",
+    "What it does, what each one costs you by hand, and which of it needs the app.",
   alternates: { canonical: `https://${CONFIG.domain}/cases/` },
 };
 
@@ -20,9 +20,9 @@ export default function CasesIndex() {
           Everything it does, and what each one costs you
         </h1>
         <p className="mt-4 max-w-2xl text-lg text-muted-foreground">
-          {CASES.length} jobs, measured rather than described. {PAID.length} of them need the
-          app — {minutesPerDay(PAID)} minutes a day between them. The other {FREE.length} are the
-          free command-line tool, and they account for {minutesPerDay(FREE)}.
+          Measured, not guessed at: how often each one happens, how long it takes by hand, how
+          long it takes instead. The ones that need the app add up to {minutesPerDay(PAID)}{" "}
+          minutes a day; the free command-line tool accounts for another {minutesPerDay(FREE)}.
         </p>
         <p className="mt-3 max-w-2xl text-sm text-muted-foreground">
           Every figure comes from the same ledger the product was built against, and the site

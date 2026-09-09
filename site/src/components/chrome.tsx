@@ -61,7 +61,7 @@ export function Header() {
           <Mark size={20} /> Chute
         </Link>
         <nav className="flex items-center gap-5 text-sm text-muted-foreground">
-          <Link href="/cases" className="hover:text-foreground">Every job</Link>
+          <Link href="/cases" className="hover:text-foreground">What it does</Link>
                     <a href={CONFIG.repo} className="hidden hover:text-foreground sm:inline">GitHub</a>
           <Link href="/docs" className="hover:text-foreground">Commands</Link>
           <a href={CONFIG.download} className="text-foreground hover:text-[var(--color-accent-chute)]">Download</a>

@@ -4,14 +4,13 @@ import { CopyLine } from "@/components/copy-line";
 import { InstallCli } from "@/components/install-cli";
 import { Header, Footer } from "@/components/chrome";
 import { CaseCard } from "@/components/case-bits";
-import { FREE, PAID, minutesPerDay } from "@/lib/cases";
+import { FREE, minutesPerDay } from "@/lib/cases";
 import { CONFIG } from "@/lib/config";
-import commands from "@/lib/commands.json";
 
 export const metadata: Metadata = {
   title: "The free command-line tool — Chute",
   description:
-    `${commands.length} commands, MIT licensed, offline, no account. Everything the app does, from a terminal.`,
+    "Everything the app does, from a terminal. MIT licensed, offline, no account.",
   alternates: { canonical: `https://${CONFIG.domain}/cli/` },
 };
 
@@ -37,9 +36,8 @@ export default function CliPage() {
           The command-line tool is free, MIT, and yours whatever happens to this page
         </h1>
         <p className="mt-5 text-lg text-muted-foreground">
-          {commands.length} commands. Zero dependencies, zero telemetry, no account, under 1 MB. It
-          does every job on this site — including the {PAID.length} that the app puts in your
-          right-click menu.
+          Zero dependencies, zero telemetry, no account, under 1 MB. It does everything the app
+          does, including what the Finder menu puts behind a right-click.
         </p>
 
         <div className="mt-8 max-w-md">
@@ -54,14 +52,14 @@ export default function CliPage() {
             <code className="text-foreground">chute bundle</code> and the rest of this page.
           </p>
           <p>
-            What the app adds is not capability. It is not leaving Finder, not typing a
-            path, and seeing which of nine terminals is waiting for you without looking at nine
-            terminals.
+            What the app adds isn&rsquo;t capability — the CLI already has it. It&rsquo;s staying
+            in Finder, skipping the typed path, and seeing which session needs you without
+            checking every terminal yourself.
           </p>
         </div>
 
         <h2 className="mt-14 font-[family-name:var(--font-mono-loaded)] text-lg font-semibold text-foreground">
-          {FREE.length} jobs it does on its own
+          What it does on its own
         </h2>
         <p className="mt-2 text-sm text-muted-foreground">
           {minutesPerDay(FREE)} minutes a day, measured the same way as everything else.
@@ -78,7 +76,7 @@ export default function CliPage() {
             Source on GitHub →
           </a>
           <Link className="text-muted-foreground hover:text-foreground" href="/cases">
-            All the jobs, free and paid →
+            Everything it does, free and paid →
           </Link>
         </div>
       </div>
