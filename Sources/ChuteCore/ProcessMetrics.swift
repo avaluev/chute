@@ -421,12 +421,28 @@ public enum ProcessMetrics {
 
     /// Every pid on the machine, via `proc_listallpids`. Asked twice: once for the count, once
     /// for the data, because the number of processes changes between the two calls.
+    ///
+    /// A QUARTER OF THE MACHINE WAS MISSING, silently, since this was written. `proc_listallpids`
+    /// returns a PID COUNT on BOTH calls — the probe (`buffer == nil`) and the real one — never a
+    /// byte count, even though `buffersize` on the way IN is bytes. This divided the real call's
+    /// return by `MemoryLayout<Int32>.size` a second time, so a machine that actually listed ~628
+    /// pids reported 157 of them (628 / 4) — an arbitrary, kernel-ordered 25%, with no reason it
+    /// would include any particular process.
+    ///
+    /// INVISIBLE UNTIL 2026-09-09, because the one caller that used the full, unfiltered list
+    /// (`snapshot(pids: nil)`) feeds `proc_pid_rusage`, which refuses every pid that is not ours
+    /// anyway — so losing 3/4 of a list that was mostly going to be refused regardless never
+    /// changed `snapshot()`'s answer enough for `ProcessMetricsSuite`'s loose `count > 5` to
+    /// notice. It surfaced when `TerminalAppAdapter.isAppRunning` started asking `allPIDs()` a
+    /// question the truncation could actually get wrong — "is root's launchd running?" — and
+    /// `TerminalParseSuite`'s fixed assertion on that exact question caught it. See
+    /// docs/specs/PERFORMANCE.md.
     static func allPIDs() -> [Int32] {
         let count = proc_listallpids(nil, 0)
         guard count > 0 else { return [] }
         var pids = [Int32](repeating: 0, count: Int(count) + 64)   // headroom for new arrivals
-        let bytes = proc_listallpids(&pids, Int32(pids.count * MemoryLayout<Int32>.size))
-        guard bytes > 0 else { return [] }
-        return Array(pids.prefix(Int(bytes) / MemoryLayout<Int32>.size)).filter { $0 > 0 }
+        let filled = proc_listallpids(&pids, Int32(pids.count * MemoryLayout<Int32>.size))
+        guard filled > 0 else { return [] }
+        return Array(pids.prefix(Int(filled))).filter { $0 > 0 }
     }
 }

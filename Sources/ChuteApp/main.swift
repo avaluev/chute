@@ -151,7 +151,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         liveVitals = live
 
         // Refresh what the rows just rendered from cache, so the NEXT open is current. The read
-        // is 37 ms per transcript and must never happen while a menu is being drawn.
+        // is ~480 ms per transcript (measured 2026-09-09 in Swift — see AgentTranscript.readFile's
+        // doc comment; the "37 ms" this used to say here was a Python prototype's number, not
+        // this app's) and must never happen while a menu is being drawn.
         let ids = sessions.compactMap(\.sessionID)
         if !ids.isEmpty {
             DispatchQueue.global(qos: .utility).async { [transcripts] in

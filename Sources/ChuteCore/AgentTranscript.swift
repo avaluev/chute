@@ -100,8 +100,24 @@ public struct AgentTranscript: Sendable, Equatable {
     /// like the cost of the session. It said "17k out" for a session that had produced 353k. A
     /// number that is wrong in a way the reader cannot detect is worse than no number.
     ///
-    /// It is still never called on the main thread, and the caller caches on (mtime, size) — 37 ms
-    /// per session across eleven sessions is fine in the background and is not fine in a menu.
+    /// THE "37 ms" WAS NEVER THE SWIFT NUMBER, and every place this file and `main.swift` later
+    /// cited it as one was wrong — caught 2026-09-09 by `Scripts/bench.swift`, which times this
+    /// exact function against a real transcript instead of the Python prototype above. On a
+    /// 20.2 MB / 3,660-record file on this machine: `String(contentsOfFile:)` is ~10 ms, but
+    /// `parse(_:)` is ~480 ms — thirteen times the Python figure, because `JSONSerialization`
+    /// builds a full `[String: Any]` Foundation object graph for every nested field on every line
+    /// (tool inputs, file contents, images) even though `parse` only ever reads five top-level
+    /// strings and two usage counters out of it. See docs/specs/PERFORMANCE.md.
+    ///
+    /// NOT CHANGED, deliberately: this only ever runs off the main thread (see `TranscriptStore`
+    /// below), and the menu-open path reads `TranscriptStore.cached` only, which never touches
+    /// disk — both verified still true on 2026-09-09. A parser rewrite to claw back the 13x would
+    /// touch every field this struct exposes for the sake of a cost the user never waits on;
+    /// `docs/specs/PERFORMANCE.md` names it as found-but-not-fixed and why.
+    ///
+    /// It is still never called on the main thread, and the caller caches on (mtime, size) —
+    /// ~480 ms per session across eleven sessions is fine in the background and is not fine in a
+    /// menu.
     ///
     /// A line that will not parse is skipped rather than fatal: the last line of a session being
     /// written right now is routinely half-flushed.
@@ -178,9 +194,11 @@ public struct AgentTranscript: Sendable, Equatable {
 
 /// A read-through cache, because the menu must never wait on a file.
 ///
-/// `AgentTranscript.readFile` takes about 37 ms on the largest transcript here. That is fine on a
+/// `AgentTranscript.readFile` takes about 480 ms on the largest transcript here — measured
+/// 2026-09-09 in Swift, via `Scripts/bench.swift`; see `readFile`'s own doc comment for why the
+/// "37 ms" this used to say was a different language's number, not this function's. Fine on a
 /// background queue and it is not fine inside `menuWillOpen`, which runs while the user is looking
-/// at a menu that has not drawn yet — with eleven sessions it would be most of a second of nothing.
+/// at a menu that has not drawn yet — with eleven sessions it would be several seconds of nothing.
 ///
 /// So the menu only ever asks for what is already known (`cached`, which never touches the disk),
 /// and refreshing happens on the event that means a session changed: the DispatchSource watching

@@ -30,7 +30,11 @@ public struct TerminalAppAdapter {
     /// all because one window shut half a second ago. Each window and each tab is therefore
     /// collected independently: a session that vanishes mid-scan is simply absent from the list,
     /// which is exactly what it is.
-    static let discoveryScript = """
+    ///
+    /// PUBLIC so `Scripts/bench.swift` can time the exact script `discover()` runs, in isolation
+    /// from the `SystemVitals.sample()` + `SessionCwd.map` work `discover()` also pays for — see
+    /// docs/specs/PERFORMANCE.md. No behaviour change: still only read from `discover()` itself.
+    public static let discoveryScript = """
     tell application "Terminal"
         set out to ""
         repeat with w in windows
@@ -158,12 +162,30 @@ public struct TerminalAppAdapter {
 
 /// Whether the app owning this bundle executable path is running.
 ///
-/// Deliberately `ps -Ao comm` and a substring match, NOT pgrep: macOS reports a bundled app's
+/// A substring match against the FULL executable path, NOT pgrep: macOS reports a bundled app's
 /// `comm` as its FULL executable path, so `pgrep -x Terminal` never matches Terminal.app and
-/// discovery would throw .notRunning forever. Verified on macOS 14.6: pgrep finds nothing,
-/// `ps -Ao comm` lists /System/Applications/Utilities/Terminal.app/Contents/MacOS/Terminal.
+/// discovery would throw .notRunning forever. Verified on macOS 14.6: pgrep finds nothing, the
+/// real path lists /System/Applications/Utilities/Terminal.app/Contents/MacOS/Terminal.
 /// Takes the path fragment it checks so later adapters (iTerm2, Ghostty, Warp) ask about
 /// their own app rather than silently receiving Terminal's answer.
+///
+/// THE `ps -Ao comm` FORK, DELETED — the exact bug `ProcessMetrics.listing()` (see that file's
+/// header) already fixed once, still sitting here. Measured 2026-09-09 in
+/// `Scripts/bench.swift`: `discover()` was paying 102 ms for THIS call alone, on top of the
+/// ~200 ms AppleScript round-trip it precedes — every menu open, before a single window was even
+/// asked about. See docs/specs/PERFORMANCE.md.
+///
+/// `proc_listallpids` + `proc_pidpath`, not `ProcessMetrics.listing()`: that call is scoped to
+/// OUR OWN uid (deliberately — see its own header, "another user's processes were never ours to
+/// report"), and this check has to see root's launchd too — `TerminalParseSuite` pins exactly
+/// that ("a process that is always running is detected"). `proc_pidpath` is the one primitive
+/// here that CROSSES the ownership boundary — `ProcessIdentity.executablePath`'s own header
+/// verifies it resolves root's launchd for a non-root reader — so `allPIDs()` (every pid on the
+/// machine, no uid filter) is the right pairing, not a scoped listing.
+///
+/// Measured: ~2 ms for ~600 pids on this machine, against the 102 ms it replaces.
 public func isAppRunning(bundleExecutable fragment: String) -> Bool {
-    Shell.run("ps", ["-Ao", "comm"]).out.contains(fragment)
+    ProcessMetrics.allPIDs().contains { pid in
+        ProcessIdentity.executablePath(pid)?.contains(fragment) ?? false
+    }
 }
