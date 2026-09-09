@@ -165,6 +165,27 @@ export default function Home() {
           that cannot see it.
         </p>
 
+        {/* ABOVE THE INSTALL COMMAND, BECAUSE THE PITCH IS A PICTURE.
+            Measured 2026-09-09 on a 390x844 phone: this sat at y=1055, i.e. 1.25 screens down,
+            so a visitor met the headline, a five-line paragraph, a shell command and two CTAs
+            before ever seeing the product. Nobody installs a thing they have not seen. It now
+            follows the sentence that sets up the question and answers it in the same screen; the
+            command follows the answer.
+
+            The hero shot is the APP, not a terminal. The old one was a terminal GIF on a page
+            asking for $19 for something the visitor had never seen.
+            THIS IS THE ONE ILLUSTRATED IMAGE ON THE SITE — every other screenshot and recording
+            is real captured output (see case-bits.tsx). A live cycle through three states in one
+            still screenshot is not possible, so this is a stylised, programmatic replay of the
+            real dot language instead: same shapes, same colours, same strings, built in CSS with
+            no video and no GIF. It says so itself, for a screen reader, in menu-loop.tsx. The
+            static screenshot this replaced still lives at /media/screens/menu.png and still backs
+            the /cases/which-agent-is-waiting-for-you page, so nothing here can drift from what
+            the app actually draws without that case's own build-time check catching it. */}
+        <div className="mt-10">
+          <MenuLoop />
+        </div>
+
         {/* ONE COMMAND, AND IT HAS TO BE THE ONE THAT INSTALLS THE PRODUCT.
             This block used to lead with `brew install avaluev/tap/chute`. That formula builds
             `--product chute` and installs `bin/chute` — the CLI, and ONLY the CLI. No app
@@ -205,19 +226,6 @@ export default function Home() {
           </code>
         </p>
 
-        {/* The hero shot is the APP, not a terminal. The old one was a terminal GIF on a page
-            asking for $19 for something the visitor had never seen.
-            THIS IS THE ONE ILLUSTRATED IMAGE ON THE SITE — every other screenshot and recording
-            is real captured output (see case-bits.tsx). A live cycle through three states in one
-            still screenshot is not possible, so this is a stylised, programmatic replay of the
-            real dot language instead: same shapes, same colours, same strings, built in CSS with
-            no video and no GIF. It says so itself, for a screen reader, in menu-loop.tsx. The
-            static screenshot this replaced still lives at /media/screens/menu.png and still backs
-            the /cases/which-agent-is-waiting-for-you page, so nothing here can drift from what
-            the app actually draws without that case's own build-time check catching it. */}
-        <div className="mt-16">
-          <MenuLoop />
-        </div>
 
         {/* THE TWO FACTS THE ANIMATION CANNOT SAY FOR ITSELF, added the day the redesign it
             shows shipped (2026-09-08). Watching the loop proves the shapes and the states; it

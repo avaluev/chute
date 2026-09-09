@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { CaseCard } from "@/components/case-bits";
+import { CaseCard, CaseRow } from "@/components/case-bits";
 import type { Case } from "@/lib/cases";
 
 /**
@@ -53,11 +53,40 @@ export function CasesGrid({ cases }: { cases: Case[] }) {
         </span>
       </div>
 
-      <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2">
-        {shown.map((c) => (
-          <CaseCard key={c.slug} c={c} />
-        ))}
-      </div>
+      {/* FOUR CARDS, THEN ROWS. Ranked by the minutes each job actually saves, so the four the
+          reader should look at first are the four that earn the most — not the first four the
+          ledger happens to list. Cases with no figure (deliberately: see cases.ts) sort last and
+          land in the rows, which is where an unquantified job belongs on a page arguing in
+          minutes. Below four featured items the split stops meaning anything, so a filtered view
+          that is already short just renders as cards. */}
+      {(() => {
+        const ranked = [...shown].sort(
+          (a, b) => (b.savedMinutes ?? -1) - (a.savedMinutes ?? -1),
+        );
+        const featured = ranked.length > 6 ? ranked.slice(0, 4) : ranked;
+        const rest = ranked.length > 6 ? ranked.slice(4) : [];
+        return (
+          <>
+            <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2">
+              {featured.map((c) => (
+                <CaseCard key={c.slug} c={c} />
+              ))}
+            </div>
+            {rest.length > 0 && (
+              <div className="mt-10">
+                <p className="text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">
+                  The other {rest.length}
+                </p>
+                <div className="mt-3">
+                  {rest.map((c) => (
+                    <CaseRow key={c.slug} c={c} />
+                  ))}
+                </div>
+              </div>
+            )}
+          </>
+        );
+      })()}
     </>
   );
 }

@@ -53,3 +53,49 @@ BRANCH="main"
 
 echo "→ deploying to Cloudflare Pages (branch: $BRANCH)"
 npx wrangler pages deploy out --project-name "$PROJECT" --branch "$BRANCH" --commit-dirty=true
+
+# ── THE DEPLOY IS NOT DONE UNTIL THE LIVE PAGE CAN STYLE ITSELF ────────────────────────────
+#
+# On 2026-09-09 a deploy published an index.html referencing a stylesheet that had not been
+# uploaded. Cloudflare answers a missing file with the fallback HTML page — 200, text/html — so
+# the browser refused to apply it and the site rendered as UNSTYLED HTML: body in Times, every
+# grid blown out, 578px of horizontal overflow. It stayed that way, live, while three separate
+# checks reported success.
+#
+# THE STATUS CODE CANNOT SEE THIS. Every asset returned 200, because a fallback page IS a 200.
+# Only the CONTENT-TYPE distinguishes "here is your stylesheet" from "here is a page saying I
+# could not find your stylesheet". This checks what the deployed HTML actually asks for, and
+# that each answer is the kind of thing it asked for.
+#
+# Same shape as the Homebrew trap in packaging/homebrew/chute.rb: the obvious check (brew
+# install / HTTP 200) is structurally incapable of detecting the failure.
+[ "$BRANCH" = "main" ] || exit 0
+echo "→ verifying the live page can style itself"
+SITE="https://chutedev.com"
+sleep 5
+fail=0
+for attempt in 1 2 3 4 5 6 7 8 9 10; do
+  fail=0
+  html="$(curl -fsS "$SITE/?deploycheck=$RANDOM" || true)"
+  if [ -z "$html" ]; then fail=1; else
+    refs="$(printf '%s' "$html" | grep -oE '/_next/static/[^"]+\.(css|js)' | sort -u)"
+    [ -n "$refs" ] || fail=1
+    for ref in $refs; do
+      ct="$(curl -fsS -o /dev/null -w '%{content_type}' "$SITE$ref" || echo none)"
+      case "$ref" in
+        *.css) case "$ct" in text/css*) ;; *) fail=1; bad="$ref → $ct";; esac ;;
+        *.js)  case "$ct" in *javascript*) ;; *) fail=1; bad="$ref → $ct";; esac ;;
+      esac
+    done
+  fi
+  [ "$fail" -eq 0 ] && break
+  echo "   not consistent yet (attempt $attempt/10) — edges still rolling out"
+  sleep 12
+done
+if [ "$fail" -ne 0 ]; then
+  echo "deploy-site: THE LIVE SITE IS SERVING A BROKEN ASSET: ${bad:-no assets found}" >&2
+  echo "             The page will render unstyled. Re-run this script; if it persists, the" >&2
+  echo "             upload dropped a file — check 'npx wrangler pages deployment list'." >&2
+  exit 1
+fi
+echo "   every stylesheet and script the live page references answers with its own type"

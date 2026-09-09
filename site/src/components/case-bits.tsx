@@ -111,6 +111,33 @@ export function Demo({ c }: { c: Case }) {
   );
 }
 
+/**
+ * The quiet half of the list.
+ *
+ * Nineteen identical bordered cards gave every job the same visual weight, so nothing was more
+ * important than anything else and the reader had to price all nineteen to choose one. Border,
+ * fill and radius each say "separate object"; spent on every item they stop saying anything.
+ * The four biggest wins keep the card; the rest become rows. Same information, same link, one
+ * rule instead of four edges — and the eye now has somewhere to land first.
+ */
+export function CaseRow({ c }: { c: Case }) {
+  return (
+    <Link
+      href={`/cases/${c.slug}`}
+      className="group flex items-baseline gap-4 border-b border-border/60 py-3 transition-colors duration-150 hover:border-[var(--color-accent-chute)]/50"
+    >
+      <span className="min-w-0 flex-1 text-sm text-foreground group-hover:text-[var(--color-accent-chute)]">
+        {c.pain}
+      </span>
+      {c.savedMinutes !== null && (
+        <span className="shrink-0 font-[family-name:var(--font-mono-loaded)] text-xs tabular-nums text-muted-foreground">
+          {c.savedMinutes} min/day
+        </span>
+      )}
+    </Link>
+  );
+}
+
 export function CaseCard({ c }: { c: Case }) {
   return (
     <Link
