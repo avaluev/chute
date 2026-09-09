@@ -41,7 +41,7 @@ const FAQ = [
   { q: "macOS says it cannot verify the app. Is something wrong?",
     a: "No \u2014 it is unsigned, which is a different thing from unsafe. There is no Apple Developer Program membership behind this project, so a downloaded build meets Gatekeeper. The one-line source install avoids that entirely, because a binary your own compiler produced was never downloaded and never gets a quarantine flag. (Homebrew avoids it too, but that formula installs only the terminal tool \u2014 it gives you neither the menu bar nor the Finder menu.) If you want the .dmg anyway, the release page lists the four clicks." },
   { q: "Which agents does it work with?",
-    a: "All of them. Chute never talks to an agent; it moves files, paths and text through your clipboard, and it reads session state from hooks you install yourself. Claude Code, Codex, Antigravity, Cursor, Aider, Gemini \u2014 if it reads a prompt, it reads Chute\u2019s output." },
+    a: "For moving context: all of them. Chute never talks to an agent; it moves files, paths and text through your clipboard, so Claude Code, Codex, Antigravity, Cursor, Aider or Gemini \u2014 if it reads a prompt, it reads Chute\u2019s output. Watching state is narrower. Chute finds any of those sessions in the process list and shows you that one is running and what it is costing you, but the precise states \u2014 blocked, ready, working \u2014 come from hooks, and the hooks exist for Claude Code today. Another agent\u2019s row says so in words: \u201cno hook \u2014 Chute cannot see this\u201d." },
   { q: "Does it write to my agent\u2019s config?",
     a: (
       <>
@@ -214,14 +214,17 @@ export default function Home() {
             buried in a Trust section about file safety, which this is not. */}
         <p className="mt-4 max-w-2xl text-sm text-muted-foreground">
           A big solid red square: blocked, needs you. A smaller solid green square: ready. A hollow square is motion —
-          orange for working, grey where Chute cannot see the session at all. Shape carries the
-          meaning; colour is only the redundancy, because roughly one man in twelve cannot tell
-          that red from that green.
+          orange for working, grey where Chute cannot see the session at all. Size and fill carry
+          the meaning, and the row spells the state out in words beside the dot — because roughly
+          one man in twelve cannot tell that red from that green, and &ldquo;blocked 3 min&rdquo;
+          reads the same to everyone.
         </p>
         <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
-          The project name comes from the session&rsquo;s own git root, never a terminal window
-          title you can rename by accident — and the path it was derived from prints underneath
-          it, so a wrong guess is visible instead of silent.
+          The project name comes from the session&rsquo;s own git root — asked of the kernel, not
+          read off a terminal window title you can rename by accident. Where the kernel cannot
+          resolve the directory at all, the title is the last resort rather than the first guess.
+          Either way the path it was derived from prints underneath it, so a wrong guess is
+          visible instead of silent.
         </p>
 
         {/* THE SECOND SURFACE, WHICH HAD NO IMAGE ANYWHERE — not on this site, not in the
@@ -344,10 +347,8 @@ export default function Home() {
       <Section eyebrow="Trust" title="Built for a repo an agent is about to rampage through">
         <ul className="grid gap-4 md:grid-cols-2">
           {[
-            ["Destructive actions show you the list first", "The right-click that writes files, and the one that clears junk, both preview before anything changes. Cancel is the default button."],
-            ["Writing cannot escape its target folder", "Absolute paths and ../ are rejected outright, before and after the folders are created."],
+            ["The Finder menu cannot destroy anything", "Every row it offers reads, copies or adds. Nothing in it writes over your files, moves them or deletes them — the two commands that once could were removed in August rather than made safer."],
             ["Snapshots cannot lose work", "checkpoint stages into a private index file. Your index, worktree and HEAD are never touched — it only ever adds a branch."],
-            ["Clearing junk moves it to the Trash", "Never rm. And it refuses to treat a .env or a file you made as an agent's leftovers."],
             ["Keys are read from the Keychain only", "It prints key names, never values, and refuses to create a .env that git would track."],
             ["There is no network code in Chute at all", "Not \u201cnothing is uploaded\u201d \u2014 one command, gist, does upload, and it does it by shelling out to your own gh with your own credentials, on the files you name, after redacting keys. Chute itself never opens a socket. Check it: grep -rn URLSession Sources/"],
           ].map(([h, b]) => (

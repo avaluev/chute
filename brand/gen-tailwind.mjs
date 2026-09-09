@@ -58,10 +58,17 @@ ${t.sessionHues.map((h, i) => `  --color-session-${i + 1}: ${h};`).join("\n")}
   /* Dev tools are sharp. shadcn ships 0.625rem; that roundness is half of the templated look. */
   --radius: ${t.radius};
 
-  --font-sans: ${t.font.body};
-  --font-mono: ${t.font.mono};
+  /* THE next/font FACE FIRST, THEN THE TOKEN'S OWN STACK AS FALLBACK.
+     site/src/app/layout.tsx loads these through next/font into --font-sans-loaded and
+     --font-mono-loaded and puts both on <body>. The mono variable was consumed all over the
+     site; the sans one was defined, applied, and referenced by nothing — so every visitor
+     downloaded Instrument Sans and then read the page in -apple-system, because naming a
+     family only uses it if the visitor happens to have it INSTALLED. Fixed 2026-09-09.
+     The token stays as the local/no-JS fallback rather than being replaced. */
+  --font-sans: var(--font-sans-loaded), ${t.font.body};
+  --font-mono: var(--font-mono-loaded), ${t.font.mono};
   --font-heading: ${t.font.heading};
-  --font-geist-mono: ${t.font.mono};
+  --font-geist-mono: var(--font-mono-loaded), ${t.font.mono};
 }
 
 @theme inline {

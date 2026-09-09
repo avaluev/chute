@@ -4,20 +4,22 @@ class Chute < Formula
   # VERSION comes from Sources/ChuteCore/Version.swift — the one place it lives. Bump both
   # together: tag the release, then update this line to match.
   #
-  # STALE UNTIL SOMEONE PUBLISHES IT. Found 2026-09-08 during install-path verification: the
-  # LIVE tap (avaluev/homebrew-tap, `brew info avaluev/tap/chute`) was still serving 0.2.0 while
-  # this file — and the actual v0.2.1 GitHub release — had moved on. `brew install
-  # avaluev/tap/chute` still works (that flag on the site is not a lie), it just hands out an
-  # old CLI until packaging/homebrew/README.md's steps 4-6 are run against the tap repo, which
-  # this file cannot do by itself — it is a copy, not the tap.
+  # IN SYNC as of 2026-09-09. This file is a COPY, not the tap — publishing means running
+  # packaging/homebrew/README.md's steps 4-6 against avaluev/homebrew-tap. Verified that day:
+  # the live tap and this file pin the same version and the same sha256, and that sha256 is
+  # what the tarball actually hashes to. An outdated note here saying otherwise is worse than
+  # no note — one such note, left over from 2026-09-08, was read by an outside auditor in
+  # 2026-09-09 as evidence that `brew install` was broken. If you correct this file, correct
+  # this paragraph in the same commit.
   version "0.2.1"
   url "https://github.com/avaluev/chute/archive/refs/tags/v#{version}.tar.gz"
   # Recompute on every version bump — AND after any history rewrite. A force-push changes
   # every tag's generated tarball: on 2026-09-09 the rewrite that removed private files
-  # silently broke `brew install avaluev/tap/chute` for every new user, and the failure
-  # only shows on a cold cache, so a machine that already had the download kept working.
-  # Recompute on every version bump:
+  # silently broke `brew install avaluev/tap/chute` for every new user, and it took THREE
+  # corrective commits that day to settle, because the failure only shows on a cold cache.
   #   curl -L https://github.com/avaluev/chute/archive/refs/tags/v0.2.1.tar.gz | shasum -a 256
+  # CHECK IT WITH `brew fetch --force avaluev/tap/chute`, NOT `brew install` — install is happy
+  # with a tarball it already cached, so it is structurally incapable of catching this bug.
   sha256 "136e265150014cf625769a6c0a64e672141563a50543919a65c4f3cae9ebe285"
   license "MIT"
 

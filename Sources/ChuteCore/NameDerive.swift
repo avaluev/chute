@@ -63,8 +63,26 @@ public enum NameDerive {
         return "chute-" + f.string(from: date)
     }
 
+    /// A FILE NAME IS ONE PATH COMPONENT. Enforced HERE rather than at each call site, because
+    /// this function is the single point every written name routes through: `cmdNew` slugifies
+    /// its `--name` and `cmdPasteImage` did not, so `chute paste-image --name ../../evil.png`
+    /// wrote outside the folder the user pointed at. Guarding one caller would have left the
+    /// other, and the next command to call `writeUniquely` would have arrived unguarded too.
+    ///
+    /// The separator is what carries a file out of `dir`, so the separator is what cannot
+    /// survive. Leading dots go with it: they make hidden files, and `..` is the traversal this
+    /// exists to stop. Everything else is left alone — this is NOT `slugify`, which lowercases
+    /// and dashes and would destroy `underscoreName`'s deliberate "This_is_the_header".
+    static func fileComponent(_ s: String, fallback: String) -> String {
+        let flattened = s.replacingOccurrences(of: "/", with: "-")
+        let trimmed = String(flattened.drop(while: { $0 == "." }))
+        return trimmed.isEmpty ? fallback : trimmed
+    }
+
     static func candidate(dir: String, base: String, ext: String, n: Int) -> String {
-        let name = n == 1 ? "\(base).\(ext)" : "\(base)-\(n).\(ext)"
+        let b = fileComponent(base, fallback: "untitled")
+        let e = fileComponent(ext, fallback: "txt")
+        let name = n == 1 ? "\(b).\(e)" : "\(b)-\(n).\(e)"
         return (dir as NSString).appendingPathComponent(name)
     }
 

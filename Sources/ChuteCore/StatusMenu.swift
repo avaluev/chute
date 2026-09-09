@@ -449,6 +449,20 @@ public enum StatusMenu {
     /// arbitrary text off the user's disk and can be any width at all. Col 2 holds one of a
     /// CLOSED SET of phrases this repo writes itself (`SessionPhrasing`), so the right guard is a
     /// test over that set, not a truncation that would hide the sentence the row exists to say.
+    ///
+    /// THE EMPTY STRIP RIGHT OF `LOAD` IS NOT THIS NUMBER'S TO GIVE BACK — measured 2026-09-09
+    /// after the founder photographed it and asked for the column to shift right. It looks like
+    /// slack; it is AppKit's own menu chrome, the width `NSMenu` reserves past the item text for
+    /// the checkmark and submenu-indicator columns (`Local Servers  (4)  ›` is the one row that
+    /// uses it). It is a CONSTANT ADDED AFTER the tab stop, not a margin the stop sits inside:
+    ///
+    ///   col3TabStop 540 → `Scripts/screens.sh` renders the menu 1238px wide
+    ///   col3TabStop 564 → 1286px — +48px for +24pt, the delta exactly
+    ///
+    /// So moving the stop right moves the gap right with it and widens the whole menu by the
+    /// same amount, buying nothing. The strip closes only by shrinking what AppKit reserves,
+    /// which means giving up the submenu — a real feature — for whitespace. Not worth it. If
+    /// this looks like free space again, re-run the two-line experiment above before changing it.
     public static let col3TabStop: CGFloat = 540
     /// 10pt of margin below the col-2 tab stop — text landing AT the stop still triggers the same
     /// "tab jumps to the next stop" failure the clamp exists to prevent, so "fits" has to mean

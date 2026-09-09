@@ -53,10 +53,17 @@
   /* Dev tools are sharp. shadcn ships 0.625rem; that roundness is half of the templated look. */
   --radius: 4px;
 
-  --font-sans: 'Instrument Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  /* THE next/font FACE FIRST, THEN THE TOKEN'S OWN STACK AS FALLBACK.
+     site/src/app/layout.tsx loads these through next/font into --font-sans-loaded and
+     --font-mono-loaded and puts both on <body>. The mono variable was consumed all over the
+     site; the sans one was defined, applied, and referenced by nothing — so every visitor
+     downloaded Instrument Sans and then read the page in -apple-system, because naming a
+     family only uses it if the visitor happens to have it INSTALLED. Fixed 2026-09-09.
+     The token stays as the local/no-JS fallback rather than being replaced. */
+  --font-sans: var(--font-sans-loaded), 'Instrument Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-mono: var(--font-mono-loaded), 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
   --font-heading: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
-  --font-geist-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-geist-mono: var(--font-mono-loaded), 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
 @theme inline {

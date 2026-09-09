@@ -148,6 +148,10 @@ post or page opens with a command name.
 |---|---|---|
 | "turn agent output back into files" | The `unpack` command was deleted 2026-08-31 — a Claude Code user's agent writes its own files. This exact sentence survived in the site's `<meta name="description">` and OpenGraph description until 2026-09-01, because `check-claims.mjs` stripped tags before reading. It reads metadata now. | Nothing — the job no longer exists |
 | "Paste an answer back" | Same deleted command, the hero's half-sentence version of it. | "Select the folders. Right-click once." |
+| "Writing cannot escape its target folder" | The safety PROPERTY of the deleted `unpack`. Survived on the landing page's Trust list until 2026-09-09 because it never names the command, so the ghost-command gate could not see it, and no FALSE row existed for the paraphrase. An outside auditor read it as active deception. | Nothing — nothing in Chute writes a tree of files any more |
+| "Absolute paths and ../ are rejected" | Same deleted command, same Trust row. | Nothing |
+| "clears junk" | `clean-junk` was removed from the Finder menu 2026-08-31 (see `FinderActions.swift`). Also appeared as "Clearing junk moves it to the Trash". | Nothing — the Finder menu has no destructive row at all |
+| "both preview before anything changes" | Described a confirm sheet for two commands that no longer exist. | Nothing |
 | "$19" | Chute is free and MIT. It was $19 with a 14-day trial for eleven days, and that product was withdrawn on 2026-09-08 — the Worker, the licence check and the trial clock were deleted, not disabled. A rendered page may only say this as dated history, never as a price. | "Free and MIT" |
 | "14-day trial" | There is no trial. Nothing locks, so nothing has to be unlocked. | "Free and MIT — no trial, no key, no account" |
 | "30-day refund" | Nothing is sold, so nothing can be refunded. | omit entirely |

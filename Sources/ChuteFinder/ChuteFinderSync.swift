@@ -35,10 +35,20 @@ class ChuteFinderSync: FIFinderSync {
 
     /// Breadcrumbs in ~/.chute. `log show` is unreliable for an appex, and every Finder-menu
     /// problem starts with the same three questions: did it load, did it draw, did the click land?
+    ///
+    /// NEVER ON THE CALLING THREAD. One of the three call sites is `menu(for:)`, which Finder
+    /// runs while the user is holding the right-click open — an atomic write there is a temp
+    /// file plus a rename on the thread the context menu is being built on, so a slow or busy
+    /// disk becomes a visible stall in someone else's application. These are debug breadcrumbs;
+    /// nothing reads them back in-process and nothing branches on them, so there is no ordering
+    /// to preserve and no result to wait for. Made async here, in the one function, rather than
+    /// at each call site.
     private func mark(_ name: String, _ text: String) {
-        try? "\(text) · \(Date())\n".write(
-            toFile: "/Users/" + NSUserName() + "/.chute/\(name).txt",
-            atomically: true, encoding: .utf8)
+        let path = "/Users/" + NSUserName() + "/.chute/\(name).txt"
+        let line = "\(text) · \(Date())\n"
+        DispatchQueue.global(qos: .utility).async {
+            try? line.write(toFile: path, atomically: true, encoding: .utf8)
+        }
     }
 
     /// The folder an action applies to. The RULE is `ChuteCore.FinderTarget`, where a test can

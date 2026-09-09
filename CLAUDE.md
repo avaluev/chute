@@ -1,7 +1,7 @@
 # Chute — Claude Code Contract
 
 Chute: a macOS utility for people who drive coding agents all day — turns a Finder selection
-into agent-ready context, and turns agent output back into files. Offline, no telemetry.
+into agent-ready context, and watches the agent sessions already running. Offline, no telemetry.
 
 ## Session Start
 

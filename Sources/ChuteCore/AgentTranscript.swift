@@ -223,9 +223,10 @@ public final class TranscriptStore: @unchecked Sendable {
     }
 
     /// Re-read anything whose file has changed. Call from a background queue.
-    public func refresh(sessionIDs: [String]) {
+    public func refresh(sessionIDs: [String],
+                        projectsDir: String = NSHomeDirectory() + "/.claude/projects") {
         for id in sessionIDs {
-            guard let path = AgentTranscript.find(sessionID: id) else { continue }
+            guard let path = AgentTranscript.find(sessionID: id, projectsDir: projectsDir) else { continue }
             let attrs = try? FileManager.default.attributesOfItem(atPath: path)
             let stamp = (attrs?[.modificationDate] as? Date) ?? .distantPast
             let size  = (attrs?[.size] as? NSNumber)?.uint64Value ?? 0
@@ -240,5 +241,15 @@ public final class TranscriptStore: @unchecked Sendable {
             entries[id] = Entry(stamp: stamp, size: size, transcript: parsed)
             lock.unlock()
         }
+
+        // EVICT THE DEAD. `sessionIDs` is the whole live set (`main.swift`'s `ids`, taken from
+        // every session the menu just rendered), so anything else in here belongs to an agent
+        // that has exited. Without this the store only ever grew: a parsed transcript can be
+        // megabytes, and a day of driving agents is hundreds of finished sessions, all of them
+        // resident for a menu row that will never be drawn again.
+        let live = Set(sessionIDs)
+        lock.lock()
+        entries = entries.filter { live.contains($0.key) }
+        lock.unlock()
     }
 }

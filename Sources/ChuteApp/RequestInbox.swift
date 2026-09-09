@@ -42,11 +42,26 @@ extension AppDelegate {
     /// a count is a cardinality that can be falsified by looking, which is exactly how the old
     /// badge died. `.unknown` and `.idle` draw the plain mark, so an un-instrumented machine
     /// stays silent instead of claiming everything is fine.
+    ///
+    /// READ OFF THE MAIN THREAD, DRAW ON IT. `HookState.liveTTYs()` forks `ps` and waits for it,
+    /// and this fires on every hook file the agent writes — once per turn boundary, per session,
+    /// with a dozen sessions running. On `.main` that is a subprocess round-trip on the thread
+    /// AppKit draws with, which is the definition of a beachball. The read moves to a background
+    /// queue; only `applyBadge` comes back, because it touches an `NSStatusItem` button and
+    /// AppKit is main-thread-only.
     func refreshSignal() {
-        let signal = SignalReader.read(records: HookState.readAll(),
-                                       live: HookState.liveTTYs(),
-                                       now: Date())
-        SessionMenu.applyBadge(StatusMenu.stateToken(signal.state), to: statusItem.button)
+        // The button is read HERE, on the caller's thread, and captured by value. Capturing
+        // `self` instead would need a `guard let self` on the way back, and that is a decision
+        // point in a target no test can import — `Scripts/check-untested-logic.sh` counts those
+        // against a baseline and fails, which is how this got written the other way round once.
+        let button = statusItem.button
+        DispatchQueue.global(qos: .utility).async {
+            let signal = SignalReader.read(records: HookState.readAll(),
+                                           live: HookState.liveTTYs(),
+                                           now: Date())
+            let token = StatusMenu.stateToken(signal.state)
+            DispatchQueue.main.async { SessionMenu.applyBadge(token, to: button) }
+        }
     }
 
     func runPendingRequests() {

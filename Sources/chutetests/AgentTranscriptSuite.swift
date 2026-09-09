@@ -72,4 +72,38 @@ func agentTranscriptSuite() {
              "353k out · 88.2M cached", "big numbers are readable at a glance")
         T.eq(AgentTranscript.costLabel(output: 0, cacheRead: 0), nil, "a session that cost nothing says nothing")
     }
+
+    // ── THE STORE MUST FORGET SESSIONS THAT HAVE ENDED ──────────────────────────────────────
+    //
+    // `entries` only ever grew until 2026-09-09: every transcript parsed for a menu row stayed
+    // resident after the agent exited. A parsed transcript can be megabytes and a day of driving
+    // agents is hundreds of finished sessions. `refresh` is handed the WHOLE live set by its one
+    // caller, so anything else in the map is by definition dead.
+    T.suite("TranscriptStore eviction") {
+        let projects = NSTemporaryDirectory() + "chute-projects-\(UUID().uuidString)"
+        let one = projects + "/proj"
+        try? FileManager.default.createDirectory(atPath: one, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(atPath: projects) }
+
+        // Two ids that satisfy `find`'s hex-or-dash rule. Both get a COPY OF THE REAL FIXTURE
+        // rather than a hand-written line, so this suite has one transcript format to keep in
+        // step instead of two.
+        let a = "aaaaaaaa-0000-0000-0000-000000000001"
+        let b = "bbbbbbbb-0000-0000-0000-000000000002"
+        let real = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent().appendingPathComponent("fixtures/transcript.jsonl").path
+        let body = (try? String(contentsOfFile: real, encoding: .utf8)) ?? ""
+        T.no(body.isEmpty, "the eviction test can read the shared transcript fixture")
+        for id in [a, b] { try? body.write(toFile: "\(one)/\(id).jsonl", atomically: true, encoding: .utf8) }
+
+        let store = TranscriptStore()
+        store.refresh(sessionIDs: [a, b], projectsDir: projects)
+        T.ok(store.cached(a) != nil, "a live session is parsed and cached")
+        T.ok(store.cached(b) != nil, "and so is the second one")
+
+        // Session b ends. The next refresh carries only the survivors.
+        store.refresh(sessionIDs: [a], projectsDir: projects)
+        T.ok(store.cached(a) != nil, "the session still running is still cached")
+        T.ok(store.cached(b) == nil, "the session that ended is dropped, not kept forever")
+    }
 }

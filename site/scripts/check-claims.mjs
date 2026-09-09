@@ -75,12 +75,30 @@ const visible = (html) =>
 const sheet = readFileSync(SHEET, "utf8")
 const tail = sheet.slice(sheet.indexOf("## Claims that are currently FALSE"))
 const FALSE_CLAIMS = [...tail.matchAll(/^\|\s*"([^"]+)"[^|]*\|/gm)].map((m) => m[1])
+
+// SUBSTRING MATCHING WAS THE HOLE. This was `text.includes(claim)` until 2026-09-09, and it let
+// the fact sheet's row-one claim sit in CLAUDE.md for nine days: the table writes the verb as an
+// infinitive ("turn agent output back into files") and the prose wrote it in the third person
+// ("turns agent output back into files"). One letter, and the gate was blind — while reporting
+// green, which is worse than not running.
+//
+// So a claim is matched as WORDS, each allowed a trailing "s" and any run of whitespace between
+// them, which also survives a line wrap in a markdown paragraph. It over-matches slightly and
+// that is the correct direction for this gate: a false positive costs one rewording, a false
+// negative ships the lie.
+const claimRegex = (claim) => new RegExp(
+  claim.trim().split(/\s+/)
+    .map((w) => w.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&") + "s?")
+    .join("\\s+"), "i")
+
+const says = (text, claim) => claimRegex(claim).test(text)
+
 FALSE_CLAIMS.length >= 3
   ? ok(`${FALSE_CLAIMS.length} forbidden claims read from the fact sheet`)
   : bad("the fact sheet's FALSE table parsed", `found ${FALSE_CLAIMS.length} rows — has the table changed shape?`)
 
 for (const claim of FALSE_CLAIMS) {
-  const hits = HTML.filter(([, html]) => visible(html).toLowerCase().includes(claim.toLowerCase()))
+  const hits = HTML.filter(([, html]) => says(visible(html), claim))
   if (hits.length) {
     bad(`"${claim}" is on the live site`,
         `${hits.length} page(s): ${hits.map(([p]) => p).join(", ")} — see the FALSE table in docs/FACT-SHEET.md`)
@@ -357,13 +375,19 @@ try {
 //
 // The fact sheet is excluded, and only the fact sheet: it is where the forbidden strings are
 // DEFINED, so scanning it would fail on its own definitions.
-{
-  const readme = readFileSync(REPO + "README.md", "utf8")
-  const hits = FALSE_CLAIMS.filter((c) => readme.toLowerCase().includes(c.toLowerCase()))
+//
+// CLAUDE.md JOINED THIS LIST 2026-09-09. It is the file every agent working on this repo reads
+// FIRST, and it opened with "turns agent output back into files" — the fact sheet's row-one
+// forbidden claim — for nine days after the command was deleted. It is not a rendered page, so
+// everything above was blind to it, and being read by a machine rather than a visitor makes it
+// worse, not exempt: an agent that starts from a false description writes more of the same.
+for (const name of ["README.md", "CLAUDE.md"]) {
+  const text = readFileSync(REPO + name, "utf8")
+  const hits = FALSE_CLAIMS.filter((c) => says(text, c))
   hits.length
-    ? bad(`${hits.length} forbidden claim(s) are in README.md`,
+    ? bad(`${hits.length} forbidden claim(s) are in ${name}`,
           hits.map((c) => `"${c}"`).join(", ") + " — see the FALSE table in docs/FACT-SHEET.md")
-    : ok(`README.md carries none of the ${FALSE_CLAIMS.length} forbidden claims`)
+    : ok(`${name} carries none of the ${FALSE_CLAIMS.length} forbidden claims`)
 }
 
 // ── AND THE APP ITSELF, which is the one surface nobody thought to sweep ────────────────────
@@ -391,7 +415,7 @@ try {
   for (const f of swift) {
     const body = code(f).toLowerCase()
     for (const c of FALSE_CLAIMS) {
-      if (body.includes(c.toLowerCase())) hits.push(`"${c}" in ${f.slice(REPO.length)}`)
+      if (says(body, c)) hits.push(`"${c}" in ${f.slice(REPO.length)}`)
     }
   }
   swift.length === 0

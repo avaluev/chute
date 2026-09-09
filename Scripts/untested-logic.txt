@@ -6,6 +6,6 @@
 5 Sources/ChuteApp/ResultHUD.swift
 9 Sources/ChuteApp/ServersMenu.swift
 15 Sources/ChuteApp/SessionMenu.swift
-3 Sources/ChuteApp/SettingsWindow.swift
+2 Sources/ChuteApp/SettingsWindow.swift
 38 Sources/ChuteApp/main.swift
 19 Sources/ChuteFinder/ChuteFinderSync.swift
