@@ -18,7 +18,7 @@ class Chute < Formula
   # only shows on a cold cache, so a machine that already had the download kept working.
   # Recompute on every version bump:
   #   curl -L https://github.com/avaluev/chute/archive/refs/tags/v0.2.1.tar.gz | shasum -a 256
-  sha256 "a14db350469c7c2061bee9eb8ec92ce333af4d9c0b1b876765efe57a5ab491c3"
+  sha256 "d7a88744de7468140c35dcceb0ded32323a64b6f2a5411c84cf080fda76b5f65"
   license "MIT"
 
   # macOS 13 is the floor declared in Package.swift. The version form ALONE — no bare
