@@ -75,7 +75,13 @@ public enum SessionDot {
         // second carrier at all.
         "blocked": (9, 0.5,  0),     // solid square — the one that stops you
         "waiting": (9, 0.5,  0),     // solid square — finished, wants a prompt
-        "working": (9, 0.34, 0),     // hollow square — running, nothing for you to do
+        // ONE HOLLOW WEIGHT, not three. This was 0.34, which left a 2.9pt pinhole inside a 3.1pt
+        // border — nearly solid, and the eye read it as a HEAVIER, larger mark than the 9pt solid
+        // squares beside it. The founder saw the orange looking bigger than the green and asked
+        // why, which is the same complaint as the size question before it: a visual difference
+        // that encodes nothing. 0.25 matches `unknown`, so every hollow square in the menu is the
+        // same 2.25pt outline and the only weights in the column are SOLID and OUTLINE.
+        "working": (9, 0.25, 0),     // hollow square — running, nothing for you to do
         "idle":    (5, 0.5,  0),     // a SMALL solid square — a shell, nothing running
         // A RING NEEDS ROOM TO BE A RING. At 5pt with a 0.34 inset the hole is 1.6pt, which
         // rasterises away to nothing at 1x — so `unknown` painted the identical pixels as
