@@ -42,7 +42,7 @@ page; it's a word-list heuristic, not a reader).
 
 ## The banned claims still apply
 
-`marketing/06-FACT-SHEET.md` §"Claims that are currently FALSE" is enforced by
+`docs/FACT-SHEET.md` §"Claims that are currently FALSE" is enforced by
 `site/scripts/check-claims.mjs` and applies to every file you touch here too — most relevantly:
 no price, no trial, no licence key (Chute is free and MIT, full stop); never "nothing is
 uploaded, ever" (`chute gist` uploads on request — say the precise version); never claim Intel

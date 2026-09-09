@@ -291,13 +291,13 @@ echo "size: $SIZE"
 # THE SIZE CLAIM, GATED AT ITS SOURCE. "2.5 MB" was hand-typed into eight files and stayed there
 # while the bundle grew to 3.3 MB — nothing compared the sentence to the artifact. This does.
 # The fact sheet is the one place the number is allowed to live; every asset quotes it from there.
-SHEET="$ROOT/marketing/06-FACT-SHEET.md"
+SHEET="$ROOT/docs/FACT-SHEET.md"
 CLAIMED="$(sed -n 's/^| App bundle size | \*\*\([0-9.]*\) MB\*\*.*/\1/p' "$SHEET")"
 ACTUAL="${SIZE%M}"
 SIZE_BAD=0
 if [ "$CLAIMED" != "$ACTUAL" ]; then
   echo "build-app: the fact sheet says the app is ${CLAIMED} MB and it is ${ACTUAL} MB." >&2
-  echo "           Fix marketing/06-FACT-SHEET.md, then every asset that quotes it." >&2
+  echo "           Fix docs/FACT-SHEET.md, then every asset that quotes it." >&2
   SIZE_BAD=1
 fi
 

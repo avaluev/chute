@@ -44,3 +44,11 @@ handoff/NEXT.md.tmp-*
 # hook injects the head into every session, and `handoff-head` rebuilds the
 # file on demand, deterministically, from that same journal.
 handoff/NEXT.md
+
+# The founder's own unpublished GTM work — launch posts, the LinkedIn series, the content
+# calendar, positioning. His writing, not the product's documentation. Never part of the public
+# repo. The three files that WERE load-bearing for public things now live in docs/:
+# FACT-SHEET.md (the claims gate reads it), BUILDING-WITH-AGENTS.md (it IS the
+# /building-with-agents page) and APPLE-AND-DISTRIBUTION.md (the README links it).
+# site/scripts/check-claims.mjs SKIPS its three marketing gates loudly when this is absent.
+marketing/

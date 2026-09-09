@@ -67,7 +67,7 @@
 }
 /* ── Long-form article body ────────────────────────────────────────────────────────────────
    `@tailwindcss/typography` is not installed and is not worth a dependency for one page. These
-   rules style the HTML that `marked` produces from marketing/11-BUILDING-WITH-AGENTS.md. Scoped
+   rules style the HTML that `marked` produces from docs/BUILDING-WITH-AGENTS.md. Scoped
    to `.article` so nothing here can reach the product pages. */
 .article {
   color: var(--muted-foreground);

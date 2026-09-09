@@ -133,7 +133,7 @@ correction on 2026-09-08, `README.md` too — see [`check-focus.sh`](#check-focu
 companion emphasis check) against the artifact that implements it: `du -sh` on the actual app
 bundle for a size claim, `spctl` for a signing claim, the CLI's real dispatch table for a command
 count — never against a number a human typed into a table. Enforces
-[`marketing/06-FACT-SHEET.md`](../marketing/06-FACT-SHEET.md)'s "Claims that are currently FALSE"
+[`docs/FACT-SHEET.md`](FACT-SHEET.md)'s "Claims that are currently FALSE"
 table, which exists because three false claims ("328 KB", "28 commands", "Nothing is uploaded,
 ever") reached the live site.
 

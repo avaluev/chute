@@ -36,7 +36,7 @@ FEATURES = [
 ]
 
 # (accent-coloured lead, rest) — kept as explicit data, not auto-split, so wording stays exact
-# EVERY NUMBER HERE IS ALSO IN marketing/06-FACT-SHEET.md §Verification. Two were wrong when this
+# EVERY NUMBER HERE IS ALSO IN docs/FACT-SHEET.md §Verification. Two were wrong when this
 # comment was written: "90–120 minutes a day" predates the 2026-08-31 ICP decision that cut the
 # app surface to 80.7 min/day, and "25 commands" was off by one against `chute help`. Both would
 # have been printed onto the launch's social images. Re-derive; never retype.

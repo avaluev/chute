@@ -78,7 +78,7 @@ Other conventions actually enforced in this codebase, not aspirational:
   README.md and the site are re-derived by a script (`check-claims.mjs`,
   `site/scripts/check-cases.mjs`) rather than hand-copied — three false numbers reached the live
   site by hand-typing before this rule existed; see
-  [`marketing/06-FACT-SHEET.md`](marketing/06-FACT-SHEET.md).
+  [`docs/FACT-SHEET.md`](docs/FACT-SHEET.md).
 
 ## No Intel claims
 

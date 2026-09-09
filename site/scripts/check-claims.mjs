@@ -2,7 +2,7 @@
 /**
  * The fact sheet, enforced.
  *
- * marketing/06-FACT-SHEET.md ends with a table headed "Claims that are currently FALSE and must
+ * docs/FACT-SHEET.md ends with a table headed "Claims that are currently FALSE and must
  * not be used". That table exists because three false claims reached the live site — "328 KB"
  * when the app is 2.5 MB, "28 commands" when there are 25, and "Nothing is uploaded, ever" when
  * `gist` uploads on request. A rule a human has to remember gets broken; this one cannot be.
@@ -18,11 +18,21 @@ import { CONFIG } from "../src/lib/config.ts"
 
 const here = dirname(fileURLToPath(import.meta.url))
 const OUT = resolve(here, "../out")
-const SHEET = resolve(here, "../../marketing/06-FACT-SHEET.md")
+const SHEET = resolve(here, "../../docs/FACT-SHEET.md")
 
 let failed = 0
 const ok = (m) => console.log(`  ok    ${m}`)
 const bad = (m, d) => { failed++; console.log(`  FAIL  ${m}\n        ${d}`) }
+// `marketing/` IS NOT IN THE REPO. It is the founder's own unpublished GTM work — launch posts,
+// the LinkedIn series, the content calendar — and .gitignore keeps it out. On his machine it is
+// present and the three gates below that read it run in full. On a fresh clone it is absent.
+//
+// An absent directory must NOT read as "nothing to check". A pass tallied over zero items is a
+// false pass, and refusing those is this file's entire job. So it is a COUNTED SKIP that names
+// what went unchecked. A directory that EXISTS but holds no matching file stays a hard failure:
+// that means the naming changed, which is the bug these gates were written to catch.
+let skipped = 0
+const skip = (m) => { skipped++; console.log(`  SKIP  ${m}`) }
 
 // ── every rendered page ─────────────────────────────────────────────────────────────────────
 function pages(dir, acc = []) {
@@ -73,7 +83,7 @@ for (const claim of FALSE_CLAIMS) {
   const hits = HTML.filter(([, html]) => visible(html).toLowerCase().includes(claim.toLowerCase()))
   if (hits.length) {
     bad(`"${claim}" is on the live site`,
-        `${hits.length} page(s): ${hits.map(([p]) => p).join(", ")} — see the FALSE table in marketing/06-FACT-SHEET.md`)
+        `${hits.length} page(s): ${hits.map(([p]) => p).join(", ")} — see the FALSE table in docs/FACT-SHEET.md`)
   }
 }
 if (!failed) ok("no forbidden claim appears on any page")
@@ -165,6 +175,8 @@ for (const [page, html] of HTML) {
   for (const m of html.matchAll(/<code[^>]*>([\s\S]*?)<\/code>/g)) spans.push([page, visible(m[1])])
 }
 const REPO = new URL("../../", import.meta.url).pathname
+const MARKETING = REPO + "marketing"
+const hasMarketing = existsSync(MARKETING)
 const md = [["README.md", readFileSync(REPO + "README.md", "utf8")]]
 // Two files describe things that are deliberately NOT the shipped product:
 //   06-BACKLOG.md    names commands nobody has built — that is what a backlog is.
@@ -181,9 +193,11 @@ for (const f of readdirSync(REPO + "docs")) {
 // positioning, the landing copy, the launch posts, the demo script and the calendar — still sold
 // `chute unpack` a day after it was deleted, with every gate green. The launch material is a
 // place a claim reaches a stranger; it belongs inside the gate, not beside it.
-for (const f of readdirSync(REPO + "marketing")) {
-  if (f.endsWith(".md")) md.push([`marketing/${f}`, readFileSync(REPO + "marketing/" + f, "utf8")])
-}
+if (hasMarketing) {
+  for (const f of readdirSync(MARKETING)) {
+    if (f.endsWith(".md")) md.push([`marketing/${f}`, readFileSync(MARKETING + "/" + f, "utf8")])
+  }
+} else skip("marketing/ is not in this checkout — its copy was NOT scanned for dead chute commands")
 for (const [where, text] of md) {
   for (const m of text.matchAll(/`([^`\n]+)`/g)) spans.push([where, m[1]])
   for (const m of text.matchAll(/```[a-z]*\n([\s\S]*?)```/g)) spans.push([where, m[1]])
@@ -227,8 +241,11 @@ ghosts.size
 // been the only ungated copy in the campaign. That is the identical shape as the bug in the
 // paragraph above: a gate scoped to the files that existed when it was written.
 {
-  const files = readdirSync(REPO + "marketing").filter((f) => /LINKEDIN/i.test(f) && f.endsWith(".md"))
-  if (!files.length) bad("the LinkedIn files were found", "no marketing/*LINKEDIN*.md — has the naming changed?")
+  const files = hasMarketing
+    ? readdirSync(MARKETING).filter((f) => /LINKEDIN/i.test(f) && f.endsWith(".md"))
+    : []
+  if (!hasMarketing) skip("marketing/ is not in this checkout — LinkedIn hook lengths were NOT checked")
+  else if (!files.length) bad("the LinkedIn files were found", "no marketing/*LINKEDIN*.md — has the naming changed?")
   let total = 0
   const wrong = [], tooLong = []
   for (const f of files) {
@@ -341,7 +358,7 @@ try {
   const hits = FALSE_CLAIMS.filter((c) => readme.toLowerCase().includes(c.toLowerCase()))
   hits.length
     ? bad(`${hits.length} forbidden claim(s) are in README.md`,
-          hits.map((c) => `"${c}"`).join(", ") + " — see the FALSE table in marketing/06-FACT-SHEET.md")
+          hits.map((c) => `"${c}"`).join(", ") + " — see the FALSE table in docs/FACT-SHEET.md")
     : ok(`README.md carries none of the ${FALSE_CLAIMS.length} forbidden claims`)
 }
 
@@ -377,7 +394,7 @@ try {
     ? bad("no Swift sources found to sweep", `looked in ${REPO}Sources`)
     : hits.length
       ? bad(`${hits.length} forbidden claim(s) are in the app's own strings`,
-            hits.join(", ") + " — see the FALSE table in marketing/06-FACT-SHEET.md")
+            hits.join(", ") + " — see the FALSE table in docs/FACT-SHEET.md")
       : ok(`${swift.length} Swift files carry none of the ${FALSE_CLAIMS.length} forbidden claims`)
 }
 
@@ -475,7 +492,7 @@ try {
     /after trial ends/i, /buy the app/i,
   ]
   // A LINE THAT NAMES A BANNED PHRASE IN ORDER TO BAN IT IS NOT A VIOLATION.
-  // `marketing/06-FACT-SHEET.md`'s FALSE table exists to list these strings, and its rows begin
+  // `docs/FACT-SHEET.md`'s FALSE table exists to list these strings, and its rows begin
   // with the phrase in quotes or backticks — so the gate was failing the one file whose job is
   // to define what it enforces. Flagged by the agent doing the sweep, which is the right outcome:
   // it could not fix the gate, so it reported it instead of loosening the rule to pass.
@@ -488,7 +505,7 @@ try {
   // exposed this sits on the second line of a quotation whose opening `"` is on the first. A
   // line-scoped check saw no quote mark before the match and failed a citation.
   const quotesBefore = (text, at) => (text.slice(0, at).match(/"/g) || []).length
-  const dir = REPO + "marketing"
+  const dir = MARKETING
   const hits = []
   // A FILE THAT DECLARES ITSELF A RECORD IS EXEMPT — and says so to the reader in its first
   // lines, which is the point. `09-APPLE-AND-DISTRIBUTION.md`'s whole argument is an economic
@@ -496,7 +513,7 @@ try {
   // teach the next person to add ignore rules. The banner is the honest alternative: one visible
   // sentence at the top of the file, greppable, and it is what a human sees first.
   const HISTORICAL = "HISTORICAL — a record of the eleven days Chute had a price"
-  for (const f of readdirSync(dir).filter((n) => n.endsWith(".md"))) {
+  for (const f of (hasMarketing ? readdirSync(dir).filter((n) => n.endsWith(".md")) : [])) {
     const head = readFileSync(dir + "/" + f, "utf8").split("\n").slice(0, 12).join("\n")
     if (head.includes(HISTORICAL)) continue
     const body = readFileSync(dir + "/" + f, "utf8")
@@ -516,11 +533,13 @@ try {
       }
     }
   }
-  hits.length
+  !hasMarketing
+    ? skip("marketing/ is not in this checkout — present-tense pricing was NOT checked")
+    : hits.length
     ? bad(`${hits.length} marketing file(s) still price Chute in the present tense`,
           hits.join(", ") + " — Chute is free and MIT since 2026-09-08. Say what WAS, never what IS.")
     : ok("no marketing file prices Chute in the present tense")
 }
 
-console.log(`\nclaims: ${failed ? `${failed} failed` : "every claim on the site is one the fact sheet stands behind"}`)
+console.log(`\nclaims: ${failed ? `${failed} failed` : "every claim on the site is one the fact sheet stands behind"}${skipped ? ` · ${skipped} SKIPPED (private material absent)` : ""}`)
 process.exit(failed ? 1 : 0)

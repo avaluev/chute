@@ -8,7 +8,7 @@ import { CONFIG } from "@/lib/config";
 /**
  * ONE SOURCE, RENDERED — not a second copy of the article.
  *
- * The canonical text is `marketing/11-BUILDING-WITH-AGENTS.md`, which is also what a person
+ * The canonical text is `docs/BUILDING-WITH-AGENTS.md`, which is also what a person
  * cloning the repository reads. Re-typing it as JSX would create the exact failure this whole
  * site's gate suite is about: two copies of a claim, drifting from the moment one is edited.
  * It is read at build time — `output: "export"` means this runs once, on the build machine, and
@@ -17,7 +17,7 @@ import { CONFIG } from "@/lib/config";
  * The H1 and the byline are lifted out of the markdown and rendered as page furniture, so the
  * document has exactly one <h1> and the article body starts at <h2>.
  */
-const SOURCE = path.join(process.cwd(), "..", "marketing", "11-BUILDING-WITH-AGENTS.md");
+const SOURCE = path.join(process.cwd(), "..", "docs", "BUILDING-WITH-AGENTS.md");
 
 function article() {
   const raw = fs.readFileSync(SOURCE, "utf8");

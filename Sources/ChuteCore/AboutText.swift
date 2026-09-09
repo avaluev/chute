@@ -4,7 +4,7 @@ import Foundation
 ///
 /// They lived in `Sources/ChuteApp/SettingsWindow.swift`, which `chutetests` cannot link, and for
 /// weeks they said: *"Nothing is uploaded, ever, except by the `gist` command."* The first half of
-/// that sentence is a string `marketing/06-FACT-SHEET.md` has forbidden in bold since 2026-08-28 —
+/// that sentence is a string `docs/FACT-SHEET.md` has forbidden in bold since 2026-08-28 —
 /// because `gist` uploads — and the site, the README and every marketing file are swept for it on
 /// every deploy. Nobody had ever swept the app, which is the one place a PAYING CUSTOMER reads it.
 ///

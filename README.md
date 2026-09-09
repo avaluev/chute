@@ -13,7 +13,7 @@ blocked or waiting on you, and see every local server without hunting for what i
 Offline. Zero telemetry. No account. No launch daemon, no background service, and no network code
 beyond one command, `gist`, that uploads only when you run it yourself.
 
-![Copy files and contents from Finder, with a token count](marketing/media/bundle.gif)
+![Copy files and contents from Finder, with a token count](docs/media/bundle.gif)
 
 ---
 
@@ -155,12 +155,12 @@ exactly where it was, so the interesting engineering moved into the gates:
 The method, the five ways a green suite lied, and the seven rules that came out of it are written
 up in full:
 
-**→ [The harness is the product](marketing/11-BUILDING-WITH-AGENTS.md)** — how to build this way,
+**→ [The harness is the product](docs/BUILDING-WITH-AGENTS.md)** — how to build this way,
 with every bug that taught each rule.
 
 Two companion documents, both decision memos rather than narrative:
 
-- [Can I sell a DMG without an Apple ID?](marketing/09-APPLE-AND-DISTRIBUTION.md) — the Gatekeeper
+- [Can I sell a DMG without an Apple ID?](docs/APPLE-AND-DISTRIBUTION.md) — the Gatekeeper
   wall measured in clicks, the Homebrew cask deadline of 2026-09-01, and the arithmetic that
   settles it
 - [`handoff/NEXT.md`](handoff/NEXT.md) — the live state of the project, including what is broken
@@ -184,7 +184,7 @@ actually installed) whenever its stamp is behind `HEAD` — it refuses when the 
 or the suite is red, so a look at the running app is never four commits behind the code that was
 just verified.
 
-The tally each of those prints lives in `marketing/06-FACT-SHEET.md` §Verification, and only
+The tally each of those prints lives in `docs/FACT-SHEET.md` §Verification, and only
 there. This block used to carry its own copies — "751 assertions", "128 passed" — and both were
 wrong by the time anyone read them. Run the gate and read its tally; a count copied into a second
 file is a count nobody re-derived.

@@ -12,7 +12,7 @@ import AppKit
 /// four times in two tabs. It looked like a rendering fault, which is a bad first impression for
 /// a paragraph whose entire job is to be believed.
 ///
-/// The fix is presentational and touches NO copy. `marketing/06-FACT-SHEET.md` forbids specific
+/// The fix is presentational and touches NO copy. `docs/FACT-SHEET.md` forbids specific
 /// sentences and a deploy gate sweeps for them, so the STRINGS in `AboutText` must stay exactly
 /// as they are; only their rendering changes. A backticked span becomes a monospaced run in the
 /// same size, which is what the backtick was always asking for.
