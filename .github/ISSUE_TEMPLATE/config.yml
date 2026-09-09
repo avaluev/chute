@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/avaluev/chute/security/advisories/new
+    about: Report privately rather than as a public issue — see SECURITY.md

@@ -1,5 +1,8 @@
 # Chute
 
+[![CI](https://github.com/avaluev/chute/actions/workflows/macos-matrix.yml/badge.svg)](https://github.com/avaluev/chute/actions/workflows/macos-matrix.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
 **The Finder right-click menu and the menu bar, for people who run coding agents all day.**
 
 Two surfaces. Right-click a Finder selection to put it on the agent's clipboard as agent-ready
@@ -191,7 +194,11 @@ No third-party dependencies. Builds with Command Line Tools — Xcode is not req
 plain executable with an assert harness instead.
 
 Specs live in [`docs/`](docs/): business requirements, FR/NFR, the JTBD ledger, the customer
-journey map, and the definition of done.
+journey map, and the definition of done. Two documents for anyone changing code rather than
+copy: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — the three build targets, why the split
+exists, and the two shipped bugs that taught the rule — and
+[`docs/SCRIPTS.md`](docs/SCRIPTS.md), which covers every script and gate above: what each
+measures, what a red run means, and what it cannot catch.
 
 ---
 
@@ -199,7 +206,8 @@ journey map, and the definition of done.
 
 Chute is MIT, all of it — the app, the Finder extension, the CLI, the site. Read it, fork it, take
 the bits you want. Issues and pull requests are welcome, and there is no contributor agreement to
-sign.
+sign — see [`CONTRIBUTING.md`](CONTRIBUTING.md) for how to build and which gates a PR needs, and
+[`SECURITY.md`](SECURITY.md) for the one command that uploads anything and how to report an issue.
 
 ![The Chute About tab: why it exists, GitHub, LinkedIn, Telegram, and a star button](site/public/media/screens/about.png)
 
