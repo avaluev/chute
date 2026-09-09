@@ -37,10 +37,23 @@ func sessionDotSuite() {
         let working = SessionDot.paintedPixels("working")
         let idle    = SessionDot.paintedPixels("idle")
 
-        T.ok(blocked > waiting,
-             "a 9pt square covers more than a 9pt circle — the two differ in SHAPE, not just hue")
-        T.ok(working < waiting,
-             "the ring is hollow, so it paints less than the filled circle of the same diameter")
+        // These three assertions used to pin a specific ORDERING (working < waiting) that only
+        // held because working was a ring and waiting a filled circle of the same diameter. When
+        // every glyph became a square on 2026-09-09 the ordering flipped while the thing the test
+        // exists to protect — that no two states paint alike — still held perfectly. An assertion
+        // that fails on a change it was never about teaches the next person to edit the test, so
+        // it now states the CONTRACT: every state is distinguishable from every other with the
+        // hue thrown away, and blocked is the loudest mark on the screen.
+        let byToken = ["blocked": blocked, "waiting": waiting, "working": working, "idle": idle,
+                       "unknown": SessionDot.paintedPixels("unknown")]
+        for (a, av) in byToken {
+            for (b, bv) in byToken where a < b {
+                T.no(av == bv,
+                     "\(a) and \(b) paint the same \(av) pixels — drop the hue and they are one state")
+            }
+        }
+        T.ok(blocked > waiting && blocked > working && blocked > idle,
+             "blocked is the largest solid mark — the one state a red/green-blind reader must still catch")
         T.ok(idle < waiting,
              "a shell's mark is the small one — it is the state with nothing to say")
 
