@@ -390,6 +390,33 @@ for (const name of ["README.md", "CLAUDE.md"]) {
     : ok(`${name} carries none of the ${FALSE_CLAIMS.length} forbidden claims`)
 }
 
+// ── EVERY LOCAL IMAGE A MARKDOWN FILE POINTS AT MUST EXIST ─────────────────────────────────
+//
+// On 2026-09-09 the screenshots were converted to webp and the PNGs deleted. Every reference in
+// site/src was updated and checked; README.md was not, because nothing read it — so the repo's
+// own front page showed five broken images to anyone who opened it, while the whole gate suite
+// stayed green. The site's images are covered by the build; the markdown's were covered by
+// nobody. This is the cheapest possible check and it closes that hole for every future rename.
+{
+  const mdFiles = ["README.md", "CONTRIBUTING.md", "SECURITY.md", "CLAUDE.md"]
+    .filter((f) => existsSync(REPO + f))
+    .concat(readdirSync(REPO + "docs").filter((f) => f.endsWith(".md")).map((f) => "docs/" + f))
+  const broken = []
+  for (const rel of mdFiles) {
+    const text = readFileSync(REPO + rel, "utf8")
+    const dir = dirname(REPO + rel)
+    for (const m of text.matchAll(/!\[[^\]]*\]\(([^)\s]+)/g)) {
+      const target = m[1]
+      if (/^(https?:)?\/\//.test(target) || target.startsWith("data:")) continue  // remote or inline
+      const abs = target.startsWith("/") ? REPO + target.slice(1) : resolve(dir, target)
+      if (!existsSync(abs)) broken.push(`${rel} → ${target}`)
+    }
+  }
+  broken.length
+    ? bad(`${broken.length} markdown image(s) point at a file that does not exist`, broken.join("; "))
+    : ok(`every image in ${mdFiles.length} markdown file(s) resolves to a real file`)
+}
+
 // ── AND THE APP ITSELF, which is the one surface nobody thought to sweep ────────────────────
 //
 // The block above was added on 2026-09-02 because the README carried "Nothing is uploaded, ever".

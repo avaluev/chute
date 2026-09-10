@@ -13,13 +13,13 @@ blocked or waiting on you, and see every local server without hunting for what i
 Offline. Zero telemetry. No account. No launch daemon, no background service, and no network code
 beyond one command, `gist`, that uploads only when you run it yourself.
 
-![The Chute menu bar drop-down: every agent session with its project, path, state and load](site/public/media/screens/menu.png)
+![The Chute menu bar drop-down: every agent session with its project, path, state and load](site/public/media/screens/menu.webp)
 
 ---
 
 ## The Finder menu
 
-![A rendering of Chute's rows in the Finder right-click menu: Copy Full Paths, Copy Files as Context, Copy Folder Tree, Add to Context Basket, New File](site/public/media/screens/finder-menu.png)
+![A rendering of Chute's rows in the Finder right-click menu: Copy Full Paths, Copy Files as Context, Copy Folder Tree, Add to Context Basket, New File](site/public/media/screens/finder-menu.webp)
 
 Right-click a selection and the actions sit inline in the context menu — no `Chute ▸` submenu to
 open first. Five rows, nine actions:
@@ -33,7 +33,7 @@ open first. Five rows, nine actions:
 - **New File** — a blank Markdown file, or one built from what's on the clipboard, named from its
   own `# heading`.
 
-![The New File submenu open, showing Empty Markdown File, Markdown File from Clipboard, and Image from Clipboard](site/public/media/screens/finder-menu-submenu.png)
+![The New File submenu open, showing Empty Markdown File, Markdown File from Clipboard, and Image from Clipboard](site/public/media/screens/finder-menu-submenu.webp)
 
 > Both images above are **rendered**, not photographed: macOS will not let any program screenshot
 > another application's open context menu. `Scripts/finder-shot.swift` draws them from
@@ -49,7 +49,7 @@ Extensions → Finder → ☑ Chute, or run `pluginkit -e use -i dev.valuev.chut
 
 ## The menu bar
 
-![The menu bar drop-down: project, path, state and load in three columns](site/public/media/screens/menu.png)
+![The menu bar drop-down: project, path, state and load in three columns](site/public/media/screens/menu.webp)
 
 Click the 🪂 for the list of every terminal running an agent: project name and the path it was
 derived from, its state and how long it's held it, its load — a dot whose shape carries the state
@@ -145,7 +145,7 @@ quarantined.
 
 ### What macOS will ask you, and why
 
-![Chute's first-run window, listing what still needs your permission](site/public/media/screens/setup.png)
+![Chute's first-run window, listing what still needs your permission](site/public/media/screens/setup.webp)
 
 The app checks its own setup on first launch and tells you what is missing rather than failing
 quietly later.
@@ -279,7 +279,7 @@ the bits you want. Issues and pull requests are welcome, and there is no contrib
 sign — see [`CONTRIBUTING.md`](CONTRIBUTING.md) for how to build and which gates a PR needs, and
 [`SECURITY.md`](SECURITY.md) for the one command that uploads anything and how to report an issue.
 
-![The Chute About tab: why it exists, GitHub, LinkedIn, Telegram, and a star button](site/public/media/screens/about.png)
+![The Chute About tab: why it exists, GitHub, LinkedIn, Telegram, and a star button](site/public/media/screens/about.webp)
 
 The same links are in the app itself — Chute menu bar → Settings → About.
 
