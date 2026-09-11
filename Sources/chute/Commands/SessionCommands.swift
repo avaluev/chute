@@ -78,8 +78,12 @@ func cmdSessions(_ a: Args) {
                                             transcript: s.sessionID.flatMap { AgentTranscript.read(sessionID: $0) })
         // "—" for no project derived, matching `chute ports`' own fallback for the same shape of
         // absence (AgentCommands.swift's `pad(s.project ?? "—", 22)` for LocalServer).
+        // THE TITLE GOES LAST AND UNPADDED, so it can be as long as it is: this line is read in a
+        // 200-column terminal, and it is the only field that tells two agents in the SAME repo
+        // apart. Omitted rather than padded-blank when the tab says nothing worth printing.
+        let title = SessionTitle.meaningful(s.title, project: s.project).map { " · \($0)" } ?? ""
         Out.line(pad(s.state.label, 9) + pad(s.project ?? "—", 18) + pad(detail, 34)
-                 + " " + pad(s.tty, 9) + load.label)
+                 + " " + pad(s.tty, 9) + load.label + title)
     }
     let needs = sessions.filter { $0.state == .blocked || $0.state == .waiting }.count
     // The machine summary that used to close this line is gone — see the note in SystemVitals.

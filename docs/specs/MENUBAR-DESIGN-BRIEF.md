@@ -121,9 +121,9 @@ six cells, laid out over real `NSTextTab` stops at 200pt and 500pt
 measured in `docs/specs/MENUBAR-LAYOUT-CALIBRATION.md`):
 
 ```
-col 1 (project / path)        col 2 (state / agent)          col 3 (load / note)
+col 1 (project / title)       col 2 (state / agent)          col 3 (load / note)
 line 1:  project name          state + duration                CPU · memory
-line 2:  the path it came from  agent · model · effort          runaway ⚠ / peaked note
+line 2:  the tab's own title    agent · model · effort          runaway ⚠ / peaked note
 ```
 
 Built in `StatusMenu.rows(for:...)`
@@ -133,7 +133,7 @@ pieces, and whether each is always present:
 | Field | Cell | Always present? | Source | Example |
 |---|---|---|---|---|
 | Project name | col 1, line 1 | Always — `Session.project` is derived once, from the hook's `cwd` via the git repo root, never from Terminal's window title (`ProjectName.swift`). `nil` prints `tty ttys004` instead of a blank | `Session.project`, clamped by `StatusMenu.clampedProjectName` | `sntz_mockups` |
-| Path | col 1, line 2 | Always — the path the name was derived from, so a wrong derivation is visible rather than silently wrong. No `cwd` at all prints `no project derived`, and col 1 reads **dimmed** (`MenuNode.dim`) rather than bold | `PathAbbrev.path`, middle-truncated | `~/dev/sntz_mockups/site` |
+| Tab title | col 1, line 2 | Always, and never a blank — this is the cell that tells two sessions in the SAME directory apart, which the path it replaced (2026-09-11) could not do: six agents in one repo drew six identical rows. The agent's own spinner glyph (`✳`, `◑`) is stripped — it repeats the state dot. A title that names a category rather than a session (Antigravity writes a literal `Terminal`; `claude` writes `Claude Code` before it has named the conversation) or that just repeats the project falls back to `terminal ttys011`, and no `cwd` at all still outranks both with `no project derived` + col 1 **dimmed** (`MenuNode.dim`). The full path moves to the tooltip | `SessionTitle.meaningful`, tail-truncated by `PathAbbrev.name` | `checkout flow rewrite` |
 | State + duration | col 2, line 1 | Always — every state prints something here, never blank. Idle and unknown deliberately carry **no duration**: a confident number next to a state Chute admits it doesn't know is the exact mistake that got the old status badge deleted | `SessionPhrasing.held` for blocked/waiting/working; fixed strings for idle/unknown | `blocked 22 min`, `ready 3 min`, `working 5 min`, `no agent running`, `no hook — Chute cannot see this` |
 | Agent · model · effort | col 2, line 2 | Present whenever an agent is running; model only when the hook's transcript names one, effort only when it is not the default (`"medium"` is furniture) | `SessionPhrasing.detail` | `Claude Code · Opus 5 · xhigh` |
 | CPU · memory | col 3, line 1 | Present whenever the session has ≥1 live process; percent of ONE core, so `177%` means under two cores pinned. Empty — not `0%` — when there is no live process to measure | `StatusMenu.loadColumns` | `177% · 3.0 GB` |
@@ -301,12 +301,17 @@ a different surface derived it from the hook's `cwd`, so the same session could 
 different things in two places with nothing in the UI to notice. One derivation now, forwarded from
 both call sites.
 
-The row says which confidence level it got. Col 1's second line is always the path the name came
-from (`PathAbbrev.path`, middle-truncated — see `PathAbbrev.swift`'s own header for why a path
-truncates in the middle and a name truncates at the tail). When there is no `cwd` at all — the
+The row says which confidence level it got. Col 1's second line carried the path the name came
+from until 2026-09-11, when the tab's own title took the cell (`SessionTitle.swift`) and the path
+moved to the tooltip: the path was a second copy of the project name on almost every row, and on a
+machine running six agents inside ONE repo it was the same second copy six times, which is how six
+distinct sessions rendered as one row repeated. The title is the only field that differs.
+**The name is still never derived from it** — a label that sits beside a row and names nothing may
+be wrong in a way a name may not. When there is no `cwd` at all — the
 derivation fell back to a window-title guess, or found nothing — col 1 reads **dimmed**
-(`tertiaryLabelColor` instead of `labelColor`) and the path line reads `no project derived` instead
-of a fabricated-looking blank. **"No project derived" is a real, displayable answer, not an error
+(`tertiaryLabelColor` instead of `labelColor`) and line 2 reads `no project derived` instead
+of a fabricated-looking blank — that answer outranks the title, because a row Chute cannot place is
+worth more than telling two such rows apart. **"No project derived" is a real, displayable answer, not an error
 state** — `Session.project` is `String?`, and `nil` is data, never a sentinel string like `"—"`
 (a directory can legitimately be named `—`, so a sentinel would make a real project indistinguishable
 from no project at all). Two sessions that share a git repository root — `/a/b/repo` and

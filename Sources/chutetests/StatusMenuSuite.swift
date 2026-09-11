@@ -414,11 +414,14 @@ func statusMenuSuite() {
         let longNameNode = longNameMenu.first { if case .session = $0.kind { return true }; return false }
         T.ok(longNameNode?.toolTip?.contains(longName) == true, "and the FULL name survives in the tooltip")
 
-        // 10. PATH LONGER THAN ITS COLUMN: middle-truncated in the cell, whole in the tooltip.
+        // 10. THE PATH LIVES IN THE TOOLTIP NOW. Line 2 of col 1 carries the tab title instead —
+        // see SessionTitle.swift for the four identical rows that bought that cell. This fixture's
+        // title is its project name, which `SessionTitle.meaningful` rejects as a repeat, so the
+        // cell falls through to the tty rather than to the path it used to hold.
         let longPath = "/nonexistent-chute-test-root/" + String(repeating: "b", count: 40) + "/leaf"
         let longPathMenu = StatusMenu.model(sessions: [session("pathy", .working, tty: "ttys082", cwd: longPath)])
-        T.ok(sessionRows(longPathMenu).first?.path.contains("…") == true,
-             "an overlong path is middle-truncated in the column")
+        T.eq(sessionRows(longPathMenu).first?.path, "terminal ttys082",
+             "a session whose tab title says nothing is identified by its tty, never by a blank")
         let longPathNode = longPathMenu.first { if case .session = $0.kind { return true }; return false }
         T.ok(longPathNode?.toolTip?.contains(longPath) == true, "and the FULL path survives in the tooltip")
 
@@ -426,7 +429,7 @@ func statusMenuSuite() {
         T.ok((longNameRow?.project.count ?? 0) <= PathAbbrev.defaultNameBudget,
              "col 1's name cell never exceeds PathAbbrev's own character budget")
         T.ok((sessionRows(longPathMenu).first?.path.count ?? 0) <= PathAbbrev.defaultBudget,
-             "col 1's path cell never exceeds PathAbbrev's own character budget")
+             "col 1's line-2 cell never exceeds PathAbbrev's own character budget")
 
         // ── COL 2 AND COL 3 CANNOT COLLIDE ──────────────────────────────────────────────────
         //

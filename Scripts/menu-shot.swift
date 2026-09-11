@@ -42,6 +42,12 @@ func shotNote(_ path: String, _ m: String) {
 struct ShotRow {
     let tty: String, cwd: String?, agent: String?, state: SessionState
     let minutes: Double, title: String, detail: String
+    /// THE TAB'S OWN TITLE — line 2 of column 1, which is what the product draws there now (see
+    /// SessionTitle.swift). `title` above is only the project seed; these are the strings that
+    /// tell four tabs in one directory apart, so every fixture carries its own. Empty is a real
+    /// case and stays represented: Antigravity writes no usable title, and those rows have to be
+    /// shown falling back to their tty rather than to a blank.
+    let tab: String
     let cpu: Double, bytes: UInt64, peak: UInt64
 }
 
@@ -57,67 +63,67 @@ func shotRows(_ name: String) -> [ShotRow] {
     // ── THE EVERYDAY CASE ───────────────────────────────────────────────────────────────────
     case "mixed": return [
         ShotRow(tty: "ttys001", cwd: H + "/Dev/37.sntz", agent: "claude", state: .blocked,
-                minutes: 22, title: "sntz", detail: "Claude Code · Opus 5 · xhigh",
+                minutes: 22, title: "sntz", detail: "Claude Code · Opus 5 · xhigh", tab: "✳ checkout flow rewrite",
                 cpu: 177, bytes: 3_221_225_472, peak: 0),
         ShotRow(tty: "ttys002", cwd: H + "/Dev/28.tallyapp", agent: "codex", state: .blocked,
-                minutes: 4, title: "tally", detail: "Codex · high",
+                minutes: 4, title: "tally", detail: "Codex · high", tab: "✳ ledger import fixtures",
                 cpu: 12, bytes: 671_088_640, peak: 0),
         ShotRow(tty: "ttys003", cwd: H + "/Dev/37.chute", agent: "claude", state: .waiting,
-                minutes: 3, title: "chute", detail: "Claude Code · Sonnet 5",
+                minutes: 3, title: "chute", detail: "Claude Code · Sonnet 5", tab: "◑ menu row columns",
                 cpu: 4, bytes: 220_200_960, peak: 0),
         ShotRow(tty: "ttys004", cwd: H + "/Dev/studylock", agent: "claude", state: .waiting,
-                minutes: 12, title: "studylock", detail: "Claude Code · Opus 5 · high",
+                minutes: 12, title: "studylock", detail: "Claude Code · Opus 5 · high", tab: "✳ pairing e2e flake",
                 cpu: 1, bytes: 661_651_456, peak: 0),
         ShotRow(tty: "ttys005", cwd: H + "/Dev/37.sntz", agent: "claude", state: .working,
-                minutes: 1, title: "sntz", detail: "Claude Code · Opus 5",
+                minutes: 1, title: "sntz", detail: "Claude Code · Opus 5", tab: "◐ shot page fields",
                 cpu: 40, bytes: 1_181_116_006, peak: 0),
         ShotRow(tty: "ttys006", cwd: H + "/Dev/37.sntz/site", agent: "claude", state: .working,
-                minutes: 8, title: "sntz", detail: "Claude Code · Opus 5 · high",
+                minutes: 8, title: "sntz", detail: "Claude Code · Opus 5 · high", tab: "✳ site perf pass",
                 cpu: 88, bytes: 2_576_980_378, peak: 6_549_723_444),
         ShotRow(tty: "ttys007", cwd: H + "/Dev/38.LifespanOS", agent: "agy", state: .unknown,
-                minutes: 0, title: "lifespan", detail: "Antigravity",
+                minutes: 0, title: "lifespan", detail: "Antigravity", tab: "",
                 cpu: 0, bytes: 230_686_720, peak: 0),
     ]
 
     // ── NOTHING NEEDS YOU. The state the product is trying to get you to. ───────────────────
     case "allclear": return [
         ShotRow(tty: "ttys001", cwd: H + "/Dev/37.chute", agent: "claude", state: .waiting,
-                minutes: 2, title: "chute", detail: "Claude Code · Sonnet 5",
+                minutes: 2, title: "chute", detail: "Claude Code · Sonnet 5", tab: "✳ release notes",
                 cpu: 1, bytes: 210_000_000, peak: 0),
         ShotRow(tty: "ttys002", cwd: H + "/Dev/studylock", agent: "claude", state: .waiting,
-                minutes: 9, title: "studylock", detail: "Claude Code · Opus 5",
+                minutes: 9, title: "studylock", detail: "Claude Code · Opus 5", tab: "◑ onboarding copy",
                 cpu: 1, bytes: 380_000_000, peak: 0),
         ShotRow(tty: "ttys003", cwd: H + "/Dev/api-gateway", agent: "codex", state: .waiting,
-                minutes: 31, title: "api", detail: "Codex",
+                minutes: 31, title: "api", detail: "Codex", tab: "✳ rate limit tests",
                 cpu: 0, bytes: 190_000_000, peak: 0),
     ]
 
     // ── THE 3AM CASE. Two cores pinned and nine gigabytes, on a machine gone slow. ──────────
     case "runaway": return [
         ShotRow(tty: "ttys001", cwd: H + "/Dev/37.sntz", agent: "claude", state: .working,
-                minutes: 47, title: "sntz", detail: "Claude Code · Opus 5 · xhigh",
+                minutes: 47, title: "sntz", detail: "Claude Code · Opus 5 · xhigh", tab: "◐ full media reencode",
                 cpu: 312, bytes: 9_663_676_416, peak: 10_200_547_328),
         ShotRow(tty: "ttys002", cwd: H + "/Dev/37.chute", agent: "claude", state: .blocked,
-                minutes: 63, title: "chute", detail: "Claude Code · Opus 5",
+                minutes: 63, title: "chute", detail: "Claude Code · Opus 5", tab: "✳ notarisation retry",
                 cpu: 2, bytes: 410_000_000, peak: 0),
         ShotRow(tty: "ttys003", cwd: H + "/Dev/studylock", agent: nil, state: .idle,
-                minutes: 0, title: "studylock", detail: "no agent running",
+                minutes: 0, title: "studylock", detail: "no agent running", tab: "",
                 cpu: 0, bytes: 4_194_304, peak: 0),
     ]
 
     // ── AN UNINSTRUMENTED MACHINE. No hooks anywhere: it must read blind, never calm. ───────
     case "nohooks": return [
         ShotRow(tty: "ttys001", cwd: H + "/Dev/37.sntz", agent: "agy", state: .unknown,
-                minutes: 0, title: "sntz", detail: "Antigravity",
+                minutes: 0, title: "sntz", detail: "Antigravity", tab: "",
                 cpu: 6, bytes: 166_000_000, peak: 0),
         ShotRow(tty: "ttys002", cwd: H + "/Dev/38.LifespanOS", agent: "agy", state: .unknown,
-                minutes: 0, title: "lifespan", detail: "Antigravity",
+                minutes: 0, title: "lifespan", detail: "Antigravity", tab: "",
                 cpu: 0, bytes: 220_000_000, peak: 0),
         ShotRow(tty: "ttys003", cwd: H + "/Dev/api-gateway", agent: "claude", state: .unknown,
-                minutes: 0, title: "api", detail: "Claude Code",
+                minutes: 0, title: "api", detail: "Claude Code", tab: "✳ Claude Code",
                 cpu: 1, bytes: 621_000_000, peak: 0),
         ShotRow(tty: "ttys004", cwd: nil, agent: nil, state: .idle,
-                minutes: 0, title: "tty s004", detail: "no agent running",
+                minutes: 0, title: "tty s004", detail: "no agent running", tab: "",
                 cpu: 0, bytes: 4_194_304, peak: 0),
     ]
 
@@ -125,22 +131,22 @@ func shotRows(_ name: String) -> [ShotRow] {
     case "truncation": return [
         ShotRow(tty: "ttys001", cwd: H + "/Documents/2026/Development/37.chute/site",
                 agent: "claude", state: .blocked, minutes: 9,
-                title: "deep", detail: "Claude Code · Opus 5",
+                title: "deep", detail: "Claude Code · Opus 5", tab: "✳ a session title far longer than its column",
                 cpu: 22, bytes: 900_000_000, peak: 0),
         ShotRow(tty: "ttys002", cwd: "/Volumes/Work/clients/norse/api-gateway",
                 agent: "claude", state: .working, minutes: 3,
-                title: "volume", detail: "Claude Code · Sonnet 5",
+                title: "volume", detail: "Claude Code · Sonnet 5", tab: "◑ vendor api client regeneration",
                 cpu: 8, bytes: 310_000_000, peak: 0),
         ShotRow(tty: "ttys003", cwd: H + "/Clients/Client Work/Norse Bank",
                 agent: "codex", state: .working, minutes: 15,
-                title: "spaces", detail: "Codex · high",
+                title: "spaces", detail: "Codex · high", tab: "✳ Norse Bank statement parser",
                 cpu: 14, bytes: 540_000_000, peak: 0),
         ShotRow(tty: "ttys004", cwd: H + "/Dev/a-very-long-project-directory-name/site",
                 agent: "claude", state: .waiting, minutes: 1,
-                title: "long", detail: "Claude Code · Opus 5 · high",
+                title: "long", detail: "Claude Code · Opus 5 · high", tab: "◐ migrate every page to the new layout",
                 cpu: 3, bytes: 150_000_000, peak: 0),
         ShotRow(tty: "ttys005", cwd: nil, agent: "agy", state: .unknown,
-                minutes: 0, title: "tty s005", detail: "Antigravity",
+                minutes: 0, title: "tty s005", detail: "Antigravity", tab: "",
                 cpu: 0, bytes: 145_000_000, peak: 0),
     ]
 
@@ -157,7 +163,7 @@ func shotCast(_ name: String, _ now: Date, _ gitRoots: [String: String]) -> [Ses
                 // back to its folder leaf — hiding the very behaviour the shot is meant to show.
                 project: ProjectName.resolve(cwd: r.cwd, windowTitle: r.title,
                                              gitRoot: { gitRoots[$0] }),
-                title: r.title, agent: r.agent, busy: r.state == .working, state: r.state,
+                title: r.tab, agent: r.agent, busy: r.state == .working, state: r.state,
                 since: now.addingTimeInterval(-60 * r.minutes),
                 sessionID: r.agent == nil ? nil : r.tty, cwd: r.cwd)
     }

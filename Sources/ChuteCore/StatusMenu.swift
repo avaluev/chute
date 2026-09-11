@@ -274,7 +274,16 @@ public enum StatusMenu {
         let dim = s.cwd == nil
         // "tty ttys004" when nothing at all was derived — still an identifier, never a blank.
         let name = s.project.map { clampedProjectName($0) } ?? "tty \(s.tty)"
-        let path = s.cwd.map { PathAbbrev.path($0) } ?? "no project derived"
+        // LINE 2 IS THE DISAMBIGUATOR, NOT A SECOND COPY OF LINE 1. Six agents inside one repo
+        // drew six rows reading the same project over the same path — "invisible", as reported.
+        // The tab title is the only field that differs, so it gets the cell, and the full path it
+        // displaces is one hover away in `toolTip` below. `terminal ttys011` when the title says
+        // nothing (Antigravity writes a literal "Terminal" and never updates it): weaker, still
+        // unique, still the string `chute focus` takes. "no project derived" outranks both — a
+        // row Chute cannot place is a fact worth more than telling two such rows apart.
+        let path = SessionTitle.meaningful(s.title, project: s.project)
+            .map { PathAbbrev.name($0, budget: PathAbbrev.defaultBudget) }
+            ?? (s.cwd == nil ? "no project derived" : "terminal \(s.tty)")
 
         // "blocked 22 min" IS THE PRODUCT — the duration is the whole signal a header used to
         // carry. `.idle`/`.unknown` never get a duration: `SessionPhrasing.held` already refuses
